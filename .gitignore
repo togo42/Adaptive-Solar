@@ -1,0 +1,15 @@
+# Local agent configuration and credentials
+/.agents/
+/.codex/
+/.aws/
+.env
+.env.*
+!.env.example
+
+# Editor and operating-system files
+/.idea/
+/.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
