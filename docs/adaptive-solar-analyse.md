@@ -43,7 +43,7 @@ Für jedes Ausgabe-Intervall `[start, end)`:
 ### Datenbasis
 
 - Archivierte Forecast-Punkte (`_archive_result`) mit Features und Baseline.
-- Gemessene Energie-Intervalle aus HA-Recorder (`EnergyIntervalTracker`), nur bei ununterbrochener, nicht abgeregelten Messung.
+- Gemessene Energieintervalle erzeugt `EnergyIntervalTracker` aus kumulativen PV-Zählerberichten über HA-Zustandsereignisse; die Messung muss zusammenhängend und ungedrosselt sein.
 - `join_training()` verknüpft beides: ≥95% Abdeckung, ≤2.5% Randfehler, ≥30 min, ≥95% Messabdeckung, ganze Messstücke ohne Interpolation.
 
 ### Aktivierungsgates
@@ -70,7 +70,7 @@ Für jedes Ausgabe-Intervall `[start, end)`:
 ### Nowcast (≤3 h)
 
 - Separat vom ML: beobachtete Leistung vs. instantane Referenz.
-- Residual mit exponentiellem Decay (0.75 h Halbwertszeit) auf nächste Intervalle.
+- Residual mit exponentiellem Decay (0,75 h Zeitkonstante; Halbwertszeit etwa 31,2 min) auf nächste Intervalle.
 - **Keine ML-Kalibrierung** der Bounds (werden auf `None` gesetzt).
 
 ### Persistenz
