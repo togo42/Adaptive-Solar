@@ -2,7 +2,7 @@
 
 DOMAIN = "adaptive_solar"
 NAME = "Adaptive Solar"
-VERSION = "0.2.8"
+VERSION = "0.2.9"
 CONF_SITE = "site"
 UPDATE_SECONDS = 300
 WEATHER_CACHE_SECONDS = 3600

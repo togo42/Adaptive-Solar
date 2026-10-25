@@ -125,6 +125,7 @@ class InverterConfig:
     output_type: str = "ac"
     max_output_kw: float | None = None
     dc_loss_fraction: float = 0.0
+    measurement_valid_entity_id: str | None = None
 
     def __post_init__(self):
         _identifier(self.id)
@@ -152,8 +153,12 @@ class InverterConfig:
             object.__setattr__(self, "efficiency", finite_number(
                 0.96 if self.efficiency is None else self.efficiency, "efficiency", 0.000001, 1))
         object.__setattr__(self, "max_output_kw", cap)
-        for entity in (self.power_entity_id, self.energy_entity_id, self.curtailed_entity_id):
+        for entity in (self.power_entity_id, self.energy_entity_id, self.curtailed_entity_id, self.measurement_valid_entity_id):
             _optional_entity(entity)
+        if self.measurement_valid_entity_id is not None and not self.measurement_valid_entity_id.startswith("binary_sensor."):
+            raise ValueError("measurement_valid_entity_id must be a binary_sensor")
+        if self.measurement_valid_entity_id is not None and self.measurement_valid_entity_id == self.curtailed_entity_id:
+            raise ValueError("measurement validity and curtailment require distinct signals")
 
     @property
     def output_cap_w(self) -> float:
@@ -173,6 +178,9 @@ class InverterConfig:
         """Keep old AC JSON/fingerprints exact; DC has no misleading AC keys."""
         entities = {"power_entity_id": self.power_entity_id, "energy_entity_id": self.energy_entity_id,
                     "curtailed_entity_id": self.curtailed_entity_id}
+        if self.measurement_valid_entity_id is not None:
+            # Unset preserves every legacy AC/DC serialized byte and digest.
+            entities["measurement_valid_entity_id"] = self.measurement_valid_entity_id
         if self.output_type == "ac":
             return {"id": self.id, "max_ac_kw": self.max_ac_kw, "efficiency": self.efficiency, **entities}
         return {"id": self.id, "output_type": "dc", "max_output_kw": self.max_output_kw,

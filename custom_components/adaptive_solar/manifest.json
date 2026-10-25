@@ -1,7 +1,7 @@
 {
   "domain": "adaptive_solar",
   "name": "Adaptive Solar",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "config_flow": true,
   "integration_type": "service",
   "iot_class": "cloud_polling",

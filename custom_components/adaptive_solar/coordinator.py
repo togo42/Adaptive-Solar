@@ -294,6 +294,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self.input_quality: dict[str, str] = {}
         self._unsub = None
         self._unsub_reports = None
+        self._measurement_valid_since: dict[str, datetime | None] = {}
+        self._measurement_seen_changed: dict[str, datetime] = {}
         self._learner = None
         self._fit_signature = None
         self._closing = False
@@ -405,13 +407,20 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
 
     @callback
     def async_start_tracking(self) -> None:
-        """Track every meter/curtailment event, not merely the refresh samples."""
-        ids = [entity for inv in self.site.inverters for entity in (inv.energy_entity_id, inv.curtailed_entity_id) if entity]
+        """Track original meter/control/validity reports; never synthesize energy."""
+        started = datetime.now(UTC)
+        for inv in self.site.inverters:
+            if inv.measurement_valid_entity_id:
+                state = self.hass.states.get(inv.measurement_valid_entity_id)
+                self._measurement_valid_since[inv.id] = started if self._measurement_flag_valid(state) else None
+                if state is not None:
+                    self._measurement_seen_changed[inv.id] = state.last_changed
+        ids = [entity for inv in self.site.inverters for entity in (inv.energy_entity_id, inv.curtailed_entity_id, inv.measurement_valid_entity_id) if entity]
         if ids:
             self._unsub = async_track_state_change_event(self.hass, ids, self._async_state_changed)
-        energy_ids = [inv.energy_entity_id for inv in self.site.inverters if inv.energy_entity_id]
-        if energy_ids:
-            self._unsub_reports = async_track_state_report_event(self.hass, energy_ids, self._async_state_reported)
+        report_ids = [entity for inv in self.site.inverters for entity in (inv.energy_entity_id, inv.measurement_valid_entity_id) if entity]
+        if report_ids:
+            self._unsub_reports = async_track_state_report_event(self.hass, report_ids, self._async_state_reported)
         # Wait for the first actual numeric meter event before anchoring. A
         # pre-existing HA state may predate setup and its earlier interval has
         # no monitored availability/curtailment evidence.
@@ -423,6 +432,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         entity = event.data["entity_id"]
         now = event.time_fired.astimezone(UTC)
         for inv in self.site.inverters:
+            if entity == inv.measurement_valid_entity_id:
+                self._measurement_flag_report(inv, event.data.get("new_state"), now)
             if entity == inv.curtailed_entity_id and not self._curtailment_safe(inv):
                 self.tracker.invalidate(inv.id)
             if entity == inv.energy_entity_id:
@@ -447,9 +458,50 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         # The timestamp captured in this event is the actual report boundary.
         stamp = event.data["last_reported"]
         for inv in self.site.inverters:
+            if entity == inv.measurement_valid_entity_id:
+                self._measurement_flag_report(inv, event.data.get("new_state"), max(now, stamp.astimezone(UTC)))
             if entity == inv.energy_entity_id:
                 self._record_energy(inv, event.data["new_state"], now, reported_at=stamp)
         self._schedule_save()
+
+    @staticmethod
+    def _measurement_flag_valid(state) -> bool:
+        return state is not None and state.state == "on" and not state.attributes.get("restored")
+
+    def _measurement_validity(self, inv) -> str:
+        if not inv.measurement_valid_entity_id:
+            return "not_configured"
+        state = self.hass.states.get(inv.measurement_valid_entity_id)
+        if self._measurement_flag_valid(state):
+            return "valid"
+        return "invalid" if state is not None and state.state in ("on", "off") else "unknown"
+
+    def _measurement_flag_report(self, inv, state, received: datetime) -> None:
+        # Use the event's state, not a newer state already in hass.states: an
+        # off/on burst must retain the invalidation independently of ordering.
+        if not self._measurement_flag_valid(state):
+            self._measurement_valid_since[inv.id] = None
+            self.tracker.anchors.pop(inv.id, None)
+            self.tracker.invalidate(inv.id, "measurement_validity_invalidated")
+        elif self._measurement_valid_since.get(inv.id) is None:
+            self._measurement_valid_since[inv.id] = received
+        if state is not None:
+            self._measurement_seen_changed[inv.id] = state.last_changed
+        self.input_quality[f"measurement_valid_{inv.id}"] = self._measurement_validity(inv)
+
+    def _measurement_since(self, inv) -> datetime | None:
+        """Original reports must follow monitoring startup and latest recovery.
+
+        Flag on asserts that the external adapter has already resynchronized
+        its original counter; it is neither an energy report nor curtailment.
+        A cached state cannot establish an unmonitored measurement interval.
+        """
+        state = self.hass.states.get(inv.measurement_valid_entity_id)
+        since = self._measurement_valid_since.get(inv.id)
+        if (not self._measurement_flag_valid(state) or since is None
+                or state.last_changed != self._measurement_seen_changed.get(inv.id)):
+            return None  # a newer on transition is not processed/qualified yet
+        return since
 
     def _curtailment_safe(self, inv) -> bool:
         if not inv.curtailed_entity_id:
@@ -459,6 +511,12 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
 
     def _record_energy(self, inv, state, now: datetime, *, reported_at: datetime | None = None) -> None:
         stamp = reported_at or (state.last_updated.astimezone(UTC) if state is not None else now)
+        if inv.measurement_valid_entity_id:
+            since = self._measurement_since(inv)
+            if since is None or stamp <= since:
+                self.tracker.anchors.pop(inv.id, None)
+                self.tracker.invalidate(inv.id, "blocked_measurement_invalid" if since is None else "counter_predates_measurement_valid")
+                return
         value = state_number(state, now, "energy", reported_at=stamp)
         interval = self.tracker.record(inv.id, stamp, value, self._curtailment_safe(inv), inv.output_cap_w, observed_at=now)
         if interval is not None:
@@ -508,6 +566,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             control = self.hass.states.get(inv.curtailed_entity_id) if inv.curtailed_entity_id else None
             control_state = "not_configured" if not inv.curtailed_entity_id else "clear" if control is not None and control.state == "off" else "active" if control is not None and control.state == "on" else "unknown"
             self.input_quality[f"curtailment_{inv.id}"] = control_state
+            if inv.measurement_valid_entity_id:
+                self.input_quality[f"measurement_valid_{inv.id}"] = self._measurement_validity(inv)
             if control_state in ("active", "unknown"):
                 # This timestamps the control decision at issue, not a fabricated
                 # power measurement. Its value is independently unavailable.
@@ -522,9 +582,19 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             # require a genuinely newer HA power report, never a poll time.
             predates_clear = (power is not None and control_state == "clear"
                               and power_time <= control.last_changed)
+            measurement_ignored = None
+            if inv.measurement_valid_entity_id:
+                since = self._measurement_since(inv)
+                if since is None:
+                    measurement_ignored = "ignored:measurement_invalid_or_not_monitored"
+                elif power_time is not None and power_time <= since:
+                    measurement_ignored = "ignored:predates_measurement_valid"
+                if measurement_ignored:
+                    power = None
             if inv.power_entity_id:
-                self.input_quality[f"power_{inv.id}"] = ("ignored:predates_curtailment_clear" if predates_clear else
-                    "valid" if power is not None else "missing_stale_or_invalid")
+                self.input_quality[f"power_{inv.id}"] = (measurement_ignored or
+                    ("ignored:predates_curtailment_clear" if predates_clear else
+                     "valid" if power is not None else "missing_stale_or_invalid"))
             # Environmental readings carry their original timestamps separately:
             # refreshing a recent temperature must not freshen an old power value.
             if power is not None:
@@ -555,8 +625,18 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             state = self.hass.states.get(inv.energy_entity_id) if inv.energy_entity_id else None
             source = ("not_configured" if not inv.energy_entity_id else "valid_reported_state"
                       if state_number(state, now, "energy") is not None else "missing_stale_restored_or_invalid")
+            validity = self._measurement_validity(inv)
+            if inv.measurement_valid_entity_id:
+                since = self._measurement_since(inv)
+                if since is None:
+                    source = "blocked_measurement_invalid_or_not_monitored"
+                elif state is None or state.last_reported <= since:
+                    source = "awaiting_report_after_measurement_valid"
             meter_quality[inv.id] = {
-                "energy_source": source, "curtailment_source_configured": bool(inv.curtailed_entity_id),
+                "energy_source": source, "measurement_validity": validity,
+                "measurement_validity_source_configured": bool(inv.measurement_valid_entity_id),
+                "measurement_validity_scope": "current_external_input_not_curtailment_or_interval_proof",
+                "curtailment_source_configured": bool(inv.curtailed_entity_id),
                 "curtailment_safe_at_issue": self._curtailment_safe(inv),
                 "anchor_present": inv.id in self.tracker.anchors,
                 "pending_invalidation": inv.id in self.tracker.dirty,

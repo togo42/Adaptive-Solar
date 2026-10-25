@@ -27,9 +27,10 @@
           "curtailed_entity_id": "Curtailment active (on = curtailed, optional)",
           "add_another": "Add another after existing items",
           "remove": "Remove this item",
-          "output_type": "Physical output measurement boundary"
+          "output_type": "Physical output measurement boundary",
+          "measurement_valid_entity_id": "Measurement source valid (optional: only on permits measurements)"
         },
-        "description": "AC inverter output. Switching to DC clears prior sensor bindings; choose the DC meters in the next form."
+        "description": "AC inverter output. Switching to DC clears prior sensor bindings; choose the DC meters in the next form. Optional validity input: only on permits new original measurement reports; off, unknown, unavailable or missing blocks measurements. This is separate from curtailment. New reports are required after recovery; available-potential forecasts remain."
       },
       "string": {
         "title": "PV string",
@@ -48,7 +49,7 @@
       },
       "dc_inverter": {
         "title": "DC solar charge controller",
-        "description": "Measurement boundary: DC output of the MPPT solar charge controller. Power and yield meters must measure this PV output, excluding battery current from other sources. DC losses are additional to string losses. Connected strings share one controller limit.",
+        "description": "Measurement boundary: DC output of the MPPT solar charge controller. Power and yield meters must measure this PV output, excluding battery current from other sources. DC losses are additional to string losses. Connected strings share one controller limit. Optional validity input: only on permits new original measurement reports; off, unknown, unavailable or missing blocks measurements. This is separate from curtailment. New reports are required after recovery; available-potential forecasts remain.",
         "data": {
           "id": "Stable identifier",
           "output_type": "Physical output measurement boundary",
@@ -58,7 +59,8 @@
           "energy_entity_id": "Cumulative PV yield at the DC controller output (optional)",
           "curtailed_entity_id": "DC controller curtailment active (optional)",
           "add_another": "Add another output stage",
-          "remove": "Remove this output stage"
+          "remove": "Remove this output stage",
+          "measurement_valid_entity_id": "Measurement source valid (optional: only on permits measurements)"
         }
       }
     },
@@ -96,9 +98,10 @@
           "curtailed_entity_id": "Curtailment active (on = curtailed, optional)",
           "add_another": "Add another after existing items",
           "remove": "Remove this item",
-          "output_type": "Physical output measurement boundary"
+          "output_type": "Physical output measurement boundary",
+          "measurement_valid_entity_id": "Measurement source valid (optional: only on permits measurements)"
         },
-        "description": "AC inverter output. Switching to DC clears prior sensor bindings; choose the DC meters in the next form."
+        "description": "AC inverter output. Switching to DC clears prior sensor bindings; choose the DC meters in the next form. Optional validity input: only on permits new original measurement reports; off, unknown, unavailable or missing blocks measurements. This is separate from curtailment. New reports are required after recovery; available-potential forecasts remain."
       },
       "string": {
         "title": "PV string",
@@ -117,7 +120,7 @@
       },
       "dc_inverter": {
         "title": "DC solar charge controller",
-        "description": "Measurement boundary: DC output of the MPPT solar charge controller. Power and yield meters must measure this PV output, excluding battery current from other sources. DC losses are additional to string losses. Connected strings share one controller limit.",
+        "description": "Measurement boundary: DC output of the MPPT solar charge controller. Power and yield meters must measure this PV output, excluding battery current from other sources. DC losses are additional to string losses. Connected strings share one controller limit. Optional validity input: only on permits new original measurement reports; off, unknown, unavailable or missing blocks measurements. This is separate from curtailment. New reports are required after recovery; available-potential forecasts remain.",
         "data": {
           "id": "Stable identifier",
           "output_type": "Physical output measurement boundary",
@@ -127,7 +130,8 @@
           "energy_entity_id": "Cumulative PV yield at the DC controller output (optional)",
           "curtailed_entity_id": "DC controller curtailment active (optional)",
           "add_another": "Add another output stage",
-          "remove": "Remove this output stage"
+          "remove": "Remove this output stage",
+          "measurement_valid_entity_id": "Measurement source valid (optional: only on permits measurements)"
         }
       }
     },

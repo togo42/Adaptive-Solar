@@ -203,6 +203,7 @@ class AdaptiveSolarSensor(CoordinatorEntity, SensorEntity):
                       ("wind", self.coordinator.site.wind_entity_id),
                       ("irradiance", self.coordinator.site.irradiance_entity_id)]
         configured.extend((f"power_{inv.id}", inv.power_entity_id) for inv in self._inverters())
+        configured.extend((f"measurement_valid_{inv.id}", inv.measurement_valid_entity_id) for inv in self._inverters())
         if curtailment == "unknown" or any(entity and inputs.get(key) != "valid" for key, entity in configured):
             return "degraded", coverage
         if self.coordinator.site.irradiance_entity_id:

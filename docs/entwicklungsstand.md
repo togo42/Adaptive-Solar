@@ -1,24 +1,26 @@
 # Entwicklungsstand und offene Nachweise
 
-Stand: 25.10.2026. **Nach dem Betreiberupdate auf Core 2026.10.4 geprüft: Adaptive Solar 0.2.7, vier geladene Anlageneinträge mit aktuellen Prognosekurven.** Lokale Kompatibilität des Entwicklungsstands 0.2.8 ist ebenfalls geprüft. Produktiver ML-Fit und bessere Prognosegüte bleiben offen.
+Stand: 25.10.2026. **Nach dem Betreiberupdate auf Core 2026.10.4 geprüft: Adaptive Solar 0.2.7, vier geladene Anlageneinträge mit aktuellen Prognosekurven.** Lokale Kompatibilität des Entwicklungsstands 0.2.9 ist ebenfalls geprüft; sein neuer Grok-Review steht aus. Produktiver ML-Fit und bessere Prognosegüte bleiben offen.
 
 ## 1. Implementierung und Prüfung
 
-[Verträge](implementation-contract.md), [Review](review-findings.md). Implementierung durch drei Subagenten mit hohem Aufwand.
+[Verträge](implementation-contract.md), [Review](review-findings.md). Implementierung durch Subagenten mit hohem Aufwand.
 
-Je **752 Tests bestanden**, null übersprungen: HA2026.10.2/Plugin0.13.373 und HA2026.10.3/Plugin0.13.374, Python3.14.4, normale Wheel-Installation. JUnit: `artifacts/tests-0.2.7-ha-2026.10.2.xml`/`.3.xml`. Sieben Kernmodule unverändert zu0.2.6; dessen231 Musl-Kerntests sind über `artifacts/core-compatibility-0.2.7.json` gebunden, kein neuer Musl-Lauf. Je73 gezielte AC-/DC-/Filtertests ergänzen dies. Ruff/Dependency-/Paket-/Importprüfungen bestanden; GitHub-Workflow hier nicht ausgeführt. Historische Details liegen im lokalen Archiv `artifacts/releases/0.2.7-reviewed/source/docs/entwicklungsstand.md`.
+**Lokaler Kandidat 0.2.9:** optionaler generischer Messgültigkeitseingang für jede AC-/DC-Stufe. Ohne Bindung bleiben alte JSON-Daten und Fingerprints erhalten; gesetzte Quellen trennen die Messprovenienz. Physik und Umweltdaten bleiben bei Messausfällen verfügbar. [Messgültigkeitsvertrag und Grenzen](measurement-validity.md).
 
-**Lokaler Korrekturstand 0.2.8:** normale Wheel-Installation, Python 3.14.4/glibc; jeweils 814 Tests bestanden, null übersprungen:
+| HA Core | Testplugin | Bestandene Tests | Laufzeit |
+|---|---|---:|---:|
+| 2026.10.2 | 0.13.373 | 852 | 92,17 s |
+| 2026.10.3 | 0.13.374 | 852 | 92,15 s |
+| 2026.10.4 | 0.13.375 | 852 | 92,70 s |
 
-| HA Core | Testplugin | Laufzeit |
-|---|---|---:|
-| 2026.10.2 | 0.13.373 | 83,84 s |
-| 2026.10.3 | 0.13.374 | 83,60 s |
-| 2026.10.4 | 0.13.375 | 80,58 s |
+Null Fehler/Skips; Python 3.14.4/glibc, normale 0.2.9-Wheel-Installation in getrennten Kopien der geprüften Umgebungen. Isolierter Import außerhalb des Repositories, alle 21 installierten Paketdateien und `pip check` je Umgebung geprüft; frühere Umgebungen erhalten. JUnit und Versions-/Hashbelege: `artifacts/compatibility-ha-2026.10.2-0.2.9/` (entsprechend .3/.4). Testextra nun Core .4/Plugin .375. Ruff grün.
 
-JUnit: `artifacts/tests-0.2.8-final-ha-2026.10.2.xml`/`.3.xml` und `artifacts/compatibility-ha-2026.10.4-0.2.8/tests.xml`. Der zusätzliche .4-Lauf nutzt eine frische Umgebung mit offiziellen Core-Constraints; Paketimport außerhalb des Repositories, alle 21 installierten Paketdateien, Ruff und `pip check` sind geprüft. Ein lokaler `/tmp`-Platzmangel beim ersten Installationsversuch wurde durch die neue Umgebung auf dem Projekt-Datenträger umgangen; bestehende Umgebungen/Belege blieben erhalten.
+26 neue Messgültigkeitsfälle; acht zusätzliche unabhängige native HA-.3-Gegenfälle ohne zwingende Findings. Zwölf native HA-.4-Integrator-/Template-Fälle umfassen elf normale Sicherheitsfälle und einen ausdrücklich reproduzierten `update_entity`-Gegenfall. Ein bestandener Gegenfalltest belegt die dokumentierte Grenze, keine Sicherheit dieses Pollpfads. Lokale Belege: `data/measurement-quality-audit-20261025/`, `data/integrated-source-validity-20261025/`. Kein produktiver Eingriff/Ausfalltest.
 
-Enger As-of-Join-Fix mit zusätzlichen Grenz-/Duplikat-/Diagnostikfällen; Messgates und Fit-Filter unverändert. Hinzu kommen strengere Reviewtransportprüfungen einschließlich 137 gezielter Fälle. Sieben Modellkernmodule sind unverändert. Die beiden 0.2.8-Wheels unterscheiden sich ausschließlich in ZIP-Zeitstempeln; alle Nutzdaten sowie die 21 Komponenten im Installations-ZIP sind bytegleich (`artifacts/package-validation-0.2.8-final.json`). Kein neuer Musl-Lauf. Produktiv bleibt Integrationsversion 0.2.7.
+Von sieben Kernmodulen ändert sich nur die Datenklasse um das optionale Feld; Physik-/Lernalgorithmen und Binärabhängigkeiten bleiben unverändert. ZIP und Wheel sind mit allen 21 Komponenten verglichen (`artifacts/package-source-validation-0.2.9.json`). Buildbackend setuptools 84.2.1 in isolierter Umgebung. Kein neuer Musl-Lauf und kein nativer produktiver 0.2.9-Fit behauptet. Neuer Grok-Review steht aus.
+
+Historische Stände bleiben getrennt: 0.2.8 je 814 Tests und positiver Implementierungsreview im gebundenen Commit `0285445`; 0.2.7 je 752 Tests und installierter Stand. Der ursprüngliche 231er-Musl-Nachweis betrifft die damalige Kernfassung, nicht die neue Datenklasse. Unveränderliche Quellen/Belege unter `artifacts/releases/0.2.7-reviewed/` und `artifacts/releases/0.2.8-implementation-20261025T132350Z/`.
 
 ## 2. Live-Stand und Grenzen
 

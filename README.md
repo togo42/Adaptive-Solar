@@ -8,7 +8,7 @@
 
 Wetterprognosen, PV-Physik und lokale Residualmodelle für Resttag und nächste sieben Tage: unterschiedliche Stringausrichtungen, gemeinsame AC-/DC-Ausgabestufen und wiederkehrende Verschattung. Frische HA-Temperatur/Windwerte, optional Ecowitt-Globalstrahlung und geeignete PV-Leistung unterstützen den kurzfristigen Nowcast.
 
-**Stand, 25.10.2026:** **0.2.7 installiert**, vier Anlageneinträge liefern unter Core **2026.10.4** Prognosen. Der Quellstand **0.2.8** behebt einen im Nachreview gefundenen As-of-Fehler des Trainingsjoins; sein gebundener Implementierungsreview durch **Grok 4.7/high** ist ohne Findings abgeschlossen ([Reviewumfang](docs/review-findings.md)). Je **814 Tests** mit Core 2026.10.2, .3 und .4 bestanden. Produktiver ML-Fit und Überlegenheit gegenüber Helios und Open-Meteo Solar sind offen. [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
+**Stand, 25.10.2026:** **0.2.7 installiert**, vier Anlageneinträge liefern unter Core **2026.10.4** Prognosen. Quellstand **0.2.9** ergänzt eine optionale Messgültigkeitsquelle für Lernen und Power-Nowcast; je **852 Tests** mit Core 2026.10.2, .3 und .4 bestanden. Sein neuer Grok-Review steht aus; der gebundene Implementierungsreview von 0.2.8 durch **Grok 4.7/high** ist ohne Findings abgeschlossen ([Reviewumfang](docs/review-findings.md)). Produktiver ML-Fit und Überlegenheit gegenüber Helios und Open-Meteo Solar sind offen. [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
 
 ## Funktionsweise
 
@@ -22,13 +22,15 @@ Herstellerunabhängige String-/Stufenkonfiguration, optionale HA-Sensoren: keine
 
 ## Einrichtung
 
-HA-Ziele **2026.10.2/.3**, Python ab3.13. `custom_components/adaptive_solar` in die HA-Konfiguration kopieren. **HAOS/amd64:** [Musl-Bauweg](docs/haos-installation.md) für `scikit-learn==1.9.1` beachten.
+Geprüfte HA-Ziele **2026.10.2/.3/.4** mit Python 3.14; der HA-unabhängige Modellkern unterstützt Python ab 3.13. `custom_components/adaptive_solar` in die HA-Konfiguration kopieren. **HAOS/amd64:** [Musl-Bauweg](docs/haos-installation.md) für `scikit-learn==1.9.1` beachten.
 
 Nach Neustart: **Einstellungen → Geräte & Dienste → Integration hinzufügen → Adaptive Solar**. Einrichtung, Prognoseausgabe, Persistenz und Optionsänderung sind live geprüft; produktives Training mit qualifizierter Messhistorie steht noch aus.
 
 Je String kWp, Neigung, Azimut und Verluste: **0°N/90°O/180°S/270°W**. AC: Wirkungsgrad/AC-Grenze; DC: nominelle Ausgangsgrenze/optionaler Zusatzverlust, keine spannungsunabhängige Hardwaregarantie. Fiktive [AC-](examples/site.json)/[DC-Beispiele](examples/site-dc.json); Details im Implementierungsvertrag.
 
 Lernen braucht kumulative PV-Energie am richtigen Messpunkt, Nowcast Leistung in W. Keine Zählermehrfachbindung an unabhängige Stufen; Netzbilanz/Batterieentladung sind keine PV-Produktion. Mindestens95% Messabdeckung/höchstens2,5% Randlücke; `training_quality` erklärt Ablehnungen. Energieintegrale, Verfügbarkeit und Abregelung separat qualifizieren; HA-Empfang allein genügt nicht.
+
+Optional kann je Stufe ein [Messgültigkeitssignal](docs/measurement-validity.md) ungültige Energie- und Leistungsdaten sperren. Es ersetzt kein Abregelungssignal. Bei aus mehreren Leistungen berechneter Energie muss der externe Qualitätsadapter alle benötigten Originalquellen prüfen; ursprüngliche Zähler und echte Nullberichte bleiben erhalten.
 
 Optionales GHI verlangt echte horizontale W/m², Frische und geeigneten Sonnenstand. Lücken bleiben fehlend; Modelle entstehen aus lokalen Zeilen, nicht ausführbaren Dateien.
 

@@ -27,9 +27,10 @@
           "curtailed_entity_id": "Abregelung aktiv (an = abgeregelt, optional)",
           "add_another": "Nach vorhandenen Einträgen weiteren hinzufügen",
           "remove": "Diesen Eintrag entfernen",
-          "output_type": "Physische Ausgabemessgrenze"
+          "output_type": "Physische Ausgabemessgrenze",
+          "measurement_valid_entity_id": "Messquelle gültig (optional: nur on erlaubt Messungen)"
         },
-        "description": "AC-Ausgang eines Wechselrichters. Beim Wechsel auf DC werden bisherige Sensorbindungen verworfen und im folgenden DC-Formular neu ausgewählt."
+        "description": "AC-Ausgang eines Wechselrichters. Beim Wechsel auf DC werden bisherige Sensorbindungen verworfen und im folgenden DC-Formular neu ausgewählt. Optionaler Gültigkeitseingang: Nur on erlaubt neue Originalmessberichte; off, unknown, unavailable oder fehlend sperren Messungen. Kein Abregelungssignal. Nach Wiederfreigabe sind neue Berichte nötig; Prognose des verfügbaren Potenzials bleibt bestehen."
       },
       "string": {
         "title": "PV-String",
@@ -48,7 +49,7 @@
       },
       "dc_inverter": {
         "title": "DC-Solarladeregler",
-        "description": "Messgrenze: DC-Ausgang des MPPT-Solarladereglers. Leistung und Ertragszähler müssen genau diesen PV-Ausgang messen, ohne Batteriestrom anderer Quellen. Die DC-Verluste gelten zusätzlich zu den Stringverlusten. Alle angeschlossenen Strings teilen eine Controllergrenze.",
+        "description": "Messgrenze: DC-Ausgang des MPPT-Solarladereglers. Leistung und Ertragszähler müssen genau diesen PV-Ausgang messen, ohne Batteriestrom anderer Quellen. Die DC-Verluste gelten zusätzlich zu den Stringverlusten. Alle angeschlossenen Strings teilen eine Controllergrenze. Optionaler Gültigkeitseingang: Nur on erlaubt neue Originalmessberichte; off, unknown, unavailable oder fehlend sperren Messungen. Kein Abregelungssignal. Nach Wiederfreigabe sind neue Berichte nötig; Prognose des verfügbaren Potenzials bleibt bestehen.",
         "data": {
           "id": "Stabile Kennung",
           "output_type": "Physische Ausgabemessgrenze",
@@ -58,7 +59,8 @@
           "energy_entity_id": "Kumulativer PV-Ertrag am DC-Reglerausgang (optional)",
           "curtailed_entity_id": "Abregelung des DC-Reglers aktiv (optional)",
           "add_another": "Weitere Ausgabestufe hinzufügen",
-          "remove": "Diese Ausgabestufe entfernen"
+          "remove": "Diese Ausgabestufe entfernen",
+          "measurement_valid_entity_id": "Messquelle gültig (optional: nur on erlaubt Messungen)"
         }
       }
     },
@@ -96,9 +98,10 @@
           "curtailed_entity_id": "Abregelung aktiv (an = abgeregelt, optional)",
           "add_another": "Nach vorhandenen Einträgen weiteren hinzufügen",
           "remove": "Diesen Eintrag entfernen",
-          "output_type": "Physische Ausgabemessgrenze"
+          "output_type": "Physische Ausgabemessgrenze",
+          "measurement_valid_entity_id": "Messquelle gültig (optional: nur on erlaubt Messungen)"
         },
-        "description": "AC-Ausgang eines Wechselrichters. Beim Wechsel auf DC werden bisherige Sensorbindungen verworfen und im folgenden DC-Formular neu ausgewählt."
+        "description": "AC-Ausgang eines Wechselrichters. Beim Wechsel auf DC werden bisherige Sensorbindungen verworfen und im folgenden DC-Formular neu ausgewählt. Optionaler Gültigkeitseingang: Nur on erlaubt neue Originalmessberichte; off, unknown, unavailable oder fehlend sperren Messungen. Kein Abregelungssignal. Nach Wiederfreigabe sind neue Berichte nötig; Prognose des verfügbaren Potenzials bleibt bestehen."
       },
       "string": {
         "title": "PV-String",
@@ -117,7 +120,7 @@
       },
       "dc_inverter": {
         "title": "DC-Solarladeregler",
-        "description": "Messgrenze: DC-Ausgang des MPPT-Solarladereglers. Leistung und Ertragszähler müssen genau diesen PV-Ausgang messen, ohne Batteriestrom anderer Quellen. Die DC-Verluste gelten zusätzlich zu den Stringverlusten. Alle angeschlossenen Strings teilen eine Controllergrenze.",
+        "description": "Messgrenze: DC-Ausgang des MPPT-Solarladereglers. Leistung und Ertragszähler müssen genau diesen PV-Ausgang messen, ohne Batteriestrom anderer Quellen. Die DC-Verluste gelten zusätzlich zu den Stringverlusten. Alle angeschlossenen Strings teilen eine Controllergrenze. Optionaler Gültigkeitseingang: Nur on erlaubt neue Originalmessberichte; off, unknown, unavailable oder fehlend sperren Messungen. Kein Abregelungssignal. Nach Wiederfreigabe sind neue Berichte nötig; Prognose des verfügbaren Potenzials bleibt bestehen.",
         "data": {
           "id": "Stabile Kennung",
           "output_type": "Physische Ausgabemessgrenze",
@@ -127,7 +130,8 @@
           "energy_entity_id": "Kumulativer PV-Ertrag am DC-Reglerausgang (optional)",
           "curtailed_entity_id": "Abregelung des DC-Reglers aktiv (optional)",
           "add_another": "Weitere Ausgabestufe hinzufügen",
-          "remove": "Diese Ausgabestufe entfernen"
+          "remove": "Diese Ausgabestufe entfernen",
+          "measurement_valid_entity_id": "Messquelle gültig (optional: nur on erlaubt Messungen)"
         }
       }
     },

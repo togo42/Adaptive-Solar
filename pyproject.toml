@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adaptive-solar-ha"
-version = "0.2.8"
+version = "0.2.9"
 description = "Physikalische und lernende Solarprognose für Home Assistant"
 requires-python = ">=3.13"
 dependencies = [
@@ -15,7 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest>=8,<10", "pytest-asyncio>=0.26", "ruff>=0.11"]
-ha-test = ["homeassistant==2026.10.3", "pytest-homeassistant-custom-component==0.13.374"]
+ha-test = ["homeassistant==2026.10.4", "pytest-homeassistant-custom-component==0.13.375"]
 
 [tool.setuptools.packages.find]
 include = ["custom_components.adaptive_solar*"]
