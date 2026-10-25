@@ -64,6 +64,12 @@ availability claims; record the research date and reconcile overlapping summarie
 Use concise, scoped commit messages, for example
 `docs: clarify forecast evaluation metrics`.
 
+Commit relevant changes after appropriate validation, with one commit per
+coherent change. Include its accompanying tests and documentation; preserve
+unrelated work. Do not leave completed repository changes uncommitted. Stage
+explicit file paths and keep private data, credentials and runtime artifacts
+out of Git.
+
 For review, describe changed documents, rationale, supporting sources, and validation performed. Link relevant issues when available; include screenshots only for rendering changes.
 
 ## Agent & Configuration Guidance
