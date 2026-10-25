@@ -1,0 +1,13 @@
+"""Shared integration constants (without Home Assistant imports)."""
+
+DOMAIN = "adaptive_solar"
+NAME = "Adaptive Solar"
+VERSION = "0.2.8"
+CONF_SITE = "site"
+UPDATE_SECONDS = 300
+WEATHER_CACHE_SECONDS = 3600
+SENSOR_MAX_AGE_SECONDS = 900
+MAX_ENERGY_GAP_SECONDS = 900
+RETENTION_DAYS = 120
+MAX_ARCHIVE_ROWS = 60000
+MAX_TRAINING_ROWS = 30000

@@ -13,3 +13,17 @@
 *~
 .DS_Store
 Thumbs.db
+
+# Python and local forecast data
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+/data/
+/artifacts/
+/reviews/private/
+/.coverage

@@ -1,5 +1,7 @@
 # Solar-Prognosemodelle und ML-Verbesserungen – Umfassende Recherche
 
+> Umsetzung ab 24.10.2026: [Adaptive Solar](README.md). Literaturmetriken in dieser Recherche sind kein Genauigkeitsnachweis für die neue Implementierung; siehe [Validierungsplan](docs/validierung.md).
+
 > **Stand:** Oktober 2026 | **Fokus:** Nur privat kostenlos nutzbare Ressourcen (Open Source, kostenlose Tiers, öffentliche Daten)
 > **Projekt:** prognosemodelle
 

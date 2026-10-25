@@ -1,5 +1,7 @@
 # Frei nutzbare Solar-Prognosemodelle und Tools für private Anwendungen
 
+> Die darauf aufbauende [HA-Implementierung Adaptive Solar](README.md) wird separat [validiert](docs/validierung.md). Ein Vorsprung gegenüber bestehenden Integrationen ist noch nicht nachgewiesen.
+
 > Stand: Oktober 2026 | Recherche: frei nutzbar = kostenlos, open source oder mit kostenlosem Tier für private Nutzung
 
 ---

@@ -1,0 +1,40 @@
+{
+  "latitude": 52.52,
+  "longitude": 13.405,
+  "timezone": "Europe/Berlin",
+  "forecast_days": 7,
+  "weather_models": ["best_match", "ecmwf_ifs025"],
+  "strings": [
+    {
+      "id": "east",
+      "inverter_id": "roof",
+      "peak_kw": 3.0,
+      "tilt_deg": 30,
+      "azimuth_deg": 90,
+      "horizon": [
+        {"azimuth_deg": 60, "elevation_deg": 12, "beam_transmission": 0.25},
+        {"azimuth_deg": 120, "elevation_deg": 12, "beam_transmission": 0.25},
+        {"azimuth_deg": 180, "elevation_deg": 0},
+        {"azimuth_deg": 300, "elevation_deg": 0}
+      ]
+    },
+    {
+      "id": "west",
+      "inverter_id": "roof",
+      "peak_kw": 3.0,
+      "tilt_deg": 30,
+      "azimuth_deg": 270
+    },
+    {
+      "id": "south",
+      "inverter_id": "balcony",
+      "peak_kw": 0.8,
+      "tilt_deg": 60,
+      "azimuth_deg": 180
+    }
+  ],
+  "inverters": [
+    {"id": "roof", "max_ac_kw": 4.6},
+    {"id": "balcony", "max_ac_kw": 0.8}
+  ]
+}

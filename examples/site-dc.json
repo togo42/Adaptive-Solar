@@ -1,0 +1,31 @@
+{
+  "latitude": 52.52,
+  "longitude": 13.405,
+  "timezone": "Europe/Berlin",
+  "forecast_days": 1,
+  "weather_models": ["best_match"],
+  "strings": [
+    {
+      "id": "facade",
+      "inverter_id": "controller",
+      "peak_kw": 2.2,
+      "tilt_deg": 80,
+      "azimuth_deg": 170
+    },
+    {
+      "id": "roof",
+      "inverter_id": "controller",
+      "peak_kw": 2.8,
+      "tilt_deg": 25,
+      "azimuth_deg": 185
+    }
+  ],
+  "inverters": [
+    {
+      "id": "controller",
+      "output_type": "dc",
+      "max_output_kw": 2.5,
+      "dc_loss_fraction": 0.02
+    }
+  ]
+}

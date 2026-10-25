@@ -1,0 +1,10 @@
+get_reference_forecasts:
+  name: Read native reference forecasts
+  description: Read native Energy Wh forecasts from explicitly selected loaded Helios or Open-Meteo Solar entries without refreshing them or changing Energy preferences.
+  fields:
+    config_entry_ids:
+      name: Reference entries
+      description: Explicit JSON list of loaded Helios or Open-Meteo Solar configuration entry IDs (maximum 16).
+      required: true
+      selector:
+        object: {}

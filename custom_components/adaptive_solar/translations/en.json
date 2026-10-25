@@ -1,0 +1,191 @@
+{
+  "title": "Adaptive Solar",
+  "config": {
+    "step": {
+      "site": {
+        "title": "Site",
+        "data": {
+          "latitude": "Latitude",
+          "longitude": "Longitude",
+          "timezone": "IANA time zone",
+          "weather_models": "Open-Meteo models",
+          "forecast_days": "Forecast days",
+          "temperature_entity_id": "Outdoor temperature sensor (optional)",
+          "wind_entity_id": "Outdoor wind speed sensor (optional)",
+          "irradiance_entity_id": "Outdoor horizontal global irradiance (optional, unshaded)"
+        },
+        "description": "Free Open-Meteo API for private noncommercial use. Existing inverters and strings are shown sequentially when editing."
+      },
+      "inverter": {
+        "title": "Inverter",
+        "data": {
+          "id": "Stable identifier",
+          "max_ac_kw": "Inverter AC limit",
+          "efficiency": "Inverter efficiency (0–1)",
+          "power_entity_id": "PV power at the AC inverter output (optional)",
+          "energy_entity_id": "Cumulative PV yield at the AC inverter output (optional)",
+          "curtailed_entity_id": "Curtailment active (on = curtailed, optional)",
+          "add_another": "Add another after existing items",
+          "remove": "Remove this item",
+          "output_type": "Physical output measurement boundary"
+        },
+        "description": "AC inverter output. Switching to DC clears prior sensor bindings; choose the DC meters in the next form."
+      },
+      "string": {
+        "title": "PV string",
+        "data": {
+          "id": "Stable identifier",
+          "inverter_id": "Connected output stage (inverter/charge controller)",
+          "peak_kw": "Module nameplate capacity",
+          "tilt_deg": "Tilt (0° horizontal)",
+          "azimuth_deg": "Azimuth (0° N, 90° E, 180° S, 270° W)",
+          "loss_fraction": "System loss fraction (0–1)",
+          "temperature_coefficient": "Module power temperature coefficient",
+          "horizon": "Horizon points (direct-beam transmission)",
+          "add_another": "Add another after existing items",
+          "remove": "Remove this item"
+        }
+      },
+      "dc_inverter": {
+        "title": "DC solar charge controller",
+        "description": "Measurement boundary: DC output of the MPPT solar charge controller. Power and yield meters must measure this PV output, excluding battery current from other sources. DC losses are additional to string losses. Connected strings share one controller limit.",
+        "data": {
+          "id": "Stable identifier",
+          "output_type": "Physical output measurement boundary",
+          "max_output_kw": "Charge-controller DC output power limit",
+          "dc_loss_fraction": "Additional DC controller loss fraction (0–1)",
+          "power_entity_id": "PV power after the DC charge controller (optional)",
+          "energy_entity_id": "Cumulative PV yield at the DC controller output (optional)",
+          "curtailed_entity_id": "DC controller curtailment active (optional)",
+          "add_another": "Add another output stage",
+          "remove": "Remove this output stage"
+        }
+      }
+    },
+    "error": {
+      "invalid_timezone": "Invalid time zone or empty model list.",
+      "invalid_inverter": "Invalid output stage, identifier or sensor binding. Each power/yield meter belongs to exactly one output stage.",
+      "at_least_one_inverter": "At least one output stage is required.",
+      "invalid_string": "Invalid string, horizon or mapping. Each output stage needs at least one string."
+    }
+  },
+  "options": {
+    "step": {
+      "site": {
+        "title": "Site",
+        "data": {
+          "latitude": "Latitude",
+          "longitude": "Longitude",
+          "timezone": "IANA time zone",
+          "weather_models": "Open-Meteo models",
+          "forecast_days": "Forecast days",
+          "temperature_entity_id": "Outdoor temperature sensor (optional)",
+          "wind_entity_id": "Outdoor wind speed sensor (optional)",
+          "irradiance_entity_id": "Outdoor horizontal global irradiance (optional, unshaded)"
+        },
+        "description": "Free Open-Meteo API for private noncommercial use. Existing inverters and strings are shown sequentially when editing."
+      },
+      "inverter": {
+        "title": "Inverter",
+        "data": {
+          "id": "Stable identifier",
+          "max_ac_kw": "Inverter AC limit",
+          "efficiency": "Inverter efficiency (0–1)",
+          "power_entity_id": "PV power at the AC inverter output (optional)",
+          "energy_entity_id": "Cumulative PV yield at the AC inverter output (optional)",
+          "curtailed_entity_id": "Curtailment active (on = curtailed, optional)",
+          "add_another": "Add another after existing items",
+          "remove": "Remove this item",
+          "output_type": "Physical output measurement boundary"
+        },
+        "description": "AC inverter output. Switching to DC clears prior sensor bindings; choose the DC meters in the next form."
+      },
+      "string": {
+        "title": "PV string",
+        "data": {
+          "id": "Stable identifier",
+          "inverter_id": "Connected output stage (inverter/charge controller)",
+          "peak_kw": "Module nameplate capacity",
+          "tilt_deg": "Tilt (0° horizontal)",
+          "azimuth_deg": "Azimuth (0° N, 90° E, 180° S, 270° W)",
+          "loss_fraction": "System loss fraction (0–1)",
+          "temperature_coefficient": "Module power temperature coefficient",
+          "horizon": "Horizon points (direct-beam transmission)",
+          "add_another": "Add another after existing items",
+          "remove": "Remove this item"
+        }
+      },
+      "dc_inverter": {
+        "title": "DC solar charge controller",
+        "description": "Measurement boundary: DC output of the MPPT solar charge controller. Power and yield meters must measure this PV output, excluding battery current from other sources. DC losses are additional to string losses. Connected strings share one controller limit.",
+        "data": {
+          "id": "Stable identifier",
+          "output_type": "Physical output measurement boundary",
+          "max_output_kw": "Charge-controller DC output power limit",
+          "dc_loss_fraction": "Additional DC controller loss fraction (0–1)",
+          "power_entity_id": "PV power after the DC charge controller (optional)",
+          "energy_entity_id": "Cumulative PV yield at the DC controller output (optional)",
+          "curtailed_entity_id": "DC controller curtailment active (optional)",
+          "add_another": "Add another output stage",
+          "remove": "Remove this output stage"
+        }
+      }
+    },
+    "error": {
+      "invalid_timezone": "Invalid time zone or empty model list.",
+      "invalid_inverter": "Invalid output stage, identifier or sensor binding. Each power/yield meter belongs to exactly one output stage.",
+      "at_least_one_inverter": "At least one output stage is required.",
+      "invalid_string": "Invalid string, horizon or mapping. Each output stage needs at least one string."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "power": {
+        "name": "Forecast power"
+      },
+      "remaining": {
+        "name": "Forecast remaining today"
+      },
+      "quality": {
+        "name": "Forecast data status",
+        "state": {
+          "complete": "remaining day covered, residual correction active",
+          "mixed": "residual correction partially active",
+          "partial": "remaining day partially covered",
+          "degraded": "current inputs degraded",
+          "physics": "physical fallback model",
+          "curtailed": "curtailment active"
+        }
+      },
+      "day_0": {
+        "name": "Forecast day 0"
+      },
+      "day_1": {
+        "name": "Forecast day 1"
+      },
+      "day_2": {
+        "name": "Forecast day 2"
+      },
+      "day_3": {
+        "name": "Forecast day 3"
+      },
+      "day_4": {
+        "name": "Forecast day 4"
+      },
+      "day_5": {
+        "name": "Forecast day 5"
+      },
+      "day_6": {
+        "name": "Forecast day 6"
+      }
+    }
+  },
+  "selector": {
+    "output_type": {
+      "options": {
+        "ac": "AC inverter output",
+        "dc": "DC solar charge-controller output (MPPT)"
+      }
+    }
+  }
+}

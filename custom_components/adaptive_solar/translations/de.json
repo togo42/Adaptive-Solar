@@ -1,0 +1,191 @@
+{
+  "title": "Adaptive Solar",
+  "config": {
+    "step": {
+      "site": {
+        "title": "Standort",
+        "data": {
+          "latitude": "Breitengrad",
+          "longitude": "Längengrad",
+          "timezone": "IANA-Zeitzone",
+          "weather_models": "Open-Meteo-Modelle",
+          "forecast_days": "Prognosetage",
+          "temperature_entity_id": "Außentemperatursensor (optional)",
+          "wind_entity_id": "Windgeschwindigkeit außen (optional)",
+          "irradiance_entity_id": "Horizontale Globalstrahlung außen (optional, unverschattet)"
+        },
+        "description": "Nur private, nichtkommerzielle Nutzung der kostenlosen Open-Meteo-API. Bestehende Wechselrichter und Strings werden beim Bearbeiten nacheinander angezeigt."
+      },
+      "inverter": {
+        "title": "Wechselrichter",
+        "data": {
+          "id": "Stabile Kennung",
+          "max_ac_kw": "AC-Leistungsgrenze des Wechselrichters",
+          "efficiency": "Wechselrichterwirkungsgrad (0–1)",
+          "power_entity_id": "PV-Leistung am AC-Wechselrichterausgang (optional)",
+          "energy_entity_id": "Kumulativer PV-Ertrag am AC-Wechselrichterausgang (optional)",
+          "curtailed_entity_id": "Abregelung aktiv (an = abgeregelt, optional)",
+          "add_another": "Nach vorhandenen Einträgen weiteren hinzufügen",
+          "remove": "Diesen Eintrag entfernen",
+          "output_type": "Physische Ausgabemessgrenze"
+        },
+        "description": "AC-Ausgang eines Wechselrichters. Beim Wechsel auf DC werden bisherige Sensorbindungen verworfen und im folgenden DC-Formular neu ausgewählt."
+      },
+      "string": {
+        "title": "PV-String",
+        "data": {
+          "id": "Stabile Kennung",
+          "inverter_id": "Angeschlossene Ausgabestufe (Wechselrichter/Laderegler)",
+          "peak_kw": "Modulnennleistung",
+          "tilt_deg": "Neigung (0° waagerecht)",
+          "azimuth_deg": "Azimut (0° N, 90° O, 180° S, 270° W)",
+          "loss_fraction": "Systemverlustanteil (0–1)",
+          "temperature_coefficient": "Temperaturkoeffizient der Modulleistung",
+          "horizon": "Horizontpunkte (Durchlass direkter Strahlung)",
+          "add_another": "Nach vorhandenen Einträgen weiteren hinzufügen",
+          "remove": "Diesen Eintrag entfernen"
+        }
+      },
+      "dc_inverter": {
+        "title": "DC-Solarladeregler",
+        "description": "Messgrenze: DC-Ausgang des MPPT-Solarladereglers. Leistung und Ertragszähler müssen genau diesen PV-Ausgang messen, ohne Batteriestrom anderer Quellen. Die DC-Verluste gelten zusätzlich zu den Stringverlusten. Alle angeschlossenen Strings teilen eine Controllergrenze.",
+        "data": {
+          "id": "Stabile Kennung",
+          "output_type": "Physische Ausgabemessgrenze",
+          "max_output_kw": "DC-Ausgangsleistungsgrenze des Ladereglers",
+          "dc_loss_fraction": "Zusätzlicher DC-Reglerverlustanteil (0–1)",
+          "power_entity_id": "PV-Ausgangsleistung nach dem DC-Laderegler (optional)",
+          "energy_entity_id": "Kumulativer PV-Ertrag am DC-Reglerausgang (optional)",
+          "curtailed_entity_id": "Abregelung des DC-Reglers aktiv (optional)",
+          "add_another": "Weitere Ausgabestufe hinzufügen",
+          "remove": "Diese Ausgabestufe entfernen"
+        }
+      }
+    },
+    "error": {
+      "invalid_timezone": "Zeitzone oder Modellliste ungültig.",
+      "invalid_inverter": "Ausgabestufe, Kennung oder Sensorbindung ungültig. Jeder Leistungs-/Ertragszähler darf genau einer Ausgabestufe zugeordnet werden.",
+      "at_least_one_inverter": "Mindestens eine Ausgabestufe ist erforderlich.",
+      "invalid_string": "Stringdaten, Horizont oder Zuordnung ungültig. Jede Ausgabestufe benötigt mindestens einen String."
+    }
+  },
+  "options": {
+    "step": {
+      "site": {
+        "title": "Standort",
+        "data": {
+          "latitude": "Breitengrad",
+          "longitude": "Längengrad",
+          "timezone": "IANA-Zeitzone",
+          "weather_models": "Open-Meteo-Modelle",
+          "forecast_days": "Prognosetage",
+          "temperature_entity_id": "Außentemperatursensor (optional)",
+          "wind_entity_id": "Windgeschwindigkeit außen (optional)",
+          "irradiance_entity_id": "Horizontale Globalstrahlung außen (optional, unverschattet)"
+        },
+        "description": "Nur private, nichtkommerzielle Nutzung der kostenlosen Open-Meteo-API. Bestehende Wechselrichter und Strings werden beim Bearbeiten nacheinander angezeigt."
+      },
+      "inverter": {
+        "title": "Wechselrichter",
+        "data": {
+          "id": "Stabile Kennung",
+          "max_ac_kw": "AC-Leistungsgrenze des Wechselrichters",
+          "efficiency": "Wechselrichterwirkungsgrad (0–1)",
+          "power_entity_id": "PV-Leistung am AC-Wechselrichterausgang (optional)",
+          "energy_entity_id": "Kumulativer PV-Ertrag am AC-Wechselrichterausgang (optional)",
+          "curtailed_entity_id": "Abregelung aktiv (an = abgeregelt, optional)",
+          "add_another": "Nach vorhandenen Einträgen weiteren hinzufügen",
+          "remove": "Diesen Eintrag entfernen",
+          "output_type": "Physische Ausgabemessgrenze"
+        },
+        "description": "AC-Ausgang eines Wechselrichters. Beim Wechsel auf DC werden bisherige Sensorbindungen verworfen und im folgenden DC-Formular neu ausgewählt."
+      },
+      "string": {
+        "title": "PV-String",
+        "data": {
+          "id": "Stabile Kennung",
+          "inverter_id": "Angeschlossene Ausgabestufe (Wechselrichter/Laderegler)",
+          "peak_kw": "Modulnennleistung",
+          "tilt_deg": "Neigung (0° waagerecht)",
+          "azimuth_deg": "Azimut (0° N, 90° O, 180° S, 270° W)",
+          "loss_fraction": "Systemverlustanteil (0–1)",
+          "temperature_coefficient": "Temperaturkoeffizient der Modulleistung",
+          "horizon": "Horizontpunkte (Durchlass direkter Strahlung)",
+          "add_another": "Nach vorhandenen Einträgen weiteren hinzufügen",
+          "remove": "Diesen Eintrag entfernen"
+        }
+      },
+      "dc_inverter": {
+        "title": "DC-Solarladeregler",
+        "description": "Messgrenze: DC-Ausgang des MPPT-Solarladereglers. Leistung und Ertragszähler müssen genau diesen PV-Ausgang messen, ohne Batteriestrom anderer Quellen. Die DC-Verluste gelten zusätzlich zu den Stringverlusten. Alle angeschlossenen Strings teilen eine Controllergrenze.",
+        "data": {
+          "id": "Stabile Kennung",
+          "output_type": "Physische Ausgabemessgrenze",
+          "max_output_kw": "DC-Ausgangsleistungsgrenze des Ladereglers",
+          "dc_loss_fraction": "Zusätzlicher DC-Reglerverlustanteil (0–1)",
+          "power_entity_id": "PV-Ausgangsleistung nach dem DC-Laderegler (optional)",
+          "energy_entity_id": "Kumulativer PV-Ertrag am DC-Reglerausgang (optional)",
+          "curtailed_entity_id": "Abregelung des DC-Reglers aktiv (optional)",
+          "add_another": "Weitere Ausgabestufe hinzufügen",
+          "remove": "Diese Ausgabestufe entfernen"
+        }
+      }
+    },
+    "error": {
+      "invalid_timezone": "Zeitzone oder Modellliste ungültig.",
+      "invalid_inverter": "Ausgabestufe, Kennung oder Sensorbindung ungültig. Jeder Leistungs-/Ertragszähler darf genau einer Ausgabestufe zugeordnet werden.",
+      "at_least_one_inverter": "Mindestens eine Ausgabestufe ist erforderlich.",
+      "invalid_string": "Stringdaten, Horizont oder Zuordnung ungültig. Jede Ausgabestufe benötigt mindestens einen String."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "power": {
+        "name": "Prognoseleistung"
+      },
+      "remaining": {
+        "name": "Prognose Resttag"
+      },
+      "quality": {
+        "name": "Prognosedatenstatus",
+        "state": {
+          "complete": "Resttag abgedeckt, Residualkorrektur aktiv",
+          "mixed": "Residualkorrektur teilweise aktiv",
+          "partial": "Resttag unvollständig abgedeckt",
+          "degraded": "aktuelle Eingaben eingeschränkt",
+          "physics": "physikalisches Rückfallmodell",
+          "curtailed": "Abregelung aktiv"
+        }
+      },
+      "day_0": {
+        "name": "Prognose Tag 0"
+      },
+      "day_1": {
+        "name": "Prognose Tag 1"
+      },
+      "day_2": {
+        "name": "Prognose Tag 2"
+      },
+      "day_3": {
+        "name": "Prognose Tag 3"
+      },
+      "day_4": {
+        "name": "Prognose Tag 4"
+      },
+      "day_5": {
+        "name": "Prognose Tag 5"
+      },
+      "day_6": {
+        "name": "Prognose Tag 6"
+      }
+    }
+  },
+  "selector": {
+    "output_type": {
+      "options": {
+        "ac": "AC-Wechselrichterausgang",
+        "dc": "DC-Solarladereglerausgang (MPPT)"
+      }
+    }
+  }
+}
