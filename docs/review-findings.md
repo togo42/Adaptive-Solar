@@ -1,6 +1,6 @@
 # Reviewnachweise und fachliche Bearbeitung
 
-Stand: 25.10.2026. Historischer Implementierungsstand **0.2.7** mit positivem Vollreview; der aktuelle Stand **0.2.8** benötigt einen frischen gebundenen Review.
+Stand: 25.10.2026. Historischer Implementierungsstand **0.2.7** mit positivem Vollreview; Implementierungsstand **0.2.8** im Commit `0285445` mit positivem gebundenem Implementierungsreview. Die nachfolgende Statusdokumentation nennt dessen unveränderlichen Umfang.
 
 ## Gebundener Implementierungsreview
 
@@ -12,13 +12,15 @@ Unveränderliche Quellen/Receipts: `artifacts/releases/0.2.7-reviewed/`; maschin
 
 Der spätere79-Dateien-Vollreview ist transportgültig, aber mit **AS-001 (medium)** blockiert: `join_training(as_of=...)` meldete verspätete Beobachtungen als abgelehnt, gab sie jedoch als Samples zurück. Der separate Fit-Filter schloss sie weiterhin aus; kein produktiver Zukunftslabel-Trainingsvorfall ist belegt, Lernbindungen sind leer.
 
-0.2.8 verwirft diese Zeilen vor Samplebau/Deduplizierung; Gleichheit am Stichtag und unvervielfachte Diagnostik bleiben erhalten. Frischer Review erforderlich. Unveränderte Nachlaufquellen/Receipts: `artifacts/releases/0.2.7-status-docs-blocked/`; Payload-SHA256 `6db275e7e2760a4d08561c26a649e3b4f09444ecbc24f0ef9717863af1a81565`.
+0.2.8 verwirft diese Zeilen vor Samplebau/Deduplizierung; Gleichheit am Stichtag und unvervielfachte Diagnostik bleiben erhalten. Der gültige neue Review ist nachfolgend gebunden. Unveränderte Nachlaufquellen/Receipts: `artifacts/releases/0.2.7-status-docs-blocked/`; Payload-SHA256 `6db275e7e2760a4d08561c26a649e3b4f09444ecbc24f0ef9717863af1a81565`.
 
 ## Ungültiger0.2.8-Lauf und aktueller Reviewumfang
 
 Der erste0.2.8-Volltextlauf über79 Originaldateien wurde nativ kompaktiert und ist deshalb **ungültig**, unabhängig von einem möglichen Teilurteil. Sein unveränderliches Archiv liegt unter `artifacts/releases/0.2.8-context-window-invalid/`; Payload-SHA256 `75cc0cfbfded63776fbfa9ab27e0900fc61e50caaa785b3f5aaf7cac9cb0dbc2`.
 
-Der nächste Lauf verwendet das ausdrücklich ausgewiesene Implementierungsprofil: alle aktuellen Code-, Test-, Dokumentations- und Helferdateien vollständig; nur sechs bytegleiche ältere Forschungsdateien sind über den unabhängig erneut validierten positiven0.2.7-Vollreview gebunden. Ihr Text wird im neuen Lauf nicht erneut gelesen. Der aktuelle Workspace enthält82 öffentliche Textdateien, davon76 vollständige Originale und sechs Forschungsreferenzen. Das PNG-Logo erhält keinen visuellen Review. Strengere Transportprüfungen sichern vollständige Benutzerbytes vor der ersten Modellantwort und die direkte Ausführung der gebundenen CLI-Datei.137 gezielte Tests und unabhängige Reproduktion dieser beiden Grenzen bestanden. Ein erfolgreich abgeschlossener aktueller Review steht aus.
+Der neue Lauf nutzte das ausdrücklich ausgewiesene Implementierungsprofil: alle aktuellen Code-, Test-, Dokumentations- und Helferdateien vollständig; nur sechs bytegleiche ältere Forschungsdateien sind über den unabhängig erneut validierten positiven 0.2.7-Vollreview gebunden. Ihr Text wurde im neuen Lauf nicht erneut gelesen. Der gebundene Workspace enthält 82 öffentliche Textdateien, davon 76 vollständige Originale und sechs Forschungsreferenzen. Das PNG-Logo erhielt keinen visuellen Review. Strengere Transportprüfungen sichern vollständige Benutzerbytes vor der ersten Modellantwort und die direkte Ausführung der gebundenen CLI-Datei. 137 gezielte Tests und unabhängige Reproduktion dieser beiden Grenzen bestanden.
+
+**Gültiger Abschluss:** Grok **4.7/high**, 25.10.2026, 13:25–13:44 UTC, Urteil **mergeable**, null Findings. Ein Modellaufruf, ein vollständiger Benutzereingang vor Modelloutput, ein erfolgreicher nativer Abschlussturn, Exit 0, keine Compaction/Tools/Hintergrundaufgaben. Modell-/Effortbeleg, vollständige Promptbytes, alle Quellen, unveränderliche Referenz und Endantwort wurden zum Abschluss sowie unabhängig erneut geprüft. Payload-SHA256 `85e12e119a548740c46509772d8eeff81700d0a5d674b5f1fba71dec9fbf2bef`; Receipt-SHA256 `48a47133fcae7ce6d1cc0ac8c81674b5b5e99568514d67b9cf8a5f6d1786fdda`. Lokaler Nachweis: `artifacts/review-summary-0.2.8-implementation-20261025.json`, eingefrorene Quellen/Review/native Belege: `artifacts/releases/0.2.8-implementation-20261025T132350Z/`. Dies ist kein erneuter Volltextreview der sechs Forschungstexte.
 
 ## Historische Bearbeitung
 
@@ -28,4 +30,4 @@ Gültige blockierende Vollreviews0.2.0–0.2.6 führten zu Korrekturen an Zeit-/
 
 [Live-Stand und Tests](entwicklungsstand.md): 0.2.7, vier geladene Anlageneinträge unter Core 2026.10.4, aktuelle Prognosekurven geprüft. Entwicklungsstand 0.2.8 mit jeweils 814 bestandenen Tests unter Core .2/.3/.4. Core-ML-Fit auf qualifizierter Messhistorie und fairer prospektiver Vorsprung gegenüber **beiden** Referenzen sind offen. Ein Review belegt keine Prognosegüte.
 
-Archive und rohe Receipts bleiben lokal; die genannten `artifacts/`-Pfade sind keine öffentlichen Downloads. Der veröffentlichte Quellstand 0.2.8 hat noch keinen frischen gebundenen Implementierungsreview.
+Archive und rohe Receipts bleiben lokal; die genannten `artifacts/`-Pfade sind keine öffentlichen Downloads. Die zusätzlich vorbereitete optionale Messgültigkeits-Erweiterung gehört nicht zum geprüften 0.2.8-Stand und benötigt eigene Tests und einen neuen Review.

@@ -34,7 +34,7 @@ Keine Energy-Umschaltung und kein dauerhafter Vergleichsjob. Die gesondert freig
 
 ## 3. GitHub-Erstveröffentlichung
 
-Quellstand **0.2.8**, Dokumentation, Tests, Recherche und Logo werden unter [togo42/Adaptive-Solar](https://github.com/togo42/Adaptive-Solar) bereitgestellt. Die Veröffentlichung ändert keine produktive HA-Installation und ersetzt den ausstehenden Vollreview nicht.
+Quellstand **0.2.8**, Dokumentation, Tests, Recherche und Logo werden unter [togo42/Adaptive-Solar](https://github.com/togo42/Adaptive-Solar) bereitgestellt. Die Veröffentlichung ändert keine produktive HA-Installation. Der anschließend gültig abgeschlossene Implementierungsreview bindet Commit `0285445`, 76 vollständige Originale und sechs unveränderte Forschungsreferenzen; Umfang und Grenzen stehen im [Reviewnachweis](review-findings.md).
 
 Frische lokale Vorprüfung: **758 Tests bestanden**, null übersprungen, 66,75s; Ruff und `pip check` erfolgreich. Der JUnit-Bericht liegt lokal unter `artifacts/github-preflight-tests.xml`. GitHub Actions führt die vorhandene Testsuite nach dem Push separat aus.
 
