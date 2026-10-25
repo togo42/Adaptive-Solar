@@ -43,6 +43,7 @@ def test_utf8_rejects_single_codepoint_wider_than_limit():
     '{"verdict":"mergeable","findings":[{}],"summary":"ok"}',
     '{"verdict":"blocked","findings":[{"id":"X","severity":"high","file":"a.py","line":true,"problem":"x","recommendation":"y"}],"summary":"ok"}',
     'Review follows: {"verdict":"mergeable","findings":[],"summary":"ok"}',
+    '{"verdict":"mergeable","findings":[],"summary":"ok","partial":true}',
 ])
 def test_review_parse_rejects_incomplete_or_ambiguous_receipts(raw):
     with pytest.raises((ValueError, json.JSONDecodeError)):
@@ -81,6 +82,9 @@ import sys
 import time
 
 mode = os.environ.get("FAKE_GROK_MODE", "success")
+if os.environ.get("FAKE_CLI_LOG"):
+    with Path(os.environ["FAKE_CLI_LOG"]).open("a") as log:
+        log.write(json.dumps(sys.argv[1:]) + "\n")
 if "--version" in sys.argv:
     if mode == "version_timeout":
         time.sleep(3)
@@ -105,6 +109,9 @@ session = args[args.index("--session-id" if "--session-id" in args else "--resum
 updates = Path(os.environ["GROK_HOME"]) / "sessions/test-project" / session / "updates.jsonl"
 if mode != "missing_updates":
     updates.parent.mkdir(parents=True, exist_ok=True)
+    (updates.parent / "summary.json").write_text(json.dumps({
+        "current_model_id": "wrong-model" if mode == "wrong_model" else "grok-4.7",
+        "reasoning_effort": "low" if mode == "low_effort" else "high"}))
     previous = [json.loads(line) for line in updates.read_text().splitlines()] if updates.exists() else []
     indices = [row["params"]["update"].get("_meta", {}).get("promptIndex") for row in previous
                if row["params"]["update"]["sessionUpdate"] == "user_message_chunk"]
@@ -130,12 +137,21 @@ if mode != "missing_updates":
         for kind in ("auto_compact_started", "compaction_checkpoint", "auto_compact_completed"):
             rows.append({"timestamp": 1792886400001, "method": "_x.ai/session/update",
                          "params": {"sessionId": session, "update": {"sessionUpdate": kind}}})
+    reply = (re.search(r"OK CHUNK \d+", prompt).group() if prompt.startswith("Store context chunk") else
+             json.dumps({"verdict":"mergeable","findings":[],"summary":"Synthetic transport test only"}))
+    rows.append({"timestamp": 1792886400001, "method": "session/update",
+                 "params": {"sessionId": session, "update": {"sessionUpdate": "agent_thought_chunk",
+                            "content": {"type": "text", "text": "PRIVATE_HISTORY_SENTINEL"}}}})
     rows.append({"timestamp": 1792886400001, "method": "session/update",
                  "params": {"sessionId": session, "update": {"sessionUpdate": "agent_message_chunk",
-                            "content": {"type": "text", "text": "PRIVATE_HISTORY_SENTINEL"}}}})
+                            "content": {"type": "text", "text": reply if mode != "response_mismatch" else
+                                '{"verdict":"mergeable","findings":[],"summary":"different native response"}'}}}})
     rows.append({"timestamp": 1792886400002, "method": "_x.ai/session/update",
                  "params": {"sessionId": session, "update": {"sessionUpdate": "turn_completed",
-                            "prompt_id": f"prompt-{index}", "stop_reason": "end_turn", "usage": {}, "elapsed_ms": 10}}})
+                            "prompt_id": f"prompt-{index}", "stop_reason": "end_turn", "elapsed_ms": 10,
+                            "usage": {"modelCalls": 2 if mode == "extra_model_call" else 1,
+                                      "numTurns": 2 if mode == "extra_turn" else 1,
+                                      "modelUsage": {"wrong-model" if mode == "wrong_usage_model" else "grok-4.7-build": {"modelCalls": 1}}}}}})
     rows.append({"timestamp": 1792886400003, "method": "_x.ai/session/update",
                  "params": {"sessionId": session, "update": {"sessionUpdate": "background_tasks", "tasks": []}}})
     with updates.open("a") as stream:
@@ -147,6 +163,9 @@ if mode != "missing_updates":
         duplicate = updates.parents[2] / "other-project" / session / "updates.jsonl"
         duplicate.parent.mkdir(parents=True)
         duplicate.write_bytes(updates.read_bytes())
+if os.environ.get("FAKE_DRIFT_PATH"):
+    with Path(os.environ["FAKE_DRIFT_PATH"]).open("a") as changed:
+        changed.write(os.environ.get("FAKE_DRIFT_SUFFIX", "\nDRIFT\n"))
 if mode == "prompt_file_change":
     prompt_file.write_bytes(prompt_file.read_bytes() + b"changed")
 if prompt.startswith("Store context chunk"):
@@ -173,11 +192,12 @@ else:
     return root, bin_dir
 
 
-def run_fake(workspace, mode, timeout=10, transport="chunks", extra=()):
+def run_fake(workspace, mode, timeout=10, transport="chunks", extra=(), output_name="test-run", extra_env=None):
     root, bin_dir = workspace
-    output = root / "reviews/private/test-run"
+    output = root / "reviews/private" / output_name
     env = {**os.environ, "PATH": str(bin_dir) + os.pathsep + os.environ.get("PATH", ""), "FAKE_GROK_MODE": mode,
-           "GROK_HOME": str(root.parent / "fake-grok-home")}
+           "GROK_HOME": str(root.parent / "fake-grok-home"),
+           "FAKE_CLI_LOG": str(root / "reviews/private/cli-calls.jsonl"), **(extra_env or {})}
     argv = [sys.executable, str(root / "scripts/review_grok.py"), "--output-dir", str(output),
             "--timeout", str(timeout), *extra]
     if transport is not None:
@@ -269,7 +289,7 @@ def test_default_single_transport_has_one_fresh_session_and_exact_raw_payload(tr
     assert receipt["payload_byte_length"] == len(payload)
     assert receipt["context_audit"]["prompt_sha256"] == [review.digest(payload)]
     assert receipt["context_audit"]["user_chunk_count"] == 2
-    assert receipt["context_audit"]["event_count"] == 5
+    assert receipt["context_audit"]["event_count"] == 6
     assert receipt["context_audit"]["turn_completed_count"] == 1
     assert "PRIVATE_HISTORY_SENTINEL" not in (output / "receipt.json").read_text()
     root, _ = transport_workspace
@@ -290,6 +310,12 @@ def test_default_single_transport_has_one_fresh_session_and_exact_raw_payload(tr
     ("truncated_updates", "truncated"),
     ("duplicate_session", "exactly one"),
     ("prompt_file_change", "Prompt file changed"),
+    ("low_effort", "high reasoning effort"),
+    ("wrong_model", "high reasoning effort"),
+    ("extra_model_call", "one matching native model call"),
+    ("extra_turn", "one matching native model call"),
+    ("wrong_usage_model", "one matching native model call"),
+    ("response_mismatch", "Native final response differs"),
 ])
 def test_successful_cli_exit_cannot_bypass_context_audit(transport_workspace, mode, reason):
     run, receipt, output = run_fake(transport_workspace, mode, transport="single")
@@ -494,3 +520,285 @@ def test_audit_rejects_session_symlinks_instead_of_reading_another_history(conte
     path.symlink_to(real)
     with pytest.raises(ValueError, match="regular, unambiguous"):
         review.audit_context(session, [b"prompt"], grok_home=home)
+
+
+@pytest.fixture
+def reference_workspace(transport_workspace):
+    root, binary_dir = transport_workspace
+    binary = binary_dir / 'grok'
+    binary.rename(binary_dir / 'native-grok')
+    binary.symlink_to(binary_dir / 'native-grok')
+    for index, name in enumerate(sorted(review.RESEARCH_FILES)):
+        (root / name).write_text(f"Originalforschung {index}: Grüße ☀️\n")
+    for name in ('tests/current.py', 'docs/current.md', 'scripts/current.py', 'new-public.md'):
+        (root / name).parent.mkdir(exist_ok=True)
+        (root / name).write_text(f"Aktuelle Originalbytes für {name}: ü\n")
+    run, receipt, directory = run_fake(transport_workspace, 'success', transport='single', output_name='baseline')
+    assert run.returncode == 0, run.stderr
+    return transport_workspace, receipt, directory
+
+
+def implementation_run(reference_workspace, *, extra_env=None):
+    workspace, _, directory = reference_workspace
+    return run_fake(workspace, 'success', transport='single', output_name='implementation',
+                    extra=('--scope', 'implementation', '--reference-receipt', str(directory / 'receipt.json')),
+                    extra_env=extra_env)
+
+
+def native_path(reference_workspace, filename):
+    (root, _), receipt, _ = reference_workspace
+    return root.parent / 'fake-grok-home/sessions/test-project' / receipt['session_id'] / filename
+
+
+def test_implementation_includes_every_other_original_byte_and_discloses_inheritance(reference_workspace):
+    (root, _), baseline, directory = reference_workspace
+    run, receipt, output = implementation_run(reference_workspace)
+    assert run.returncode == 0, run.stderr
+    assert receipt['status'] == 'accepted' and receipt['scope'] == 'implementation'
+    assert set(receipt['reference_only_files']) == review.RESEARCH_FILES
+    assert set(receipt['files']) == set(receipt['workspace_files']) - review.RESEARCH_FILES
+    assert set(baseline['files']) == set(receipt['workspace_files'])
+    payload = (output / 'payload.md').read_bytes()
+    assert b'IMPLEMENTIERUNGSreview' in payload and b'NICHT Bestandteil' in payload
+    assert str(directory).encode() not in payload and b'PRIVATE_HISTORY_SENTINEL' not in payload
+    for item in receipt['file_manifest']:
+        raw = (root / item['path']).read_bytes()
+        assert payload[item['byte_start']:item['byte_end']] == raw
+        assert len(raw) == item['byte_length'] and review.digest(raw) == item['sha256']
+    for name in review.RESEARCH_FILES:
+        assert (root / name).read_bytes() not in payload
+        assert receipt['reference_only_files'][name] == baseline['files'][name]
+    assert receipt['reference']['receipt_sha256'] == review.digest((directory / 'receipt.json').read_bytes())
+    assert receipt['reference']['payload_sha256'] == baseline['payload_sha256']
+    assert receipt['reference']['native_final_response_sha256']
+    assert receipt['context_audit']['reasoning_effort'] == 'high'
+    argv = receipt['calls'][0]['argv']
+    assert argv[argv.index('--reasoning-effort') + 1] == 'high'
+    assert len(receipt['calls']) == 1 and receipt['calls'][0]['returncode'] == 0
+    assert not baseline['reference_only_files'] and baseline['scope'] == 'all'
+
+
+@pytest.mark.parametrize('fault', ['blocked', 'chunks', 'inherited', 'invalid_inheritance', 'returncode', 'bool_returncode', 'cli_hash',
+    'missing_cli_version', 'weak_flags', 'manifest_offset', 'manifest_omission', 'payload', 'prompt', 'stdout',
+    'review', 'research', 'compaction', 'no_end_turn', 'native_reply', 'native_effort', 'native_model', 'native_usage'])
+def test_reference_is_independently_rejected_before_any_cli_call(reference_workspace, fault):
+    (root, _), receipt, directory = reference_workspace
+    if fault == 'blocked':
+        receipt['status'] = 'findings'
+    elif fault == 'chunks':
+        receipt['transport'] = 'chunks'
+    elif fault == 'inherited':
+        receipt['reference_only_files'] = {name: receipt['files'][name] for name in review.RESEARCH_FILES}
+    elif fault == 'invalid_inheritance':
+        receipt['reference_only_files'] = []
+    elif fault in ('returncode', 'bool_returncode'):
+        receipt['calls'][0]['returncode'] = 1 if fault == 'returncode' else False
+    elif fault == 'cli_hash':
+        receipt['cli_sha256'] = '0' * 64
+    elif fault == 'missing_cli_version':
+        receipt.pop('cli_version')
+    elif fault == 'weak_flags':
+        receipt['calls'][0]['argv'].remove('--no-memory')
+    elif fault == 'manifest_offset':
+        receipt['file_manifest'][0]['byte_start'] += 1
+    elif fault == 'manifest_omission':
+        receipt['file_manifest'].pop()
+    elif fault in ('payload', 'prompt', 'stdout', 'review'):
+        name = {'payload': 'payload.md', 'prompt': 'single-prompt.md', 'stdout': 'single-stdout.txt', 'review': 'review.json'}[fault]
+        with (directory / name).open('ab') as stream:
+            stream.write(b'changed')
+    elif fault == 'research':
+        with (root / sorted(review.RESEARCH_FILES)[0]).open('a') as stream:
+            stream.write('NEUE Forschung')
+    elif fault.startswith('native_') and fault != 'native_reply':
+        if fault in ('native_effort', 'native_model'):
+            path = native_path(reference_workspace, 'summary.json')
+            summary = json.loads(path.read_text())
+            summary['reasoning_effort' if fault == 'native_effort' else 'current_model_id'] = 'wrong'
+            path.write_text(json.dumps(summary))
+        else:
+            path = native_path(reference_workspace, 'updates.jsonl')
+            events = [json.loads(line) for line in path.read_text().splitlines()]
+            next(row for row in events if row['params']['update']['sessionUpdate'] == 'turn_completed')['params']['update']['usage']['modelCalls'] = 2
+            path.write_text(''.join(json.dumps(row) + '\n' for row in events))
+    else:
+        path = native_path(reference_workspace, 'updates.jsonl')
+        events = [json.loads(line) for line in path.read_text().splitlines()]
+        if fault == 'compaction':
+            events.append({'timestamp': 1, 'method': '_x.ai/session/update', 'params': {
+                'sessionId': receipt['session_id'], 'update': {'sessionUpdate': 'auto_compact_started'}}})
+        elif fault == 'no_end_turn':
+            events = [row for row in events if row['params']['update']['sessionUpdate'] != 'turn_completed']
+        else:
+            next(row for row in events if row['params']['update']['sessionUpdate'] == 'agent_message_chunk')['params']['update']['content']['text'] = '{"verdict":"mergeable","findings":[],"summary":"tampered"}'
+        path.write_text(''.join(json.dumps(row) + '\n' for row in events))
+    (directory / 'receipt.json').write_text(json.dumps(receipt))
+    log = root / 'reviews/private/cli-calls.jsonl'
+    before = log.read_bytes()
+    run, failed, output = implementation_run(reference_workspace)
+    assert run.returncode != 0 and failed['status'] == 'failed'
+    assert not failed['calls'] and not (output / 'review.json').exists()
+    assert log.read_bytes() == before  # Neither --version nor model invocation.
+
+
+def test_legacy_all_reference_without_effort_flag_still_needs_native_high(reference_workspace):
+    _, receipt, directory = reference_workspace
+    receipt.pop('scope')
+    receipt.pop('workspace_files')
+    receipt.pop('reference_only_files')
+    argv = receipt['calls'][0]['argv']
+    index = argv.index('--reasoning-effort')
+    del argv[index:index + 2]
+    for key in ('summary_sha256', 'native_model_id', 'reasoning_effort', 'native_final_response_sha256'):
+        receipt['context_audit'].pop(key)
+    (directory / 'receipt.json').write_text(json.dumps(receipt))
+    run, result, _ = implementation_run(reference_workspace)
+    assert run.returncode == 0, run.stderr
+    assert result['reference']['reasoning_effort'] == 'high'
+
+
+def test_historical_cli_identity_survives_alias_upgrade_but_new_call_is_pinned(reference_workspace):
+    (_, binary_dir), baseline, _ = reference_workspace
+    alias = binary_dir / 'grok'
+    replacement = binary_dir / 'new-grok'
+    replacement.write_bytes(Path(baseline['cli_path']).read_bytes() + b'\n# new executable\n')
+    replacement.chmod(0o755)
+    alias.unlink()
+    alias.symlink_to(replacement)
+    run, receipt, _ = implementation_run(reference_workspace)
+    assert run.returncode == 0, run.stderr
+    assert receipt['reference']['cli_sha256'] == baseline['cli_sha256']
+    assert receipt['cli_sha256'] != baseline['cli_sha256']
+    assert receipt['cli_path'] == str(replacement)
+
+
+@pytest.mark.parametrize('target', ['reference_receipt', 'reference_payload', 'reference_summary',
+                                   'reference_updates', 'research', 'source', 'new_source', 'payload', 'prompt'])
+def test_reference_and_complete_workspace_remain_frozen_through_closeout(reference_workspace, target):
+    (root, _), _, directory = reference_workspace
+    paths = {'reference_receipt': directory / 'receipt.json', 'reference_payload': directory / 'payload.md',
+             'reference_summary': native_path(reference_workspace, 'summary.json'),
+             'reference_updates': native_path(reference_workspace, 'updates.jsonl'),
+             'research': root / sorted(review.RESEARCH_FILES)[0], 'source': root / 'README.md',
+             'new_source': root / 'new-source.py', 'payload': root / 'reviews/private/implementation/payload.md',
+             'prompt': root / 'reviews/private/implementation/single-prompt.md'}
+    run, result, output = implementation_run(reference_workspace, extra_env={
+        'FAKE_DRIFT_PATH': str(paths[target]), 'FAKE_DRIFT_SUFFIX': '\n '})
+    assert run.returncode != 0 and result['status'] == 'failed'
+    assert len(result['calls']) == 1 and result['calls'][0]['returncode'] == 0
+    assert not (output / 'review.json').exists()
+
+
+def test_an_accepted_implementation_receipt_cannot_become_a_reference_chain(reference_workspace):
+    workspace, _, _ = reference_workspace
+    run, _, directory = implementation_run(reference_workspace)
+    assert run.returncode == 0
+    root, _ = workspace
+    log = root / 'reviews/private/cli-calls.jsonl'
+    before = log.read_bytes()
+    run, result, _ = run_fake(workspace, 'success', transport='single', output_name='chain',
+        extra=('--scope', 'implementation', '--reference-receipt', str(directory / 'receipt.json')))
+    assert run.returncode != 0 and result['status'] == 'failed'
+    assert not result['calls'] and log.read_bytes() == before
+
+
+@pytest.mark.parametrize('args', [('--scope', 'implementation'), ('--reference-receipt', 'receipt.json'),
+    ('--scope', 'implementation', '--reference-receipt', 'receipt.json', '--transport', 'chunks'),
+    ('--exclude', 'core/physics.py')])
+def test_no_free_exclusions_or_ambiguous_reference_modes(transport_workspace, args):
+    root, binary_dir = transport_workspace
+    run = subprocess.run([sys.executable, str(root / 'scripts/review_grok.py'), *args], cwd=root,
+        env={**os.environ, 'PATH': str(binary_dir) + os.pathsep + os.environ.get('PATH', '')},
+        capture_output=True, timeout=10)
+    assert run.returncode != 0
+    assert not (root / 'reviews/private').exists()
+
+
+@pytest.fixture
+def ordered_context(context_updates):
+    home, session, write = context_updates
+    verdict = {'verdict': 'mergeable', 'findings': [], 'summary': 'Synthetic ordering check'}
+    def check(updates):
+        completion = completed_update()
+        completion['usage'] = {'modelCalls': 1, 'numTurns': 1, 'modelUsage': {'grok-4.7-build': {'modelCalls': 1}}}
+        path = write([*updates, completion], complete=False)
+        path.with_name('summary.json').write_text(json.dumps({'current_model_id': 'grok-4.7', 'reasoning_effort': 'high'}))
+        return review.audit_context(session, [b'AB'], grok_home=home, require_identity=True, expected_review=verdict)
+    return check, json.dumps(verdict)
+
+
+@pytest.mark.parametrize('kind', ['agent_message_chunk', 'agent_thought_chunk'])
+@pytest.mark.parametrize('initial,late', [('A', 'B'), ('AB', ''), ('AB', 'B')])
+def test_native_output_cannot_precede_complete_prompt_or_accept_any_late_user_chunk(ordered_context, kind, initial, late):
+    check, final = ordered_context
+    updates = [user_update(initial), {'sessionUpdate': kind, 'content': {'type': 'text', 'text': final if kind == 'agent_message_chunk' else 'thinking'}}, user_update(late)]
+    if kind == 'agent_thought_chunk':
+        updates.append({'sessionUpdate': 'agent_message_chunk', 'content': {'type': 'text', 'text': final}})
+    with pytest.raises(ValueError, match='before output|after output'):
+        check(updates)
+
+
+@pytest.mark.parametrize('kind', ['agent_message_chunk', 'agent_thought_chunk'])
+def test_complete_split_user_bytes_before_first_output_are_valid(ordered_context, kind):
+    check, final = ordered_context
+    updates = [user_update('A'), user_update('B'), {'sessionUpdate': kind,
+               'content': {'type': 'text', 'text': final if kind == 'agent_message_chunk' else 'thinking'}}]
+    if kind == 'agent_thought_chunk':
+        updates.append({'sessionUpdate': 'agent_message_chunk', 'content': {'type': 'text', 'text': final}})
+    assert check(updates)['turn_completed_count'] == 1
+
+
+@pytest.mark.parametrize('canonical_drift', [False, True])
+def test_version_and_review_execute_canonical_file_even_during_alias_swap(tmp_path, monkeypatch, canonical_drift):
+    root = tmp_path / 'workspace'
+    root.mkdir()
+    (root / 'README.md').write_text('Synthetic source only')
+    canonical, other, alias = tmp_path / 'A', tmp_path / 'B', tmp_path / 'grok'
+    canonical.write_bytes(b'canonical A')
+    other.write_bytes(b'wrong B')
+    alias.symlink_to(canonical)
+    monkeypatch.setattr(review, 'ROOT', root)
+    monkeypatch.setattr(review.shutil, 'which', lambda name: str(alias))
+    monkeypatch.setattr(review, 'git', lambda *args: 'README.md\0' if args[0] == 'ls-files' else 'synthetic-head')
+    home = tmp_path / 'native-home'
+    monkeypatch.setenv('GROK_HOME', str(home))
+    monkeypatch.setattr(sys, 'argv', ['review_grok.py'])
+    selected = []
+    def selected_at_exec(argv):
+        alias.unlink()
+        alias.symlink_to(other)
+        selected.append((argv[0], Path(argv[0]).resolve()))
+        alias.unlink()
+        alias.symlink_to(canonical)
+    def version(argv, **kwargs):
+        selected_at_exec(argv)
+        if canonical_drift:
+            canonical.write_bytes(b'changed canonical A')
+        return 'synthetic-cli\n'
+    def run(argv, **kwargs):
+        selected_at_exec(argv)
+        session = argv[argv.index('--session-id') + 1]
+        path = home / 'sessions/project' / session / 'updates.jsonl'
+        path.parent.mkdir(parents=True)
+        prompt = Path(argv[argv.index('--prompt-file') + 1]).read_text()
+        final = json.dumps({'verdict': 'mergeable', 'findings': [], 'summary': 'Synthetic exec check'})
+        completion = completed_update()
+        completion['usage'] = {'modelCalls': 1, 'numTurns': 1, 'modelUsage': {'grok-4.7-build': {'modelCalls': 1}}}
+        updates = [user_update(prompt), {'sessionUpdate': 'agent_message_chunk', 'content': {'type': 'text', 'text': final}}, completion]
+        path.write_text(''.join(json.dumps({'timestamp': 1,
+            'method': '_x.ai/session/update' if update['sessionUpdate'] == 'turn_completed' else 'session/update',
+            'params': {'sessionId': session, 'update': update}}) + '\n' for update in updates))
+        path.with_name('summary.json').write_text(json.dumps({'current_model_id': 'grok-4.7', 'reasoning_effort': 'high'}))
+        return subprocess.CompletedProcess(argv, 0, stdout=final.encode(), stderr=b'')
+    monkeypatch.setattr(review.subprocess, 'check_output', version)
+    monkeypatch.setattr(review.subprocess, 'run', run)
+    if canonical_drift:
+        with pytest.raises(RuntimeError, match='version check failed'):
+            review.main()
+        receipt_path, = (root / 'reviews/private').glob('*/receipt.json')
+        receipt = json.loads(receipt_path.read_text())
+        assert receipt['status'] == 'failed' and not receipt['calls']
+        assert selected == [(str(canonical), canonical)]
+    else:
+        assert review.main() == 0
+        assert selected == [(str(canonical), canonical), (str(canonical), canonical)]
