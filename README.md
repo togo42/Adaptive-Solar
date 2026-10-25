@@ -8,7 +8,7 @@
 
 Wetterprognosen, PV-Physik und lokale Residualmodelle für Resttag und nächste sieben Tage: unterschiedliche Stringausrichtungen, gemeinsame AC-/DC-Ausgabestufen und wiederkehrende Verschattung. Frische HA-Temperatur/Windwerte, optional Ecowitt-Globalstrahlung und geeignete PV-Leistung unterstützen den kurzfristigen Nowcast.
 
-**Stand, 25.10.2026:** **0.2.7 installiert**, vier Anlageneinträge liefern unter Core **2026.10.4** Prognosen. Quellstand **0.2.9** ergänzt eine optionale Messgültigkeitsquelle für Lernen und Power-Nowcast; je **852 Tests** mit Core 2026.10.2, .3 und .4 bestanden. Sein gebundener Implementierungsreview durch **Grok 4.7/high** ist ohne Findings abgeschlossen ([Reviewumfang](docs/review-findings.md)). Produktiver ML-Fit und Überlegenheit gegenüber Helios und Open-Meteo Solar sind offen. [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
+**Stand, 25.10.2026:** **0.2.9 installiert**, vier Anlageneinträge liefern unter Core **2026.10.4** Prognosen. Die freigegebenen Lern-/Leistungsbindungen und optionalen Messgültigkeitsquellen sind aktiviert und zurückgelesen; erste originale Messintervalle werden angenommen. Je **852 Tests** mit Core 2026.10.2, .3 und .4 bestanden. Der gebundene Implementierungsreview durch **Grok 4.7/high** ist ohne Findings abgeschlossen ([Reviewumfang](docs/review-findings.md)). Ein qualifizierter produktiver ML-Fit und Überlegenheit gegenüber Helios und Open-Meteo Solar sind weiterhin offen. [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
 
 ## Funktionsweise
 
