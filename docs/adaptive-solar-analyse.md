@@ -2,6 +2,8 @@
 
 Stand: 26.10.2026. Gegen Codebasis 0.2.11 abgeglichen. Abschnitte 1–3 beschreiben den Code; Abschnitte 4–5 sind mögliche Prüfaufträge, keine belegten Optimierungen oder automatisch beauftragten Modelländerungen. [Vertrag](implementation-contract.md), [Anwenderhandbuch](bedienung.md).
 
+Die [Bewertung mit Vorschlägen für Arbeitspakete](adaptive-solar-bewertung.md) konkretisiert Nutzen, Voraussetzungen, Abhängigkeiten und Abnahmekriterien dieser Prüfaufträge.
+
 ## 1. Kurzfassung
 
 - **Wetter-Ensemble:** Ja. Mehrere Open-Meteo-Modelle können konfiguriert werden; die Baseline ist das arithmetische Mittel der verfügbaren Mitglieder, mit strenger Kohorten-Integrität (kein Auffüllen von Lücken mit 0).
