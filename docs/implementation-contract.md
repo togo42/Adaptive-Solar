@@ -1,6 +1,6 @@
 # Implementierungsvertrag für Adaptive Solar
 
-Stand: 25.10.2026. Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen. Thematisch konsolidiert aus dem lokal archivierten Vorgänger `artifacts/releases/0.2.5-context-window-invalid/source/docs/implementation-contract.md`; das Archiv wird nicht veröffentlicht.
+Stand: 26.10.2026; Codebasis 0.2.10. Anwenderfelder und Abläufe: [Bedienung](bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen. Thematisch konsolidiert aus dem lokal archivierten Vorgänger `artifacts/releases/0.2.5-context-window-invalid/source/docs/implementation-contract.md`; das Archiv wird nicht veröffentlicht.
 
 ## Ziel und Aufteilung
 
@@ -18,7 +18,7 @@ Konstruktoren und JSON-Felder: [models.py](../custom_components/adaptive_solar/c
 
 - `HorizonPoint`: `beam_transmission=0.0`, zirkulär interpoliert nur Direktlicht. `StringConfig`: `loss_fraction=0.14`, `temperature_coefficient=-0.004`, `horizon=()`; mehrere Strings teilen eine Stufe.
 - `InverterConfig`: alte Positionsargumente bleiben; `output_type="ac"`, `max_output_kw=None`, `dc_loss_fraction=0.0`. Am Ende optional `measurement_valid_entity_id=None`; ungesetzt fehlt das Feld im JSON. Ein gesetzter Binary-Sensor muss `on` sein und darf an derselben Stufe nicht der Abregelungssensor sein. Kanonisch `max_output_kw`/`output_cap_w`, Provenienz `measurement_boundary`/`MEASUREMENT_BOUNDARIES`. AC: `max_ac_kw`-Alias, Effizienz0,96, keine widersprüchlichen Grenzen. DC verlangt `output_type="dc"`/`max_output_kw`, lehnt AC-Alias/-`efficiency` ab.
-- `SiteConfig.from_dict/to_dict`: `best_match`, sieben Tage, optionale Sensoren `None`, auch altes GHI-JSON. `MAX_FORECAST_DAYS=7`: ganzzahlig1–7 in Konstruktor/JSON/UI/maximalen Tagesentitäten; Provider-Quelltage erweitern nicht den Horizont.
+- `SiteConfig.from_dict/to_dict`: `best_match`, sieben Tage, optionale Sensoren `None`, auch altes GHI-JSON. `MAX_FORECAST_DAYS=7`: ganzzahlig 1–7 einschließlich des heutigen lokalen Tages (maximal Resttag plus sechs Folgetage) in Konstruktor/JSON/UI/maximalen Tagesentitäten; Provider-Quelltage erweitern nicht den Horizont.
 - `Observation`: je Signal echte Berichtzeit; GHI kompatibel am Ende. `TrainingSample.features: dict[str,float]`: ausschließlich ausgabezeitlich Bekanntes, `actual_w` echtes Intervallmittel.
 - `WeatherForecast.issued_at`: tatsächlicher Empfang, Cache behält ihn; keine erfundene NWP-Vintage. `ForecastResult.issued_at`: Entscheidungszeit. Alle Leads bis Zielmittelpunkt (`midpoint_lead_hours`).
 - `ForecastPoint`: frühestens bei Ausgabe; laufende Zelle dort kürzen, Physik/Features/Lead neu am Mittelpunkt. `source_partial_at_issue=1` nicht lernen, Originalwetter behalten. `power_at` ist halboffenes Intervallmittel; `energy_kwh` braucht vollständige Abdeckung/alle Stufen mit UTC-Dauer. Lokale Mitternacht nach UTC übersetzen: echte23/25-Stunden-Tage.
@@ -55,7 +55,7 @@ Momentanreferenz: Original-NWP-Strahlungsmittel mit [Ineichen-Klarhimmelform](ht
 
 Je Regime eigene chronologische Trainings-/Validierungs-/Kalibrierungs-Zieltage nach lokalem Intervallstart, auch über Mitternacht bei Teilstundenoffsets. Ganze frühere Zielzeilen mit `end > nächster Blockstart` werden an beiden Grenzen entfernt; Gleichheit ist zulässig. Historientage/-stunden danach erneut prüfen, Messenergie nie teilen. `purged_boundary_overlap_rows` nennt entfernte Zeilen. Je Regime: Future-Labels, Nacht, Abregelung, ungültige Daten/Duplikatgewichtung ausschließen. Aktivierung, LeadRange/Kalibrierung nicht aus dem anderen Regime leihen. Solar-Geometrie/Saison erlauben wiederkehrende Verschattung; Stufenzähler identifizieren keine Einzelstrings. Modelle aus Zeilen rekonstruieren, keine Pickles.
 
-Standard: mindestens 28 Zieltage/240 Stunden vereinigter Messdauer, keine vollen Stunden aus Kurzfragmenten. Je aktivem Lead-Bin eigene ausreichende Trainings-/Validierungstage/-stunden, mindestens 5 % MAE-Verbesserung gegen Physik und 60 % gewonnene Validierungstage. Unterstützter Lead: Schnittmenge der Trainings-/Validierungsbereiche; unbelegt/abgelehnt bedeutet Physik. Fehlergrenzen brauchen eigene Kalibrierungstage/-stunden im Bin, keine zertifizierten P10/P90.
+Standard: mindestens 28 Zieltage/240 Stunden vereinigter Messdauer, keine vollen Stunden aus Kurzfragmenten. Je aktivem Lead-Bin eigene ausreichende Trainings-/Validierungstage/-stunden, strikt mehr als 5 % MAE-Verbesserung gegen Physik und 60 % gewonnene Validierungstage. Unterstützter Lead: Schnittmenge der Trainings-/Validierungsbereiche; unbelegt/abgelehnt bedeutet Physik. Fehlergrenzen brauchen eigene Kalibrierungstage/-stunden im Bin, keine zertifizierten P10/P90.
 
 `training_quality.rejection_reasons` trennt `issued_after_target_start`, `target_shorter_than_minimum` und `source_partial_at_issue`; mehrere Gründe können dieselbe Zielzelle betreffen. Die unveränderte Mindestdauer von 30 Minuten ist eine Historienanforderung, kein Leakage-Nachweis für kürzere, ansonsten prospektive Wetterzellen.
 

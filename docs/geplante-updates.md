@@ -1,4 +1,4 @@
-# Geplante Änderungen für das nächste Update
+# Änderungsliste und Umsetzungsstand
 
 Stand: 26.10.2026. Diese Liste dokumentiert beauftragte Folgeänderungen und deren Umsetzungsstand.
 
@@ -6,9 +6,9 @@ Stand: 26.10.2026. Diese Liste dokumentiert beauftragte Folgeänderungen und der
 
 **Status:** in Version 0.2.10 implementiert und mit nativen HA-Regressionstests geprüft. Anwenderwunsch vom 25.10.2026. Produktive Installation wird separat im Entwicklungsstand dokumentiert.
 
-### Problem
+### Historische Ausgangslage vor 0.2.10
 
-Die Sensorplattform erzeugt derzeit für jeden Anlageneintrag einen Gesamtbereich sowie einen Bereich je Wechselrichter beziehungsweise Laderegler. Auch bei nur einer Ausgangsstufe entstehen dadurch zwei Geräte mit inhaltlich gleichen Prognosen. Ursache: `scopes = [None, ...]` in [sensor.py](../custom_components/adaptive_solar/sensor.py).
+Die Sensorplattform erzeugte vor 0.2.10 für jeden Anlageneintrag einen Gesamtbereich sowie einen Bereich je Wechselrichter beziehungsweise Laderegler. Auch bei nur einer Ausgangsstufe entstanden dadurch zwei Geräte mit inhaltlich gleichen Prognosen. Die damalige Ursache war die bedingungslose Gesamtsicht; der aktuelle bedingte Aufbau steht in [sensor.py](../custom_components/adaptive_solar/sensor.py).
 
 ### Gewünschtes Verhalten
 

@@ -6,9 +6,12 @@
 
 [GitHub](https://github.com/togo42/Adaptive-Solar) · [Fehler melden](https://github.com/togo42/Adaptive-Solar/issues) · [Logo und Gestaltung](docs/branding.md)
 
-Wetterprognosen, PV-Physik und lokale Residualmodelle für Resttag und nächste sieben Tage: unterschiedliche Stringausrichtungen, gemeinsame AC-/DC-Ausgabestufen und wiederkehrende Verschattung. Frische HA-Temperatur/Windwerte, optional Ecowitt-Globalstrahlung und geeignete PV-Leistung unterstützen den kurzfristigen Nowcast.
+Wetterprognosen, PV-Physik und lokale Residualmodelle für bis zu sieben lokale Kalendertage einschließlich heute: Resttag und bis zu sechs Folgetage, abhängig von der Wetterabdeckung. Unterschiedliche Stringausrichtungen, gemeinsame AC-/DC-Ausgabestufen und wiederkehrende Verschattung werden berücksichtigt. Frische HA-Temperatur/Windwerte, optionale horizontale Globalstrahlung und geeignete PV-Leistung unterstützen den kurzfristigen Nowcast.
 
 **Stand, 26.10.2026:** **0.2.10 über GitHub/HACS installiert**, je **893 Tests** mit Core 2026.10.2, .3 und .4 bestanden. Neu sind Morgen-/Abenddämpfungen pro String und die Migration zur Einzelanzeige bei einer Ausgangsstufe. Der gebundene Grok-4.7/high-Implementierungsreview und die GitHub-CI sind erfolgreich abgeschlossen. Vier Anlagen liefern unter Core 2026.10.4 Prognosen; übernommene Korrekturen und alle bisherigen Sensor-IDs sind zurückgelesen. Ein qualifizierter produktiver ML-Fit und Überlegenheit gegenüber Helios und Open-Meteo Solar sind weiterhin offen. [Versionsinformationen](docs/release-0.2.10.md), [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
+
+Die anschließende Dokumentations-/Metadatenpflege ist im Prüfstand separat ausgewiesen;
+der damalige externe Review gilt ausschließlich für seine eingefrorenen Quellen.
 
 ## Funktionsweise
 
@@ -20,11 +23,20 @@ Ausgegeben wird **verfügbares PV-Potenzial ohne betriebliche Abregelung**, kein
 
 Herstellerunabhängige String-/Stufenkonfiguration, optionale HA-Sensoren: keine Pflicht für Wechselrichtermarke, Batterietyp oder Hersteller-API. Ohne Abregelungssignal gilt die zu prüfende Annahme ungedrosselten Betriebs. Ein voller Akku allein beweist keine Abregelung; Genauigkeit auf beliebiger Hardware ist nicht belegt.
 
-## Einrichtung
+## Installation und Bedienung
+
+| Anleitung | Inhalt |
+| --- | --- |
+| [Installation](docs/installation.md) | Geprüfte Plattformen, HACS, manuelle Installation, Upgrade und Rückweg |
+| [HAOS-Binärabhängigkeiten](docs/haos-installation.md) | amd64-Musl-Wheel bauen, vorbereiten und im persistenten Corepfad bereitstellen |
+| [Bedienung](docs/bedienung.md) | Alle Einrichtungsfelder, Sensoren, Energy, Lernstatus und Fehlerbehebung |
+| [Datenschutz](docs/datenschutz.md) | Externe Datenflüsse, lokale Speicherung und Diagnoseweitergabe |
+
+HACS-Mindestversion ist **Core 2026.10.2**. Geprüft sind **2026.10.2/.3/.4** mit Python 3.14; neuere Versionen sind damit nicht automatisch geprüft. **HAOS ist bislang nur auf amd64 mit passender CPython-3.14-Musl-Binärbasis belegt.** ARM/Raspberry Pi und andere Python-ABIs sind nicht qualifiziert. Der HA-unabhängige Modellkern unterstützt Python ab 3.13.
 
 Über HACS: **Benutzerdefinierte Repositories** öffnen, `https://github.com/togo42/Adaptive-Solar` als **Integration** hinzufügen und die gewünschte veröffentlichte Version herunterladen. Danach Home Assistant neu starten und **Adaptive Solar** unter **Einstellungen → Geräte & Dienste** hinzufügen beziehungsweise bestehende Einträge weiterverwenden. [Änderungen und Migration in 0.2.10](docs/release-0.2.10.md). Die benötigte HAOS-Binärbasis ist unten separat beschrieben; HACS ersetzt diese Abhängigkeit nicht.
 
-Geprüfte HA-Ziele **2026.10.2/.3/.4** mit Python 3.14; der HA-unabhängige Modellkern unterstützt Python ab 3.13. `custom_components/adaptive_solar` in die HA-Konfiguration kopieren. **HAOS/amd64:** [Musl-Bauweg](docs/haos-installation.md) für `scikit-learn==1.9.1` beachten.
+Alternativ den vollständigen Ordner `custom_components/adaptive_solar` in das gleichnamige Verzeichnis der HA-Konfiguration kopieren; Details und Abhängigkeitsprüfung stehen in der Installationsanleitung.
 
 Nach Neustart: **Einstellungen → Geräte & Dienste → Integration hinzufügen → Adaptive Solar**. Einrichtung, Prognoseausgabe, Persistenz und Optionsänderung sind live geprüft; produktives Training mit qualifizierter Messhistorie steht noch aus.
 
@@ -45,11 +57,13 @@ Resttag enthält die verbleibende Teilstunde; native Energy nur volle UTC-Stunde
 ```bash
 python3.14 -m venv .venv
 .venv/bin/python -m pip install '.[test,ha-test]'
+.venv/bin/python -m pip install 'pvlib==0.16.1' 'scikit-learn==1.9.1'
+.venv/bin/python -m pip check
 .venv/bin/python -m pytest
 .venv/bin/ruff check custom_components tests scripts
 ```
 
-Prüfversionen, Abhängigkeitspins und Nachweisgrenzen: [Entwicklungsstand](docs/entwicklungsstand.md).
+Die zweite Installation gleicht die Laufzeitbibliotheken mit dem aktuellen HA-Manifest ab, wie es auch CI tut. Der [Entwicklungsleitfaden](docs/entwicklung.md) zeigt die automatische Übernahme dieser Pins, die Testmatrix und den Ablauf für Beiträge. Historische Nachweise: [Entwicklungsstand](docs/entwicklungsstand.md).
 
 Synthetische Offline-Demo; für DC `--config examples/site-dc.json` einsetzen:
 

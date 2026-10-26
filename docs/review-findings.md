@@ -1,5 +1,12 @@
 # Reviewnachweise und fachliche Bearbeitung
 
+Dokumentationsnachpflege vom 26.10.2026: Installation, Bedienung, Datenschutz, Lizenz
+und Recherche wurden nach dem unten gebundenen Review ergänzt bzw. konsolidiert.
+Diese Änderungen sind nicht Teil seines Receipts. Insbesondere sind die sechs
+Forschungstexte jetzt verändert und für einen künftigen Implementierungsreview
+nicht mehr über ihre früheren Forschungs-SHAs wiederverwendbar. Die historischen
+Reviewurteile bleiben ausschließlich für ihre eingefrorenen Quellen gültig.
+
 ## 0.2.10: Implementierungsreview abgeschlossen
 
 Am 26.10.2026 mit **Grok 4.7/high**, unverändertem CLI 1.0.62 und strikt geprüftem Einzelprompt abgeschlossen: **mergeable, keine Findings**. Geprüfter Commit: `5a7da69d98f4d8aea037dd45a53694a81c4a4393`. Umfang: **83 aktuelle Originaldateien** einschließlich Code, Tests, Dokumentation und Helfern; die sechs unveränderten Forschungstexte waren ausschließlich über einen erneut geprüften vollständigen Vorgängerreview gebunden. Kein erneuter Volltextreview der Forschung und keine PNG-Renderingprüfung.

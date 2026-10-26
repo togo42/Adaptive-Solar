@@ -2,6 +2,45 @@
 
 Stand: 26.10.2026. **Adaptive Solar 0.2.10 ist veröffentlicht und über HACS unter Core 2026.10.4 installiert.** Der gebundene Grok-4.7/high-Review ist ohne Findings abgeschlossen; GitHub-CI erfolgreich. Vier Anlageneinträge, native Einrichtung und installierte Paketbytes sind zurückgelesen. Ein qualifizierter produktiver ML-Fit und bessere Prognosegüte bleiben offen.
 
+## Dokumentations- und Konsistenzpflege nach dem Release
+
+Am 26.10.2026 wurden öffentliche [Installation](installation.md), [Bedienung](bedienung.md),
+[Datenschutz](datenschutz.md) und [Entwicklung](entwicklung.md) ergänzt. Der HAOS-Weg
+nennt nun Payloadvorbereitung, konkreten Core-User-Site-Pfad, Transfer, Prüfung und
+Rückweg. Die Payloadvorbereitung mit den fünf unveränderten vorhandenen Musl-/Python-
+Wheels wurde lokal offline ausgeführt; dies ist kein neuer Compilerlauf oder Deploy.
+
+HACS beginnt jetzt beim ältesten geprüften Core 2026.10.2; eine ungenutzte veraltete
+Versionskonstante entfällt. README und Entwicklungsschritte verwenden dieselben
+Runtimepins wie CI. Der Horizont ist korrekt als einschließlich heute beschrieben.
+Die sechs Forschungstexte wurden konsolidiert: unbelegte Fehlerbereiche, Ranglisten
+und Prozentversprechen entfernt, Datenarten und Methoden mit direkten Primärquellen
+verknüpft. Die frühere Breite der Literaturnotizen bleibt in der Git-Historie verfügbar.
+Der Lizenzcommit `7f8d426` stellt eigene Inhalte unter GPL-3.0-only.
+
+Frische Prüfung dieses Nachtrags: **893 Tests, null Fehler/Skips, 76,52 Sekunden** unter
+Core **2026.10.3**, Testplugin **0.13.374**, Python **3.14.4**, pvlib **0.16.1** und
+scikit-learn **1.9.1**. Ruff und `pip check` erfolgreich. Die übrigen Matrixarme wurden
+hier nicht erneut ausgeführt. JUnit: `artifacts/documentation-audit-tests.xml`.
+23 Markdown-Dateien mit vollständig geprüften lokalen Verweisen/Ankern, Tabellen und Codeblöcke
+gerendert bzw. syntaktisch geprüft; 68 unterschiedliche verlinkte externe HTTP-Ziele
+erreichbar. HTTP-Erreichbarkeit ist keine vollständige Inhalts- oder Tarifprüfung.
+Versionsbezogene Primärdokumentationen und Quellen an den geänderten Aussagen ergänzen
+diesen Linkcheck. Keine Zugangsdaten/private IPs in der Mustersuche über veröffentlichbare
+Dateien gefunden; kein vollständiger Git-Historienscan behauptet.
+
+Das nach der Pflege neu gebaute Wheel enthält alle 23 Integrationsdateien bytegleich
+zum Arbeitsstand, einschließlich des Lizenztexts; GPL-3.0-only und die Lizenzkopie
+in den Distributionsmetadaten sind geprüft. Die HAOS-Payloadvorbereitung enthält
+nur die fünf vorgesehenen Distributionen samt Metadaten und gebündelten Bibliotheken,
+keine überdeckenden NumPy-/SciPy-/Pandas-Pakete.
+
+Diese Nachpflege enthält keine Änderung der Forecast-/Lernalgorithmen und keine
+produktive HA-Aktion. Historische Release-, CI- und Grok-Angaben unten beziehen sich
+weiterhin auf die eingefrorenen damaligen Quellen. Die neuen Forschungsbytes können
+nicht mehr über die alten Forschungs-SHAs geerbt werden; ein neuer externer Review
+oder eine Veröffentlichung dieses Nachtrags ist damit nicht behauptet.
+
 ## Update 0.2.10
 
 Morgen-/Abenddämpfungen sind pro String in Modell und Einrichtung ergänzt, mit neutralen Altdefaults und Anwendung vor gemeinsamer AC-/DC-Begrenzung. Das bestehende Horizontmodell bleibt je String konfigurierbar. [AS-UI-001](geplante-updates.md) ist umgesetzt: neue Einträge mit einer Ausgangsstufe erzeugen ein Gerät; bestehende Gesamt-Sensoren bleiben unter ihren IDs als ausgeblendete Kompatibilitätsanzeigen am Einzelgerät erhalten. Mehrere Ausgangsstufen behalten Einzel- und Gesamtanzeigen. [Versionsinformationen](release-0.2.10.md).

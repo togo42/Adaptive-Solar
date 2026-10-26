@@ -1,6 +1,6 @@
 # Analyse der Adaptive-Solar-Erweiterung: Ensemble und ML-Learning
 
-Stand: 25.10.2026. Quelle: `custom_components/adaptive_solar/` (Modellkern 0.2.7).
+Stand: 26.10.2026. Gegen Codebasis 0.2.10 abgeglichen. Abschnitte 1–3 beschreiben den Code; Abschnitte 4–5 sind mögliche Prüfaufträge, keine belegten Optimierungen oder automatisch beauftragten Modelländerungen. [Vertrag](implementation-contract.md), [Anwenderhandbuch](bedienung.md).
 
 ## 1. Kurzfassung
 
@@ -14,7 +14,7 @@ Stand: 25.10.2026. Quelle: `custom_components/adaptive_solar/` (Modellkern 0.2.7
 
 ### Auswahl und Abruf
 
-- `config_flow.py` bietet 7 Modelle als Multi-Select: `best_match`, `icon_seamless`, `icon_global`, `icon_eu`, `icon_d2`, `ecmwf_ifs025`, `gfs_seamless`. Default: nur `best_match`.
+- `config_flow.py` bietet 7 Modellvorgaben und erlaubt eigene Kennungen: `best_match`, `icon_seamless`, `icon_global`, `icon_eu`, `icon_d2`, `ecmwf_ifs025`, `gfs_seamless`. Default: nur `best_match`.
 - `weather.py`: alle gewählten Modelle werden parallel abgerufen (`asyncio.gather`), pro Modell eigener Cache (`WEATHER_CACHE_SECONDS = 3600`), Parameter `models=<model>`.
 - Modelle haben unterschiedliche Horizonte (`MODEL_DAYS`: `icon_d2` 2 Tage, `icon_eu` 5 Tage, `meteofrance_arome_france` 2 Tage, sonst 16).
 
@@ -23,7 +23,7 @@ Stand: 25.10.2026. Quelle: `custom_components/adaptive_solar/` (Modellkern 0.2.7
 Für jedes Ausgabe-Intervall `[start, end)`:
 
 1. **Kohortenbildung:** Nur Modelle mit Original-Quellabdeckung (`p.start <= start and p.end >= end`) werden Mitglieder. Ein Modell mit Lücke trägt nichts bei – keine Interpolation, kein Zero-Fill.
-2. **Physik pro Mitglied:** `inverter_power()` für jedes Mitglied.
+2. **Physik pro Mitglied und Stufe:** Nur numerisch gültige Stufen-/Modellzellen bleiben in der jeweiligen Kohorte; ein Fehler einer Stufe verwirft nicht automatisch andere Stufen.
 3. **Baseline:** Arithmetisches Mittel (`fmean`) der Mitglieder-Leistungen.
 4. **GHI-Nowcast:** Pro Modell individueller Gain (Haurwitz-normalisiert gegen gemessene Einstrahlung), aber nur angewendet, wenn **alle** Mitglieder der Kohorte Gains haben (`use_ghi`). Gains werden mit Alter exponentiell gedämpft (90-Min-Fenster).
 
@@ -44,13 +44,13 @@ Für jedes Ausgabe-Intervall `[start, end)`:
 
 - Archivierte Forecast-Punkte (`_archive_result`) mit Features und Baseline.
 - Gemessene Energieintervalle erzeugt `EnergyIntervalTracker` aus kumulativen PV-Zählerberichten über HA-Zustandsereignisse; die Messung muss zusammenhängend und ungedrosselt sein.
-- `join_training()` verknüpft beides: ≥95% Abdeckung, ≤2.5% Randfehler, ≥30 min, ≥95% Messabdeckung, ganze Messstücke ohne Interpolation.
+- `join_training()` verknüpft beides: mindestens 30 Minuten Zielzeit, mindestens 95 % Messabdeckung und höchstens 2,5 % Lücke an jedem Rand; ganze Messstücke ohne erfundene Randenergie.
 
 ### Aktivierungsgates
 
 - Mindestens 28 distinct Target-Tage, 240 Target-Stunden.
 - Chronologische Blöcke: Train / Validation / Calibration (je min. 4 Holdout-Tage).
-- Validation-MAE muss um ≥5% besser als Physik-Baseline sein.
+- Validation-MAE muss strikt mehr als 5 % unter der Physik-Baseline liegen; Gleichheit am Schwellwert wird im Code abgelehnt.
 - ≥60% der Validierungstage müssen gewinnen (Daily-Win-Rate).
 - Pro Lead-Bin (5 Bins: 0–6 h, 6–24 h, 24–48 h, 48–96 h, 96 h+) eigene Validierung + Kalibration (min. 24 h Train/Val, 4 Tage).
 - Kalibrations-Bounds = empirischer absoluter Fehler bei 90% Coverage (nur bei ≥30 h Kalibration und ≥4 Tagen).
@@ -76,74 +76,83 @@ Für jedes Ausgabe-Intervall `[start, end)`:
 ### Persistenz
 
 - Archive/Intervalle im HA-Store (`history_v2`), Fingerprints für Physik- und Feature-Änderungen.
-- Bei inkompatiblen Features wird der Lerner verworfen, Messdaten bleiben.
+- Featurevertrag v2 verwirft unverifizierbare alte Forecastfeatures/Modelle. Messintervalle und Tagesbeginn-Snapshots bleiben nur bei passender separat geprüfter physischer Provenienz. Physische Änderungen können auch Messhistorie unbrauchbar machen.
+- Optionale Messgültigkeit sperrt Energie-/Powerbeobachtungen; restaurierte numerische Eingangswerte werden verworfen. Morgen-/Abenddämpfung ist seit 0.2.10 ein physikalischer Stringparameter vor dem gemeinsamen Ausgangsclip.
 - Refit bei jeder Coordinator-Aktualisierung (alle 5 min), wenn History-Revision oder Tag sich ändert.
 
 ---
 
-## 4. Optimierungsmöglichkeiten
+## 4. Mögliche Prüfaufträge
 
-### A. Wetter-Ensemble (größter Hebel, geringes Risiko)
+Die folgende Reihenfolge ist eine Arbeitshypothese. Es gibt keine aktuelle Messung,
+die einen dieser Kandidaten bereits als bessere Forecastpolitik belegt.
 
-| Hebel | Was | Nutzen | Risiko |
-|---|---|---|---|
-| Modell-Gewichtung statt Mittelwert | Gewichte aus Validation-MAE oder historischem Skill | Bessere Baseline bei systematischen Modellunterschieden | Overfitting auf Validierungsperiode |
-| Ensemble-Spread als Unsicherheit | Inter-Modell-Streuung zusätzlich zu empirischen Bounds | Realistischere Intervalle (P10/P90) | NWP-Modelle oft unterdispersiv |
-| Automatische Modellauswahl | Beste N Modelle pro Standort/Zeitraum | Weniger manuelle Konfiguration | Unterschiedliche Horizonte (icon_d2 = 2 Tage) |
-| Kurzfrist-Modell bevorzugen | icon_d2 für lead < 6 h höher gewichten | Höhere Auflösung dort, wo sie zählt | Kohorten-Integrität beibehalten |
+### A. Wetter-Ensemble und Kohorten
 
-**Wichtig – Kohorten-Gates begrenzen den Nowcast (unterschätzter Hebel):**
+Modellgewichte oder automatische Modellauswahl wären neue Modellpolitiken. Zuerst
+je Modell/Stufe/Horizont Abdeckung, Bias und Energie-MAE auf identischen Aufgaben
+messen. Auswahl und abschließende Bewertung brauchen getrennte Zeitblöcke.
+`best_match` und weitere Arme können sich überlappen; keine Unabhängigkeit annehmen.
 
-Die Alles-oder-nichts-Regel ist strenger als die Ensemble-Bildung selbst:
+Der Code verlangt für GHI vollständige Unterstützung der gültigen Stufenkohorte
+und für Power dieselbe Kohorte am Messzeitpunkt. Daraus folgt kein gemessener Satz
+„mehr Modelle verschlechtern den Nowcast“. Die Häufigkeit/Wirksamkeit muss aus
+Diagnosen bestimmt werden. Ein Quorum würde die Baseline-/Featuresemantik ändern
+und ist kein bloßes Lockern eines Darstellungsfilters.
 
-- Stundenpfad (`engine.py:310`): `use_ghi = all(model in ghi_gains ...)` – fehlt **einem** Mitglied der GHI-Gain, wird die Einstrahlungskorrektur für das ganze Intervall verworfen (`ignored:incomplete_reference_cohort`).
-- Leistungs-Nowcast (`engine.py:96`, `:101-103`): `_instantaneous_reference` gibt `None` zurück, sobald **ein** Modell keine Originalabdeckung am Messzeitpunkt hat.
-- Konsequenz: Mit 1 Modell (Default `best_match`) greift der Nowcast fast immer, mit 4–7 Modellen deutlich seltener. Mehr Modelle verbessern also die Baseline und **verschlechtern** gleichzeitig die Kurzfristkorrektur.
-- Gegenmittel: Quorum statt Alles-oder-nichts (z. B. ≥ 2 Mitglieder oder ≥ 60 % der Kohorte), Gewichte unter den verfügbaren Mitgliedern renormalisieren, und die Zahl der beitragenden Mitglieder als Zeilenmetadatum mitschreiben, damit der Lerner darauf konditionieren kann.
+Ensemble-Spread darf zunächst als Modellunterschied untersucht werden. Für
+P10/P90-Aussagen sind eigene zeitlich getrennte Kalibrierungs-/Coverageprüfungen nötig.
 
-### B. ML-Learning (größtes Potenzial, höchster Aufwand)
+### B. Lernfeatures und Modellaufteilung
 
-1. **Lag-Features** – Historische Residuen als Feature (systematische Biases schneller erfassen). Risiko: Autokorrelation.
-2. **Clearness-Index-Feature** – `ghi/clear_sky_ghi` als Feature für Wetterregime-Wechsel.
-3. **Hyperparameter-Tuning** – Aktuell fest (`n_estimators=100, max_depth=3`). Kleine Grid-Search mit chronologischer Validation möglich, aber flaches Setup ist absichtlich (Anti-Overfitting).
-4. **Quantile-Regression statt empirische Bounds** – Direkte P10/P90-Schätzung, asymmetrische Intervalle. Mehr Datenbedarf.
-5. **Separate Modelle pro Lead-Bin** – Spezialisierter, aber Datenfragmentierung. Sinnvoll erst bei > 60 Tagen.
-6. **Regime-Granularität erhöhen** – z. B. „high-ghi-nowcast" vs. „low-ghi-nowcast".
-7. **Aktivierungs-Schwellen senken (vorsichtig)** – „Light"-Aktivierung (14 Tage, ohne Bounds) für Nutzer mit wenig Historie.
+Ein zusätzlicher Clearness-Index oder lokale Residual-Lags sind mögliche Ablationen.
+Bei Lags muss die Referenzmessung tatsächlich vor Ausgabe verfügbar gewesen sein.
+Der bestehende GHI-Gain ist nicht automatisch ein unabhängiges neues Wetterfeature.
+Neue Features benötigen einen neuen Archiv-/Featurevertrag.
 
-### C. Nowcast (hoher Impact, wenig Datenbedarf)
+Hyperparameter, feinere Regime oder separate Leadmodelle nur bei ausreichender
+Datenunterstützung prüfen. Weder ein pauschaler 60-Tage-Schwellwert noch ein
+voreiliger 14-Tage-„Light“-Modus ist als Verbesserung belegt. Qualitäts-/Aktivierungsgates
+werden durch diese Dokumentation nicht verändert.
 
-- Mehrere Observations statt nur der neuesten (gewichteter Mittelwert über 15 min).
-- Bewölkung/Temperatur-Trend als zusätzliche Korrektur.
-- Adaptiver Decay (0.75 h fest) basierend auf Messvarianz.
-- GHI-Nowcast-Gain glätten (5-min-Mittelung gegen Wolkenlücken-Spitzen).
+### C. Nowcast
 
-### D. Datenqualität & Archivierung
+Beobachtungsglättung, Trends und adaptives Abklingen könnten Rauschen oder Verzögerung
+verändern. Ein Vergleich braucht identische echte Berichtzeiten, Quellenkohorten,
+GHI-/Power-Abgrenzung und die aktuelle Baseline als Referenz. Gemittelte Beobachtungen
+dürfen nicht als neue momentane Messungen ausgegeben werden.
 
-- Mehr Repräsentanten pro Bin (aktuell 1–3 Origins).
-- Anker-Persistenz mit Plausibilitätscheck (Neustart-Robustheit).
-- Zweite, lockerere Messabdeckungs-Stufe (≥80% für Low-Confidence-Samples).
+### D. Datenqualität und Archivierung
 
-### E. Performance / HA-Integration
+Mehr Origins dürfen keine mehrfachen Iststunden erzeugen. Messabdeckung lockern,
+Lücken auffüllen oder einen Energieanker über Neustarts erhalten würde bisherige
+Sicherheitsannahmen ändern. Solche Änderungen sind keine Standardoptimierung und
+brauchen eigene Quellen-/Chronologienachweise. Ein zusätzlicher Qualitätsstatus
+macht ein ungeeignetes Label nicht zu einer validierten Messung.
 
-- **Refit-Throttle** – `join_training` läuft alle 5 min über bis zu 30 000 Zeilen; die Fit-Signatur enthält `_history_revision`, die bei jedem Energieintervall hochgezählt wird, weshalb faktisch fast jeder Zyklus neu fittet. Größter Performance-Gewinn bei einfachster Umsetzung: Mindestabstand (z. B. 60 min) oder N neue abgeschlossene Zielstunden.
-- Feature-Cache für `_vector()` und `ghi_feature_values()`.
-- Archiv-Kompression/Aggregation älterer Zeilen.
+### E. Refit und Ressourcen
 
-### Was man **nicht** tun sollte
+Der Coordinator prüft alle fünf Minuten die Fit-Signatur aus Historienrevision und
+lokalem Tag. Neue Messintervalle verändern die Revision. Erst CPU-/Laufzeit-/Speicher-
+Messungen können zeigen, ob Rekonstruktion den Betrieb relevant belastet.
 
-- Neural Networks / Deep Learning (zu wenig Daten, kein GPU, Pi-Hardware).
-- Modellgewichtung ohne Out-of-Sample-Validierung.
-- Gates lockern ohne Messung (5%-Verbesserung, 60%-Win-Rate sind bewusst).
-- Nowcast-Bounds als kalibriert präsentieren (Code setzt sie korrekt auf `None`).
-- Mehr Modelle = besser (erhöht Kohorten-Lücken-Risiko).
+Ein Refit-Throttle oder Featurecache könnte Aufwand sparen, kann aber Modellaktualität
+und Reaktionen nach Qualitätswechseln beeinflussen. Deshalb Ergebnisalter und
+Forecastparität bzw. bewusst erlaubte Abweichungen mitprüfen. Ein sicherer Gewinn
+oder unveränderte Prognosen werden nicht vorab behauptet.
 
----
+## 5. Priorität und messbare Abnahme
 
-## 5. Priorisierte Empfehlung (Top 3)
+1. **Bestehende Quellen und Baseline qualifizieren:** Diagnosen, echte Zählerberichte,
+   Abdeckung und prospektive Archive prüfen. Fehlende produktive ML-/Gütebelege
+   bleiben vor jeder Optimierung sichtbar.
+2. **Refitkosten messen:** Nur bei relevantem Aufwand einen Kandidaten mit vorher
+   festgelegtem Aktualitäts-/Qualitätsbudget gegen die unveränderte Rekonstruktion prüfen.
+3. **Einzelne Modell-/Featurekandidaten ablatieren:** Identische historische Inputs,
+   unveränderte Messgates, getrennte Auswahl-/Prüftage und Auswertung je Stufe/Horizont.
 
-1. **Refit-Throttle** (E) – Einfachster, sicherster Gewinn, keine Prognose-Änderung.
-2. **Modell-Gewichtung + Spread als Unsicherheit** (A) – Messbarer Prognosegewinn, validierbar über bestehende Holdout-Struktur.
-3. **Lag-Features** (B.1) – Potenziell großer Gewinn für systematische Biases, aber sorgfältig gegen Overfitting prüfen.
-
-Alles andere erst nach Implementierung und Evaluation dieser drei Hebel anhand von Holdout-MAE und Daily-Win-Rate. Das bestehende Framework (`_fit_regime`, Validation-Gates) bietet dafür bereits eine gute Messbasis.
+Der externe Annahmenachweis folgt dem [Validierungsplan](validierung.md): mindestens
+30 vollständige gepaarte Zieltage je Stratum gegen beide Referenzen, nicht bloß ein
+intern bestandener Holdout. Test-/Reviewbestehen oder kleinere Refitzeiten beweisen
+keinen Forecastvorsprung. Für diese Dokumentationskorrektur wurde kein neuer
+Modellkandidat implementiert und keine produktive Einstellung geändert.

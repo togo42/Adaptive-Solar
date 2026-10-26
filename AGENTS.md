@@ -25,7 +25,8 @@ A Python package and pytest suite are configured in `pyproject.toml`. Documentat
 edits need no dependency installation. For implementation work use a local venv:
 
 - `python3 -m venv .venv`
-- `.venv/bin/python -m pip install '.[test,ha-test]'`
+- `.venv/bin/python -m pip install '.[test,ha-test]' 'pvlib==0.16.1' 'scikit-learn==1.9.1'`: match the current HA manifest; see `docs/entwicklung.md` for automatic pin extraction.
+- `.venv/bin/python -m pip check`
 - `.venv/bin/python -m pytest -q`: includes tests with actual HA Core.
 - `.venv/bin/ruff check custom_components tests scripts`
 - `.venv/bin/python scripts/forecast.py --help`: explicit synthetic or live weather.

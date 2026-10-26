@@ -1,6 +1,6 @@
-# HAOS: scikit-learn-Wheel für Adaptive Solar bauen und prüfen
+# HAOS: scikit-learn für Adaptive Solar bauen und installieren
 
-Stand: 25.10.2026. Bau-/Lieferweg seit Adaptive Solar **0.2.0**, kein anderes Lernmodell: normales CPython **3.14**, **amd64/x86_64**, **musllinux 1.2**. Andere ABIs/Architekturen sind nicht geprüft. Vollständiger Vorgänger im lokalen, unveröffentlichten Archiv `artifacts/releases/0.2.5-blocked/source/docs/haos-installation.md`.
+Stand: 26.10.2026, Integrationsreferenz 0.2.10. Bau-/Lieferweg seit Adaptive Solar **0.2.0**, kein anderes Lernmodell: normales CPython **3.14**, **amd64/x86_64**, **musllinux 1.2**. Andere ABIs/Architekturen, insbesondere ARM/Raspberry Pi, sind nicht geprüft. Einstieg und HACS: [Installation](installation.md). Historische Rohbelege bleiben privat; alle nötigen Bau-/Lieferbefehle stehen hier.
 
 ## 1. Anlass und feste Eingaben
 
@@ -76,14 +76,113 @@ Runtime: **joblib 1.6.0, narwhals 2.27.1, threadpoolctl 3.7.0, cloudpickle 3.1.2
 
 Nur `repaired/` plus vier `runtime/`-Wheels kommen für Installation infrage. Hashprüfung ist keine unabhängige Signatur/Modellgüteprüfung.
 
-## 5. Voraussetzungen für eine HAOS-Installation
+## 5. Lieferung in den persistenten Corepfad
 
-Separater konkret freigegebener Arbeitsschritt; der Helfer installiert nichts:
+Der Buildhelfer installiert nichts auf HA. Die folgenden Schritte führt der Betreiber
+nach Prüfung seiner Plattform aus. Die dokumentierte native Installation ist von
+dieser Anleitung und dem lokalen Paketierungstest zu unterscheiden.
+
+### 5.1 Core und Sicherung prüfen
 
 1. Tatsächlicher Core: CPython 3.14/amd64/Musl≥1.2. SSH-App ist ein anderer Interpreter.
 2. Native NumPy/SciPy/Pandas unverändert gegen den Wheel prüfen, keine Buildvenv-Pakete nach `/config/deps` oder andere Corepfade kopieren.
-3. Geprüfter persistenter Abhängigkeitspfad enthält vollständig entpackte Distributionen einschließlich `.libs`/`.dist-info`; abgelegte `.whl` allein genügt nicht. Kein unbeschränkter Resolver überdeckt Corepakete; der Pfad muss installationsspezifisch feststehen.
-4. Nach erforderlichem Core-Neustart tatsächliche Paketversionen/-pfade, Config Check, Repairs, Integrationserkennung/nativen Dialog prüfen. Nachträgliche Abhängigkeiten können einen weiteren Neustart brauchen. Reinen Prüfdialog abbrechen; keine Anlageneinrichtung daraus ableiten.
+3. Sicherung der HA-Konfiguration und jedes bereits vorhandenen Zielpakets erstellen.
+   Fremde Pakete im gemeinsamen Abhängigkeitspfad gehören nicht zu diesem Payload.
+4. Der hier beschriebene Pfad gilt für Core mit Konfigurationswurzel `/config` und
+   normalem CPython 3.14: **`/config/deps/lib/python3.14/site-packages`**. Core ermittelt
+   den User-Site-Pfad mit `PYTHONUSERBASE=<config>/deps` und stellt ihn vor die normalen
+   Imports ([Core-Mount](https://github.com/home-assistant/core/blob/2026.10.4/homeassistant/bootstrap.py),
+   [Pfadermittlung](https://github.com/home-assistant/core/blob/2026.10.4/homeassistant/util/package.py)).
+   Vor Verwendung mit der tatsächlichen Coreversion abgleichen; keine Pythonversion
+   aus einer SSH-App einsetzen. Bei anderer Wurzel/ABI diesen Weg nicht ungeprüft übernehmen.
+
+### 5.2 Payload auf der Buildmaschine vorbereiten
+
+Nach erfolgreichem Build und `SHA256SUMS`-Prüfung in Abschnitt 4 in ein neues Ziel
+installieren. `wheel_work` bezeichnet weiterhin den in Abschnitt 2 erzeugten Ordner.
+Diese reine Bereitstellung darf auch auf glibc laufen: `pip` wählt explizit die
+Zielplattform, importiert aber keine Musl-Erweiterungen im Hostinterpreter.
+
+```bash
+python3 -m venv "$wheel_work/packaging-venv"
+"$wheel_work/packaging-venv/bin/python" -m pip install \
+  --no-index --no-deps --no-compile --only-binary=:all: \
+  --platform musllinux_1_2_x86_64 --implementation cp --python-version 3.14 --abi cp314 \
+  --find-links "$wheel_work/result/repaired" --find-links "$wheel_work/result/runtime" \
+  --target "$wheel_work/deps-payload" \
+  scikit-learn==1.9.1 joblib==1.6.0 narwhals==2.27.1 threadpoolctl==3.7.0 cloudpickle==3.1.2
+```
+
+Nur diese fünf Distributionen einschließlich `scikit_learn.libs` und aller
+`.dist-info`-Ordner ausliefern. Keine NumPy-/SciPy-/Pandas-Verzeichnisse aus der
+Buildvenv übernehmen. Die Lizenzdateien der Distributionen bleiben enthalten.
+Die [pip-Zieloptionen](https://pip.pypa.io/en/stable/cli/pip_install/) ermöglichen
+Plattformauswahl; `--no-index`/`--no-deps` verhindern einen neuen freien Resolverlauf.
+Das Ziel muss vor dem Befehl unbenutzt sein; kein `--upgrade` in fremde Pakete hinein.
+
+### 5.3 Kopieren, Neustart und Rückweg
+
+Über einen bereits eingerichteten lokalen Dateizugang zur HA-Konfiguration arbeiten,
+etwa Samba oder eine Dateiverwaltungs-App. Deren Mount kann anders heißen; entscheidend
+ist die Konfigurationswurzel mit `configuration.yaml`, die im Core `/config` ist.
+
+1. Core nach abgeschlossener Sicherung über eine vorhandene Supervisor-Konsole mit
+   `ha core stop` stoppen. Der für den
+   Transfer verwendete Dateizugang muss unabhängig von Core weiterlaufen.
+2. Innerhalb dieser Wurzel `deps/lib/python3.14/site-packages` bereitstellen.
+   Bereits vorhandene Versionen der fünf Payloaddistributionen samt zugehörigen
+   Metadaten und `.libs` außerhalb des aktiven Importpfads sichern. Ein bloßes
+   Überkopieren über eine alte Paketversion kann gemischte Dateien zurücklassen.
+3. Den **Inhalt** von `deps-payload` vollständig in diesen Zielordner kopieren.
+   Nicht den gesamten gemeinsamen `site-packages`-Ordner ersetzen und nicht nur
+   `.whl`-Dateien ablegen. Übertragene Dateien mit dem lokalen Payload byteweise
+   bzw. anhand eigener SHA256-Dateilisten vergleichen; keine Geheimnisse exportieren.
+4. Core mit `ha core start` wieder starten und Protokolle prüfen. Anschließend
+   [Integrationsinstallation](installation.md#3-über-hacs-installieren) abschließen.
+
+Bei einem fehlgeschlagenen Import Core wieder stoppen, ausschließlich die gelieferten
+fünf Distributionen/zugehörigen Dateien entfernen und deren gesicherten Vorgänger
+wiederherstellen. Danach starten und erneut prüfen. Nicht `deps` als Ganzes löschen.
+Fehlt ein gesicherter Vorgänger, ist der Rückweg die Entfernung genau des neuen
+Payloads; er stellt keine vorher nie vorhandene Integrationsfunktion her.
+
+### 5.4 Im tatsächlichen Core prüfen
+
+Versionen, Importpfade, Konfigurationsprüfung, Reparaturen und nativen Einrichtungsdialog
+prüfen. Wer bereits einen administrativen Zugang zum **HAOS-Host** besitzt, kann
+im laufenden Corecontainer folgende lokale Probe ausführen. Sie ist keine Aufforderung,
+für die Installation einen neuen ungeschützten Debugzugang einzurichten; eine
+SSH-App ohne Zugriff auf diesen Container ist kein gleichwertiger Ausführungsort.
+
+```bash
+docker exec -i homeassistant python3 - <<'PY'
+from importlib.metadata import version
+import sys
+
+sys.path.insert(0, "/config/deps/lib/python3.14/site-packages")
+import numpy
+import scipy
+import pandas
+import sklearn
+from sklearn.ensemble import GradientBoostingRegressor
+
+assert sys.version_info[:2] == (3, 14)
+assert version("scikit-learn") == "1.9.1"
+assert sklearn.__file__.startswith("/config/deps/lib/python3.14/site-packages/")
+for module in (numpy, scipy, pandas):
+    assert not module.__file__.startswith("/config/deps/"), module.__name__
+    print(module.__name__, module.__version__, module.__file__)
+model = GradientBoostingRegressor(random_state=0).fit([[0.0], [1.0], [2.0]], [0.0, 1.0, 2.0])
+assert len(model.predict([[1.5]])) == 1
+print("sklearn", sklearn.__version__, sklearn.__file__, "synthetic fit/predict passed")
+PY
+```
+
+Der neue Pythonprozess bildet die von Core gemountete User-Site explizit nach;
+zusätzlich muss der **regulär geladene HA-Eintrag** nach Neustart funktionieren.
+Die kleine Probe prüft native Imports und synthetisches Fit/Predict, kein produktives
+Lernen. Ein Setupdialog allein prüft nicht alle ML-Erweiterungen. Reale Quellenqualität
+und der spätere Prognosevergleich bleiben die Nachweise in Abschnitt 6.
 
 ## 6. Getrennte Nachweise
 
