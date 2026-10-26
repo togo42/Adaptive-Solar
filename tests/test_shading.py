@@ -1,5 +1,7 @@
 """Direct-beam shading table, recording gates and DST quarter-hour tests."""
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from math import exp
 from unittest.mock import AsyncMock
 from zoneinfo import ZoneInfo
 
@@ -9,11 +11,15 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.adaptive_solar.coordinator import AdaptiveSolarCoordinator
-from custom_components.adaptive_solar.core.engine import ForecastEngine, shade_reference_powers
+from custom_components.adaptive_solar.core.engine import (
+    GHI_DECAY_SECONDS, ForecastEngine, _instantaneous_reference, shade_reference_powers,
+)
 from custom_components.adaptive_solar.core.models import (
     InverterConfig, Observation, SiteConfig, StringConfig, WeatherForecast, WeatherPoint,
 )
-from custom_components.adaptive_solar.core.physics import clear_sky_ghi, solar_position
+from custom_components.adaptive_solar.core.physics import (
+    clear_sky_ghi, instantaneous_weather, inverter_power, solar_position,
+)
 from custom_components.adaptive_solar.core.shading import (
     BeamShadeTable, compute_beam_shade_factor, shade_bin, utc_quarter_hour,
 )
@@ -377,6 +383,57 @@ def test_shade_reference_rejects_clipped_ghi_normalization(ghi):
     # The public short-lived GHI nowcast may use its bounded correction, but
     # its remaining NWP error must never enter the durable shading table.
     assert shade_reference_powers(cfg, (wf,), T0, "i", T0, observations) is None
+
+
+@pytest.mark.parametrize("output_type", ["ac", "dc"])
+@pytest.mark.parametrize("full_gain", [0.6, 1.4])
+@pytest.mark.parametrize("pair_seconds", [-240, 0, 240])
+def test_paired_shade_reference_uses_full_gain_without_nowcast_decay(output_type, full_gain, pair_seconds):
+    cfg = SiteConfig(52, 13, "Europe/Berlin", (StringConfig("s", "i", 5, 30, 180),),
+                     (InverterConfig("i", output_type=output_type, max_output_kw=10),))
+    point = WeatherPoint(T0, T0 + timedelta(hours=1), 1000, 700, 100, 20, 2, 10)
+    forecast = WeatherForecast("best_match", T0, (point,))
+    power_time = T0 + timedelta(minutes=10)
+    ghi_time = power_time - timedelta(seconds=pair_seconds)
+    issued = max(power_time, ghi_time)
+    ghi = Observation(ghi_time, "i", ghi_w_m2=instantaneous_weather(cfg, point, ghi_time).ghi_w_m2 * full_gain)
+    instantaneous = instantaneous_weather(cfg, point, power_time)
+    matched = replace(instantaneous, ghi_w_m2=instantaneous.ghi_w_m2 * full_gain,
+                      dni_w_m2=instantaneous.dni_w_m2 * full_gain,
+                      dhi_w_m2=instantaneous.dhi_w_m2 * full_gain)
+    expected_p0, expected_p1 = (
+        inverter_power(cfg, matched, at=power_time, inverter_id="i", beam_shade_factor=factor)["i"]
+        for factor in (0.0, 1.0)
+    )
+    reference = shade_reference_powers(cfg, (forecast,), issued, "i", power_time, (ghi,))
+    assert reference == pytest.approx((expected_p0, expected_p1))
+    # The same normalized weather departure, paired before/at/after the power
+    # instant, must learn the same transmittance instead of a weather residual.
+    measured_power = expected_p0 + 0.45 * (expected_p1 - expected_p0)
+    assert compute_beam_shade_factor(measured_power, *reference) == pytest.approx(0.45)
+    simultaneous = Observation(power_time, "i", ghi_w_m2=instantaneous.ghi_w_m2 * full_gain)
+    assert reference == pytest.approx(
+        shade_reference_powers(cfg, (forecast,), issued, "i", power_time, (simultaneous,))
+    )
+
+
+@pytest.mark.parametrize("full_gain", [0.6, 1.4])
+def test_published_power_nowcast_reference_keeps_ghi_age_decay(full_gain):
+    cfg = SiteConfig(52, 13, "Europe/Berlin", (StringConfig("s", "i", 5, 30, 180),),
+                     (InverterConfig("i", max_output_kw=10),))
+    point = WeatherPoint(T0, T0 + timedelta(hours=1), 1000, 700, 100, 20, 2, 10)
+    forecast = WeatherForecast("best_match", T0, (point,))
+    power_time = T0 + timedelta(minutes=10)
+    ghi_time = power_time - timedelta(minutes=4)
+    ghi = Observation(ghi_time, "i", ghi_w_m2=instantaneous_weather(cfg, point, ghi_time).ghi_w_m2 * full_gain)
+    reference, status = _instantaneous_reference(
+        cfg, {"best_match": forecast}, ("best_match",), Observation(power_time, "i", power_w=1000),
+        power_time, (ghi,), None, ghi, {"best_match": full_gain},
+    )
+    assert status == "usable:instantaneous_physics_approximation"
+    assert reference.features["ghi_nowcast_gain"] == pytest.approx(
+        1 + (full_gain - 1) * exp(-240 / GHI_DECAY_SECONDS)
+    )
 
 
 def test_noisy_partial_shading_across_train_and_holdout_blocks_activates_without_double_subtraction():

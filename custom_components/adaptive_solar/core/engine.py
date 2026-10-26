@@ -92,7 +92,9 @@ def _physical_members(config, members, inverter_id, start, end, status, gains=No
 
 
 def _instantaneous_member_proxies(config, forecasts, models, at, fresh, ghi_observation, ghi_gains,
-                                  *, allow_paired_future_ghi=False, require_unclipped_ghi=False):
+                                  *, allow_paired_future_ghi=False, require_unclipped_ghi=False,
+                                  decay_ghi=True):
+    """Match instant weather; durable shade calibration uses the full pair gain."""
     use_ghi = ghi_observation is not None and bool(models) and all(model in ghi_gains for model in models)
     if use_ghi and ghi_observation.time > at and not allow_paired_future_ghi:
         return None, None, "ignored:ghi_newer_than_power"
@@ -124,7 +126,7 @@ def _instantaneous_member_proxies(config, forecasts, models, at, fresh, ghi_obse
             if require_unclipped_ghi and full_gain != measured_gain:
                 return None, None, "ignored:clipped_ghi_reference"
             age = max(0.0, (at - ghi_time).total_seconds()) if allow_paired_future_ghi else (at - ghi_time).total_seconds()
-            gain = 1 + (full_gain - 1) * exp(-age / GHI_DECAY_SECONDS)
+            gain = 1 + (full_gain - 1) * exp(-age / GHI_DECAY_SECONDS) if decay_ghi else full_gain
             proxy, applied_gain = _scale_irradiance(proxy, gain)
             if require_unclipped_ghi and applied_gain != gain:
                 return None, None, "ignored:clipped_ghi_reference"
@@ -320,6 +322,7 @@ def shade_reference_powers(config: SiteConfig, forecasts, issued_at: datetime,
         shade_ghi_gains,
         allow_paired_future_ghi=True,
         require_unclipped_ghi=True,
+        decay_ghi=False,
     )
     if member_weather is None or not gains or len(gains) != len(models):
         return None

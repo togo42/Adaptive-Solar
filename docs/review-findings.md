@@ -1,5 +1,22 @@
 # Reviewnachweise und fachliche Bearbeitung
 
+## Korrektur des GHI-Paar-Gains und erneute Prüfung
+
+Der nachfolgende Grok-Befund AS-001 ist im neuen Arbeitsstand korrigiert:
+`shade_reference_powers` verwendet den vollen normierten GHI-Paar-Gain ohne
+zeitliche Dämpfung. Der veröffentlichte Leistungsnowcast behält seinen bisherigen
+Decay. Regressionsfälle prüfen beide Gainrichtungen (0,6/1,4), frühere,
+gleichzeitige und spätere GHI-Paare sowie AC/DC-Ausgänge anhand unabhängig
+berechneter `P0/P1` und eines konstanten gelernten Faktors 0,45. Zwei weitere
+Gegenproben sichern den unveränderten Decay der Nowcast-Referenz ab. Vor der
+Korrektur scheiterten die vier Fälle mit älterer GHI-Meldung erwartungsgemäß.
+Lokale Validierung: **101 gezielte Tests**, anschließend **978 bestandene Tests
+ohne Skips** unter HA Core **2026.10.4** / Testplugin **0.13.375**; Ruff,
+`pip check`, Markdown-Rendering, relative Dateilinks und `git diff --check`
+erfolgreich. JUnit-Beleg: `artifacts/ghi-pair-gain-fix-ha-2026.10.4-tests.xml`.
+Der neue externe Review ist noch ausstehend; frühere Receipts gelten nur für
+ihren jeweiligen Quellstand.
+
 ## Grok-Vollreview des Schattenlernstands `ae5a56b`: blockiert
 
 26.10.2026, **Grok 4.7/high**, Commit
@@ -17,7 +34,7 @@ in `P0/P1` zurück und verzerrt dadurch den dauerhaft gespeicherten Schattenfakt
 Die Richtung der Verzerrung hängt vom Gain ab. Codeprüfung und eine synthetische
 Reproduktion bestätigen den Befund: Bei vier Minuten Abstand wird ein ungekappter
 Paar-Gain von 0,6 als rund **0,64993** angewendet. Gleichzeitige Paare verdecken den
-Fehler. Die Korrektur ist **offen**: Schattenreferenz mit dem vollen Paar-Gain rechnen,
+Fehler. Die damals **offene** Korrektur: Schattenreferenz mit dem vollen Paar-Gain rechnen,
 Decay im veröffentlichten Nowcast erhalten und einen zeitversetzten Gegenfall ergänzen.
 Lokaler Reproduktionsbeleg: `artifacts/grok-ae5a56b-as001-reproduction.json`.
 

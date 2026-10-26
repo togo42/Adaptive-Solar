@@ -78,6 +78,12 @@ veröffentlichten GHI-Nowcasts eine eigenständig qualifizierte, zum
 Leistungszeitpunkt passende GHI-Momentanreferenz aller Kohortenmitglieder
 (mindestens 10° Sonnenhöhe und 50 W/m² Haurwitz-Klarhimmel). Fehlt diese
 Referenz, gibt es keine Aufnahme.
+Der auf die jeweilige Momentan-Wetterform normierte Paar-Gain wird für `P0/P1`
+voll angewendet, auch bei einer bis zu fünf Minuten älteren oder jüngeren
+GHI-Meldung. Eine zeitliche Dämpfung Richtung 1 gehört zum kurzlebigen Nowcast,
+nicht zur dauerhaften Schattenaufnahme. Die Paarung nimmt innerhalb dieser
+fünf Minuten einen gleichbleibenden normierten Strahlungsfaktor an; sie ist keine
+Messung des zwischenzeitlichen Wetterverlaufs.
 Auch eine an den Grenzen 0,35/1,65 oder an den Strahlungsobergrenzen gekappte
 GHI-Normalisierung liefert keine Schattenaufnahme: Ihr verbleibender Wetterfehler
 darf nicht dauerhaft in die Tabelle gelangen. Der kurzlebige GHI-Nowcast behält
