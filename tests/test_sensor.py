@@ -54,14 +54,14 @@ async def test_real_ha_entry_setup_entities_energy_provider_and_unload(hass, ena
         await hass.async_block_till_done()
         assert entry.runtime_data.data.points
         entities = [state for state in hass.states.async_all("sensor") if state.entity_id.startswith("sensor.adaptive_solar")]
-        assert len(entities) == 20
+        assert len(entities) == 10
         powers = [state for state in entities if state.attributes.get("device_class") == "power"]
-        assert len(powers) == 2
+        assert len(powers) == 1
         assert all(state.attributes["unit_of_measurement"] == "W" and state.state != "unavailable" for state in powers)
         energies = [state for state in entities if state.attributes.get("device_class") == "energy"]
         assert all("state_class" not in state.attributes for state in energies)
         qualities = [state for state in entities if state.attributes.get("device_class") == "enum"]
-        assert len(qualities) == 2
+        assert len(qualities) == 1
         assert all(state.state == "physics" for state in qualities)
         assert all(set(state.attributes["options"]) == {"complete", "mixed", "partial", "degraded", "physics", "curtailed"}
                    for state in qualities)
@@ -101,7 +101,7 @@ async def test_inverter_named_total_has_distinct_site_unique_ids(hass):
     total = AdaptiveSolarSensor(coordinator, entry, None, "power")
     inverter = AdaptiveSolarSensor(coordinator, entry, "total", "power")
     assert total.unique_id != inverter.unique_id
-    assert total.device_info["identifiers"] != inverter.device_info["identifiers"]
+    assert total.device_info["identifiers"] == inverter.device_info["identifiers"]
 
 
 async def test_setup_platform_failure_removes_listener_and_shuts_down(hass):

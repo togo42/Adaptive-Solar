@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.const import EntityCategory, UnitOfEnergy, UnitOfPower
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, NAME
@@ -21,13 +22,75 @@ QUALITY_OPTIONS = ("complete", "mixed", "partial", "degraded", "physics", "curta
 
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
     coordinator = entry.runtime_data
-    scopes = [None, *(inv.id for inv in coordinator.site.inverters)]
+    registry = er.async_get(hass)
+    total_scope = _scope(coordinator.site, None)
+    keys = {"power", "remaining", "quality", *(f"day_{day}" for day in range(MAX_FORECAST_DAYS))}
+    legacy_total = any(row.platform == DOMAIN and row.unique_id in {
+        f"{entry.entry_id}_{total_scope}_{key}" for key in keys
+    } for row in er.async_entries_for_config_entry(registry, entry.entry_id))
+    # New single-stage entries have no aggregate duplicates. Existing aggregate
+    # IDs stay live as hidden aliases on the stage's device for old consumers.
+    scopes = ([None] if len(coordinator.site.inverters) > 1 or legacy_total else [])
+    scopes.extend(inv.id for inv in coordinator.site.inverters)
     entities = []
     for inverter_id in scopes:
         entities.extend([AdaptiveSolarSensor(coordinator, entry, inverter_id, "power"), AdaptiveSolarSensor(coordinator, entry, inverter_id, "remaining")])
         entities.extend(AdaptiveSolarSensor(coordinator, entry, inverter_id, "day", day) for day in range(MAX_FORECAST_DAYS))
         entities.append(AdaptiveSolarSensor(coordinator, entry, inverter_id, "quality"))
+    _sync_registry(hass, entry, entities, keys)
     async_add_entities(entities)
+
+
+def _scope(site, inverter_id):
+    if inverter_id is not None:
+        stage = next(inv for inv in site.inverters if inv.id == inverter_id)
+        return f"dc_inverter_{inverter_id}" if stage.output_type == "dc" else f"inverter_{inverter_id}"
+    types = {inv.output_type for inv in site.inverters}
+    return "mixed_site" if len(types) > 1 else "dc_site" if types == {"dc"} else "site"
+
+
+def _sync_registry(hass, entry, entities, keys):
+    """Move compatible aggregate aliases without changing IDs or user choices.
+
+    Only this platform's known sensor keys/scopes are managed. Removing an
+    output stage removes that stage's registry rows; other integrations and
+    unknown future sensor kinds are left alone. Recorder history is untouched.
+    """
+    registry, devices = er.async_get(hass), dr.async_get(hass)
+    current = {}
+    device_ids = set()
+    for sensor in entities:
+        device = devices.async_get_or_create(config_entry_id=entry.entry_id, **sensor.device_info)
+        device_ids.add(device.id)
+        current[sensor.unique_id] = (device.id, sensor.inverter_id is None)
+    single = len(entry.runtime_data.site.inverters) == 1
+    prefix = f"{entry.entry_id}_"
+    for row in list(er.async_entries_for_config_entry(registry, entry.entry_id)):
+        if row.platform != DOMAIN:
+            continue
+        if row.unique_id in current:
+            device_id, aggregate = current[row.unique_id]
+            changes = {"device_id": device_id} if row.device_id != device_id else {}
+            if aggregate:
+                if single and row.hidden_by is None:
+                    changes["hidden_by"] = er.RegistryEntryHider.INTEGRATION
+                elif not single and row.hidden_by is er.RegistryEntryHider.INTEGRATION:
+                    changes["hidden_by"] = None
+            if changes:
+                registry.async_update_entity(row.entity_id, **changes)
+            continue
+        if not row.unique_id.startswith(prefix):
+            continue
+        suffix = row.unique_id[len(prefix):]
+        scope = next((suffix[:-(len(key) + 1)] for key in keys if suffix.endswith("_" + key)), None)
+        if scope in {"site", "dc_site", "mixed_site"} or scope and scope.startswith(("inverter_", "dc_inverter_")):
+            registry.async_remove(row.entity_id)
+    for device in list(dr.async_entries_for_config_entry(devices, entry.entry_id)):
+        if (device.id not in device_ids and device.config_entries == {entry.entry_id}
+                and device.identifiers and all(domain == DOMAIN and identifier.startswith(prefix)
+                                              for domain, identifier in device.identifiers)
+                and not er.async_entries_for_device(registry, device.id, include_disabled_entities=True)):
+            devices.async_remove_device(device.id)
 
 
 def day_bounds(now: datetime, timezone: str, offset: int) -> tuple[datetime, datetime]:
@@ -49,18 +112,17 @@ class AdaptiveSolarSensor(CoordinatorEntity, SensorEntity):
         self.inverter_id = inverter_id
         self.kind = kind
         self.day = day
-        types = {inv.output_type for inv in coordinator.site.inverters}
-        if inverter_id is not None:
-            stage = next(inv for inv in coordinator.site.inverters if inv.id == inverter_id)
-            scope = f"dc_inverter_{inverter_id}" if stage.output_type == "dc" else f"inverter_{inverter_id}"
-            prefix = "DC " if stage.output_type == "dc" else ""
-        else:
-            scope = "mixed_site" if len(types) > 1 else "dc_site" if types == {"dc"} else "site"
-            prefix = "AC/DC " if len(types) > 1 else "DC " if types == {"dc"} else ""
+        scope = _scope(coordinator.site, inverter_id)
         key = f"{kind}_{day}" if kind == "day" else kind
         self._attr_unique_id = f"{entry.entry_id}_{scope}_{key}"
         self._attr_translation_key = key
-        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, f"{entry.entry_id}_{scope}")}, name=f"{NAME} {prefix}{inverter_id or 'Total'}", manufacturer=NAME, model="Adaptive PV forecast", entry_type=None)
+        device_inverter = coordinator.site.inverters[0].id if len(coordinator.site.inverters) == 1 else inverter_id
+        device_scope = _scope(coordinator.site, device_inverter)
+        device_types = {inv.output_type for inv in coordinator.site.inverters
+                        if device_inverter is None or inv.id == device_inverter}
+        prefix = "AC/DC " if len(device_types) > 1 else "DC " if device_types == {"dc"} else ""
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, f"{entry.entry_id}_{device_scope}")}, name=f"{NAME} {prefix}{device_inverter or 'Total'}", manufacturer=NAME, model="Adaptive PV forecast", entry_type=None)
+        self._attr_entity_registry_visible_default = not (inverter_id is None and len(coordinator.site.inverters) == 1)
         if kind == "power":
             self._attr_device_class = SensorDeviceClass.POWER
             self._attr_native_unit_of_measurement = UnitOfPower.WATT

@@ -178,7 +178,7 @@ async def test_native_dc_entry_setup_and_unavailable_entities_keep_boundary(hass
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
         entities = [state for state in hass.states.async_all("sensor") if state.entity_id.startswith("sensor.adaptive_solar_dc")]
-        assert len(entities) == 20
+        assert len(entities) == 10
         assert all(state.attributes["measurement_boundary"] == "dc_charge_controller_output" for state in entities)
         assert all(state.attributes["output_type"] == "dc" and state.attributes["native_energy_eligible"] is True for state in entities)
         assert any(state.state == "unavailable" for state in entities)  # cold day0/long-horizon gaps still labelled

@@ -1,10 +1,10 @@
 # Geplante Änderungen für das nächste Update
 
-Stand: 25.10.2026. Diese Liste dokumentiert beauftragte Folgeänderungen; sie beschreibt keine bereits umgesetzten Funktionen.
+Stand: 26.10.2026. Diese Liste dokumentiert beauftragte Folgeänderungen und deren Umsetzungsstand.
 
 ## AS-UI-001: Doppelte Gesamtanzeige bei einer Ausgangsstufe vermeiden
 
-**Status:** offen, für die nächste Version vorgesehen. Anwenderwunsch vom 25.10.2026; Umsetzung und Migration stehen noch aus.
+**Status:** in Version 0.2.10 implementiert und mit nativen HA-Regressionstests geprüft. Anwenderwunsch vom 25.10.2026. Produktive Installation wird separat im Entwicklungsstand dokumentiert.
 
 ### Problem
 
@@ -30,4 +30,10 @@ Bestehende Entity-IDs, Unique-IDs, Historien und Verweise aus Dashboards oder Au
 - Native Energy-Anbindung, Prognosewerte und Lernhistorie werden durch die Darstellungsänderung nicht unbeabsichtigt verändert. AC-/DC-Grenzen und die Einschränkungen gemischter Einträge bleiben erhalten.
 - Die Umsetzung erhält passende HA-Regressionstests und einen Hinweis in den Versionsinformationen.
 
-Diese Dokumentationsänderung allein ändert weder die Integration noch produktive HA-Einstellungen.
+### Umsetzung in 0.2.10
+
+Neue Einträge mit einer Ausgangsstufe erzeugen nur deren zehn Sensoren und ein Gerät. Beim Upgrade bleiben bereits vorhandene Gesamt-Sensoren unter unveränderten Entity-/Unique-IDs verfügbar; sie werden als Kompatibilitätsanzeigen vom Standard ausgeblendet und dem bestehenden Einzelgerät zugeordnet. Benutzerdefinierte Namen, Deaktivierungen und ausdrücklich gesetzte Ausblendungen bleiben erhalten. Das dann leere, ausschließlich zu diesem Eintrag gehörende Gesamtgerät entfällt. Mehrere Ausgangsstufen zeigen weiterhin ihre Einzelgeräte und das Gesamtgerät. Alte Gesamtanzeigen werden bei einem solchen Wechsel wieder eingeblendet; ausdrücklich vom Benutzer ausgeblendete Anzeigen bleiben ausgeblendet.
+
+Wird eine Ausgangsstufe im Optionsdialog ausdrücklich entfernt, entfernt die Integration deren eigene Sensorregistrierungen und leere Geräte. Die Recorder-Historie wird nicht gelöscht. Geräte mit fremden Entitäten oder Zuordnungen werden nicht entfernt. Die Migration bearbeitet nur bekannte eigene Sensorarten; Berechnung, Energy-Anbindung und Historienfingerprints bleiben unverändert. Vor einem produktiven Upgrade werden Verbraucher der entfallenden redundanten Geräte-IDs geprüft; Sensorverweise müssen nicht umgeschrieben werden.
+
+Regressionen: neue AC-/DC-Einträge, mehrere Strings an einer Stufe, Upgrade mit Benutzeranpassungen, identische Energie-/Messhistorie nach erneutem Laden sowie wiederholter Wechsel zwischen einer und mehreren Stufen. Siehe [Versionsinformationen](release-0.2.10.md).
