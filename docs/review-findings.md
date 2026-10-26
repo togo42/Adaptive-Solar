@@ -1,5 +1,16 @@
 # Reviewnachweise und fachliche Bearbeitung
 
+## 0.2.10: Implementierungsreview abgeschlossen
+
+Am 26.10.2026 mit **Grok 4.7/high**, unverändertem CLI 1.0.62 und strikt geprüftem Einzelprompt abgeschlossen: **mergeable, keine Findings**. Geprüfter Commit: `5a7da69d98f4d8aea037dd45a53694a81c4a4393`. Umfang: **83 aktuelle Originaldateien** einschließlich Code, Tests, Dokumentation und Helfern; die sechs unveränderten Forschungstexte waren ausschließlich über einen erneut geprüften vollständigen Vorgängerreview gebunden. Kein erneuter Volltextreview der Forschung und keine PNG-Renderingprüfung.
+
+Der vorherige gültige Lauf fand zwei Punkte: restaurierte Umweltsensor-/Leistungswerte im Nowcast und zusammengefasste Trainings-Ablehnungsgründe. `8b40414` behebt beide und führt den Featurevertrag v2 mit getrenntem Erhalt qualifizierter Messintervalle und Tagesbeginn-Snapshots ein. Anschließend bestanden je **893 Tests** unter Core 2026.10.2/.3/.4 und drei reguläre, bytegeprüfte Wheel-Installationen.
+
+Transportaudit: ein tatsächlicher Abschlussturn, `end_turn`, native Modellkennung `grok-4.7`, Effort `high`, **keine Compaction, Tools oder Hintergrundaufgaben**; gesendete Promptbytes und Endantwort stimmen mit dem Receipt überein. Originalquellen und CLI blieben während des Laufs unverändert. Receipt-SHA256: `da2a9d20cb1df53b699d8e5b9847c8bbf3e8549215b3d5c4df85f0cac0560d53`; Review-SHA256: `ca5a8c00cc0bf44a3171b918fd096c7a2a06ac92884fa78240012e543d5db5cf`.
+
+Diese nachträgliche Statusdokumentation gehört nicht zum eingefrorenen Prüftext; die ausgelieferten Implementierungsbytes bleiben mit dem geprüften Commit gebunden. Produktive Installation und Rückleseprüfung folgen separat im Entwicklungsstand. Tests und Review beweisen keine reale Prognosegüte.
+
+
 Stand: 25.10.2026. Historischer Implementierungsstand **0.2.7** mit positivem Vollreview; Implementierungsstände **0.2.8** (`0285445`) und **0.2.9** (`38c05d5`) mit positivem gebundenem Implementierungsreview. Die nachfolgende Statusdokumentation nennt deren unveränderlichen Umfang.
 
 ## Gebundener Implementierungsreview
@@ -34,6 +45,6 @@ Gültige blockierende Vollreviews0.2.0–0.2.6 führten zu Korrekturen an Zeit-/
 
 ## Grenzen
 
-[Live-Stand und Tests](entwicklungsstand.md): 0.2.7, vier geladene Anlageneinträge unter Core 2026.10.4, aktuelle Prognosekurven geprüft. Entwicklungsstand 0.2.9 mit jeweils 852 bestandenen Tests unter Core .2/.3/.4. Core-ML-Fit auf qualifizierter Messhistorie und fairer prospektiver Vorsprung gegenüber **beiden** Referenzen sind offen. Ein Review belegt keine Prognosegüte.
+[Live-Stand und Tests](entwicklungsstand.md): zuletzt produktiv bestätigte Version 0.2.9 mit vier Anlageneinträgen unter Core 2026.10.4. Kandidat 0.2.10 mit jeweils 893 bestandenen Tests unter Core .2/.3/.4 und abgeschlossenem Implementierungsreview. Core-ML-Fit auf qualifizierter Messhistorie und fairer prospektiver Vorsprung gegenüber **beiden** Referenzen sind offen. Ein Review belegt keine Prognosegüte.
 
 Archive und rohe Receipts bleiben lokal; die genannten `artifacts/`-Pfade sind keine öffentlichen Downloads. Die optionale Messgültigkeits-Erweiterung hat einen eigenen 0.2.9-Review, einen separaten unabhängigen Codeaudit und native Integrator-Gegenfälle. Die Testmatrix dokumentiert ausdrücklich auch eine außerhalb des sicheren Adaptervertrags liegende Zählerpoll-Sequenz. Der Review belegt den generischen Eingangsvertrag, keine konkrete produktive Quellenzuordnung. [Vertrag und Grenze](measurement-validity.md).

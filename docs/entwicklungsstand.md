@@ -1,6 +1,6 @@
 # Entwicklungsstand und offene Nachweise
 
-Stand: 26.10.2026. **Adaptive Solar 0.2.10 ist implementiert und lokal validiert; letzter bestätigter produktiver Stand ist 0.2.9 unter Core 2026.10.4.** Externer Review, Veröffentlichung und HACS-Aktivierung der neuen Version werden separat abgeschlossen. Ein qualifizierter produktiver ML-Fit und bessere Prognosegüte bleiben offen.
+Stand: 26.10.2026. **Adaptive Solar 0.2.10 ist implementiert und lokal validiert; letzter bestätigter produktiver Stand ist 0.2.9 unter Core 2026.10.4.** Der gebundene Grok-4.7/high-Review ist ohne Findings abgeschlossen. Veröffentlichung und HACS-Aktivierung der neuen Version folgen separat. Ein qualifizierter produktiver ML-Fit und bessere Prognosegüte bleiben offen.
 
 ## Update 0.2.10
 
@@ -12,7 +12,7 @@ Die Migrationstests prüfen AC/DC, mehrere Strings je Stufe, stabile Entity-/Uni
 
 Die folgenden Abschnitte dokumentieren den historischen Stand 0.2.9 und dessen getrennte Nachweise.
 
-Der erste vollständige Implementierungsreview der neuen Version fand zwei behebungsbedürftige Punkte: restaurierte Umweltsensor-/Leistungswerte im Nowcast und zusammengefasste Ablehnungsgründe kurzer beziehungsweise nicht prospektiver Trainingszellen. Beide sind in `8b40414` korrigiert und durch Regressionen abgedeckt. Der Featurevertrag v2 verwirft ältere unqualifizierbare Archivfeatures, erhält aber separat geprüfte Messintervalle und ausgegebene Tagesbeginn-Snapshots. Der erneute gebundene Grok-Review steht vor Veröffentlichung noch aus.
+Der erste vollständige Implementierungsreview der neuen Version fand zwei behebungsbedürftige Punkte: restaurierte Umweltsensor-/Leistungswerte im Nowcast und zusammengefasste Ablehnungsgründe kurzer beziehungsweise nicht prospektiver Trainingszellen. Beide sind in `8b40414` korrigiert und durch Regressionen abgedeckt. Der Featurevertrag v2 verwirft ältere unqualifizierbare Archivfeatures, erhält aber separat geprüfte Messintervalle und ausgegebene Tagesbeginn-Snapshots. Der erneute gebundene Grok-Review ist auf Commit `5a7da69` ohne Findings abgeschlossen; [Umfang und Hashbindung](review-findings.md).
 
 ## 1. Implementierung und Prüfung
 

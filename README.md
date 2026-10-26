@@ -8,7 +8,7 @@
 
 Wetterprognosen, PV-Physik und lokale Residualmodelle für Resttag und nächste sieben Tage: unterschiedliche Stringausrichtungen, gemeinsame AC-/DC-Ausgabestufen und wiederkehrende Verschattung. Frische HA-Temperatur/Windwerte, optional Ecowitt-Globalstrahlung und geeignete PV-Leistung unterstützen den kurzfristigen Nowcast.
 
-**Stand, 26.10.2026:** **0.2.10 implementiert**, je **893 Tests** mit Core 2026.10.2, .3 und .4 bestanden. Neu sind Morgen-/Abenddämpfungen pro String und die Migration zur Einzelanzeige bei einer Ausgangsstufe. Veröffentlichung, externer Review und HACS-Aktivierung werden separat abgeschlossen; letzter bestätigter produktiver Stand ist 0.2.9 unter Core 2026.10.4. Ein qualifizierter produktiver ML-Fit und Überlegenheit gegenüber Helios und Open-Meteo Solar sind weiterhin offen. [Versionsinformationen](docs/release-0.2.10.md), [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
+**Stand, 26.10.2026:** **0.2.10 implementiert**, je **893 Tests** mit Core 2026.10.2, .3 und .4 bestanden. Neu sind Morgen-/Abenddämpfungen pro String und die Migration zur Einzelanzeige bei einer Ausgangsstufe. Der gebundene Grok-4.7/high-Implementierungsreview ist ohne Findings abgeschlossen; Veröffentlichung und HACS-Aktivierung folgen separat; letzter bestätigter produktiver Stand ist 0.2.9 unter Core 2026.10.4. Ein qualifizierter produktiver ML-Fit und Überlegenheit gegenüber Helios und Open-Meteo Solar sind weiterhin offen. [Versionsinformationen](docs/release-0.2.10.md), [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
 
 ## Funktionsweise
 
