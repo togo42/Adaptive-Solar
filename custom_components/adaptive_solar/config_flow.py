@@ -209,6 +209,8 @@ class _Editor:
         field(schema, "azimuth_deg", current.get("azimuth_deg", 180), number(0, 359.9, 0.1, "°"))
         field(schema, "loss_fraction", current.get("loss_fraction", 0.14), number(0, 0.99, 0.001))
         field(schema, "temperature_coefficient", current.get("temperature_coefficient", -0.004), number(-0.02, 0, 0.0001, "1/°C"))
+        field(schema, "damping_morning", current.get("damping_morning", 0), number(0, 1, 0.01))
+        field(schema, "damping_evening", current.get("damping_evening", 0), number(0, 1, 0.01))
         field(schema, "horizon", current.get("horizon", []), selector.ObjectSelector({
             "multiple": True,
             "label_field": "azimuth_deg",

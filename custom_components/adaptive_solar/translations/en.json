@@ -44,7 +44,9 @@
           "temperature_coefficient": "Module power temperature coefficient",
           "horizon": "Horizon points (direct-beam transmission)",
           "add_another": "Add another after existing items",
-          "remove": "Remove this item"
+          "remove": "Remove this item",
+          "damping_morning": "Morning damping (0–1, 0 = off)",
+          "damping_evening": "Evening damping (0–1, 0 = off)"
         }
       },
       "dc_inverter": {
@@ -115,7 +117,9 @@
           "temperature_coefficient": "Module power temperature coefficient",
           "horizon": "Horizon points (direct-beam transmission)",
           "add_another": "Add another after existing items",
-          "remove": "Remove this item"
+          "remove": "Remove this item",
+          "damping_morning": "Morning damping (0–1, 0 = off)",
+          "damping_evening": "Evening damping (0–1, 0 = off)"
         }
       },
       "dc_inverter": {

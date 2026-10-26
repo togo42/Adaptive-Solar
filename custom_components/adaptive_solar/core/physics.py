@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from bisect import bisect_right
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from functools import lru_cache
 import math
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import pvlib
@@ -49,6 +50,49 @@ def _position(latitude: float, longitude: float, time: datetime) -> SolarPositio
 
 def solar_position(config: SiteConfig, time: datetime) -> SolarPosition:
     return _position(config.latitude, config.longitude, utc_time(time))
+
+
+@lru_cache(maxsize=4096)
+def _daylight_windows(latitude, longitude, timezone, day):
+    """SPA daylight pairs around the civil day, including midnight-crossing sun.
+
+    Adjacent dates also support UTC configurations far from the longitude's
+    solar timezone. Polar day/night has no sunrise/sunset pair and therefore
+    no defined dawn/dusk damping; the neutral factor is used explicitly.
+    """
+    zone = ZoneInfo(timezone)
+    times = pd.DatetimeIndex([datetime.combine(day + timedelta(days=offset), time(12), zone)
+                              for offset in (-1, 0, 1)])
+    events = pvlib.solarposition.sun_rise_set_transit_spa(times, latitude, longitude)
+    windows = []
+    for _, row in events.iterrows():
+        if pd.isna(row.sunrise) or pd.isna(row.sunset):
+            continue
+        rise = utc_time(row.sunrise.to_pydatetime(warn=False))
+        setting = utc_time(row.sunset.to_pydatetime(warn=False))
+        if rise < setting:
+            windows.append((rise, setting))
+    return tuple(windows)
+
+
+def damping_factor(config: SiteConfig, string: StringConfig, at: datetime) -> float:
+    """Linear sunrise/noon/sunset output damping, independent for every string.
+
+    The factor equals 1-morning at sunrise, 1 at daylight midpoint and
+    1-evening at sunset. It is applied after temperature and before the shared
+    output cap; it does not scale the meteorological irradiance or temperature.
+    """
+    if string.damping_morning == 0 and string.damping_evening == 0:
+        return 1.0
+    at = utc_time(at)
+    local_day = at.astimezone(ZoneInfo(config.timezone)).date()
+    for rise, setting in _daylight_windows(config.latitude, config.longitude, config.timezone, local_day):
+        if rise <= at <= setting:
+            noon = rise + (setting - rise) / 2
+            if at <= noon:
+                return 1 - string.damping_morning * (noon - at) / (noon - rise)
+            return 1 - string.damping_evening * (at - noon) / (setting - noon)
+    return 1.0
 
 
 
@@ -192,7 +236,7 @@ def string_dc_power(config: SiteConfig, string: StringConfig, weather: WeatherPo
     module_temperature = _finite_physics(pvlib.temperature.faiman(irradiance, weather.temperature_c, weather.wind_m_s), "module_temperature")
     power = float(pvlib.pvsystem.pvwatts_dc(irradiance, module_temperature,
         string.peak_kw * 1000, string.temperature_coefficient)) * (1 - string.loss_fraction)
-    return max(0.0, _finite_physics(power, "string_dc_power"))
+    return max(0.0, _finite_physics(power * damping_factor(config, string, midpoint), "string_dc_power"))
 
 
 def inverter_power(config: SiteConfig, weather: WeatherPoint, *, at: datetime | None = None,

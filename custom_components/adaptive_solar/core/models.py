@@ -91,13 +91,16 @@ class StringConfig:
     loss_fraction: float = 0.14
     temperature_coefficient: float = -0.004
     horizon: tuple[HorizonPoint, ...] = ()
+    damping_morning: float = 0.0
+    damping_evening: float = 0.0
 
     def __post_init__(self):
         _identifier(self.id)
         _identifier(self.inverter_id, "inverter_id")
         _number_fields(self, (("peak_kw", 0.000001, 1e6), ("tilt_deg", 0, 180),
             ("azimuth_deg", 0, 360), ("loss_fraction", 0, 1),
-            ("temperature_coefficient", -0.02, 0)))
+            ("temperature_coefficient", -0.02, 0), ("damping_morning", 0, 1),
+            ("damping_evening", 0, 1)))
         object.__setattr__(self, "azimuth_deg", self.azimuth_deg % 360)
         horizon = tuple(self.horizon)
         if any(not isinstance(p, HorizonPoint) for p in horizon):
@@ -247,6 +250,11 @@ class SiteConfig:
         # JSON roundtripping uses lists and primitive values exclusively.
         result = asdict(self)
         result["strings"] = [{**s, "horizon": list(s["horizon"])} for s in result["strings"]]
+        # Optional zero corrections preserve legacy JSON and history fingerprints.
+        for string in result["strings"]:
+            for key in ("damping_morning", "damping_evening"):
+                if string[key] == 0:
+                    string.pop(key)
         result["inverters"] = [inverter.to_dict() for inverter in self.inverters]
         result["weather_models"] = list(result["weather_models"])
         return result

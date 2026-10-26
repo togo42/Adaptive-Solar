@@ -44,7 +44,9 @@
           "temperature_coefficient": "Temperaturkoeffizient der Modulleistung",
           "horizon": "Horizontpunkte (Durchlass direkter Strahlung)",
           "add_another": "Nach vorhandenen Einträgen weiteren hinzufügen",
-          "remove": "Diesen Eintrag entfernen"
+          "remove": "Diesen Eintrag entfernen",
+          "damping_morning": "Morgendämpfung (0–1, 0 = aus)",
+          "damping_evening": "Abenddämpfung (0–1, 0 = aus)"
         }
       },
       "dc_inverter": {
@@ -115,7 +117,9 @@
           "temperature_coefficient": "Temperaturkoeffizient der Modulleistung",
           "horizon": "Horizontpunkte (Durchlass direkter Strahlung)",
           "add_another": "Nach vorhandenen Einträgen weiteren hinzufügen",
-          "remove": "Diesen Eintrag entfernen"
+          "remove": "Diesen Eintrag entfernen",
+          "damping_morning": "Morgendämpfung (0–1, 0 = aus)",
+          "damping_evening": "Abenddämpfung (0–1, 0 = aus)"
         }
       },
       "dc_inverter": {
