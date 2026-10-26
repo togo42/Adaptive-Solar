@@ -250,6 +250,26 @@ def test_fake_cli_failure_and_drift_fail_closed(transport_workspace, mode, reaso
         assert receipt["calls"][-1]["returncode"] == "timeout"
 
 
+def test_snapshot_includes_extensionless_licenses_without_private_files(tmp_path, monkeypatch):
+    monkeypatch.setattr(review, "ROOT", tmp_path)
+    files = {
+        "LICENSE": b"Public project license\n",
+        "custom_components/example/LICENSE": b"Shipped component license\n",
+        "data/LICENSE": b"Private data must remain excluded\n",
+        "icon.png": b"\x89PNG\r\n",
+    }
+    for name, data in files.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    monkeypatch.setattr(review, "git", lambda *args: "\0".join(files))
+    snapshot = review.snapshot()
+    assert set(snapshot) == {"LICENSE", "custom_components/example/LICENSE"}
+    payload, _ = review.build_payload(snapshot)
+    assert all(data in payload for name, data in files.items() if name in snapshot)
+    assert files["data/LICENSE"] not in payload
+
+
 def test_raw_payload_preserves_all_bytes_and_documents_exact_offsets(tmp_path, monkeypatch):
     monkeypatch.setattr(review, "ROOT", tmp_path)
     originals = {"unicode.py": "# Grüße ☀️\r\nprint('🙂')".encode(), "empty.md": b"",

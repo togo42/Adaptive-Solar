@@ -1,6 +1,6 @@
 # Analyse der Adaptive-Solar-Erweiterung: Ensemble und ML-Learning
 
-Stand: 26.10.2026. Gegen Codebasis 0.2.10 abgeglichen. Abschnitte 1–3 beschreiben den Code; Abschnitte 4–5 sind mögliche Prüfaufträge, keine belegten Optimierungen oder automatisch beauftragten Modelländerungen. [Vertrag](implementation-contract.md), [Anwenderhandbuch](bedienung.md).
+Stand: 26.10.2026. Gegen Codebasis 0.2.11 abgeglichen. Abschnitte 1–3 beschreiben den Code; Abschnitte 4–5 sind mögliche Prüfaufträge, keine belegten Optimierungen oder automatisch beauftragten Modelländerungen. [Vertrag](implementation-contract.md), [Anwenderhandbuch](bedienung.md).
 
 ## 1. Kurzfassung
 

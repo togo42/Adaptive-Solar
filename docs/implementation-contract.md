@@ -1,6 +1,6 @@
 # Implementierungsvertrag für Adaptive Solar
 
-Stand: 26.10.2026; Codebasis 0.2.10. Anwenderfelder und Abläufe: [Bedienung](bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen. Thematisch konsolidiert aus dem lokal archivierten Vorgänger `artifacts/releases/0.2.5-context-window-invalid/source/docs/implementation-contract.md`; das Archiv wird nicht veröffentlicht.
+Stand: 26.10.2026; Codebasis 0.2.11. Anwenderfelder und Abläufe: [Bedienung](bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen. Thematisch konsolidiert aus dem lokal archivierten Vorgänger `artifacts/releases/0.2.5-context-window-invalid/source/docs/implementation-contract.md`; das Archiv wird nicht veröffentlicht.
 
 ## Ziel und Aufteilung
 

@@ -22,7 +22,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = "grok-4.7"
-MAX_SINGLE_PAYLOAD_BYTES = 1020000
+MAX_SINGLE_PAYLOAD_BYTES = 1250000
 SUFFIXES = {".py", ".json", ".md", ".toml", ".txt", ".yml", ".yaml", ".sh"}
 RESEARCH_FILES = frozenset({
     "solar-prognose-ml-recherche.md", "solar-prognosemodelle-zusammenfassung.md",
@@ -62,7 +62,7 @@ def snapshot() -> dict[str, str]:
         path = ROOT / name
         if not name or name.startswith(("reviews/", "data/", "artifacts/")):
             continue
-        if path.suffix not in SUFFIXES and name not in {".gitignore"}:
+        if path.suffix not in SUFFIXES and name != ".gitignore" and path.name != "LICENSE":
             continue
         if path.is_symlink() or not path.is_file():
             raise ValueError(f"Review scope is not a regular file: {name}")
@@ -429,6 +429,7 @@ def main() -> int:
     files = {name: value for name, value in workspace.items() if args.scope == "all" or name not in RESEARCH_FILES}
     binary = shutil.which("grok")
     receipt = {"requested_model": MODEL, "base_commit": git("rev-parse", "HEAD"),
+               "single_payload_limit_bytes": MAX_SINGLE_PAYLOAD_BYTES,
                "scope": args.scope, "files": files, "workspace_files": workspace,
                "reference_only_files": {name: workspace[name] for name in sorted(RESEARCH_FILES) if name in workspace and name not in files},
                "transport": args.transport, "calls": [],

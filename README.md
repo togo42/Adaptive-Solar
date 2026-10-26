@@ -8,10 +8,7 @@
 
 Wetterprognosen, PV-Physik und lokale Residualmodelle für bis zu sieben lokale Kalendertage einschließlich heute: Resttag und bis zu sechs Folgetage, abhängig von der Wetterabdeckung. Unterschiedliche Stringausrichtungen, gemeinsame AC-/DC-Ausgabestufen und wiederkehrende Verschattung werden berücksichtigt. Frische HA-Temperatur/Windwerte, optionale horizontale Globalstrahlung und geeignete PV-Leistung unterstützen den kurzfristigen Nowcast.
 
-**Stand, 26.10.2026:** **0.2.10 über GitHub/HACS installiert**, je **893 Tests** mit Core 2026.10.2, .3 und .4 bestanden. Neu sind Morgen-/Abenddämpfungen pro String und die Migration zur Einzelanzeige bei einer Ausgangsstufe. Der gebundene Grok-4.7/high-Implementierungsreview und die GitHub-CI sind erfolgreich abgeschlossen. Vier Anlagen liefern unter Core 2026.10.4 Prognosen; übernommene Korrekturen und alle bisherigen Sensor-IDs sind zurückgelesen. Ein qualifizierter produktiver ML-Fit und Überlegenheit gegenüber Helios und Open-Meteo Solar sind weiterhin offen. [Versionsinformationen](docs/release-0.2.10.md), [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
-
-Die anschließende Dokumentations-/Metadatenpflege ist im Prüfstand separat ausgewiesen;
-der damalige externe Review gilt ausschließlich für seine eingefrorenen Quellen.
+**Stand, 26.10.2026:** **0.2.11 ist als Nachpflege für Review und Veröffentlichung vorbereitet.** GPL-3.0-only, öffentliche Installations-/Bedienungs-/Datenschutzanleitungen, konsolidierte Recherche und HACS ab dem ältesten geprüften Core 2026.10.2. Forecast- und Lernalgorithmen bleiben gegenüber 0.2.10 unverändert. Der bisherige freigegebene und auf HA installierte Stand ist 0.2.10; dessen je 893 Tests unter Core 2026.10.2/.3/.4 und gebundener Grok-Review gelten für die damaligen Quellen. Ein qualifizierter produktiver ML-Fit und Überlegenheit gegenüber Helios und Open-Meteo Solar sind weiterhin offen. [0.2.11](docs/release-0.2.11.md), [0.2.10](docs/release-0.2.10.md), [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
 
 ## Funktionsweise
 

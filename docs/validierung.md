@@ -44,7 +44,18 @@ Normale Paketinstallation/Testbefehle: [README](../README.md#entwicklung). PEP66
 
 Ohne Prepare startet der angeforderte Review nach internem Pre-Review; z.B. `--timeout 3600` (Standard1800 s, Obergrenze3600 s). Deadline ist kein Review; denselben laufenden Prozess bis Ende beobachten. ESS-Grundlage: `AGENTS.md`/`scripts/ai_review.sh`, gelesen24.10.2026. Fester `grok-4.7` mit explizitem `--reasoning-effort high`; Lesemodus, Tools/Web/Memory/Subagenten aus, ein echter Abschlussturn mit `--verbatim` (exakte Flags im [Helfer](../scripts/review_grok.py)).
 
-Standard bleibt `--scope all --transport single`: neue Sitzung mit allen aktuellen öffentlichen Original-UTF8-Bytes/Dateipfaden. Receipt bindet SHA, Länge und Byteoffset je Datei; kein Kontextkürzen/Quellzeilennummerieren. Über1020000 Bytes Abbruch vor CLI; Bytecap garantiert kein Kontextfenster. `chunks`/ACKs allein belegen keine Retention.
+Standard bleibt `--scope all --transport single`: neue Sitzung mit allen aktuellen öffentlichen Original-UTF8-Bytes/Dateipfaden, einschließlich endungsloser `LICENSE`-Dateien. Binäre Markenbilder sind außerhalb der Textprüfung. Receipt bindet SHA, Länge und Byteoffset je Datei; kein Kontextkürzen/Quellzeilennummerieren. Über 1.250.000 Bytes Abbruch vor CLI; Bytecap garantiert kein Kontextfenster. `chunks`/ACKs allein belegen keine Retention.
+
+Die Byteobergrenze wurde für 0.2.11 vor einem neuen Review von 1.020.000 auf
+1.250.000 angehoben, da der vollständige Quellumfang einschließlich beider
+GPL-Lizenzkopien rund 1,14 MB umfasst. Das ist ausschließlich ein lokales
+Transportbudget. [Providerdokumentation](https://docs.x.ai/developers/grok-4-7)
+und native Modellliste nennen bis zu 500.000 Tokens; der CLI-Default kann geringer
+sein. Weder eine Byte-/Tokenschätzung noch dieser größere Vorprüfwert erlaubt
+Compaction oder ausgelassene Quellen. Sämtliche nachfolgenden nativen Inhalts-,
+Abschluss- und Identitätsprüfungen bleiben unverändert; ein gekürzter Lauf ist ungültig.
+Die Obergrenze wird zusätzlich im neuen Receipt gespeichert. Globale CLI-/Modell-
+Konfigurationen werden für den Review nicht verändert.
 
 **Expliziter Implementierungsreview mit unverändertem Forschungsbezug:** Wenn ältere Forschung bereits vollständig geprüft wurde, ist folgende Alternative zulässig:
 

@@ -1,6 +1,6 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 26.10.2026, Codebasis 0.2.10. [Installation](installation.md),
+Stand: 26.10.2026, Codebasis 0.2.11. [Installation](installation.md),
 [Datenverträge](implementation-contract.md), [Datenschutz](datenschutz.md).
 
 ## 1. Anlagenaufteilung vorbereiten

@@ -1,6 +1,6 @@
 # Datenschutz und Datenflüsse von Adaptive Solar
 
-Stand: 26.10.2026; beschrieben ist der Code von Adaptive Solar 0.2.10, keine
+Stand: 26.10.2026; beschrieben ist der Code von Adaptive Solar 0.2.11, keine
 Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 
 ## 1. Externe Verbindungen

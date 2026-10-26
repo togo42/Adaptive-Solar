@@ -1,5 +1,34 @@
 # Entwicklungsstand und offene Nachweise
 
+## Vorbereitung von 0.2.11
+
+Stand: 26.10.2026. 0.2.11 ist zur vollständigen neuen Prüfung und Veröffentlichung
+vorbereitet; produktiv ist zu diesem Zeitpunkt weiterhin 0.2.10 geladen. Der
+Gesamtblick umfasst Lizenzmitlieferung, alle öffentlichen Anleitungen, Plattform-/
+Versionsgrenzen, native Energy-/Messsemantik, Recherchequellen und Reviewtransport.
+Zusätzlich zum Auditnachtrag wurden der neue Versionsstand und die Einbeziehung
+endungsloser Lizenzdateien samt Regression ergänzt. Das neue feste lokale
+Transportbudget und seine unveränderten Fail-Closed-Grenzen stehen im [Verfahren](validierung.md).
+
+Frische Quelltests: je **894 ohne Fehler oder Skips**, Core **2026.10.3/.4** mit
+Plugins **0.13.374/.375**, Python **3.14.4**, Laufzeit **78,02 / 77,33 Sekunden**.
+Die bestehenden Umgebungen wurden nicht neu installiert; Tests laden Repositoryquellen.
+Das separat gebaute 0.2.11-Wheel enthält alle 23 Integrationsdateien bytegleich und
+GPL-3.0-only einschließlich beider Lizenzkopien. Ruff und Dependencycheck erfolgreich.
+Eine reguläre separate Zielinstallation desselben Wheels wurde mit der bestehenden
+Core-.4-Abhängigkeitsumgebung außerhalb des Repository-Importpfads geprüft: Version
+0.2.11, sieben native Modulimporte und alle 23 Paketdateien korrekt. Die ursprüngliche
+Prüfumgebung wurde dabei nicht neu installiert.
+JUnit und Paket-/Scopebelege: `artifacts/release-0.2.11/`.
+
+Der neue Review muss alle sechs geänderten Forschungstexte und beide Lizenztexte
+vollständig lesen; frühere Forschungsreferenzen werden nicht geerbt. Veröffentlichung,
+aktuelle Sicherung, native HACS-Installation und HA-Rücklese erfolgen erst nach
+akzeptiertem Review. Die folgenden Angaben dokumentieren die vorherigen gebundenen
+Quellen und Betriebsnachweise, keine vorweggenommene Abnahme von 0.2.11.
+
+## Freigegebener Stand vor 0.2.11
+
 Stand: 26.10.2026. **Adaptive Solar 0.2.10 ist veröffentlicht und über HACS unter Core 2026.10.4 installiert.** Der gebundene Grok-4.7/high-Review ist ohne Findings abgeschlossen; GitHub-CI erfolgreich. Vier Anlageneinträge, native Einrichtung und installierte Paketbytes sind zurückgelesen. Ein qualifizierter produktiver ML-Fit und bessere Prognosegüte bleiben offen.
 
 ## Dokumentations- und Konsistenzpflege nach dem Release
