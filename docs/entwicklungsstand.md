@@ -21,6 +21,15 @@ Core-.4-Abhängigkeitsumgebung außerhalb des Repository-Importpfads geprüft: V
 Prüfumgebung wurde dabei nicht neu installiert.
 JUnit und Paket-/Scopebelege: `artifacts/release-0.2.11/`.
 
+Der erste native Vollreview wurde wegen begonnener Compaction im 256k-Default
+verworfen. Eine separate kleine Transportprobe mit ausschließlich prozesslokaler
+500k-Anforderung bestand anschließend den strikten nativen Abschluss-/Identitätsaudit;
+die globale Konfiguration blieb bytegleich. Diese Probe ist ausdrücklich kein
+Produktreview. Nach Ergänzung des eindeutigen Lizenzhinweises im Paket-Einstieg und
+der prozesslokalen Kontextbindung bestanden die 138 Transporttests sowie erneut
+alle 894 Core-.4-Tests (77,11 Sekunden). Das abschließende Wheel wurde neu gebaut
+und separat regulär installiert; sein Inhalt wird vor dem neuen Vollreview geprüft.
+
 Der neue Review muss alle sechs geänderten Forschungstexte und beide Lizenztexte
 vollständig lesen; frühere Forschungsreferenzen werden nicht geerbt. Veröffentlichung,
 aktuelle Sicherung, native HACS-Installation und HA-Rücklese erfolgen erst nach

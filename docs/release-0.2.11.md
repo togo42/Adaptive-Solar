@@ -4,6 +4,7 @@
 
 - Projektlizenz GPL-3.0-only mit vollständigem Lizenztext im Repository, Pythonpaket
   und HACS-Integrationsordner. Fremdlizenzen und Wetterdienstbedingungen bleiben separat.
+  Der Paket-Einstieg trägt zusätzlich einen eindeutigen SPDX-/Copyright-Hinweis.
 - Öffentliche Anleitungen für Installation, Konfiguration, Sensoren, native Energy,
   Datenschutz, Fehlerbehebung und Entwicklung ergänzt. Der HAOS-Weg enthält den
   konkreten persistenten Pfad, Payloadvorbereitung und Rückweg; amd64/CPython 3.14/Musl
@@ -16,6 +17,8 @@
   Textumfang auf. Ein Regressionstest prüft zugleich den Ausschluss privater Dateien.
   Das lokale vollständige Transportbudget ist auf 1.250.000 Bytes angepasst;
   unveränderte native Prüfungen verbieten weiterhin Kontextkürzung und Teilurteile.
+  Ein größerer Kontext wird ausschließlich für den Review-Kindprozess angefragt;
+  ein kompaktierter erster Versuch wurde verworfen, nicht als Review gewertet.
 
 ## Upgrade von 0.2.10
 

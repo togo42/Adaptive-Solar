@@ -104,6 +104,7 @@ if mode == "fail":
 if mode == "timeout":
     time.sleep(3)
 assert os.environ["GROK_AUTO_COMPACT_THRESHOLD_PERCENT"] == "100"
+assert os.environ["GROK_DEBUG_CONTEXT_WINDOW"] == "500000"
 assert os.environ["GROK_DISABLE_AUTOUPDATER"] == "1"
 session = args[args.index("--session-id" if "--session-id" in args else "--resume") + 1]
 updates = Path(os.environ["GROK_HOME"]) / "sessions/test-project" / session / "updates.jsonl"

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 Torsten Godau
 """Adaptive Solar integration; importing the offline core never imports HA."""
 from __future__ import annotations
 

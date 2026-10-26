@@ -23,6 +23,7 @@ import uuid
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = "grok-4.7"
 MAX_SINGLE_PAYLOAD_BYTES = 1250000
+REVIEW_CONTEXT_WINDOW_TOKENS = 500000
 SUFFIXES = {".py", ".json", ".md", ".toml", ".txt", ".yml", ".yaml", ".sh"}
 RESEARCH_FILES = frozenset({
     "solar-prognose-ml-recherche.md", "solar-prognosemodelle-zusammenfassung.md",
@@ -430,6 +431,7 @@ def main() -> int:
     binary = shutil.which("grok")
     receipt = {"requested_model": MODEL, "base_commit": git("rev-parse", "HEAD"),
                "single_payload_limit_bytes": MAX_SINGLE_PAYLOAD_BYTES,
+               "requested_context_window_tokens": REVIEW_CONTEXT_WINDOW_TOKENS,
                "scope": args.scope, "files": files, "workspace_files": workspace,
                "reference_only_files": {name: workspace[name] for name in sorted(RESEARCH_FILES) if name in workspace and name not in files},
                "transport": args.transport, "calls": [],
@@ -471,6 +473,7 @@ def main() -> int:
         save()
         raise ValueError(receipt["error"])
     cli_env = {**os.environ, "NO_COLOR": "1", "GROK_AUTO_COMPACT_THRESHOLD_PERCENT": "100",
+               "GROK_DEBUG_CONTEXT_WINDOW": str(REVIEW_CONTEXT_WINDOW_TOKENS),
                "GROK_DISABLE_AUTOUPDATER": "1"}
     if binary:
         try:

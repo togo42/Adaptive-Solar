@@ -57,6 +57,16 @@ Abschluss- und Identitätsprüfungen bleiben unverändert; ein gekürzter Lauf i
 Die Obergrenze wird zusätzlich im neuen Receipt gespeichert. Globale CLI-/Modell-
 Konfigurationen werden für den Review nicht verändert.
 
+Der erste 0.2.11-Versuch im nativen 256k-Default löste `auto_compact_started` aus
+und wurde als ungültig beendet. Die native Modellliste unterstützt auch 500k.
+Der Helfer fordert dieses größere Fenster nur für seinen Kindprozess mit
+`GROK_DEBUG_CONTEXT_WINDOW=500000` an und bindet die Anforderung im Receipt.
+Das ist ein implementationsspezifischer Schalter der gebundenen CLI, keine Änderung
+der Anbieteridentität oder einer globalen Konfiguration. Sein Vorhandensein allein
+ist kein Kapazitätsnachweis: Erst die vollständigen identischen Promptbytes, ein
+gültiger Abschlussturn und null native Compaction belegen den konkreten Lauf.
+Die Regressionen erzwingen weiterhin den vollständigen Kontextaudit.
+
 **Expliziter Implementierungsreview mit unverändertem Forschungsbezug:** Wenn ältere Forschung bereits vollständig geprüft wurde, ist folgende Alternative zulässig:
 
 ```bash
