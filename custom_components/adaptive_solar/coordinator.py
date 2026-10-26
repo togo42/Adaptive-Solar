@@ -30,7 +30,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Independent of site geometry and the HA Store's serialization version. Bump
 # when archived baseline/feature semantics change; measurements are independent.
-LEARNING_FEATURE_CONTRACT = "atomic-ghi-cohort-centered-weather-v1"
+LEARNING_FEATURE_CONTRACT = "atomic-ghi-cohort-centered-weather-v2"
 
 
 def state_number(state, now: datetime, kind: str, *, max_age: int = SENSOR_MAX_AGE_SECONDS,
@@ -38,7 +38,7 @@ def state_number(state, now: datetime, kind: str, *, max_age: int = SENSOR_MAX_A
     """Read fresh finite HA values with explicit units; no assumed W/kWh."""
     if state is None or state.state in ("unknown", "unavailable"):
         return None
-    if kind == "energy" and state.attributes.get("restored"):
+    if state.attributes.get("restored"):
         return None
     if isinstance(state.state, bool):
         return None
@@ -197,8 +197,14 @@ def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: di
         issued = utc_time(datetime.fromisoformat(row["issued_at"]))
         target = inverter, a, b
         target_duration = (b - a).total_seconds()
-        if issued > a or target_duration < 1800 or row["features"].get("source_partial_at_issue", 0) != 0:
-            note(target, "nonprospective_or_partial_source_cell")
+        rejected = False
+        for condition, reason in ((issued > a, "issued_after_target_start"),
+                                  (target_duration < 1800, "target_shorter_than_minimum"),
+                                  (row["features"].get("source_partial_at_issue", 0) != 0, "source_partial_at_issue")):
+            if condition:
+                note(target, reason)
+                rejected = True
+        if rejected:
             continue
         measured = by_inverter.get(inverter, [])
         index = bisect_left(starts.get(inverter, []), a)
@@ -349,7 +355,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         compatible_features = (stored.get("fingerprint") == self._fingerprint
                                and stored.get("learning_feature_contract") == LEARNING_FEATURE_CONTRACT)
         if not compatible_features:
-            # Legacy features have a different GHI-cohort/weather-time meaning.
+            # Legacy features may include restored environmental/power reports
+            # or have a different GHI-cohort/weather-time meaning.
             # Keep independently validated meters and actually published daily
             # snapshots, but never reuse those features or a derived learner.
             self._learner = self._fit_signature = None

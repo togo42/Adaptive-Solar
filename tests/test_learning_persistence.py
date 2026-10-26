@@ -37,7 +37,7 @@ def evidence(instance):
             "daily_snapshots": {"2026-06-01": {"issued_at": "2026-05-31T21:00:00+00:00", "energies": {"i": 24.0}}}}
 
 
-@pytest.mark.parametrize("marker", ["missing", None, "legacy-features", True, 1, []])
+@pytest.mark.parametrize("marker", ["missing", None, "legacy-features", "atomic-ghi-cohort-centered-weather-v1", True, 1, []])
 async def test_incompatible_learning_contract_cold_starts_features_only(hass, marker):
     instance, entry = coordinator(hass)
     payload = evidence(instance)

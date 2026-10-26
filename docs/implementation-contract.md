@@ -57,6 +57,8 @@ Je Regime eigene chronologische Trainings-/Validierungs-/Kalibrierungs-Zieltage 
 
 Standard: mindestens 28 Zieltage/240 Stunden vereinigter Messdauer, keine vollen Stunden aus Kurzfragmenten. Je aktivem Lead-Bin eigene ausreichende Trainings-/Validierungstage/-stunden, mindestens 5 % MAE-Verbesserung gegen Physik und 60 % gewonnene Validierungstage. Unterstützter Lead: Schnittmenge der Trainings-/Validierungsbereiche; unbelegt/abgelehnt bedeutet Physik. Fehlergrenzen brauchen eigene Kalibrierungstage/-stunden im Bin, keine zertifizierten P10/P90.
 
+`training_quality.rejection_reasons` trennt `issued_after_target_start`, `target_shorter_than_minimum` und `source_partial_at_issue`; mehrere Gründe können dieselbe Zielzelle betreffen. Die unveränderte Mindestdauer von 30 Minuten ist eine Historienanforderung, kein Leakage-Nachweis für kürzere, ansonsten prospektive Wetterzellen.
+
 HA verbindet vor Zielbeginn bekannte Features erst nach Intervallende mit echten Zählerdifferenzen. Positive Tages-Baselines ohne `source_partial_at_issue` je Zielzelle/Lead-Bin/Regime getrennt archivieren; Tagesenergie-Snapshots bleiben unabhängig. Mitte heißt Origin am nächsten zur festen Binmitte:
 
 | Stufenzahl | NWP-Origins je Bin/Zelle | Zusätzliche GHI-Origins |
@@ -84,6 +86,8 @@ Modelle bei Iständerung/neuem lokalen Tag rekonstruieren; HA serialisiert Updat
 ### HA und native Energy
 
 `weather.py`, `coordinator.py`, `config_flow.py`, `sensor.py`, `__init__.py`, `const.py`, `manifest.json`, Strings/Übersetzungen: Anlagen-/String-/Stufen-UI, native Entity-Selektoren, lokale Einheiten-/Zeit-/unavailable-Prüfung. Netzwerk async mit Timeout, Physik/ML im Executor, Wettercache, häufigerer Resttag-Refresh. Keine produktiven Fremdeinstellungen ändern.
+
+Alle Sensorarten lehnen `restored`-Berichte ab: Leistung, GHI, Temperatur, Wind und Energie. Ein aktueller HA-Wiederherstellungszeitstempel belegt keine neue physische Messung. Neue reguläre Berichte können die Beobachtungspfade wieder aktivieren. Featurevertrag `atomic-ghi-cohort-centered-weather-v2` verwendet ältere, möglicherweise durch restaurierte Eingaben beeinflusste Archivfeatures nicht weiter; unabhängig validierte Messintervalle und tatsächlich ausgegebene Tagesbeginn-Snapshots bleiben nach den bestehenden Provenienzprüfungen erhalten.
 
 AC-JSON behält unverändert Serialisierung/Fingerprint, neue DC-Stufen ändern ihn. Keine Power-/Energy-Bindung für mehrere unabhängige Stufen; gemeinsames Curtailment erlaubt. AC/DC-Typwechsel im Optionsflow verwirft alte Messbindungen. AC-Entity-IDs bleiben kompatibel, DC-/Mixed-Gesamtsensoren nutzen getrennte Historien-Namespaces.
 
