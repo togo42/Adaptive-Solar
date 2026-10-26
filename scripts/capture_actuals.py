@@ -288,11 +288,13 @@ def actual_records_from_captures(captures, *, as_of=None) -> list[dict]:
 
     Raw errors are known at receipt, quality errors only when their evidence is
     known. A late quality check never makes an old raw response a newer source
-    revision. Identical accepted values may select a newer raw revision, while
-    retaining that revision's own effective observed_at (never backdated).
+    revision. For identical accepted values, advance raw receipt and positive
+    quality revision independently. Their combined availability bounds
+    observed_at; neither a reread nor a late check backdates the evidence.
     """
     selected = {}
     selected_receipts = {}
+    selected_quality = {}
     invalid_revisions = {}
     invalid_quality = {}
     cutoff = utc(as_of) if as_of is not None else None
@@ -303,7 +305,9 @@ def actual_records_from_captures(captures, *, as_of=None) -> list[dict]:
         if verified["normalization"] != capture["normalization"]:
             raise CaptureError("Actual records differ from raw capture and quality evidence")
         received = utc(capture["retrieved_at"])
-        quality_known = max(received, utc(verified["normalization"]["quality_provenance"]["validated_at"]) if verified["normalization"]["quality_provenance"] else received)
+        quality_provenance = verified["normalization"]["quality_provenance"]
+        quality_validated = utc(quality_provenance["validated_at"]) if quality_provenance else None
+        quality_known = max(received, quality_validated) if quality_validated else received
         quality_reasons = {"missing_quality_evidence", "unverified_measurement_coverage",
                            "unknown_curtailment", "curtailed", "unknown_counter_reset", "counter_reset"}
         for excluded in verified["normalization"]["excluded"]:
@@ -312,23 +316,28 @@ def actual_records_from_captures(captures, *, as_of=None) -> list[dict]:
             if reasons - quality_reasons and (cutoff is None or received <= cutoff):
                 invalid_revisions.setdefault(key, []).append(received)
             if reasons & (quality_reasons - {"missing_quality_evidence"}) and (cutoff is None or quality_known <= cutoff):
-                invalid_quality.setdefault(key, []).append(quality_known)
+                invalid_quality.setdefault(key, []).append(quality_validated or quality_known)
         for row in verified["normalization"]["records"]:
             if cutoff is not None and utc(row["observed_at"]) > cutoff:
                 continue
             key = (row["inverter_id"], row["start"], row["end"])
+            record_quality = quality_validated or utc(row["observed_at"])
             previous = selected.get(key)
             if previous is not None:
                 if row["power_w"] != previous["power_w"] or row["curtailed"] != previous["curtailed"]:
                     raise CaptureError("Conflicting actual revisions require explicit archive selection")
-                if (received < selected_receipts[key]
-                        or received == selected_receipts[key] and utc(row["observed_at"]) >= utc(previous["observed_at"])):
-                    continue
-            selected[key] = row
-            selected_receipts[key] = received
+                selected_receipts[key] = max(selected_receipts[key], received)
+                selected_quality[key] = max(selected_quality[key], record_quality)
+                selected[key] = {**previous, "observed_at": max(
+                    utc(previous["observed_at"]), utc(row["observed_at"])
+                ).isoformat()}
+            else:
+                selected[key] = dict(row)
+                selected_receipts[key] = received
+                selected_quality[key] = record_quality
     for key, row in selected.items():
         if (any(stamp >= selected_receipts[key] for stamp in invalid_revisions.get(key, ()))
-                or any(stamp >= utc(row["observed_at"]) for stamp in invalid_quality.get(key, ()))):
+                or any(stamp >= selected_quality[key] for stamp in invalid_quality.get(key, ()))):
             raise CaptureError("A later invalid actual revision conflicts with an accepted interval")
     return [selected[key] for key in sorted(selected)]
 

@@ -365,6 +365,47 @@ def test_source_invalidity_is_known_at_receipt_even_if_quality_is_checked_later(
         actuals.actual_records_from_captures([first, invalid], as_of=END + timedelta(hours=3))
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_old_positive_quality_cannot_rehabilitate_newer_invalidation_on_reread(reverse):
+    first = normalize(capture(received=END + timedelta(hours=1)))
+    bad_mask = mask(curtailed=True)
+    bad_mask["provenance"]["validated_at"] = (END + timedelta(hours=2)).isoformat()
+    invalid = normalize(capture(received=END + timedelta(hours=2)), quality=bad_mask)
+    reread = normalize(capture(received=END + timedelta(hours=3)))
+    captures = [first, invalid, reread]
+    if reverse:
+        captures.reverse()
+    assert len(actuals.actual_records_from_captures(captures, as_of=END + timedelta(hours=1))) == 2
+    for cutoff in (END + timedelta(hours=2), END + timedelta(hours=4), None):
+        with pytest.raises(actuals.CaptureError, match="later invalid actual revision"):
+            actuals.actual_records_from_captures(captures, as_of=cutoff)
+    good_mask = mask()
+    good_mask["provenance"]["validated_at"] = (END + timedelta(hours=5)).isoformat()
+    requalified = normalize(capture(received=END + timedelta(hours=3)), quality=good_mask)
+    rows = actuals.actual_records_from_captures([requalified, *captures])
+    assert {row["observed_at"] for row in rows} == {(END + timedelta(hours=5)).isoformat()}
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_positive_quality_and_raw_revision_advance_independently(reverse):
+    # A late quality check of OLD raw and a NEW valid raw both qualify the same
+    # values. Neither may hide the other axis or revive the invalid middle raw.
+    late_mask = mask()
+    late_mask["provenance"]["validated_at"] = (END + timedelta(hours=4)).isoformat()
+    qualified_old = actuals.normalize_capture(capture(received=END + timedelta(hours=1)), late_mask,
+                                             normalized_at=END + timedelta(hours=4))
+    bad_raw = capture(received=END + timedelta(hours=2))
+    bad_raw["raw"]["statistics"]["sensor.energy"][1]["change"] = None
+    invalid = normalize(bad_raw, quality=None)
+    newer = normalize(capture(received=END + timedelta(hours=3)))
+    captures = [qualified_old, invalid, newer]
+    if reverse:
+        captures.reverse()
+    rows = actuals.actual_records_from_captures(captures)
+    assert len(rows) == 2
+    assert {row["observed_at"] for row in rows} == {(END + timedelta(hours=4)).isoformat()}
+
+
 def test_overflow_energy_is_excluded_and_malformed_units_fail_safely():
     raw = capture(value=1e308)
     result = normalize(raw)
