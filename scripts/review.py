@@ -205,7 +205,7 @@ def parse_codex_stdout(raw: str, *, expected_session: str | None = None) -> tupl
             raise ValueError("Codex stdout has an unknown event type")
     if session_id is None or not turn_completed or not messages:
         raise ValueError("Codex stdout is missing thread or turn completion")
-    return session_id, "".join(messages)
+    return session_id, messages[-1]
 
 
 def audit_codex_context(session: str, prompts: list[bytes], *, codex_home: Path | None = None,
@@ -428,14 +428,14 @@ def audit_codex_context(session: str, prompts: list[bytes], *, codex_home: Path 
             if ptype == "task_complete":
                 duration = payload.get("duration_ms")
                 last_msg = payload.get("last_agent_message")
-                assistant_text = "".join(assistant_messages.get(current_turn, []))
-                agent_text = "".join(agent_items.get(current_turn, []))
+                assistant_list = assistant_messages.get(current_turn, [])
+                agent_list = agent_items.get(current_turn, [])
                 if (current_turn is None or current_turn in completed or payload.get("turn_id") != current_turn_id
                         or not turn_context_seen.get(current_turn) or current_turn not in output_started
                         or type(duration) not in {int, float} or not math.isfinite(duration) or duration < 0
                         or not isinstance(last_msg, str) or not last_msg
-                        or not assistant_text or not agent_text
-                        or last_msg != assistant_text or last_msg != agent_text):
+                        or not assistant_list or not agent_list
+                        or assistant_list != agent_list or last_msg != assistant_list[-1]):
                     raise ValueError("Context audit has missing, ambiguous or unsuccessful turn completion metadata")
                 completed.add(current_turn)
                 task_complete_messages[current_turn] = last_msg

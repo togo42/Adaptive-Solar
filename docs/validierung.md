@@ -93,6 +93,13 @@ Nur Kindprozesse: bei Grok `GROK_AUTO_COMPACT_THRESHOLD_PERCENT=100` und Auto-Up
 
 Finales striktes JSON/nativer Exit, unveränderte Quellen/CLI/Prompts sind Pflicht. Auch im neuen Lauf werden native High-/Modell-/Ein-Turn-Belege und die tatsächliche Endantwort geprüft. ACK, partielles Urteil oder `mergeable` allein genügen nicht. Findings beheben/frisch reviewen; versionsgebundener Audit scheitert bei unbekanntem Format geschlossen. Receipts unter ignoriertem `reviews/private/`, veröffentlichter Nachweis nennt Scope/Bindung/Audit/Datum/Ergebnis/Grenzen. ESS-Deploy-/Node-RED-Regeln gelten hier nicht.
 
+Bei Codex darf dem abschließenden Review-JSON eine Fortschrittsmeldung vorausgehen.
+Der Transportparser wählt die letzte abgeschlossene Assistentennachricht; der native
+Audit verlangt weiterhin die identische geordnete Nachrichtenfolge in beiden
+Ereignisströmen und ihre letzte Nachricht als `task_complete.last_agent_message`.
+Fortschrittstext wird nicht mit dem JSON verkettet. Modell-, Abschluss-, Werkzeug-
+und Compaction-Prüfungen bleiben unverändert.
+
 ## 5. Offene reale Schritte
 
 Nach Tests/Review: private Zuordnung/Installationsumfang freigeben, reale Laufzeit/Darstellung prüfen, Archive erfassen und eingefrorene Messperiode auswerten. Bis dahin bleibt „besser als beide“ offen.

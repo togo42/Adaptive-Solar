@@ -976,6 +976,22 @@ if mode != "missing_updates":
         "type": "response_item",
         "payload": {"type": "reasoning", "summary": []},
     })
+    if mode == "commentary":
+        rows.append({
+            "timestamp": "2026-10-26T16:00:03.150Z",
+            "type": "event_msg",
+            "payload": {
+                "type": "item_completed",
+                "thread_id": session,
+                "turn_id": turn_id,
+                "item": {"type": "AgentMessage", "content": [{"type": "Text", "text": "Checking files..."}]},
+            },
+        })
+        rows.append({
+            "timestamp": "2026-10-26T16:00:03.160Z",
+            "type": "response_item",
+            "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "Checking files..."}], "phase": "commentary"},
+        })
     rows.append({
         "timestamp": "2026-10-26T16:00:03.200Z",
         "type": "event_msg",
@@ -1032,6 +1048,8 @@ stdout_events = [
      "text": "invalid json" if mode == "invalid_review" else reply}},
     {"type": "turn.completed", "usage": {"input_tokens": 100, "cached_input_tokens": 0, "output_tokens": 20}},
 ]
+if mode == "commentary":
+    stdout_events.insert(3, {"type": "item.completed", "item": {"id": "item_c", "type": "agent_message", "text": "Checking files..."}})
 if mode == "stdout_tool":
     stdout_events.insert(2, {"type": "item.completed", "item": {"id": "cmd_1", "type": "command_execution"}})
 for ev in stdout_events:
@@ -1091,7 +1109,7 @@ def test_codex_single_transport_binds_gpt_6_1_sol_high_and_audits_native_rollout
 def test_codex_chunks_transport_audits_all_turns_in_sequence(codex_workspace):
     root, _ = codex_workspace
     (root / "README.md").write_text("# Grüße ☀️\n" * 12000)
-    run, receipt, _ = run_fake_codex(codex_workspace, "success", transport="chunks", output_name="codex-chunks")
+    run, receipt, _ = run_fake_codex(codex_workspace, "commentary", transport="chunks", output_name="codex-chunks")
     assert run.returncode == 0, run.stderr
     assert receipt["chunk_count"] > 1
     assert receipt["context_audit"]["prompt_count"] == receipt["chunk_count"] + 1
