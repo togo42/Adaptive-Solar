@@ -1,5 +1,44 @@
 # Reviewnachweise und fachliche Bearbeitung
 
+## Grok-Vollreview des Schattenlernstands `ae5a56b`: blockiert
+
+26.10.2026, **Grok 4.7/high**, Commit
+`ae5a56b0fa3d55d76859da55f452bf574f6c5bff`: **blocked**, ein offener Befund
+mittlerer Schwere. Umfang: **100 öffentliche Originaltextdateien**, einschließlich
+aller sechs Forschungsdateien und beider Lizenzkopien, **1.358.067 Payloadbytes**,
+`all/chunks` mit 23 Datenabschnitten und einem finalen Reviewaufruf. Binäre Bilder
+sind außerhalb des Textreviews.
+
+**AS-001 (mittel), `core/engine.py`:** Die Schattenreferenz verwendet den gemeinsamen
+Momentan-Proxy mit `allow_paired_future_ghi=True`. Ist die zulässig gepaarte GHI-Messung
+älter als die Leistung, dämpft der Proxy ihren Gain dennoch mit der 30-Minuten-
+Nowcast-Zeitkonstante Richtung 1. Diese kurzlebige Dämpfung lässt einen Wetterfehler
+in `P0/P1` zurück und verzerrt dadurch den dauerhaft gespeicherten Schattenfaktor.
+Die Richtung der Verzerrung hängt vom Gain ab. Codeprüfung und eine synthetische
+Reproduktion bestätigen den Befund: Bei vier Minuten Abstand wird ein ungekappter
+Paar-Gain von 0,6 als rund **0,64993** angewendet. Gleichzeitige Paare verdecken den
+Fehler. Die Korrektur ist **offen**: Schattenreferenz mit dem vollen Paar-Gain rechnen,
+Decay im veröffentlichten Nowcast erhalten und einen zeitversetzten Gegenfall ergänzen.
+Lokaler Reproduktionsbeleg: `artifacts/grok-ae5a56b-as001-reproduction.json`.
+
+Abschlussaudit unabhängig wiederholt: native Modellkennung `grok-4.7`, Effort `high`,
+24 eindeutige erfolgreiche Abschlussturns, exakte Promptbytes und Endantwort,
+keine Compaction, Werkzeugaufrufe oder aktiven Hintergrundaufgaben. Quellsnapshot,
+CLI-, Payload-, Prompt-, Stdout-/Stderr- und Reviewhashes stimmen; erfasste globale
+Grok-Konfiguration während des geprüften Laufs unverändert. Die frühere Einzelprompt-
+Vorprüfung scheiterte lokal am 1.250.000-Byte-Limit. Ein Versuch mit CLI 1.0.70 wurde
+wegen des unbekannten nativen Ereignisses `current_mode_update` geschlossen verworfen.
+Der abgeschlossene Review nutzt die unveränderte, hashgeprüfte **CLI 1.0.62** in
+einer neuen Sitzung; Auditregeln und globale Konfiguration wurden dafür nicht angepasst.
+
+Receipt-SHA256: `3b553331d0d4f588a5ee17e53587cbda093f32ff8b3777350692713989caec38`;
+Review-SHA256: `7d6f47ec4203a9de6e149ef756a6b3cc25901f6fbb23a55bd77d34c1b03be9c2`;
+Payload-SHA256: `43d1eee388efb6757012ba72138801c552fdbf524b2f74f924442da6311a1ca0`.
+Lokale Rohbelege: `reviews/private/grok-ae5a56b-cli62-full/`;
+unabhängiger Abschlussnachweis: `artifacts/grok-ae5a56b-review-closeout.json`.
+Diese nachträgliche Statusdokumentation liegt außerhalb des eingefrorenen Reviewtexts.
+Der Review ist keine Freigabe und kein Nachweis eines Prognosevorsprungs.
+
 ## Lokaler Codeaudit der Änderungen seit `4ac18e2`
 
 Stand: 26.10.2026. Der neue Arbeitsstand ergänzt die Direktstrahl-Schattentabelle,
@@ -43,7 +82,9 @@ vorgefundenen Arbeitsstand. Ruff, `pip check` und `git diff --check` erfolgreich
 geänderte Markdowntexte gerendert und relative Dateilinks geprüft. Lokale
 JUnit-Belege: `artifacts/review-fixes-20261026-tests.xml` (Core .3) und
 `artifacts/review-fixes-20261026-ha-2026.10.4-tests.xml` (Core .4).
-Kein neuer externer Reviewlauf, keine Veröffentlichung und keine produktive HA-Änderung.
+Zum Abschluss dieses lokalen Audits gab es keinen neuen externen Reviewlauf;
+der danach beauftragte Grok-Review ist oben gesondert dokumentiert.
+Keine Veröffentlichung und keine produktive HA-Änderung.
 
 Stand: 26.10.2026. Der neue vollständige Review 0.2.11 erfasst die ergänzten
 Anleitungen, die GPL-Lizenztexte und alle sechs konsolidierten Forschungstexte.
