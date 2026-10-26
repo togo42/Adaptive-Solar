@@ -1,13 +1,39 @@
 # Reviewnachweise und fachliche Bearbeitung
 
-Dokumentationsnachpflege vom 26.10.2026: Installation, Bedienung, Datenschutz, Lizenz
-und Recherche wurden nach dem unten gebundenen Review ergänzt bzw. konsolidiert.
-Diese Änderungen sind nicht Teil seines Receipts. Insbesondere sind die sechs
-Forschungstexte jetzt verändert und für einen künftigen Implementierungsreview
-nicht mehr über ihre früheren Forschungs-SHAs wiederverwendbar. Die historischen
-Reviewurteile bleiben ausschließlich für ihre eingefrorenen Quellen gültig.
+Stand: 26.10.2026. Der neue vollständige Review 0.2.11 erfasst die ergänzten
+Anleitungen, die GPL-Lizenztexte und alle sechs konsolidierten Forschungstexte.
+Ältere Urteile bleiben ausschließlich an ihre eingefrorenen Quellen gebunden;
+die geänderte Forschung wird nicht über frühere Forschungs-SHAs geerbt.
 
-## Vollreview 0.2.11: behobener Befund vor erneuter Prüfung
+## Gültiger vollständiger Review 0.2.11
+
+Grok **4.7/high**, 26.10.2026: **mergeable, keine Findings** für Commit
+`9070886a70e29a843189fa1b2a2fc76ecaae355a`. **96 öffentliche Originaltextdateien**,
+alle sechs überarbeiteten Recherchen und beide GPL-Lizenztexte vollständig erneut
+in einem Einzelprompt mit **1.147.460 Bytes**. PNGs sind außerhalb des Textreviews;
+das bestehende Logo wurde separat visuell geprüft.
+
+Nativer Audit: genau ein Prompt und erfolgreicher Abschlussturn, `end_turn`,
+native Modellkennung `grok-4.7`, Effort `high`, null Compaction/Tools/Hintergrundaufgaben.
+Originalquellen, CLI, vollständiger Prompt und tatsächliche native Endantwort wurden
+zum Abschluss und unabhängig erneut geprüft. Globale CLI-Konfiguration bytegleich;
+ausschließlich prozesslokale 500k-Kontextanforderung. Ein früherer kompaktierter
+Versuch wurde verworfen, der gültige zweite Versuch war wegen AS-001 blockiert.
+Die Korrektur und der Bestandsdatenvertrag sind im folgenden Abschnitt dokumentiert.
+
+Receipt-SHA256: `7cd1c9f94dad7d51d4bae7dfd4cf96335f9aafcae9e595b158175a2eb75ab188`;
+Review-SHA256: `646f38eaab21951d51b27f0bdc21ca376bbfb673387204dd556ce1bbadded1ff`;
+Payload-SHA256: `0e8c01264b7b171b61e6b3bace5f18257b1ddd25f8efaed095b8e3ad1fbee12a`.
+CLI 1.0.62, SHA256 `2a46d9e4d7ebd7a9cff7f95716714b19dad5f21dd2a497822400b1fb128969aa`.
+Unabhängiger Nachweis lokal: `artifacts/release-0.2.11/accepted-review-closeout.json`.
+Quellarchiv-SHA256 `a21bb7d326bf801dc3c457da5b8869fed94bceb5f0857ee8460980a81fcc9d62`.
+
+Die spätere Statusdokumentation zu Prüfung, Veröffentlichung und Installation ist
+außerhalb des eingefrorenen Reviewtexts; die Implementierung bleibt identisch.
+Tests, Review und HA-Rücklese belegen keine Prognoseüberlegenheit. Der Review ersetzt
+keine gesonderte produktive Quellenqualifikation oder Betreiberentscheidung.
+
+## Vollreview 0.2.11: Befund und Korrektur
 
 Am 26.10.2026 erhielt Commit `32d1d0e` im vollständigen neuen Grok-4.7/high-Review
 (96 öffentliche Textdateien einschließlich aller sechs Recherchen und beider Lizenzen)
@@ -22,7 +48,7 @@ prüfen AC/DC, laufenden Betrieb und Monitoringstart nach Wiederherstellung, Pow
 und Energie-Wiederanlauf. Vorhandene Intervalle bleiben auf ausdrücklichen Wunsch
 und Bestätigung des Betreibers abregelungsfreier letzter Tage erhalten; neue Marker
 werden alten Zeilen nicht zugeschrieben. [Upgradegrenzen](release-0.2.11.md#upgrade-von-0210).
-Ein frischer vollständiger Review des korrigierten Stands ist erforderlich.
+Der korrigierte Stand ist durch den vorstehenden neuen Vollreview ohne Findings gebunden.
 
 ## 0.2.10: Implementierungsreview abgeschlossen
 
@@ -69,6 +95,6 @@ Gültige blockierende Vollreviews0.2.0–0.2.6 führten zu Korrekturen an Zeit-/
 
 ## Grenzen
 
-[Live-Stand und Tests](entwicklungsstand.md): 0.2.10 über GitHub/HACS installiert, vier geladene Anlageneinträge unter Core 2026.10.4. Jeweils 893 bestandene Tests unter Core .2/.3/.4 und abgeschlossener Implementierungsreview. Core-ML-Fit auf qualifizierter Messhistorie und fairer prospektiver Vorsprung gegenüber **beiden** Referenzen sind offen. Ein Review belegt keine Prognosegüte.
+[Live-Stand und Tests](entwicklungsstand.md): 0.2.11 über GitHub/HACS installiert, vier geladene Anlageneinträge unter Core 2026.10.4. Jeweils 900 bestandene Tests unter Core .2/.3/.4 und abgeschlossener Vollreview einschließlich der überarbeiteten Recherchen. Core-ML-Fit auf qualifizierter Messhistorie und fairer prospektiver Vorsprung gegenüber **beiden** Referenzen sind offen. Ein Review belegt keine Prognosegüte.
 
 Archive und rohe Receipts bleiben lokal; die genannten `artifacts/`-Pfade sind keine öffentlichen Downloads. Die optionale Messgültigkeits-Erweiterung hat einen eigenen 0.2.9-Review, einen separaten unabhängigen Codeaudit und native Integrator-Gegenfälle. Die Testmatrix dokumentiert ausdrücklich auch eine außerhalb des sicheren Adaptervertrags liegende Zählerpoll-Sequenz. Der Review belegt den generischen Eingangsvertrag, keine konkrete produktive Quellenzuordnung. [Vertrag und Grenze](measurement-validity.md).

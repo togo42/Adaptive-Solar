@@ -1,58 +1,68 @@
 # Entwicklungsstand und offene Nachweise
 
-## Vorbereitung von 0.2.11
+## Veröffentlichter und installierter Stand 0.2.11
 
-Stand: 26.10.2026. 0.2.11 ist zur vollständigen neuen Prüfung und Veröffentlichung
-vorbereitet; produktiv ist zu diesem Zeitpunkt weiterhin 0.2.10 geladen. Der
-Gesamtblick umfasst Lizenzmitlieferung, alle öffentlichen Anleitungen, Plattform-/
-Versionsgrenzen, native Energy-/Messsemantik, Recherchequellen und Reviewtransport.
-Zusätzlich zum Auditnachtrag wurden der neue Versionsstand und die Einbeziehung
-endungsloser Lizenzdateien samt Regression ergänzt. Das neue feste lokale
-Transportbudget und seine unveränderten Fail-Closed-Grenzen stehen im [Verfahren](validierung.md).
+Stand: 26.10.2026. [v0.2.11](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.11)
+ist aus Commit `9070886a70e29a843189fa1b2a2fc76ecaae355a` veröffentlicht und nativ
+über HACS installiert. Der neue Gesamtblick deckt Code, alle sechs konsolidierten
+Recherchen, GPL-Mitlieferung, öffentliche Anleitungen, Plattform-/Versionsgrenzen,
+Mess-/Energy-Verträge und den strikten Reviewtransport ab. [Releaseinhalt](release-0.2.11.md).
 
-Frische Quelltests: je **894 ohne Fehler oder Skips**, Core **2026.10.3/.4** mit
-Plugins **0.13.374/.375**, Python **3.14.4**, Laufzeit **78,02 / 77,33 Sekunden**.
-Die bestehenden Umgebungen wurden nicht neu installiert; Tests laden Repositoryquellen.
-Das separat gebaute 0.2.11-Wheel enthält alle 23 Integrationsdateien bytegleich und
-GPL-3.0-only einschließlich beider Lizenzkopien. Ruff und Dependencycheck erfolgreich.
-Eine reguläre separate Zielinstallation desselben Wheels wurde mit der bestehenden
-Core-.4-Abhängigkeitsumgebung außerhalb des Repository-Importpfads geprüft: Version
-0.2.11, sieben native Modulimporte und alle 23 Paketdateien korrekt. Die ursprüngliche
-Prüfumgebung wurde dabei nicht neu installiert.
-JUnit und Paket-/Scopebelege: `artifacts/release-0.2.11/`.
+Je **900 Tests ohne Fehler oder Skips** unter Core **2026.10.2/.3/.4**, Plugins
+**0.13.373/.374/.375**, Python **3.14.4** bestanden. Laufzeit **85,70 / 87,90 / 85,54
+Sekunden**. Ruff und Dependencychecks erfolgreich. Bestehende Umgebungen wurden
+nicht neu installiert; die Tests laden Repositoryquellen. Das neu gebaute Wheel
+wurde separat regulär installiert und mit sieben nativen Core-.4-Modulimporten,
+allen **23 Paketdateien** und GPL-Metadaten geprüft. Wheel-SHA256:
+`792ba45f9c414c365d8ecbc9709cfed3b507838da9fca75c98c4c6d01b34fab9`.
+Prüfbelege lokal: `artifacts/release-0.2.11/`. 24 Markdowntexte mit 169 gültigen
+lokalen Links; Scan veröffentlichter Dateien ohne erfasste Geheimnisse/private
+Endpunkte; vorhandenes Logo zusätzlich visuell geprüft.
 
-Der erste native Vollreview wurde wegen begonnener Compaction im 256k-Default
-verworfen. Eine separate kleine Transportprobe mit ausschließlich prozesslokaler
-500k-Anforderung bestand anschließend den strikten nativen Abschluss-/Identitätsaudit;
-die globale Konfiguration blieb bytegleich. Diese Probe ist ausdrücklich kein
-Produktreview. Nach Ergänzung des eindeutigen Lizenzhinweises im Paket-Einstieg und
-der prozesslokalen Kontextbindung bestanden die 138 Transporttests sowie erneut
-alle 894 Core-.4-Tests (77,11 Sekunden). Das abschließende Wheel wurde neu gebaut
-und separat regulär installiert; sein Inhalt wird vor dem neuen Vollreview geprüft.
+Der vollständige Grok-4.7/high-Review aller **96 öffentlichen Originaltextdateien**
+einschließlich beider Lizenztexte ist **mergeable ohne Findings**. Alle sechs
+Recherchen wurden erneut vollständig eingebettet; keine geerbten Forschungsreferenzen.
+Ein nativer Abschlussturn, keine Compaction/Tools/Hintergrundaufgaben; unabhängiger
+Audit von Originalbytes, CLI, Endantwort und Receipt erfolgreich. Globale
+CLI-Konfiguration unverändert. Details und verworfener/blockierender Vorlauf im
+[Reviewnachweis](review-findings.md). Die nachfolgende Statusdokumentation liegt
+außerhalb dieses eingefrorenen Reviews; die Implementierungsdateien bleiben bytegleich.
 
-Der zweite vollständige Review von Commit `32d1d0e` war transportgültig, aber
-**blocked** mit einem hohen Befund AS-001: Wiederhergestelltes `off` galt als
-Abregelungsfreigabe. Die Korrektur prüft beide Pfade gemeinsam und bindet Power an
-die echte Freigabe einschließlich Attributwechsel. Auf ausdrücklichen Betreiberwunsch
-bleibt die vorhandene Historie erhalten: Für die letzten Tage bestätigt er keine
-Abregelung. Neue Zeilen erhalten eine eigene Kontrollprovenienz, alte bleiben in den
-Diagnosen erkennbar. Keine rückwirkende technische Bestätigung der alten Signale.
-Die genannten ersten Test-/Paketbelege gelten vor dieser Korrektur. Der korrigierte
-Stand besteht je **900 Tests ohne Fehler oder Skips**, Core **2026.10.3/.4**,
-Laufzeit **87,90 / 85,54 Sekunden**; Ruff und beide Dependencychecks erfolgreich.
-Sein frisch gebautes Wheel wurde separat regulär installiert: sieben native
-Core-.4-Importe, alle 23 Paketdateien bytegleich und GPL-Metadaten korrekt.
-Wheel-SHA256: `792ba45f9c414c365d8ecbc9709cfed3b507838da9fca75c98c4c6d01b34fab9`.
+GitHub-CI für [main](https://github.com/togo42/Adaptive-Solar/actions/runs/40324170165)
+und [Tag](https://github.com/togo42/Adaptive-Solar/actions/runs/40324170286) war vor
+Installation erfolgreich abgeschlossen. Vor Download frische geschützte native
+HA-Sicherung einschließlich Konfiguration/Apps und ohne Recorderdatenbank erstellt;
+Abschluss, Archivmetadaten und vollständiger äußerer SHA geprüft. Entschlüsselung
+oder Wiederherstellung wurden nicht getestet. Zusätzlich bisherige Komponente und
+vier ausgewählte Lernstores lokal für den gezielten Rückweg gesichert.
 
-Der neue Review muss alle sechs geänderten Forschungstexte und beide Lizenztexte
-vollständig lesen; frühere Forschungsreferenzen werden nicht geerbt. Veröffentlichung,
-aktuelle Sicherung, native HACS-Installation und HA-Rücklese erfolgen erst nach
-akzeptiertem Review. Die folgenden Angaben dokumentieren die vorherigen gebundenen
-Quellen und Betriebsnachweise, keine vorweggenommene Abnahme von 0.2.11.
+Nach HACS-Download alle **23 Komponentendateien** gegen Release geprüft; genau ein
+Core-Neustart. Vier Einträge geladen, native Diagnosen bestätigen **0.2.11** bei
+unverändertem **Core 2026.10.4 / Python 3.14.9**. Runtimepins/Binärpayload unverändert.
+**80 Entity-/Unique-IDs und Benutzeranpassungen, vier Geräte, sämtliche Anlagenoptionen
+und Energy-Einstellungen identisch**. Alle Historienfingerprints, zuvor abgeschlossene
+Intervalle und Tagesanfangs-Snapshotdaten erhalten; die bisherige Historie bleibt
+auf ausdrücklichen Betreiberwunsch und dessen Bestätigung abregelungsfreier letzter
+Tage weiter nutzbar. Alte Kontrollprovenienz wird nicht nachträglich als technisch
+geprüft markiert. Neue Intervalle werden an den drei angebundenen Energiequellen
+angenommen. [Upgradegrenzen](release-0.2.11.md#upgrade-von-0210).
+
+Drei vollständige lokale Folgetage je Anlage sowie Grenzen, Energie und Einheiten
+rückgelesen. Nach echten Quellenberichten ausschließlich die vier eigenen
+Prognosequalitätsanzeigen aktualisiert; keine Originalmessquelle erzwungen. Alle
+vier melden gültige Eingänge und **Physik/kalt**. Konfiguration gültig, keine aktiven
+Repairs, keine Einträge im aktuellen Systemlogfilter `adaptive_solar`. Das ist eine
+gebundene Betriebsprüfung, kein Nachweis langfristiger Warnungsfreiheit. Lokaler
+Laufzeitaudit-SHA256: `dcb67d435d51a340d47e42223423bbf58e3a842614f344c72e98e5ac51749594`.
+Private Rohbelege verbleiben unter `data/release-0.2.11-20261026/` und werden nicht veröffentlicht.
+
+Qualifiziertes produktives Lernen, physikalische Quellenqualifikation und ein fairer
+prospektiver Genauigkeitsvorsprung gegenüber **beiden** Referenzen bleiben eigene
+offene Nachweise. Tests, Review und Installation ersetzen diese nicht.
 
 ## Freigegebener Stand vor 0.2.11
 
-Stand: 26.10.2026. **Adaptive Solar 0.2.10 ist veröffentlicht und über HACS unter Core 2026.10.4 installiert.** Der gebundene Grok-4.7/high-Review ist ohne Findings abgeschlossen; GitHub-CI erfolgreich. Vier Anlageneinträge, native Einrichtung und installierte Paketbytes sind zurückgelesen. Ein qualifizierter produktiver ML-Fit und bessere Prognosegüte bleiben offen.
+Historischer Stand am 26.10.2026 vor dem oben dokumentierten Update: **Adaptive Solar 0.2.10 war veröffentlicht und über HACS unter Core 2026.10.4 installiert.** Der gebundene Grok-4.7/high-Review ist ohne Findings abgeschlossen; GitHub-CI erfolgreich. Vier Anlageneinträge, native Einrichtung und installierte Paketbytes sind zurückgelesen. Ein qualifizierter produktiver ML-Fit und bessere Prognosegüte bleiben offen.
 
 ## Dokumentations- und Konsistenzpflege nach dem Release
 

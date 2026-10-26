@@ -50,20 +50,25 @@ sie als `legacy_curtailment_intervals` mit Scope
 `retained_history_requires_operator_qualification`. Das Merkmal beschreibt nur die
 HA-Eingangsprüfung und zertifiziert keine physikalische Quelle.
 
-Ein neuer Tag wird veröffentlicht; der bestehende Tag 0.2.10 wird nicht überschrieben.
+Für diese Version wurde ein neuer Tag veröffentlicht; der bestehende Tag 0.2.10 bleibt unverändert.
 Vorherige ursprüngliche Forschungsfassungen bleiben über die Git-Historie zugänglich.
 
 ## Prüfstand
 
-Je **900 Quelltests ohne Fehler oder Skips** unter Core **2026.10.3/.4** bestanden;
+Je **900 Quelltests ohne Fehler oder Skips** unter Core **2026.10.2/.3/.4** bestanden;
 Ruff und Dependencychecks erfolgreich. Das nach der Korrektur neu gebaute Wheel
 wurde separat regulär installiert und gegen alle 23 Integrationsdateien sowie
 GPL-Metadaten geprüft; sieben native Core-.4-Modulimporte erfolgreich.
 
-Diese Releasebeschreibung ist Teil des zur Prüfung vorgesehenen Quellstands.
-Tests, neuer vollständiger Grok-4.7/high-Review, Veröffentlichung und HA-Rücklese
-werden nach Abschluss mit ihrer jeweiligen Bindung im [Entwicklungsstand](entwicklungsstand.md)
-und den [Reviewnachweisen](review-findings.md) dokumentiert. Frühere Receipts gelten
-nicht automatisch für diese Version oder die geänderten Forschungsdateien.
+Die Implementierung aus Commit `9070886` erhielt einen vollständigen
+Grok-4.7/high-Review aller 96 öffentlichen Textdateien: keine Findings und keine
+Kontextkürzung. Hauptbranch- und Tag-CI vor der nativen HACS-Installation erfolgreich.
+Nach geschützter Sicherung genau ein Core-Neustart; 0.2.11 auf vier Einträgen nativ
+bestätigt. 23 Dateien bytegleich, 80 Sensorregistrierungen/vier Geräte, Anlagenoptionen,
+Energy-Einstellungen und bestehende passende Messhistorie erhalten. Alle vier Anlagen
+melden nach echten Quellenberichten gültige Eingänge und Physik/kalt; Konfiguration
+gültig und keine aktiven Repairs. [Ausführlicher Prüfstand](entwicklungsstand.md),
+[hashgebundener Review](review-findings.md). Dieser nachgetragene Statusabschnitt ist
+außerhalb des eingefrorenen Reviewtexts; Implementierung und Tag bleiben identisch.
 Qualifiziertes produktives Lernen und ein fairer prospektiver Genauigkeitsvorsprung
 gegen beide Referenzen bleiben eigenständige offene Nachweise.

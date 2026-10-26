@@ -1,6 +1,6 @@
 # Validierung und Genauigkeitsnachweis
 
-Stand: 25.10.2026. Überlegenheit gegenüber Helios Forecast/Open-Meteo Solar bleibt offen. Konsolidiert aus dem lokal archivierten Vorgänger `artifacts/releases/0.2.5-blocked/source/docs/validierung.md`; das Archiv wird nicht veröffentlicht.
+Stand: 26.10.2026. Überlegenheit gegenüber Helios Forecast/Open-Meteo Solar bleibt offen. Konsolidiert aus dem lokal archivierten Vorgänger `artifacts/releases/0.2.5-blocked/source/docs/validierung.md`; das Archiv wird nicht veröffentlicht.
 
 ## 1. Nachweisgrenzen
 
