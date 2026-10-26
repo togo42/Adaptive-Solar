@@ -1,5 +1,30 @@
 # Reviewnachweise und fachliche Bearbeitung
 
+## Gültiger Grok-Nachreview des korrigierten GHI-Paar-Gains
+
+26.10.2026, **Grok 4.7/high**, Commit `507ab4ecf5af0c205038ca15716f055def00a433`:
+**mergeable, keine Findings**. Der vollständige Textreview umfasst **100 öffentliche
+Originaldateien**, einschließlich aller sechs Forschungsdateien und beider
+Lizenzkopien, **1.365.834 Payloadbytes**, `all/chunks` mit 23 Datenabschnitten und
+einem finalen Reviewaufruf. Binäre Bilder sind außerhalb des Textreviews.
+Der vorangegangene AS-001-Befund zum Schatten-Decay ist damit behoben und erneut geprüft.
+
+Der native Kontextaudit wurde nach Abschluss unabhängig wiederholt: `grok-4.7`,
+Effort `high`, 24 eindeutige erfolgreiche Abschlussturns, exakte Promptbytes und
+tatsächliche Endantwort; keine Compaction, Tools oder aktiven Hintergrundaufgaben.
+Quellsnapshot, unveränderte CLI 1.0.62, Payload, sämtliche Originaldateien, Prompts,
+Stdout-/Stderr- und Reviewhashes erneut geprüft. Erfasste globale Grok-Konfiguration
+während des gesamten Laufs unverändert.
+
+Receipt-SHA256: `98bc3f6dead25e76fc2acd32eb6281526d693b058ba570888395504a23656027`;
+Review-SHA256: `a25d2d3c6618422d0f6d6e1ca6f5c6927cd427bcb76adaf5e5b654b7ba5faeb8`;
+Payload-SHA256: `0f2a44b9cfa34e34c5d48e259db3f9e890febd9a6b137f8a07a3493fa92ef20c`.
+Lokale Rohbelege: `reviews/private/grok-ghi-pair-gain-fix-r1/`;
+unabhängiger Abschlussnachweis: `artifacts/grok-ghi-pair-gain-fix-closeout.json`.
+Diese nachträgliche Statusdokumentation liegt außerhalb des eingefrorenen Reviewtexts;
+die geprüften Implementierungsbytes bleiben unverändert. Tests und Review belegen
+keinen Prognosevorsprung und autorisieren keine produktive HA-Änderung.
+
 ## Korrektur des GHI-Paar-Gains und erneute Prüfung
 
 Der nachfolgende Grok-Befund AS-001 ist im neuen Arbeitsstand korrigiert:
@@ -14,13 +39,13 @@ Lokale Validierung: **101 gezielte Tests**, anschließend **978 bestandene Tests
 ohne Skips** unter HA Core **2026.10.4** / Testplugin **0.13.375**; Ruff,
 `pip check`, Markdown-Rendering, relative Dateilinks und `git diff --check`
 erfolgreich. JUnit-Beleg: `artifacts/ghi-pair-gain-fix-ha-2026.10.4-tests.xml`.
-Der neue externe Review ist noch ausstehend; frühere Receipts gelten nur für
-ihren jeweiligen Quellstand.
+Der vorstehend gebundene externe Nachreview prüft diesen korrigierten Stand;
+frühere Receipts gelten ausschließlich für ihren jeweiligen Quellstand.
 
-## Grok-Vollreview des Schattenlernstands `ae5a56b`: blockiert
+## Historischer Grok-Vollreview des Schattenlernstands `ae5a56b`: blockiert
 
 26.10.2026, **Grok 4.7/high**, Commit
-`ae5a56b0fa3d55d76859da55f452bf574f6c5bff`: **blocked**, ein offener Befund
+`ae5a56b0fa3d55d76859da55f452bf574f6c5bff`: **blocked**, damals ein offener Befund
 mittlerer Schwere. Umfang: **100 öffentliche Originaltextdateien**, einschließlich
 aller sechs Forschungsdateien und beider Lizenzkopien, **1.358.067 Payloadbytes**,
 `all/chunks` mit 23 Datenabschnitten und einem finalen Reviewaufruf. Binäre Bilder
