@@ -30,6 +30,20 @@ der prozesslokalen Kontextbindung bestanden die 138 Transporttests sowie erneut
 alle 894 Core-.4-Tests (77,11 Sekunden). Das abschließende Wheel wurde neu gebaut
 und separat regulär installiert; sein Inhalt wird vor dem neuen Vollreview geprüft.
 
+Der zweite vollständige Review von Commit `32d1d0e` war transportgültig, aber
+**blocked** mit einem hohen Befund AS-001: Wiederhergestelltes `off` galt als
+Abregelungsfreigabe. Die Korrektur prüft beide Pfade gemeinsam und bindet Power an
+die echte Freigabe einschließlich Attributwechsel. Auf ausdrücklichen Betreiberwunsch
+bleibt die vorhandene Historie erhalten: Für die letzten Tage bestätigt er keine
+Abregelung. Neue Zeilen erhalten eine eigene Kontrollprovenienz, alte bleiben in den
+Diagnosen erkennbar. Keine rückwirkende technische Bestätigung der alten Signale.
+Die genannten ersten Test-/Paketbelege gelten vor dieser Korrektur. Der korrigierte
+Stand besteht je **900 Tests ohne Fehler oder Skips**, Core **2026.10.3/.4**,
+Laufzeit **87,90 / 85,54 Sekunden**; Ruff und beide Dependencychecks erfolgreich.
+Sein frisch gebautes Wheel wurde separat regulär installiert: sieben native
+Core-.4-Importe, alle 23 Paketdateien bytegleich und GPL-Metadaten korrekt.
+Wheel-SHA256: `792ba45f9c414c365d8ecbc9709cfed3b507838da9fca75c98c4c6d01b34fab9`.
+
 Der neue Review muss alle sechs geänderten Forschungstexte und beide Lizenztexte
 vollständig lesen; frühere Forschungsreferenzen werden nicht geerbt. Veröffentlichung,
 aktuelle Sicherung, native HACS-Installation und HA-Rücklese erfolgen erst nach

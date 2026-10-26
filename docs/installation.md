@@ -84,7 +84,10 @@ verhindern. Diagnosepfade: [Fehlerbehebung](bedienung.md#7-fehlerbehebung-und-su
 
 Vor Updates die Versionshinweise lesen, sichern und verwendete Geräte-/Sensorverweise
 notieren. Für 0.2.10 erklärt [die Releasebeschreibung](release-0.2.10.md) die
-Anzeige-Migration und den Featurevertragswechsel. HACS aktualisiert den Code;
+Anzeige-Migration und den Featurevertragswechsel. Für 0.2.11 sind zusätzlich
+die [Schutzprüfung und Althistorienqualifikation](release-0.2.11.md#upgrade-von-0210)
+zu beachten: Historie bleibt erhalten, frühere Abregelungsfreiheit wird nicht
+nachträglich technisch bestätigt. HACS aktualisiert den Code;
 anschließend Core neu starten und obige Prüfung wiederholen. Änderungen an Physik
 oder Messbindungen können neue Lernhistorie erfordern. Das Optionsformular lädt
 den Eintrag nach Abschluss neu.

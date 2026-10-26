@@ -90,6 +90,29 @@ async def test_current_learning_contract_roundtrip_preserves_both_regimes_and_ac
         await restored.async_close()
 
 
+@pytest.mark.parametrize("legacy", [False, True])
+async def test_control_upgrade_retains_old_evidence_without_certifying_it(hass, legacy):
+    config = SiteConfig(52, 13, "Europe/Berlin", (StringConfig("s", "i", 5, 30, 180),),
+                        (InverterConfig("i", 5, curtailed_entity_id="binary_sensor.control"),))
+    instance, entry = coordinator(hass, config=config)
+    payload = {**instance._stored(), **evidence(instance)}
+    store = instance._legacy_store if legacy else instance._store
+    await store.async_save(payload)
+    with freeze_time(NOW + timedelta(hours=2)):
+        await instance.async_restore()
+        assert instance.intervals == payload["intervals"]
+        assert instance.archive == payload["archive"]
+        assert instance.daily_snapshots == payload["daily_snapshots"]
+        assert "curtailment_measurement_contract" not in instance.intervals[0]
+        instance.async_commit_setup()
+        await instance.async_close()
+        restored, _ = coordinator(hass, entry, config)
+        await restored.async_restore()
+        assert restored.intervals == payload["intervals"]
+        assert "curtailment_measurement_contract" not in restored.intervals[0]
+        await restored.async_close()
+
+
 async def test_obsolete_feature_structure_cannot_discard_valid_independent_evidence(hass):
     instance, _ = coordinator(hass)
     payload = evidence(instance)

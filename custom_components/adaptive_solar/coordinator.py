@@ -31,6 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 # Independent of site geometry and the HA Store's serialization version. Bump
 # when archived baseline/feature semantics change; measurements are independent.
 LEARNING_FEATURE_CONTRACT = "atomic-ghi-cohort-centered-weather-v2"
+CURTAILMENT_MEASUREMENT_CONTRACT = "non-restored-control-v1"
 
 
 def state_number(state, now: datetime, kind: str, *, max_age: int = SENSOR_MAX_AGE_SECONDS,
@@ -510,11 +511,16 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             return None  # a newer on transition is not processed/qualified yet
         return since
 
-    def _curtailment_safe(self, inv) -> bool:
+    def _curtailment_status(self, inv) -> str:
         if not inv.curtailed_entity_id:
-            return True
+            return "not_configured"
         state = self.hass.states.get(inv.curtailed_entity_id)
-        return state is not None and state.state == "off"
+        if state is None or state.attributes.get("restored"):
+            return "unknown"
+        return {"off": "clear", "on": "active"}.get(state.state, "unknown")
+
+    def _curtailment_safe(self, inv) -> bool:
+        return self._curtailment_status(inv) in ("not_configured", "clear")
 
     def _record_energy(self, inv, state, now: datetime, *, reported_at: datetime | None = None) -> None:
         stamp = reported_at or (state.last_updated.astimezone(UTC) if state is not None else now)
@@ -527,6 +533,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         value = state_number(state, now, "energy", reported_at=stamp)
         interval = self.tracker.record(inv.id, stamp, value, self._curtailment_safe(inv), inv.output_cap_w, observed_at=now)
         if interval is not None:
+            if inv.curtailed_entity_id:
+                interval["curtailment_measurement_contract"] = CURTAILMENT_MEASUREMENT_CONTRACT
             self._append_interval(interval)
 
     def _append_interval(self, interval: dict) -> None:
@@ -546,7 +554,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             return
         key = (interval["inverter_id"], hour)
         position, previous = self._interval_latest.get(key, (len(self.intervals), None))
-        if previous is not None and previous["end"] == interval["start"]:
+        if (previous is not None and previous["end"] == interval["start"]
+                and previous.get("curtailment_measurement_contract") == interval.get("curtailment_measurement_contract")):
             merged = {**previous, "end": interval["end"], "observed_at": interval["observed_at"], "energy_kwh": previous["energy_kwh"] + interval["energy_kwh"]}
             self.intervals[position] = merged
             self._interval_latest[key] = (position, merged)
@@ -571,7 +580,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 self.input_quality[key] = "valid" if value is not None else "missing_stale_or_invalid"
         for inv in self.site.inverters:
             control = self.hass.states.get(inv.curtailed_entity_id) if inv.curtailed_entity_id else None
-            control_state = "not_configured" if not inv.curtailed_entity_id else "clear" if control is not None and control.state == "off" else "active" if control is not None and control.state == "on" else "unknown"
+            control_state = self._curtailment_status(inv)
             self.input_quality[f"curtailment_{inv.id}"] = control_state
             if inv.measurement_valid_entity_id:
                 self.input_quality[f"measurement_valid_{inv.id}"] = self._measurement_validity(inv)
@@ -585,10 +594,10 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 power = None
             power_time = (getattr(state, "last_reported", None) or state.last_updated) if state is not None else None
             # Current off cannot rehabilitate a report from an earlier active
-            # or unknown phase. last_changed marks this clear state's start;
-            # require a genuinely newer HA power report, never a poll time.
+            # or unknown phase. Attribute-only removal of restored preserves
+            # last_changed, so last_updated also bounds the clear phase.
             predates_clear = (power is not None and control_state == "clear"
-                              and power_time <= control.last_changed)
+                              and power_time <= max(control.last_changed, control.last_updated))
             measurement_ignored = None
             if inv.measurement_valid_entity_id:
                 since = self._measurement_since(inv)
@@ -645,6 +654,9 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 "measurement_validity_scope": "current_external_input_not_curtailment_or_interval_proof",
                 "curtailment_source_configured": bool(inv.curtailed_entity_id),
                 "curtailment_safe_at_issue": self._curtailment_safe(inv),
+                "legacy_curtailment_intervals": sum(1 for row in intervals if row["inverter_id"] == inv.id
+                    and inv.curtailed_entity_id and row.get("curtailment_measurement_contract") != CURTAILMENT_MEASUREMENT_CONTRACT),
+                "legacy_curtailment_scope": "retained_history_requires_operator_qualification",
                 "anchor_present": inv.id in self.tracker.anchors,
                 "pending_invalidation": inv.id in self.tracker.dirty,
                 "last_event_outcome": self.tracker.last_outcome.get(inv.id),

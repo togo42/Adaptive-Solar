@@ -7,6 +7,23 @@ Forschungstexte jetzt verändert und für einen künftigen Implementierungsrevie
 nicht mehr über ihre früheren Forschungs-SHAs wiederverwendbar. Die historischen
 Reviewurteile bleiben ausschließlich für ihre eingefrorenen Quellen gültig.
 
+## Vollreview 0.2.11: behobener Befund vor erneuter Prüfung
+
+Am 26.10.2026 erhielt Commit `32d1d0e` im vollständigen neuen Grok-4.7/high-Review
+(96 öffentliche Textdateien einschließlich aller sechs Recherchen und beider Lizenzen)
+einen **blocked**-Befund AS-001 (hoch): wiederhergestelltes Abregelungssignal `off`
+gab Lern-/Powerbeobachtungen frei. Transportprüfung erfolgreich: ein echter
+Abschlussturn, null Kontextkürzung/Tools/Hintergrundaufgaben. Der Lauf ist kein
+freigegebener Stand.
+
+Korrektur: zentrale Statusprüfung lehnt restaurierte Signale ab; echte Entfernung
+des Restore-Attributs definiert die neue Freigabegrenze. Native HA-Regressionsfälle
+prüfen AC/DC, laufenden Betrieb und Monitoringstart nach Wiederherstellung, Power-
+und Energie-Wiederanlauf. Vorhandene Intervalle bleiben auf ausdrücklichen Wunsch
+und Bestätigung des Betreibers abregelungsfreier letzter Tage erhalten; neue Marker
+werden alten Zeilen nicht zugeschrieben. [Upgradegrenzen](release-0.2.11.md#upgrade-von-0210).
+Ein frischer vollständiger Review des korrigierten Stands ist erforderlich.
+
 ## 0.2.10: Implementierungsreview abgeschlossen
 
 Am 26.10.2026 mit **Grok 4.7/high**, unverändertem CLI 1.0.62 und strikt geprüftem Einzelprompt abgeschlossen: **mergeable, keine Findings**. Geprüfter Commit: `5a7da69d98f4d8aea037dd45a53694a81c4a4393`. Umfang: **83 aktuelle Originaldateien** einschließlich Code, Tests, Dokumentation und Helfern; die sechs unveränderten Forschungstexte waren ausschließlich über einen erneut geprüften vollständigen Vorgängerreview gebunden. Kein erneuter Volltextreview der Forschung und keine PNG-Renderingprüfung.

@@ -48,7 +48,7 @@ grundsätzlich höchstens 15 Minuten. Ein aktueller restaurierter Zustand genüg
 | PV-Leistung / `power_entity_id` | Optionaler Leistungssensor derselben Ausgangsstufe; W, kW oder MW |
 | Kumulativer Ertrag / `energy_entity_id` | Optionaler Energiezähler derselben Stufe; Wh, kWh oder MWh. Echte fortschreitende Originalberichte erforderlich |
 | Messquelle gültig / `measurement_valid_entity_id` | Optionaler Binary-Sensor: nur `on` erlaubt neue Messungen; Ausfall/Unbekannt sperrt Energie und Power-Nowcast |
-| Abregelung aktiv / `curtailed_entity_id` | Optionaler Binary-Sensor oder Input-Boolean: `on` bedeutet Abregelung. Aktive/unbekannte Abregelung sperrt betroffene Lern-/Powerbeobachtungen |
+| Abregelung aktiv / `curtailed_entity_id` | Optionaler Binary-Sensor oder Input-Boolean: `on` bedeutet Abregelung. Aktive/unbekannte/wiederhergestellte Abregelung sperrt betroffene Lern-/Powerbeobachtungen |
 | Weiteren hinzufügen / `add_another` | Nach den vorhandenen Stufen eine weitere bearbeiten |
 | Entfernen / `remove` | Diese Stufe entfernen; mindestens eine muss erhalten bleiben |
 

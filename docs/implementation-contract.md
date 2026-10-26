@@ -45,7 +45,7 @@ Alte/zukünftige Berichte bleiben ungenutzt; Temperatur/Wind werden kurzfristig 
 
 GHI gilt je Stufe atomar für ihre numerisch gültige Modellkohorte, sonst bleibt die gesamte Zelle NWP. Baseline, Gain, Regime und Instantreferenz müssen dieselbe Stufenkohorte beschreiben. Betroffene Zellen veröffentlichen keine für einen anderen Datenstand kalibrierten ML-Grenzen. Entfernte Grenzen ändern auch den punktuellen Kalibrierungsstatus; die Statusunion entsteht erst nach allen Korrekturen.
 
-Der Leistungs-Nowcast addiert eine kurze abklingende Restleistungskorrektur nur bei aktueller plausibler Produktion ohne Abregelung. Bei gebundenem Signal muss der echte Powerbericht **strikt nach Beginn des aktuellen klaren Zustands** liegen; ein älterer bleibt bis zu einem echten neuen HA-Bericht gesperrt. Seine Messzeit wird nie ersetzt.
+Der Leistungs-Nowcast addiert eine kurze abklingende Restleistungskorrektur nur bei aktueller plausibler Produktion ohne Abregelung. Bei gebundenem Signal muss der echte Powerbericht **strikt nach Beginn des aktuellen klaren Zustands** liegen; ein älterer bleibt bis zu einem echten neuen HA-Bericht gesperrt. Seine Messzeit wird nie ersetzt. Wiederhergestellte Steuersignale gelten auch bei `off` als unbekannt. Bei Entfernung des `restored`-Attributs begrenzt zusätzlich `last_updated` die neue Freigabephase; `last_changed` allein reicht dafür nicht.
 
 Momentanreferenz: Original-NWP-Strahlungsmittel mit [Ineichen-Klarhimmelform](https://pvlib-python.readthedocs.io/en/stable/reference/generated/pvlib.clearsky.ineichen.html)/Achtpunkt-Gaussquadratur normalisieren, String-/Stufenphysik am echten Power-Messzeitpunkt rechnen. Das ist eine Wolkenpersistenz-Approximation, keine gemessene Feinauflösung/neues Ausgaberaster. Frische Vorstundenproben bleiben nutzbar; fehlende Quellintervalle/Kohorten werden nicht verlängert. Gleichzeitige GHI gegen **dieselbe Momentanapproximation**, nicht den gedämpften zukünftigen Zellgain abgleichen, um Wetterfehler nicht doppelt zu korrigieren. Nichtvergleichbarer Physik-/ML-Status oder unterschiedliche belegte Lernunterstützung sperren die Zusatzkorrektur; unplausible Referenzen liefern kein Residual. Beide Korrekturintegrale durch echte Ausgabezelllänge teilen: zehn Restminuten sind keine Stunde.
 
@@ -104,3 +104,20 @@ Mixed-Entries behalten Stufensensoren und `mixed_output_generation_sum` verschie
 `core/evaluation.py` bewertet archivierte statt neu rekonstruierte Prognosen auf identischen Fenstern/Cutoffs. Gemeinsamer Lead geht vom Cutoff bis Fenstermitte, Issuezeiten wählen nur zulässige Snapshots. Ganze gemessene Istintervalle bleiben ungeschnitten, Prognosemittel zuschneidbar, fehlende Werte niemals Null. `interval_task_identity=[cutoff,inverter_id,start,end]`: Intervallzählung/-energie ist Taskexposition, dauergewichtet, keine unabhängige Stichprobe/einmalige Erzeugung. Schätzer/Gates bleiben unverändert.
 
 Je Stratum/Referenz liefern nur vollständige geplante Origins eines Zieltags mittleren Fehler/eine Stimme; Gesamtquote ist das Minimum. `statistical_validation.py` resampelt alle Strata/Referenzen desselben Tages gemeinsam. Familienkonfidenz, Bonferroni, Seed/Resamples versioniert; keine Ersatzaussage bei fehlenden Strata/gescheitertem deskriptivem Gate. [Vorabkriterien/Reviewaudit](validierung.md) und Testdatenfluss sind keine Feldgüte; fairer prospektiver Vergleich bleibt nötig.
+
+
+## Abregelungsprüfung und Bestandsdaten ab 0.2.11
+
+Neue Messintervalle mit konfiguriertem Abregelungssignal tragen den Zeilenmarker
+`curtailment_measurement_contract=non-restored-control-v1`. Nur echte, nicht
+wiederhergestellte `off`-Zustände sind freigegeben. Ein unbekannter/aktiver Zustand
+invalidiert den Anker; nach Freigabe liefert erst das zweite Originalzählerereignis
+wieder ein Delta. Zeilen mit unterschiedlichem Vertragsmarker werden nicht koalesziert.
+
+Alte Intervalle werden innerhalb der bisherigen Provenienz-/Aufbewahrungsgrenzen
+weitergenutzt und nicht nachträglich als geprüft markiert. Der Meterdiagnosezähler
+`legacy_curtailment_intervals` weist die technisch nicht belegte alte Kontrollprovenienz
+aus. Ihre Nutzung verlangt Betreiberqualifikation; für den aktuellen Bestandsbetrieb
+liegt die ausdrückliche Bestätigung keiner Abregelung in den letzten Tagen und der
+Wunsch zur Datennutzung vor. Das ist kein Signal- oder physikalischer Nachweis.
+Archivbaselines und echte Tagesanfangsprognosen bleiben davon unabhängig erhalten.
