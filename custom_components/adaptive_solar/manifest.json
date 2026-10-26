@@ -1,11 +1,18 @@
 {
   "domain": "adaptive_solar",
   "name": "Adaptive Solar",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "config_flow": true,
   "integration_type": "service",
   "iot_class": "cloud_polling",
-  "requirements": ["pvlib==0.16.1", "scikit-learn==1.9.1"],
+  "requirements": [
+    "pvlib==0.16.1",
+    "scikit-learn==1.9.1"
+  ],
   "dependencies": [],
-  "codeowners": []
+  "codeowners": [
+    "@togo42"
+  ],
+  "documentation": "https://github.com/togo42/Adaptive-Solar",
+  "issue_tracker": "https://github.com/togo42/Adaptive-Solar/issues"
 }

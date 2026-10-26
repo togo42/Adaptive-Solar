@@ -8,7 +8,7 @@
 
 Wetterprognosen, PV-Physik und lokale Residualmodelle für Resttag und nächste sieben Tage: unterschiedliche Stringausrichtungen, gemeinsame AC-/DC-Ausgabestufen und wiederkehrende Verschattung. Frische HA-Temperatur/Windwerte, optional Ecowitt-Globalstrahlung und geeignete PV-Leistung unterstützen den kurzfristigen Nowcast.
 
-**Stand, 25.10.2026:** **0.2.9 installiert**, vier Anlageneinträge liefern unter Core **2026.10.4** Prognosen. Die freigegebenen Lern-/Leistungsbindungen und optionalen Messgültigkeitsquellen sind aktiviert und zurückgelesen; erste originale Messintervalle werden angenommen. Je **852 Tests** mit Core 2026.10.2, .3 und .4 bestanden. Der gebundene Implementierungsreview durch **Grok 4.7/high** ist ohne Findings abgeschlossen ([Reviewumfang](docs/review-findings.md)). Ein qualifizierter produktiver ML-Fit und Überlegenheit gegenüber Helios und Open-Meteo Solar sind weiterhin offen. [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
+**Stand, 26.10.2026:** **0.2.10 implementiert**, je **880 Tests** mit Core 2026.10.2, .3 und .4 bestanden. Neu sind Morgen-/Abenddämpfungen pro String und die Migration zur Einzelanzeige bei einer Ausgangsstufe. Veröffentlichung, externer Review und HACS-Aktivierung werden separat abgeschlossen; letzter bestätigter produktiver Stand ist 0.2.9 unter Core 2026.10.4. Ein qualifizierter produktiver ML-Fit und Überlegenheit gegenüber Helios und Open-Meteo Solar sind weiterhin offen. [Versionsinformationen](docs/release-0.2.10.md), [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
 
 ## Funktionsweise
 
@@ -22,11 +22,15 @@ Herstellerunabhängige String-/Stufenkonfiguration, optionale HA-Sensoren: keine
 
 ## Einrichtung
 
+Über HACS: **Benutzerdefinierte Repositories** öffnen, `https://github.com/togo42/Adaptive-Solar` als **Integration** hinzufügen und die gewünschte veröffentlichte Version herunterladen. Danach Home Assistant neu starten und **Adaptive Solar** unter **Einstellungen → Geräte & Dienste** hinzufügen beziehungsweise bestehende Einträge weiterverwenden. [Änderungen und Migration in 0.2.10](docs/release-0.2.10.md). Die benötigte HAOS-Binärbasis ist unten separat beschrieben; HACS ersetzt diese Abhängigkeit nicht.
+
 Geprüfte HA-Ziele **2026.10.2/.3/.4** mit Python 3.14; der HA-unabhängige Modellkern unterstützt Python ab 3.13. `custom_components/adaptive_solar` in die HA-Konfiguration kopieren. **HAOS/amd64:** [Musl-Bauweg](docs/haos-installation.md) für `scikit-learn==1.9.1` beachten.
 
 Nach Neustart: **Einstellungen → Geräte & Dienste → Integration hinzufügen → Adaptive Solar**. Einrichtung, Prognoseausgabe, Persistenz und Optionsänderung sind live geprüft; produktives Training mit qualifizierter Messhistorie steht noch aus.
 
 Je String kWp, Neigung, Azimut und Verluste: **0°N/90°O/180°S/270°W**. AC: Wirkungsgrad/AC-Grenze; DC: nominelle Ausgangsgrenze/optionaler Zusatzverlust, keine spannungsunabhängige Hardwaregarantie. Fiktive [AC-](examples/site.json)/[DC-Beispiele](examples/site-dc.json); Details im Implementierungsvertrag.
+
+Optional lassen sich je String Horizontpunkte sowie Morgen-/Abenddämpfungen von 0 bis 1 eintragen. 0 bedeutet keine Dämpfung; zwischen Sonnenaufgang, Tageslichtmitte und Sonnenuntergang wird linear überblendet. Vorhandene Dämpfungen anderer Prognoseintegrationen können als Ausgangswerte dienen, müssen aber dieselbe Solarfläche beschreiben. Die Horizontkorrektur lässt diffuse Strahlung erhalten. Bei einer Ausgangsstufe erscheint nur ihr Gerätebereich; vorhandene alte Gesamt-Sensoren bleiben ausgeblendet für bestehende Verweise verfügbar.
 
 Lernen braucht kumulative PV-Energie am richtigen Messpunkt, Nowcast Leistung in W. Keine Zählermehrfachbindung an unabhängige Stufen; Netzbilanz/Batterieentladung sind keine PV-Produktion. Mindestens95% Messabdeckung/höchstens2,5% Randlücke; `training_quality` erklärt Ablehnungen. Energieintegrale, Verfügbarkeit und Abregelung separat qualifizieren; HA-Empfang allein genügt nicht.
 

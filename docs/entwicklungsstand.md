@@ -1,6 +1,16 @@
 # Entwicklungsstand und offene Nachweise
 
-Stand: 25.10.2026. **Adaptive Solar 0.2.9 ist nach ausdrücklicher Freigabe unter Core 2026.10.4 aktiviert; vier Anlageneinträge liefern Prognosekurven.** Lern-/Leistungsbindungen und Messgültigkeitsadapter sind zurückgelesen. Lokale Kompatibilität und gebundener Grok-4.7/high-Implementierungsreview sind geprüft. Ein qualifizierter produktiver ML-Fit und bessere Prognosegüte bleiben offen.
+Stand: 26.10.2026. **Adaptive Solar 0.2.10 ist implementiert und lokal validiert; letzter bestätigter produktiver Stand ist 0.2.9 unter Core 2026.10.4.** Externer Review, Veröffentlichung und HACS-Aktivierung der neuen Version werden separat abgeschlossen. Ein qualifizierter produktiver ML-Fit und bessere Prognosegüte bleiben offen.
+
+## Update 0.2.10
+
+Morgen-/Abenddämpfungen sind pro String in Modell und Einrichtung ergänzt, mit neutralen Altdefaults und Anwendung vor gemeinsamer AC-/DC-Begrenzung. Das bestehende Horizontmodell bleibt je String konfigurierbar. [AS-UI-001](geplante-updates.md) ist umgesetzt: neue Einträge mit einer Ausgangsstufe erzeugen ein Gerät; bestehende Gesamt-Sensoren bleiben unter ihren IDs als ausgeblendete Kompatibilitätsanzeigen am Einzelgerät erhalten. Mehrere Ausgangsstufen behalten Einzel- und Gesamtanzeigen. [Versionsinformationen](release-0.2.10.md).
+
+Je **880 Tests ohne Fehler oder Skips** bestanden mit Core **2026.10.2/.3/.4**, Testplugins **0.13.373/.374/.375**, Python 3.14.4/glibc. Laufzeiten: **95,48 / 94,80 / 94,22 Sekunden**. Drei Kopien der bestehenden Prüfumgebungen wurden regulär mit demselben 0.2.10-Wheel installiert; ursprüngliche Umgebungen blieben unverändert. Isolierter Paketimport und sämtliche **22 Paketdateien einschließlich Markenbild** wurden außerhalb des Repositorypfads gegen den Wheel geprüft; `pip check` jeweils erfolgreich. Belege: `artifacts/compatibility-ha-2026.10.2-0.2.10/` und entsprechend .3/.4. Zusätzlicher Entwicklungslauf: 880 Tests in 80,87 Sekunden.
+
+Die Migrationstests prüfen AC/DC, mehrere Strings je Stufe, stabile Entity-/Unique-IDs und Benutzeranpassungen, native Energy-Ausgaben und unveränderte Messhistorie nach Reload sowie wiederholte Einzel-/Mehrfachstufenwechsel. Die Physiktests prüfen Dämpfungsgrenzen, Neutraldefaults, Zeitumstellungen, Mitternacht überschreitende Sonnentage, Polartag/-nacht und die Reihenfolge vor dem gemeinsamen Clip. Diese Nachweise ersetzen keine reale Genauigkeitsauswertung.
+
+Die folgenden Abschnitte dokumentieren den historischen Stand 0.2.9 und dessen getrennte Nachweise.
 
 ## 1. Implementierung und Prüfung
 
