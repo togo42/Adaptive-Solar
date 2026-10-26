@@ -60,9 +60,11 @@ Lizenzen erhalten; Projektlizenz ist [GPL-3.0-only](../LICENSE).
 
 Paketbau, Installation, nativer Core-Import, qualifizierter ML-Fit und reale
 Prognosegüte sind unterschiedliche Nachweise. Neue Tests oder Dokuänderungen
-verlängern einen früheren Grok-Receipt nicht automatisch auf den neuen Quellstand.
-Der [Reviewablauf](validierung.md#4-lokale-prüfung-und-review) benötigt eine
-gesonderte Freigabe für externe Übertragung. `--prepare-only` prüft lokal den
+verlängern einen früheren Grok- oder Codex-Receipt nicht automatisch auf den neuen Quellstand.
+Der [Reviewablauf](validierung.md#4-lokale-prüfung-und-review) in `scripts/review.py` unterstützt Grok 4.7
+(`--reviewer grok`, Standard) sowie alternativ Codex mit
+GPT-6.1-Sol und Effort `high` (`--reviewer codex`) und
+benötigt eine gesonderte Freigabe für externe Übertragung. `--prepare-only` prüft lokal den
 Exportumfang; geänderte Forschung kann nicht über alte Forschungs-SHAs geerbt werden.
 
 Vor Veröffentlichung versionierte Dateien auf private Daten prüfen, Paketinhalt und

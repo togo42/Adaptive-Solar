@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze and review public project files using the ESS Grok 4.7 protocol.
+"""Freeze and review public project files using Grok 4.7 or Codex GPT-6.1-Sol.
 
 Private installation data belongs in ignored data/, never in this payload.
 Every call has a bounded lifetime. Failed transport never constitutes review.
@@ -22,6 +22,10 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = "grok-4.7"
+CODEX_MODEL = "gpt-6.1-sol"
+REVIEWER_MODELS = {"grok": MODEL, "codex": CODEX_MODEL}
+REVIEWER_LABELS = {"grok": "Grok", "codex": "Codex"}
+CODEX_DISABLED_FEATURES = ("shell_tool", "unified_exec", "multi_agent", "memories", "plugins", "apps")
 MAX_SINGLE_PAYLOAD_BYTES = 1250000
 REVIEW_CONTEXT_WINDOW_TOKENS = 500000
 SUFFIXES = {".py", ".json", ".md", ".toml", ".txt", ".yml", ".yaml", ".sh"}
@@ -120,13 +124,362 @@ def validate_prompt_bytes(prompt: bytes) -> None:
         raise ValueError("Review prompts must have no outer whitespace")
 
 
+def codex_argv(binary: str, *, session: str | None = None, new: bool = True) -> list[str]:
+    argv = [binary, "exec"]
+    if not new:
+        if not isinstance(session, str) or not session:
+            raise ValueError("Codex resume requires a session UUID")
+        argv.append("resume")
+    argv.extend(["--strict-config", "--ignore-user-config", "--ignore-rules", "--model", CODEX_MODEL])
+    if new:
+        argv.extend(["--sandbox", "read-only", "--color", "never"])
+    argv.extend([
+        "-c", 'model_reasoning_effort="high"',
+        "-c", 'approval_policy="never"',
+        "-c", 'sandbox_mode="read-only"',
+        "-c", 'web_search="disabled"',
+        "-c", f"model_context_window={REVIEW_CONTEXT_WINDOW_TOKENS}",
+        "-c", f"model_auto_compact_token_limit={REVIEW_CONTEXT_WINDOW_TOKENS}",
+    ])
+    for feature in CODEX_DISABLED_FEATURES:
+        argv.extend(["--disable", feature])
+    argv.append("--json")
+    if not new:
+        argv.append(session)
+    argv.append("-")
+    return argv
+
+
+def parse_codex_stdout(raw: str, *, expected_session: str | None = None) -> tuple[str, str]:
+    raw = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", raw)
+    if not raw or not raw.endswith("\n"):
+        raise ValueError("Codex JSONL stdout is empty or truncated")
+    session_id = None
+    turn_started = turn_completed = False
+    messages: list[str] = []
+    for line in raw.splitlines():
+        try:
+            event = json.loads(line, object_pairs_hook=unique_keys)
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise ValueError("Codex stdout contains malformed JSONL metadata") from exc
+        if not isinstance(event, dict) or not isinstance(event.get("type"), str) or not event["type"]:
+            raise ValueError("Codex stdout has missing event metadata")
+        kind = event["type"]
+        if "compact" in kind.lower():
+            raise ValueError("Context audit detected compaction; full-source review is invalid")
+        if kind == "thread.started":
+            tid = event.get("thread_id")
+            if session_id is not None or turn_started or not isinstance(tid, str) or str(uuid.UUID(tid)) != tid:
+                raise ValueError("Codex stdout has missing or ambiguous thread metadata")
+            if expected_session is not None and tid != expected_session:
+                raise ValueError("Codex stdout has foreign session metadata")
+            session_id = tid
+        elif kind == "turn.started":
+            if session_id is None or turn_started or turn_completed:
+                raise ValueError("Codex stdout has ambiguous turn ordering")
+            turn_started = True
+        elif kind in {"item.started", "item.updated", "item.completed"}:
+            if not turn_started or turn_completed or not isinstance(event.get("item"), dict):
+                raise ValueError("Codex stdout has item outside a pending turn")
+            item = event["item"]
+            itype = item.get("type")
+            if itype in {"command_execution", "file_change", "mcp_tool_call", "web_search", "collab_tool_call"}:
+                raise ValueError("Context audit detected a forbidden tool call")
+            if itype not in {"reasoning", "agent_message"}:
+                raise ValueError("Codex stdout has an unknown item type")
+            if kind == "item.completed" and itype == "agent_message":
+                text = item.get("text")
+                if not isinstance(text, str) or not text:
+                    raise ValueError("Codex stdout has missing agent_message text")
+                messages.append(text)
+        elif kind == "turn.completed":
+            usage = event.get("usage")
+            if (not turn_started or turn_completed or not messages or not isinstance(usage, dict)
+                    or type(usage.get("input_tokens")) is not int or usage["input_tokens"] <= 0
+                    or type(usage.get("output_tokens")) is not int or usage["output_tokens"] <= 0):
+                raise ValueError("Codex stdout has missing or unsuccessful turn completion metadata")
+            turn_completed = True
+        elif kind in {"turn.failed", "error"}:
+            raise ValueError("Codex stdout reported a failed turn")
+        else:
+            raise ValueError("Codex stdout has an unknown event type")
+    if session_id is None or not turn_completed or not messages:
+        raise ValueError("Codex stdout is missing thread or turn completion")
+    return session_id, "".join(messages)
+
+
+def audit_codex_context(session: str, prompts: list[bytes], *, codex_home: Path | None = None,
+                        require_identity: bool = False, expected_review: dict | None = None) -> dict:
+    """Read only this Codex session's rollout and prove exact, uncompacted prompts."""
+    if str(uuid.UUID(session)) != session:
+        raise ValueError("Invalid review session UUID")
+    if not prompts:
+        raise ValueError("Context audit requires review prompts")
+    for prompt in prompts:
+        validate_prompt_bytes(prompt)
+    home = codex_home if codex_home is not None else Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
+    home = home.expanduser().resolve()
+    paths = list(home.glob(f"sessions/*/*/*/rollout-*-{session}.jsonl"))
+    if len(paths) != 1:
+        raise ValueError("Context audit requires exactly one current-session updates file")
+    path = paths[0]
+    session_parts = [path, path.parent, path.parent.parent, path.parent.parent.parent,
+                     path.parent.parent.parent.parent, path.parent.parent.parent.parent.parent]
+    if not path.is_file() or any(part.is_symlink() for part in session_parts):
+        raise ValueError("Context audit requires a regular, unambiguous session file")
+    data = path.read_bytes()
+    if not data or not data.endswith(b"\n"):
+        raise ValueError("Context audit updates are empty or truncated")
+    groups: dict[int, bytearray] = {}
+    response_user_groups: dict[int, bytearray] = {}
+    turn_context_seen: dict[int, bool] = {}
+    turn_model_calls: dict[int, int] = {}
+    turn_contexts: list[dict] = []
+    assistant_messages: dict[int, list[str]] = {}
+    agent_items: dict[int, list[str]] = {}
+    task_complete_messages: dict[int, str] = {}
+    completed: set[int] = set()
+    output_started: set[int] = set()
+    turn_ids: set[str] = set()
+    event_count = user_chunk_count = 0
+    current_turn: int | None = None
+    current_turn_id: str | None = None
+    session_meta: dict | None = None
+    for line in data.splitlines():
+        event_count += 1
+        try:
+            event = json.loads(line, object_pairs_hook=unique_keys)
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise ValueError("Context audit contains malformed JSONL metadata") from exc
+        if (not isinstance(event, dict) or not isinstance(event.get("timestamp"), str) or not event["timestamp"]
+                or not isinstance(event.get("type"), str) or not event["type"]
+                or not isinstance(event.get("payload"), dict)
+                or ("ordinal" in event and (type(event["ordinal"]) is not int or event["ordinal"] < 0))):
+            raise ValueError("Context audit has missing event metadata")
+        etype = event["type"]
+        payload = event["payload"]
+        ptype = payload.get("type")
+        if etype == "compacted" or "compact" in etype.lower() or (isinstance(ptype, str) and "compact" in ptype.lower()):
+            raise ValueError("Context audit detected compaction; full-source review is invalid")
+        if event_count == 1:
+            if (etype != "session_meta" or payload.get("id") != session
+                    or payload.get("session_id", session) != session
+                    or payload.get("parent_thread_id") is not None
+                    or isinstance(payload.get("source"), dict)
+                    or not isinstance(payload.get("cli_version"), str) or not payload["cli_version"]):
+                raise ValueError("Context audit has missing or foreign session metadata")
+            session_meta = payload
+            continue
+        if session_meta is None or etype == "session_meta":
+            raise ValueError("Context audit has ambiguous session_meta ordering")
+        if etype == "world_state":
+            if current_turn is None or current_turn in completed or current_turn in output_started:
+                raise ValueError("Context audit has world_state outside a pending turn header")
+            continue
+        if etype == "turn_context":
+            if (current_turn is None or current_turn in completed or turn_context_seen.get(current_turn)
+                    or current_turn in output_started or payload.get("turn_id") != current_turn_id):
+                raise ValueError("Context audit has missing or ambiguous turn_context metadata")
+            if require_identity:
+                sandbox = payload.get("sandbox_policy")
+                sandbox_type = sandbox.get("type") if isinstance(sandbox, dict) else sandbox
+                collab = payload.get("collaboration_mode")
+                collab_settings = collab.get("settings") if isinstance(collab, dict) else None
+                if (payload.get("model") != CODEX_MODEL or payload.get("effort") != "high"
+                        or payload.get("approval_policy") != "never" or sandbox_type != "read-only"
+                        or (collab is not None and (not isinstance(collab_settings, dict)
+                            or collab_settings.get("model") != CODEX_MODEL
+                            or collab_settings.get("reasoning_effort") != "high"))):
+                    raise ValueError("Context audit requires gpt-6.1-sol with high reasoning effort")
+            turn_context_seen[current_turn] = True
+            turn_contexts.append(payload)
+            continue
+        if etype == "token_usage_record":
+            usage = payload.get("usage")
+            if (current_turn is None or current_turn in completed or not turn_context_seen.get(current_turn)
+                    or payload.get("thread_id") != session or payload.get("session_id", session) != session
+                    or payload.get("turn_id") != current_turn_id or not isinstance(usage, dict)
+                    or type(usage.get("input_tokens")) is not int or usage["input_tokens"] <= 0
+                    or type(usage.get("output_tokens")) is not int or usage["output_tokens"] <= 0):
+                raise ValueError("Context audit has missing or invalid token_usage_record metadata")
+            turn_model_calls[current_turn] += 1
+            continue
+        if etype == "response_item":
+            if not isinstance(ptype, str) or not ptype:
+                raise ValueError("Context audit has missing response_item metadata")
+            if ptype in {"function_call", "function_call_output", "custom_tool_call", "custom_tool_call_output",
+                         "local_shell_call", "web_search_call"}:
+                raise ValueError("Context audit detected a forbidden tool call")
+            if ptype == "additional_tools":
+                if current_turn is None or current_turn in completed or current_turn in output_started:
+                    raise ValueError("Context audit has additional_tools outside turn header")
+                continue
+            if ptype == "reasoning":
+                if current_turn is None or current_turn in completed or not turn_context_seen.get(current_turn):
+                    raise ValueError("Context audit has text outside a pending review turn")
+                if (current_turn >= len(prompts) or bytes(groups[current_turn]) != prompts[current_turn]
+                        or bytes(response_user_groups[current_turn]) != prompts[current_turn]):
+                    raise ValueError("Context audit prompt bytes differ before output starts")
+                output_started.add(current_turn)
+                continue
+            if ptype != "message":
+                raise ValueError("Context audit has an unknown event type or method")
+            role = payload.get("role")
+            content = payload.get("content")
+            if role not in {"developer", "user", "assistant"} or not isinstance(content, list) or not content:
+                raise ValueError("Context audit has missing or unknown text content metadata")
+            if role in {"developer", "user"}:
+                if any(not isinstance(c, dict) or c.get("type") != "input_text" or not isinstance(c.get("text"), str)
+                       for c in content):
+                    raise ValueError("Context audit has missing or unknown text content metadata")
+                if role == "developer":
+                    if current_turn is None or current_turn in completed or current_turn in output_started:
+                        raise ValueError("Context audit has developer text after output starts")
+                else:
+                    if current_turn is None or current_turn in completed:
+                        raise ValueError("Context audit has prompt chunks after turn completion")
+                    if current_turn in output_started:
+                        raise ValueError("Context audit has user chunks after output starts")
+                    if turn_context_seen.get(current_turn):
+                        response_user_groups[current_turn].extend("".join(c["text"] for c in content).encode("utf-8"))
+                continue
+            if any(not isinstance(c, dict) or c.get("type") != "output_text" or not isinstance(c.get("text"), str)
+                   for c in content):
+                raise ValueError("Context audit has missing or unknown text content metadata")
+            if current_turn is None or current_turn in completed or not turn_context_seen.get(current_turn):
+                raise ValueError("Context audit has text outside a pending review turn")
+            if (current_turn >= len(prompts) or bytes(groups[current_turn]) != prompts[current_turn]
+                    or bytes(response_user_groups[current_turn]) != prompts[current_turn]):
+                raise ValueError("Context audit prompt bytes differ before output starts")
+            output_started.add(current_turn)
+            assistant_messages.setdefault(current_turn, []).append("".join(c["text"] for c in content))
+            continue
+        if etype == "event_msg":
+            if not isinstance(ptype, str) or not ptype:
+                raise ValueError("Context audit has missing update metadata")
+            if ptype.startswith(("exec_command", "mcp_tool_call", "web_search", "patch_apply", "collab_")):
+                raise ValueError("Context audit detected a forbidden tool call")
+            if ptype in {"turn_aborted", "error", "stream_error"}:
+                raise ValueError("Context audit has missing, ambiguous or unsuccessful turn completion metadata")
+            if ptype == "thread_settings_applied":
+                settings = payload.get("thread_settings")
+                if payload.get("thread_id") != session or not isinstance(settings, dict):
+                    raise ValueError("Context audit has missing or foreign session metadata")
+                if require_identity and (settings.get("model") != CODEX_MODEL
+                                         or settings.get("reasoning_effort") != "high"
+                                         or settings.get("approval_policy") != "never"):
+                    raise ValueError("Context audit requires gpt-6.1-sol with high reasoning effort")
+                continue
+            if ptype == "task_started":
+                turn_id = payload.get("turn_id")
+                if ((current_turn is not None and current_turn not in completed)
+                        or not isinstance(turn_id, str) or not turn_id or turn_id in turn_ids):
+                    raise ValueError("Context audit has ambiguous prompt ordering")
+                current_turn = 0 if current_turn is None else current_turn + 1
+                current_turn_id = turn_id
+                turn_ids.add(turn_id)
+                groups[current_turn] = bytearray()
+                response_user_groups[current_turn] = bytearray()
+                turn_context_seen[current_turn] = False
+                turn_model_calls[current_turn] = 0
+                continue
+            if ptype == "item_completed":
+                item = payload.get("item")
+                if (current_turn is None or current_turn in completed
+                        or payload.get("thread_id") != session or payload.get("turn_id") != current_turn_id
+                        or not isinstance(item, dict) or not isinstance(item.get("type"), str)):
+                    raise ValueError("Context audit has missing or foreign session metadata")
+                itype = item["type"]
+                if itype in {"CommandExecution", "McpToolCall", "FileChange", "WebSearch", "Extension", "CollabToolCall"}:
+                    raise ValueError("Context audit detected a forbidden tool call")
+                if itype not in {"UserMessage", "Reasoning", "AgentMessage"}:
+                    raise ValueError("Context audit has an unknown event type or method")
+                if itype == "UserMessage":
+                    if not turn_context_seen.get(current_turn):
+                        raise ValueError("Context audit has missing or unknown prompt metadata")
+                    if current_turn in output_started:
+                        raise ValueError("Context audit has user chunks after output starts")
+                    icontent = item.get("content")
+                    if (not isinstance(icontent, list) or not icontent
+                            or any(not isinstance(c, dict) or c.get("type") not in {"text", "Text"}
+                                   or not isinstance(c.get("text"), str) for c in icontent)):
+                        raise ValueError("Context audit has missing or unknown text content metadata")
+                    groups[current_turn].extend("".join(c["text"] for c in icontent).encode("utf-8"))
+                    user_chunk_count += 1
+                    continue
+                if not turn_context_seen.get(current_turn):
+                    raise ValueError("Context audit has text outside a pending review turn")
+                if (current_turn >= len(prompts) or bytes(groups[current_turn]) != prompts[current_turn]
+                        or bytes(response_user_groups[current_turn]) != prompts[current_turn]):
+                    raise ValueError("Context audit prompt bytes differ before output starts")
+                output_started.add(current_turn)
+                if itype == "AgentMessage":
+                    icontent = item.get("content")
+                    if (not isinstance(icontent, list) or not icontent
+                            or any(not isinstance(c, dict) or c.get("type") not in {"text", "Text"}
+                                   or not isinstance(c.get("text"), str) for c in icontent)):
+                        raise ValueError("Context audit has missing or unknown text content metadata")
+                    agent_items.setdefault(current_turn, []).append("".join(c["text"] for c in icontent))
+                continue
+            if ptype == "token_count":
+                if current_turn is None or current_turn in completed:
+                    raise ValueError("Context audit has text outside a pending review turn")
+                continue
+            if ptype == "task_complete":
+                duration = payload.get("duration_ms")
+                last_msg = payload.get("last_agent_message")
+                assistant_text = "".join(assistant_messages.get(current_turn, []))
+                agent_text = "".join(agent_items.get(current_turn, []))
+                if (current_turn is None or current_turn in completed or payload.get("turn_id") != current_turn_id
+                        or not turn_context_seen.get(current_turn) or current_turn not in output_started
+                        or type(duration) not in {int, float} or not math.isfinite(duration) or duration < 0
+                        or not isinstance(last_msg, str) or not last_msg
+                        or not assistant_text or not agent_text
+                        or last_msg != assistant_text or last_msg != agent_text):
+                    raise ValueError("Context audit has missing, ambiguous or unsuccessful turn completion metadata")
+                completed.add(current_turn)
+                task_complete_messages[current_turn] = last_msg
+                continue
+            raise ValueError("Context audit has an unknown event type or method")
+        raise ValueError("Context audit has an unknown event type or method")
+    if len(groups) != len(prompts) or not groups or next(iter(groups)) != 0:
+        raise ValueError("Context audit has missing or unexpected prompt groups")
+    if len(completed) != len(prompts):
+        raise ValueError("Context audit has missing turn completion metadata")
+    if (any(bytes(actual) != expected for actual, expected in zip(groups.values(), prompts, strict=True))
+            or any(bytes(actual) != expected for actual, expected in zip(response_user_groups.values(), prompts, strict=True))):
+        raise ValueError("Context audit prompt bytes differ from the sent prompt files")
+    result = {"event_count": event_count, "user_chunk_count": user_chunk_count, "prompt_count": len(groups),
+              "turn_completed_count": len(completed), "background_tasks_count": 0,
+              "compaction_count": 0, "tool_call_count": 0, "prompt_sha256": [digest(prompt) for prompt in prompts],
+              "updates_sha256": digest(data)}
+    if require_identity:
+        if len(turn_contexts) != len(prompts) or any(turn_model_calls.get(idx) != 1 for idx in range(len(prompts))):
+            raise ValueError("Context audit requires one matching native model call and turn")
+        summary_bytes = json.dumps({"session_id": session, "model": CODEX_MODEL, "reasoning_effort": "high",
+                                    "turn_contexts": turn_contexts}, sort_keys=True).encode("utf-8")
+        result.update(summary_sha256=digest(summary_bytes), native_model_id=CODEX_MODEL, reasoning_effort="high")
+    if expected_review is not None:
+        text = task_complete_messages[len(prompts) - 1]
+        if parse_review(text) != expected_review:
+            raise ValueError("Native final response differs from review JSON")
+        result["native_final_response_sha256"] = digest(text.encode("utf-8"))
+    return result
+
+
 def audit_context(session: str, prompts: list[bytes], *, grok_home: Path | None = None,
+                  codex_home: Path | None = None, reviewer: str = "grok",
                   require_identity: bool = False, expected_review: dict | None = None) -> dict:
     """Read only this session's updates and prove exact, uncompacted prompts.
 
     A receipt deliberately contains only counts and hashes, never session text.
     Unknown prompt indices, malformed events and incomplete JSONL fail closed.
     """
+    if reviewer == "codex":
+        return audit_codex_context(session, prompts, codex_home=codex_home,
+                                   require_identity=require_identity, expected_review=expected_review)
+    if reviewer != "grok":
+        raise ValueError(f"Unknown reviewer: {reviewer}")
     if str(uuid.UUID(session)) != session:
         raise ValueError("Invalid review session UUID")
     if not prompts:
@@ -323,8 +676,12 @@ def validate_reference(path: Path, workspace: dict[str, str]) -> dict:
         raise ValueError("Reference requires regular complete review artifacts")
     raw = {name: value.read_bytes() for name, value in artifacts.items()}
     previous = json.loads(raw["receipt.json"], object_pairs_hook=unique_keys)
+    ref_reviewer = previous.get("reviewer", "grok") if isinstance(previous, dict) else None
+    if ref_reviewer not in REVIEWER_MODELS:
+        raise ValueError("Reference reviewer is invalid")
+    expected_model = REVIEWER_MODELS[ref_reviewer]
     if (not isinstance(previous, dict) or previous.get("status") != "accepted"
-            or previous.get("requested_model") != MODEL or previous.get("transport") != "single"
+            or previous.get("requested_model") != expected_model or previous.get("transport") != "single"
             or previous.get("scope", "all") != "all" or previous.get("reference_only_files", {}) != {}
             or previous.get("reference") is not None or previous.get("error")):
         raise ValueError("Reference must be an accepted all/single review without inherited references")
@@ -375,11 +732,15 @@ def validate_reference(path: Path, workspace: dict[str, str]) -> dict:
     argv = call.get("argv")
     if not isinstance(argv, list) or not argv or not all(isinstance(value, str) for value in argv):
         raise ValueError("Reference CLI argv is invalid")
-    flags = [argv[0], "--model", MODEL, "--permission-mode", "plan", "--tools", "",
-             "--disable-web-search", "--no-subagents", "--no-memory", "--max-turns", "1"]
-    tail = ["--verbatim", "--session-id", session, "--prompt-file", str(artifacts["single-prompt.md"])]
     cli = Path(previous.get("cli_path", ""))
-    if (argv not in (flags + tail, flags + ["--reasoning-effort", "high"] + tail)
+    if ref_reviewer == "grok":
+        flags = [argv[0], "--model", MODEL, "--permission-mode", "plan", "--tools", "",
+                 "--disable-web-search", "--no-subagents", "--no-memory", "--max-turns", "1"]
+        tail = ["--verbatim", "--session-id", session, "--prompt-file", str(artifacts["single-prompt.md"])]
+        valid_argv = argv in (flags + tail, flags + ["--reasoning-effort", "high"] + tail)
+    else:
+        valid_argv = isinstance(session, str) and bool(session) and argv == codex_argv(argv[0], new=True)
+    if (not valid_argv
             or call.get("label") != "single" or type(call.get("returncode")) is not int or call["returncode"] != 0
             or call.get("prompt_sha256") != digest(payload)
             or call.get("stdout_sha256") != digest(raw["single-stdout.txt"])
@@ -389,10 +750,14 @@ def validate_reference(path: Path, workspace: dict[str, str]) -> dict:
             or not isinstance(previous.get("cli_version"), str) or not previous["cli_version"]
             or previous.get("model_identity_evidence") != "explicit CLI model selection"):
         raise ValueError("Reference CLI identity/call artifacts are invalid")
-    stdout = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", raw["single-stdout.txt"].decode()).strip()
+    if ref_reviewer == "grok":
+        stdout = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", raw["single-stdout.txt"].decode()).strip()
+    else:
+        _, stdout = parse_codex_stdout(raw["single-stdout.txt"].decode("utf-8"), expected_session=session)
+        stdout = stdout.strip()
     if parse_review(stdout) != review:
         raise ValueError("Reference CLI response differs from review JSON")
-    context = audit_context(session, [payload], require_identity=True, expected_review=review)
+    context = audit_context(session, [payload], reviewer=ref_reviewer, require_identity=True, expected_review=review)
     saved = previous.get("context_audit")
     required = {"event_count", "user_chunk_count", "prompt_count", "turn_completed_count", "background_tasks_count",
                 "compaction_count", "tool_call_count", "prompt_sha256", "updates_sha256"}
@@ -406,8 +771,11 @@ def validate_reference(path: Path, workspace: dict[str, str]) -> dict:
             **context, "reference_only_files": {name: workspace[name] for name in sorted(RESEARCH_FILES)}}
 
 
-def main() -> int:
+def main(default_reviewer: str = "grok") -> int:
+    if default_reviewer not in REVIEWER_MODELS:
+        raise ValueError(f"Unknown default reviewer: {default_reviewer}")
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--reviewer", choices=tuple(REVIEWER_MODELS), default=default_reviewer)
     parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--timeout", type=int, default=1800)
@@ -415,6 +783,9 @@ def main() -> int:
     parser.add_argument("--scope", choices=("all", "implementation"), default="all")
     parser.add_argument("--reference-receipt", type=Path)
     args = parser.parse_args()
+    reviewer = args.reviewer
+    requested_model = REVIEWER_MODELS[reviewer]
+    reviewer_label = REVIEWER_LABELS[reviewer]
     if not 1 <= args.timeout <= 3600:
         parser.error("timeout must be between 1 and 3600 seconds")
     if (args.scope == "implementation") != (args.reference_receipt is not None):
@@ -428,8 +799,9 @@ def main() -> int:
     directory.mkdir(parents=True, exist_ok=False)
     workspace = snapshot()
     files = {name: value for name, value in workspace.items() if args.scope == "all" or name not in RESEARCH_FILES}
-    binary = shutil.which("grok")
-    receipt = {"requested_model": MODEL, "base_commit": git("rev-parse", "HEAD"),
+    binary = shutil.which(reviewer)
+    receipt = {"reviewer": reviewer, "requested_model": requested_model,
+               "requested_reasoning_effort": "high", "base_commit": git("rev-parse", "HEAD"),
                "single_payload_limit_bytes": MAX_SINGLE_PAYLOAD_BYTES,
                "requested_context_window_tokens": REVIEW_CONTEXT_WINDOW_TOKENS,
                "scope": args.scope, "files": files, "workspace_files": workspace,
@@ -447,7 +819,7 @@ def main() -> int:
     def check_executable() -> None:
         if (Path(binary).resolve() != Path(receipt["cli_path"])
                 or digest(Path(binary).read_bytes()) != receipt["cli_sha256"]):
-            raise RuntimeError("Grok executable changed during review")
+            raise RuntimeError(f"{reviewer_label} executable changed during review")
 
     save()
     reference = None
@@ -472,9 +844,11 @@ def main() -> int:
         receipt.update(status="failed", error=f"Single payload exceeds {MAX_SINGLE_PAYLOAD_BYTES} bytes; no files omitted")
         save()
         raise ValueError(receipt["error"])
-    cli_env = {**os.environ, "NO_COLOR": "1", "GROK_AUTO_COMPACT_THRESHOLD_PERCENT": "100",
-               "GROK_DEBUG_CONTEXT_WINDOW": str(REVIEW_CONTEXT_WINDOW_TOKENS),
-               "GROK_DISABLE_AUTOUPDATER": "1"}
+    cli_env = {**os.environ, "NO_COLOR": "1"}
+    if reviewer == "grok":
+        cli_env.update(GROK_AUTO_COMPACT_THRESHOLD_PERCENT="100",
+                       GROK_DEBUG_CONTEXT_WINDOW=str(REVIEW_CONTEXT_WINDOW_TOKENS),
+                       GROK_DISABLE_AUTOUPDATER="1")
     if binary:
         try:
             check_executable()
@@ -483,21 +857,23 @@ def main() -> int:
             check_executable()
             save()
         except (subprocess.SubprocessError, OSError, RuntimeError) as exc:
-            receipt.update(status="failed", error="Grok CLI version check failed or timed out")
+            receipt.update(status="failed", error=f"{reviewer_label} CLI version check failed or timed out")
             save()
             raise RuntimeError(receipt["error"]) from exc
     if args.prepare_only:
         return 0
     if binary is None:
-        receipt.update(status="failed", error="grok CLI is unavailable")
+        receipt.update(status="failed", error=f"{reviewer} CLI is unavailable")
         save()
         raise RuntimeError(receipt["error"])
-    session = str(uuid.uuid4())
-    receipt["session_id"] = session
+    session: str | None = str(uuid.uuid4()) if reviewer == "grok" else None
+    if session is not None:
+        receipt["session_id"] = session
     sent_prompts: list[bytes] = []
     sent_prompt_files: list[Path] = []
 
     def call(label: str, prompt: str, *, new: bool = False) -> str:
+        nonlocal session
         if snapshot() != workspace:
             raise ValueError("Source scope changed before CLI execution")
         if reference is not None and validate_reference(args.reference_receipt, workspace) != reference:
@@ -509,35 +885,48 @@ def main() -> int:
         prompt_file.write_bytes(prompt_bytes)
         sent_prompts.append(prompt_bytes)
         sent_prompt_files.append(prompt_file)
-        argv = [binary, "--model", MODEL, "--permission-mode", "plan", "--tools", "",
-                "--disable-web-search", "--no-subagents", "--no-memory", "--max-turns", "1",
-                "--reasoning-effort", "high",
-                "--verbatim", "--session-id" if new else "--resume", session,
-                "--prompt-file", str(prompt_file)]
-        record = {"label": label, "argv": argv, "prompt_sha256": digest(prompt.encode())}
+        if reviewer == "grok":
+            argv = [binary, "--model", MODEL, "--permission-mode", "plan", "--tools", "",
+                    "--disable-web-search", "--no-subagents", "--no-memory", "--max-turns", "1",
+                    "--reasoning-effort", "high",
+                    "--verbatim", "--session-id" if new else "--resume", session,
+                    "--prompt-file", str(prompt_file)]
+            stdin_bytes = None
+        else:
+            argv = codex_argv(binary, session=session, new=new)
+            stdin_bytes = prompt_bytes
+        record = {"label": label, "argv": argv, "prompt_sha256": digest(prompt_bytes)}
         receipt["calls"].append(record)
         save()
-        print(f"Grok {label}", flush=True)
+        print(f"{reviewer_label} {label}", flush=True)
         try:
-            run = subprocess.run(argv, cwd=ROOT, env=cli_env,
+            run = subprocess.run(argv, cwd=ROOT, env=cli_env, input=stdin_bytes,
                                  capture_output=True, timeout=args.timeout)
         except subprocess.TimeoutExpired as exc:
             record["returncode"] = "timeout"
             (directory / f"{label}-stdout.txt").write_bytes(exc.stdout or b"")
             (directory / f"{label}-stderr.txt").write_bytes(exc.stderr or b"")
             save()
-            raise RuntimeError("Grok observation reached its process deadline; no accepted review") from exc
+            raise RuntimeError(f"{reviewer_label} observation reached its process deadline; no accepted review") from exc
         (directory / f"{label}-stdout.txt").write_bytes(run.stdout)
         (directory / f"{label}-stderr.txt").write_bytes(run.stderr)
         record.update(returncode=run.returncode, stdout_sha256=digest(run.stdout), stderr_sha256=digest(run.stderr))
         save()
         if run.returncode:
-            raise RuntimeError(f"Grok failed ({run.returncode}); inspect {label}-stderr.txt")
-        receipt["context_audit"] = audit_context(session, sent_prompts, require_identity=True)
+            raise RuntimeError(f"{reviewer_label} failed ({run.returncode}); inspect {label}-stderr.txt")
+        if reviewer == "codex":
+            parsed_session, response_text = parse_codex_stdout(
+                run.stdout.decode("utf-8"), expected_session=None if new else session)
+            if new:
+                session = parsed_session
+                receipt["session_id"] = session
+        else:
+            response_text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", run.stdout.decode()).strip()
+        receipt["context_audit"] = audit_context(session, sent_prompts, reviewer=reviewer, require_identity=True)
         save()
         if any(path.read_bytes() != expected for path, expected in zip(sent_prompt_files, sent_prompts, strict=True)):
             raise ValueError("Prompt file changed during review")
-        return re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", run.stdout.decode()).strip()
+        return response_text.strip()
 
     try:
         if args.transport == "single":
@@ -554,7 +943,7 @@ def main() -> int:
                 if response != ack:
                     raise ValueError(f"Missing exact receipt for chunk {index}")
             review = parse_review(call("final", "REVIEW-START. All chunks acknowledged.\n" + INSTRUCTION.rstrip()))
-        final_context = audit_context(session, sent_prompts, require_identity=True, expected_review=review)
+        final_context = audit_context(session, sent_prompts, reviewer=reviewer, require_identity=True, expected_review=review)
         if any(final_context.get(key) != value for key, value in receipt["context_audit"].items()):
             raise ValueError("Native context changed during closeout")
         receipt["context_audit"] = final_context

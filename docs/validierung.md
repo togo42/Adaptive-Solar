@@ -4,7 +4,7 @@ Stand: 26.10.2026. Überlegenheit gegenüber Helios Forecast/Open-Meteo Solar bl
 
 ## 1. Nachweisgrenzen
 
-Physik-/Zeittests, synthetisches Schattenlernen und gebundener Grok-Review prüfen Mechanismen, keine reale Verbesserung. Echtes HA im Test belegt APIs, keine produktive Stabilität. Musl-Parität prüft die Binärbasis; nativer Setupdialog nur Paketmetadaten/Form, nicht alle ML-Imports/Fit oder einen Forecast-Lifecycle. [Abgrenzung](haos-installation.md#6-getrennte-nachweise).
+Physik-/Zeittests, synthetisches Schattenlernen und gebundener Grok- oder Codex-Review prüfen Mechanismen, keine reale Verbesserung. Echtes HA im Test belegt APIs, keine produktive Stabilität. Musl-Parität prüft die Binärbasis; nativer Setupdialog nur Paketmetadaten/Form, nicht alle ML-Imports/Fit oder einen Forecast-Lifecycle. [Abgrenzung](haos-installation.md#6-getrennte-nachweise).
 
 Nur fair archivierte prospektive Prognosen belegen Güte der geprüften Periode, keine allgemeine Saison-/Anlagengültigkeit.
 
@@ -36,21 +36,26 @@ Diese Approximation setzt austauschbare, repräsentative Tagesblöcke voraus, mo
 
 ## 4. Lokale Prüfung und Review
 
-Normale Paketinstallation/Testbefehle: [README](../README.md#entwicklung). PEP660-Editable kann HAs Namespace-Loader abbrechen; `pythonpath=["."]` nutzt Repositoryquellen, Paketbytes separat prüfen. Lokale Exportvorprüfung:
+Normale Paketinstallation/Testbefehle: [README](../README.md#entwicklung). PEP660-Editable kann HAs Namespace-Loader abbrechen; `pythonpath=["."]` nutzt Repositoryquellen, Paketbytes separat prüfen. Lokale Exportvorprüfung (Grok 4.7 als Standard oder alternativ Codex mit GPT-6.1-Sol):
 
 ```bash
-.venv/bin/python scripts/review_grok.py --prepare-only
+.venv/bin/python scripts/review.py --prepare-only
+.venv/bin/python scripts/review.py --reviewer codex --prepare-only
 ```
 
-Ohne Prepare startet der angeforderte Review nach internem Pre-Review; z.B. `--timeout 3600` (Standard1800 s, Obergrenze3600 s). Deadline ist kein Review; denselben laufenden Prozess bis Ende beobachten. ESS-Grundlage: `AGENTS.md`/`scripts/ai_review.sh`, gelesen24.10.2026. Fester `grok-4.7` mit explizitem `--reasoning-effort high`; Lesemodus, Tools/Web/Memory/Subagenten aus, ein echter Abschlussturn mit `--verbatim` (exakte Flags im [Helfer](../scripts/review_grok.py)).
+Ohne Prepare startet der angeforderte Review nach internem Pre-Review; z.B. `--timeout 3600` (Standard1800 s, Obergrenze3600 s). Deadline ist kein Review; denselben laufenden Prozess bis Ende beobachten. ESS-Grundlage: `AGENTS.md`/`scripts/ai_review.sh`, gelesen24.10.2026. Unterstützt sind zwei alternative Reviewer in [review.py](../scripts/review.py) mit identischem Payload-, Hash- und Kontextaudit-Vertrag:
 
-Standard bleibt `--scope all --transport single`: neue Sitzung mit allen aktuellen öffentlichen Original-UTF8-Bytes/Dateipfaden, einschließlich endungsloser `LICENSE`-Dateien. Binäre Markenbilder sind außerhalb der Textprüfung. Receipt bindet SHA, Länge und Byteoffset je Datei; kein Kontextkürzen/Quellzeilennummerieren. Über 1.250.000 Bytes Abbruch vor CLI; Bytecap garantiert kein Kontextfenster. `chunks`/ACKs allein belegen keine Retention.
+- **Grok 4.7 (`--reviewer grok`, Standard):** festes Modell `grok-4.7` mit explizitem `--reasoning-effort high`; Lesemodus (`--permission-mode plan`), Tools/Web/Memory/Subagenten aus (`--tools ""`, `--disable-web-search`, `--no-subagents`, `--no-memory`), ein echter Abschlussturn mit `--max-turns 1 --verbatim`.
+- **Codex mit GPT-6.1-Sol (`--reviewer codex`):** Alternative zum Grok-Review über `codex exec` mit festem Modell `gpt-6.1-sol` und explizitem Reasoning-Effort `high` (`-c model_reasoning_effort="high"`), `--strict-config`, `--ignore-user-config`, `--ignore-rules`, Read-Only-Sandbox (`--sandbox read-only`, `-c sandbox_mode="read-only"`), `-c approval_policy="never"`, `-c web_search="disabled"`, `model_context_window=500000`, `model_auto_compact_token_limit=500000`, deaktivierten Features (`--disable shell_tool`, `unified_exec`, `multi_agent`, `memories`, `plugins`, `apps`) und `--json`.
+
+Standard bleibt `--scope all --transport single`: neue Sitzung mit allen aktuellen öffentlichen Original-UTF8-Bytes/Dateipfaden, einschließlich endungsloser `LICENSE`-Dateien. Binäre Markenbilder sind außerhalb der Textprüfung. Receipt bindet Reviewer, Modell, Effort, SHA, Länge und Byteoffset je Datei; kein Kontextkürzen/Quellzeilennummerieren. Über 1.250.000 Bytes Abbruch vor CLI; Bytecap garantiert kein Kontextfenster. `chunks`/ACKs allein belegen keine Retention.
 
 Die Byteobergrenze wurde für 0.2.11 vor einem neuen Review von 1.020.000 auf
 1.250.000 angehoben, da der vollständige Quellumfang einschließlich beider
 GPL-Lizenzkopien rund 1,14 MB umfasst. Das ist ausschließlich ein lokales
 Transportbudget. [Providerdokumentation](https://docs.x.ai/developers/grok-4-7)
-und native Modellliste nennen bis zu 500.000 Tokens; der CLI-Default kann geringer
+sowie die nativen Modellkataloge für `grok-4.7` und `gpt-6.1-sol` nennen jeweils
+bis zu 500.000 Tokens; der CLI-Default kann geringer
 sein. Weder eine Byte-/Tokenschätzung noch dieser größere Vorprüfwert erlaubt
 Compaction oder ausgelassene Quellen. Sämtliche nachfolgenden nativen Inhalts-,
 Abschluss- und Identitätsprüfungen bleiben unverändert; ein gekürzter Lauf ist ungültig.
@@ -59,28 +64,32 @@ Konfigurationen werden für den Review nicht verändert.
 
 Der erste 0.2.11-Versuch im nativen 256k-Default löste `auto_compact_started` aus
 und wurde als ungültig beendet. Die native Modellliste unterstützt auch 500k.
-Der Helfer fordert dieses größere Fenster nur für seinen Kindprozess mit
-`GROK_DEBUG_CONTEXT_WINDOW=500000` an und bindet die Anforderung im Receipt.
-Das ist ein implementationsspezifischer Schalter der gebundenen CLI, keine Änderung
-der Anbieteridentität oder einer globalen Konfiguration. Sein Vorhandensein allein
+Der Helfer fordert dieses größere Fenster bei Grok nur für seinen Kindprozess mit
+`GROK_DEBUG_CONTEXT_WINDOW=500000` und bei Codex pro Aufruf über
+`-c model_context_window=500000 -c model_auto_compact_token_limit=500000` an und
+bindet die Anforderung im Receipt.
+Das sind implementationsspezifische Schalter der gebundenen CLIs, keine Änderung
+der Anbieteridentität oder einer globalen Konfiguration. Ihr Vorhandensein allein
 ist kein Kapazitätsnachweis: Erst die vollständigen identischen Promptbytes, ein
 gültiger Abschlussturn und null native Compaction belegen den konkreten Lauf.
 Die Regressionen erzwingen weiterhin den vollständigen Kontextaudit.
 
-**Expliziter Implementierungsreview mit unverändertem Forschungsbezug:** Wenn ältere Forschung bereits vollständig geprüft wurde, ist folgende Alternative zulässig:
+**Expliziter Implementierungsreview mit unverändertem Forschungsbezug:** Wenn ältere Forschung bereits vollständig geprüft wurde, ist folgende Alternative zulässig (analog mit `--reviewer codex`):
 
 ```bash
-.venv/bin/python scripts/review_grok.py --scope implementation --transport single \
+.venv/bin/python scripts/review.py --scope implementation --transport single \
+  --reference-receipt reviews/private/ACCEPTED_ALL/receipt.json --prepare-only
+.venv/bin/python scripts/review.py --reviewer codex --scope implementation --transport single \
   --reference-receipt reviews/private/ACCEPTED_ALL/receipt.json --prepare-only
 ```
 
 Nur diese feste Liste darf dabei textlich fehlen: `solar-prognose-ml-recherche.md`, `solar-prognosemodelle-zusammenfassung.md`, `solar_ml_research.md`, `ensemble_hybrid_solar_forecasting.md`, `solarprognose_datenquellen_feature_engineering.md`, `solarstrahlungsprognose_recherche.md`. Keine frei wählbaren Ausschlüsse. Alle anderen aktuellen Implementierungs-, Test-, Dokumentations- und Helferdateien bleiben vollständig und mit Originalbyteoffsets im Prompt. Dieser Lauf ist **kein erneuter Volltextreview des gesamten Repositories** und behauptet keine erneute Lektüre der sechs Forschungstexte; Umfang und geerbte Hashbezüge stehen ausdrücklich im Prompt.
 
-Jede Forschungsdatei muss bytegleich zur Referenz sein. Vor jeglichem Grok-CLI-Aufruf werden `accepted`, `all` (bei älteren Receipts ohne Scopefeld der damalige vollständige Standard), `single`, Modellwahl/CLI-Pfad/-Bytes/-Versionsbeleg, ein Exit0-Call mit strikten Flags, vollständiger Payload/Manifest/Prompt, Stdout-/Stderr-/Reviewhash und `mergeable` ohne Findings erneut geprüft. Dazu liest `audit_context` ausschließlich die konkrete native Referenzsession: exakte Promptbytes, erfolgreicher `end_turn`, keine Compaction/Tools/Hintergrundaufgaben, native Summary mit `current_model_id=grok-4.7`/`reasoning_effort=high`, passende Modellkennung und je Turn `modelCalls=1`/`numTurns=1`. Die native Endantwort muss kanonisch als striktes Review-JSON mit Stdout und `review.json` übereinstimmen. Alte Calls ohne Effortflag brauchen denselben frischen nativen High-Beleg. Blocked/kompaktierte/manipulierte/unvollständige Referenzen sind unbrauchbar; Referenzketten aus Implementierungsreviews sind verboten. Forschungsdrift verlangt einen neuen gültigen `all`/`single`-Beleg oder Abbruch.
+Jede Forschungsdatei muss bytegleich zur Referenz sein. Vor jeglichem CLI-Aufruf werden `accepted`, `all` (bei älteren Receipts ohne Scopefeld der damalige vollständige Standard), `single`, Reviewer/Modellwahl/CLI-Pfad/-Bytes/-Versionsbeleg, ein Exit0-Call mit strikten Flags, vollständiger Payload/Manifest/Prompt, Stdout-/Stderr-/Reviewhash und `mergeable` ohne Findings erneut geprüft. Dazu liest `audit_context` ausschließlich die konkrete native Referenzsession: exakte Promptbytes vor Modelloutput, erfolgreicher Turnabschluss, keine Compaction/Tools/Hintergrundaufgaben, bei Grok native Summary mit `current_model_id=grok-4.7`/`reasoning_effort=high`, passende Modellkennung und je Turn `modelCalls=1`/`numTurns=1`, beziehungsweise bei Codex native Rollout-Datei (`sessions/*/*/*/rollout-*-<session_id>.jsonl`) mit `session_meta`, `turn_context`/`thread_settings_applied` für `model=gpt-6.1-sol`, `effort=high`, `approval_policy=never`, Read-Only-Sandbox, je Turn genau einem `token_usage_record` und `task_complete`. Die native Endantwort muss kanonisch als striktes Review-JSON mit Stdout und `review.json` übereinstimmen. Alte Grok-Calls ohne Effortflag brauchen denselben frischen nativen High-Beleg. Blocked/kompaktierte/manipulierte/unvollständige Referenzen sind unbrauchbar; Referenzketten aus Implementierungsreviews sind verboten. Forschungsdrift verlangt einen neuen gültigen `all`/`single`-Beleg oder Abbruch.
 
 Im neuen Receipt sind `files`/`file_manifest` die tatsächlich eingebetteten Originale, `reference_only_files` die sechs Forschungs-SHAs und `workspace_files` der vollständige aktuelle Scope einschließlich Forschung. `reference` bindet Referenzreceipt, Artefakte, Payload, Review, CLI und native Kontext-/Summary-/Antwortbelege. Historische CLI-Identität folgt dem gespeicherten realen Pfad/Hash, nicht einem inzwischen aktualisierten Aufrufalias; neue Calls binden ihre eigene aktuelle CLI. Der Prompt erhält nur öffentliche Dateinamen/Hashes, keine privaten Sitzungsinhalte oder Artefaktpfade. Zum Abschluss werden gesamter Workspace, CLI, Payload/Prompts und Referenz erneut unverändert nachgewiesen. Der Scope reduziert doppelte historische Texte, nicht den aktuellen Implementierungsumfang; auch er verspricht kein ausreichendes Kontextfenster. Enthaltene offene Planungs-/Brandingtexte behaupten keine implementierten Funktionen und der Review erteilt keine Implementierungsfreigabe. PNG-Logo-Rendering gehört nicht zur textlichen Fachprüfung.
 
-Nur Kindprozesse: `GROK_AUTO_COMPACT_THRESHOLD_PERCENT=100`, Auto-Updater aus; kein NoCompact-Schalter/keine globale Konfigurationsänderung. Ausschließlich konkrete neue `updates.jsonl`: exakte gesendete Benutzerbytes, je Prompt eindeutiger erfolgreicher `end_turn`. Compaction/Tools/aktive Hintergrundaufgaben, unbekannte Ereignisse oder fehlende/mehrdeutige Metadaten verhindern `accepted`.
+Nur Kindprozesse: bei Grok `GROK_AUTO_COMPACT_THRESHOLD_PERCENT=100` und Auto-Updater aus, bei Codex `--ignore-user-config --ignore-rules --strict-config`; keine globale Konfigurationsänderung. Ausschließlich konkrete neue `updates.jsonl` (Grok) beziehungsweise `rollout-*-<session_id>.jsonl` (Codex): exakte gesendete Benutzerbytes, je Prompt eindeutiger erfolgreicher Turnabschluss (`end_turn` bzw. `task_complete`). Compaction/Tools/aktive Hintergrundaufgaben, unbekannte Ereignisse oder fehlende/mehrdeutige Metadaten verhindern `accepted`.
 
 Finales striktes JSON/nativer Exit, unveränderte Quellen/CLI/Prompts sind Pflicht. Auch im neuen Lauf werden native High-/Modell-/Ein-Turn-Belege und die tatsächliche Endantwort geprüft. ACK, partielles Urteil oder `mergeable` allein genügen nicht. Findings beheben/frisch reviewen; versionsgebundener Audit scheitert bei unbekanntem Format geschlossen. Receipts unter ignoriertem `reviews/private/`, veröffentlichter Nachweis nennt Scope/Bindung/Audit/Datum/Ergebnis/Grenzen. ESS-Deploy-/Node-RED-Regeln gelten hier nicht.
 

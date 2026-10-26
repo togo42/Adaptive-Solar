@@ -33,7 +33,7 @@ edits need no dependency installation. For implementation work use a local venv:
 - `.venv/bin/python scripts/evaluate.py --help`: paired archived forecast evaluation.
 - `.venv/bin/python scripts/capture_ha.py --help`: explicit read-only HA capture using private mappings.
 - `.venv/bin/python scripts/capture_actuals.py --help`: Recorder change-energy capture with separate quality evidence.
-- `.venv/bin/python scripts/review_grok.py --prepare-only`: freeze a local review package.
+- `.venv/bin/python scripts/review.py --prepare-only`: freeze a local review package (default Grok 4.7; pass `--reviewer codex` for Codex GPT-6.1-Sol).
 
 - `rg --files -g '*.md'`: list Markdown documents.
 - `rg -n '^#{1,3} ' *.md`: inspect document headings.
@@ -79,6 +79,7 @@ Use shared-memory scope `prognosemodelle`. Before substantial work, call `memory
 
 Keep runtime data and private mappings under ignored `data/`, generated artifacts
 under `artifacts/`, and raw review payloads under `reviews/private/`. The requested
-external reviewer is Grok 4.7; follow the hash-bound procedure in
+external reviewer is Grok 4.7 (`grok-4.7`, effort `high`) or alternatively Codex
+with GPT-6.1-Sol (`gpt-6.1-sol`, effort `high`); follow the hash-bound procedure in
 `docs/validierung.md`, and respect external transfer approval. Creating or testing
 the integration does not authorize modifying productive HA settings.

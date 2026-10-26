@@ -11,7 +11,7 @@ import sys
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "review_grok.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "review.py"
 spec = importlib.util.spec_from_file_location("adaptive_review_transport", SCRIPT)
 review = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(review)
@@ -64,7 +64,7 @@ def test_review_parse_accepts_complete_result_and_blocks_findings():
 def transport_workspace(tmp_path):
     root = tmp_path / "repo"
     (root / "scripts").mkdir(parents=True)
-    shutil.copyfile(SCRIPT, root / "scripts/review_grok.py")
+    shutil.copyfile(SCRIPT, root / "scripts/review.py")
     (root / "README.md").write_text("# Testprojekt\nNur synthetischer Review.\n")
     (root / ".gitignore").write_text("reviews/\n")
     subprocess.run(["git", "init", "-q", str(root)], check=True)
@@ -199,7 +199,7 @@ def run_fake(workspace, mode, timeout=10, transport="chunks", extra=(), output_n
     env = {**os.environ, "PATH": str(bin_dir) + os.pathsep + os.environ.get("PATH", ""), "FAKE_GROK_MODE": mode,
            "GROK_HOME": str(root.parent / "fake-grok-home"),
            "FAKE_CLI_LOG": str(root / "reviews/private/cli-calls.jsonl"), **(extra_env or {})}
-    argv = [sys.executable, str(root / "scripts/review_grok.py"), "--output-dir", str(output),
+    argv = [sys.executable, str(root / "scripts/review.py"), "--output-dir", str(output),
             "--timeout", str(timeout), *extra]
     if transport is not None:
         argv.extend(["--transport", transport])
@@ -728,7 +728,7 @@ def test_an_accepted_implementation_receipt_cannot_become_a_reference_chain(refe
     ('--exclude', 'core/physics.py')])
 def test_no_free_exclusions_or_ambiguous_reference_modes(transport_workspace, args):
     root, binary_dir = transport_workspace
-    run = subprocess.run([sys.executable, str(root / 'scripts/review_grok.py'), *args], cwd=root,
+    run = subprocess.run([sys.executable, str(root / 'scripts/review.py'), *args], cwd=root,
         env={**os.environ, 'PATH': str(binary_dir) + os.pathsep + os.environ.get('PATH', '')},
         capture_output=True, timeout=10)
     assert run.returncode != 0
@@ -783,7 +783,7 @@ def test_version_and_review_execute_canonical_file_even_during_alias_swap(tmp_pa
     monkeypatch.setattr(review, 'git', lambda *args: 'README.md\0' if args[0] == 'ls-files' else 'synthetic-head')
     home = tmp_path / 'native-home'
     monkeypatch.setenv('GROK_HOME', str(home))
-    monkeypatch.setattr(sys, 'argv', ['review_grok.py'])
+    monkeypatch.setattr(sys, 'argv', ['review.py'])
     selected = []
     def selected_at_exec(argv):
         alias.unlink()
@@ -823,3 +823,329 @@ def test_version_and_review_execute_canonical_file_even_during_alias_swap(tmp_pa
     else:
         assert review.main() == 0
         assert selected == [(str(canonical), canonical), (str(canonical), canonical)]
+
+
+@pytest.fixture
+def codex_workspace(transport_workspace):
+    root, bin_dir = transport_workspace
+    fake_codex = bin_dir / "codex"
+    fake_codex.write_text(f"#!{sys.executable}\n" + r'''
+import json
+import os
+from pathlib import Path
+import re
+import sys
+import time
+
+mode = os.environ.get("FAKE_CODEX_MODE", "success")
+if os.environ.get("FAKE_CLI_LOG"):
+    with Path(os.environ["FAKE_CLI_LOG"]).open("a") as log:
+        log.write(json.dumps(sys.argv[1:]) + "\n")
+if "--version" in sys.argv:
+    if mode == "version_timeout":
+        time.sleep(3)
+    if mode == "version_fail":
+        raise SystemExit(8)
+    print("codex-cli 0.164.0")
+    raise SystemExit(0)
+args = sys.argv[1:]
+assert args[0] == "exec"
+is_resume = len(args) > 1 and args[1] == "resume"
+if mode == "fail":
+    print("Deliberate fake Codex failure", file=sys.stderr)
+    raise SystemExit(9)
+if mode == "timeout":
+    time.sleep(3)
+prompt = sys.stdin.buffer.read().decode("utf-8")
+codex_home = Path(os.environ["CODEX_HOME"])
+existing_sessions = len(list(codex_home.glob("sessions/*/*/*/rollout-*.jsonl"))) if codex_home.exists() else 0
+default_session = "01a1781a-e760-73b3-9db1-bbdc214acc4f" if existing_sessions == 0 else f"01a1781a-e760-73b3-9db1-bbdc214acc{existing_sessions:02x}"
+session = args[-2] if is_resume else default_session
+rollout = codex_home / "sessions/2026/10/26" / f"rollout-2026-10-26T16-00-00-{session}.jsonl"
+if mode != "missing_updates":
+    rollout.parent.mkdir(parents=True, exist_ok=True)
+    existing = [json.loads(line) for line in rollout.read_text().splitlines()] if rollout.exists() else []
+    turn_index = sum(1 for row in existing if row.get("type") == "event_msg" and row.get("payload", {}).get("type") == "task_started")
+    turn_id = f"turn-{turn_index}"
+    rows = []
+    if not existing:
+        rows.append({
+            "timestamp": "2026-10-26T16:00:00.000Z",
+            "type": "session_meta",
+            "ordinal": 0,
+            "payload": {
+                "id": "00000000-0000-4000-8000-000000000099" if mode == "foreign_session" else session,
+                "session_id": session,
+                "cli_version": "0.164.0",
+                "model_provider": "openai",
+                "source": {"subagent": "guardian"} if mode == "subagent_session" else "exec",
+                "parent_thread_id": "00000000-0000-4000-8000-000000000088" if mode == "parent_thread" else None,
+            },
+        })
+    rows.append({
+        "timestamp": "2026-10-26T16:00:01.000Z",
+        "type": "event_msg",
+        "payload": {"type": "task_started", "turn_id": turn_id, "model_context_window": 500000},
+    })
+    if not existing:
+        rows.append({
+            "timestamp": "2026-10-26T16:00:01.100Z",
+            "type": "response_item",
+            "payload": {"type": "message", "role": "developer", "content": [{"type": "input_text", "text": "dev"}]},
+        })
+        rows.append({
+            "timestamp": "2026-10-26T16:00:01.200Z",
+            "type": "response_item",
+            "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "<environment_context>"}]},
+        })
+        rows.append({
+            "timestamp": "2026-10-26T16:00:01.300Z",
+            "type": "world_state",
+            "payload": {"full": True},
+        })
+    model_id = "wrong-model" if mode == "wrong_model" else "gpt-6.1-sol"
+    effort = "medium" if mode == "low_effort" else "high"
+    approval = "on-request" if mode == "wrong_approval" else "never"
+    sandbox_kind = "workspace-write" if mode == "wrong_sandbox" else "read-only"
+    rows.append({
+        "timestamp": "2026-10-26T16:00:01.400Z",
+        "type": "turn_context",
+        "payload": {
+            "turn_id": turn_id,
+            "model": model_id,
+            "effort": effort,
+            "approval_policy": approval,
+            "sandbox_policy": {"type": sandbox_kind},
+            "collaboration_mode": {"mode": "default", "settings": {"model": model_id, "reasoning_effort": effort}},
+        },
+    })
+    rows.append({
+        "timestamp": "2026-10-26T16:00:01.500Z",
+        "type": "event_msg",
+        "payload": {
+            "type": "thread_settings_applied",
+            "thread_id": session,
+            "thread_settings": {"model": model_id, "reasoning_effort": effort, "approval_policy": approval},
+        },
+    })
+    captured = prompt + " " if mode == "altered_prompt" else prompt
+    if mode == "changed_unicode":
+        captured = captured.replace("ü", "u", 1)
+    rows.append({
+        "timestamp": "2026-10-26T16:00:02.000Z",
+        "type": "response_item",
+        "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": captured}]},
+    })
+    rows.append({
+        "timestamp": "2026-10-26T16:00:02.100Z",
+        "type": "event_msg",
+        "payload": {
+            "type": "item_completed",
+            "thread_id": session,
+            "turn_id": turn_id,
+            "item": {"type": "UserMessage", "content": [{"type": "text", "text": captured}]},
+        },
+    })
+    if mode == "compaction":
+        rows.append({
+            "timestamp": "2026-10-26T16:00:02.200Z",
+            "type": "response_item",
+            "payload": {"type": "compaction", "encrypted_content": "..."},
+        })
+    if mode == "tool_call":
+        rows.append({
+            "timestamp": "2026-10-26T16:00:02.300Z",
+            "type": "response_item",
+            "payload": {"type": "custom_tool_call", "name": "exec_command"},
+        })
+    reply = (re.search(r"OK CHUNK \d+", prompt).group() if prompt.startswith("Store context chunk") else
+             json.dumps({"verdict": "mergeable", "findings": [], "summary": "Synthetic Codex review test"}))
+    native_reply = '{"verdict":"mergeable","findings":[],"summary":"different native response"}' if mode == "response_mismatch" else reply
+    rows.append({
+        "timestamp": "2026-10-26T16:00:03.000Z",
+        "type": "event_msg",
+        "payload": {
+            "type": "item_completed",
+            "thread_id": session,
+            "turn_id": turn_id,
+            "item": {"type": "Reasoning", "content": [{"type": "Text", "text": "PRIVATE_CODEX_SENTINEL"}]},
+        },
+    })
+    rows.append({
+        "timestamp": "2026-10-26T16:00:03.100Z",
+        "type": "response_item",
+        "payload": {"type": "reasoning", "summary": []},
+    })
+    rows.append({
+        "timestamp": "2026-10-26T16:00:03.200Z",
+        "type": "event_msg",
+        "payload": {
+            "type": "item_completed",
+            "thread_id": session,
+            "turn_id": turn_id,
+            "item": {"type": "AgentMessage", "content": [{"type": "Text", "text": native_reply}]},
+        },
+    })
+    rows.append({
+        "timestamp": "2026-10-26T16:00:03.300Z",
+        "type": "response_item",
+        "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": native_reply}]},
+    })
+    for _ in range(2 if mode == "extra_model_call" else 1):
+        rows.append({
+            "timestamp": "2026-10-26T16:00:03.400Z",
+            "type": "token_usage_record",
+            "payload": {
+                "thread_id": session,
+                "session_id": session,
+                "turn_id": turn_id,
+                "usage": {"input_tokens": 100, "output_tokens": 20},
+            },
+        })
+    if mode != "no_task_complete":
+        rows.append({
+            "timestamp": "2026-10-26T16:00:03.500Z",
+            "type": "event_msg",
+            "payload": {
+                "type": "task_complete",
+                "turn_id": turn_id,
+                "duration_ms": 25,
+                "last_agent_message": native_reply,
+            },
+        })
+    with rollout.open("a") as stream:
+        for row in rows:
+            stream.write(json.dumps(row) + "\n")
+    if mode == "truncated_updates":
+        rollout.write_bytes(rollout.read_bytes()[:-1])
+    if mode == "duplicate_session":
+        dup = codex_home / "sessions/2026/10/25" / f"rollout-2026-10-25T16-00-00-{session}.jsonl"
+        dup.parent.mkdir(parents=True, exist_ok=True)
+        dup.write_bytes(rollout.read_bytes())
+reply = (re.search(r"OK CHUNK \d+", prompt).group() if prompt.startswith("Store context chunk") else
+         json.dumps({"verdict": "mergeable", "findings": [], "summary": "Synthetic Codex review test"}))
+stdout_events = [
+    {"type": "thread.started", "thread_id": session},
+    {"type": "turn.started"},
+    {"type": "item.completed", "item": {"id": "item_0", "type": "reasoning", "text": "thinking"}},
+    {"type": "item.completed", "item": {"id": "item_1", "type": "agent_message",
+     "text": "invalid json" if mode == "invalid_review" else reply}},
+    {"type": "turn.completed", "usage": {"input_tokens": 100, "cached_input_tokens": 0, "output_tokens": 20}},
+]
+if mode == "stdout_tool":
+    stdout_events.insert(2, {"type": "item.completed", "item": {"id": "cmd_1", "type": "command_execution"}})
+for ev in stdout_events:
+    print(json.dumps(ev))
+''')
+    fake_codex.chmod(0o755)
+    return root, bin_dir
+
+
+def run_fake_codex(workspace, mode="success", timeout=10, transport="single", extra=(), output_name="codex-run",
+                   extra_env=None):
+    root, bin_dir = workspace
+    output = root / "reviews/private" / output_name
+    env = {**os.environ, "PATH": str(bin_dir) + os.pathsep + os.environ.get("PATH", ""),
+           "FAKE_CODEX_MODE": mode, "CODEX_HOME": str(root.parent / "fake-codex-home"),
+           "FAKE_CLI_LOG": str(root / "reviews/private/cli-calls.jsonl"), **(extra_env or {})}
+    script = root / "scripts/review.py"
+    argv = [sys.executable, str(script), "--reviewer", "codex", "--output-dir", str(output),
+            "--timeout", str(timeout), *extra]
+    if transport is not None:
+        argv.extend(["--transport", transport])
+    run = subprocess.run(argv, cwd=root, env=env, capture_output=True, text=True, timeout=20)
+    receipt = json.loads((output / "receipt.json").read_text())
+    return run, receipt, output
+
+
+def test_codex_single_transport_binds_gpt_6_1_sol_high_and_audits_native_rollout(codex_workspace):
+    run, receipt, output = run_fake_codex(
+        codex_workspace, "success", transport="single", output_name="codex-single")
+    assert run.returncode == 0, run.stderr
+    assert receipt["status"] == "accepted"
+    assert receipt["reviewer"] == "codex"
+    assert receipt["requested_model"] == "gpt-6.1-sol"
+    assert receipt["requested_reasoning_effort"] == "high"
+    assert receipt["session_id"] == "01a1781a-e760-73b3-9db1-bbdc214acc4f"
+    assert len(receipt["calls"]) == 1
+    call = receipt["calls"][0]
+    assert call["argv"] == review.codex_argv(receipt["cli_path"], new=True)
+    assert "--ignore-user-config" in call["argv"]
+    assert 'model_reasoning_effort="high"' in call["argv"]
+    assert 'sandbox_mode="read-only"' in call["argv"]
+    assert 'web_search="disabled"' in call["argv"]
+    for feature in review.CODEX_DISABLED_FEATURES:
+        idx = call["argv"].index(feature)
+        assert call["argv"][idx - 1] == "--disable"
+    payload = (output / "payload.md").read_bytes()
+    assert payload == (output / "single-prompt.md").read_bytes()
+    assert receipt["context_audit"]["native_model_id"] == "gpt-6.1-sol"
+    assert receipt["context_audit"]["reasoning_effort"] == "high"
+    assert receipt["context_audit"]["prompt_sha256"] == [review.digest(payload)]
+    assert receipt["context_audit"]["compaction_count"] == 0
+    assert receipt["context_audit"]["tool_call_count"] == 0
+    assert "PRIVATE_CODEX_SENTINEL" not in (output / "receipt.json").read_text()
+    assert (output / "review.json").exists()
+
+
+def test_codex_chunks_transport_audits_all_turns_in_sequence(codex_workspace):
+    root, _ = codex_workspace
+    (root / "README.md").write_text("# Grüße ☀️\n" * 12000)
+    run, receipt, _ = run_fake_codex(codex_workspace, "success", transport="chunks", output_name="codex-chunks")
+    assert run.returncode == 0, run.stderr
+    assert receipt["chunk_count"] > 1
+    assert receipt["context_audit"]["prompt_count"] == receipt["chunk_count"] + 1
+    assert receipt["context_audit"]["turn_completed_count"] == receipt["chunk_count"] + 1
+    assert receipt["calls"][0]["argv"][:2] == [receipt["cli_path"], "exec"]
+    assert receipt["calls"][1]["argv"][:3] == [receipt["cli_path"], "exec", "resume"]
+
+
+@pytest.mark.parametrize("mode,reason", [
+    ("missing_updates", "exactly one"),
+    ("compaction", "detected compaction"),
+    ("tool_call", "forbidden tool call"),
+    ("stdout_tool", "forbidden tool call"),
+    ("altered_prompt", "prompt bytes differ"),
+    ("changed_unicode", "prompt bytes differ"),
+    ("foreign_session", "foreign session"),
+    ("subagent_session", "foreign session"),
+    ("parent_thread", "foreign session"),
+    ("truncated_updates", "truncated"),
+    ("duplicate_session", "exactly one"),
+    ("low_effort", "gpt-6.1-sol with high reasoning effort"),
+    ("wrong_model", "gpt-6.1-sol with high reasoning effort"),
+    ("wrong_approval", "gpt-6.1-sol with high reasoning effort"),
+    ("wrong_sandbox", "gpt-6.1-sol with high reasoning effort"),
+    ("extra_model_call", "one matching native model call"),
+    ("no_task_complete", "turn completion metadata"),
+    ("response_mismatch", "Native final response differs"),
+    ("invalid_review", "Expecting value"),
+    ("fail", "Codex failed (9)"),
+])
+def test_codex_failures_and_context_audit_violations_fail_closed(codex_workspace, mode, reason):
+    run, receipt, output = run_fake_codex(codex_workspace, mode, transport="single", output_name=f"codex-fail-{mode}")
+    assert run.returncode != 0
+    assert receipt["status"] == "failed"
+    assert reason in receipt["error"]
+    assert not (output / "review.json").exists()
+
+
+def test_codex_all_single_receipt_serves_as_verified_reference_for_implementation_scope(codex_workspace):
+    root, _ = codex_workspace
+    for index, name in enumerate(sorted(review.RESEARCH_FILES)):
+        (root / name).write_text(f"Originalforschung {index}: Grüße ☀️\n")
+    run, baseline, base_dir = run_fake_codex(codex_workspace, "success", transport="single", output_name="codex-base")
+    assert run.returncode == 0, run.stderr
+    (root / "README.md").write_text("# Geänderte Implementierungsdoku\n")
+    run2, impl, impl_dir = run_fake_codex(
+        codex_workspace, "success", transport="single", output_name="codex-impl",
+        extra=("--scope", "implementation", "--reference-receipt", str(base_dir / "receipt.json")))
+    assert run2.returncode == 0, run2.stderr
+    assert impl["status"] == "accepted"
+    assert impl["scope"] == "implementation"
+    assert impl["reviewer"] == "codex"
+    assert impl["reference"]["native_model_id"] == "gpt-6.1-sol"
+    assert impl["reference"]["reasoning_effort"] == "high"
+    assert impl["reference"]["receipt_sha256"] == review.digest((base_dir / "receipt.json").read_bytes())
+    assert (impl_dir / "review.json").exists()
+
