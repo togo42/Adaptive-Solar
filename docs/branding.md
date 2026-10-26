@@ -6,6 +6,11 @@ Die [PNG-Datei](../assets/adaptive-solar-logo.png) ist das Projektlogo für READ
 
 Ab Version 0.2.10 liegt eine unveränderte Kopie unter `custom_components/adaptive_solar/brand/icon.png`, damit die Integration ihr vorhandenes Markenbild auch mit HACS ausliefert. Es wird kein zweites Logo erzeugt.
 
+Das Projektlogo steht, soweit urheberrechtlich geschützt, wie die übrigen eigenen
+Projektinhalte unter `GPL-3.0-only`; siehe [Lizenzhinweis](../README.md#lizenz) und
+[Lizenztext](../LICENSE). Seine Verwendung bedeutet keine offizielle Unterstützung
+eines fremden Projekts oder einer veränderten Version durch Adaptive Solar.
+
 Erstellt am 25.10.2026 mit dem eingebauten Imagegen-Werkzeug; kein CLI-/API-Fallback. Der finale Entwurf wurde auf Konturen, Lesbarkeit und Darstellung geprüft.
 
 Finaler Generierungsprompt:

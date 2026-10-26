@@ -67,3 +67,25 @@ Grundlagen: [Ensembles](ensemble_hybrid_solar_forecasting.md), [ML](solar_ml_res
 Primärquellen/Parameter: [Implementierungsvertrag](docs/implementation-contract.md); [Open-Meteo API](https://open-meteo.com/en/docs), [pvlib](https://pvlib-python.readthedocs.io/), [scikit-learn](https://scikit-learn.org/stable/), [HA](https://developers.home-assistant.io/).
 
 Open-Meteos freie API erlaubt private Hausautomation gemäß nichtkommerziellen [Nutzungsbedingungen](https://open-meteo.com/en/terms); Attribution/Limits gelten. Bibliothekslizenzen und API-Bedingungen sind getrennt zu betrachten.
+
+## Lizenz
+
+Copyright (C) 2026 Torsten Godau.
+
+Die eigenen Inhalte dieses Repositories, einschließlich Quellcode, Tests, Beispielen,
+Dokumentation und Projektgrafiken, stehen, soweit urheberrechtlich geschützt, unter
+der **GNU General Public License, ausschließlich Version 3** (`GPL-3.0-only`).
+Der vollständige unveränderte Lizenztext steht in [LICENSE](LICENSE); eine identische
+Kopie wird für HACS innerhalb der Integration mitgeliefert.
+
+Private und kommerzielle Nutzung sind erlaubt. Wer vom Copyleft erfasste geänderte
+Versionen weitergibt, muss sie ebenfalls unter GPL Version 3 bereitstellen und den
+Empfängern den zugehörigen Quellcode gemäß den Lizenzbedingungen zugänglich machen.
+Rein private Änderungen müssen nicht veröffentlicht werden. Die Software wird ohne
+Gewährleistung im Umfang der Lizenz bereitgestellt.
+
+Externe Bibliotheken und zitierte fremde Inhalte behalten ihre jeweiligen Lizenzen;
+die Bedingungen und Attributionspflichten der Wetterdienste gelten zusätzlich.
+Die Projektlizenz erlaubt keine kommerzielle Nutzung von Open-Meteos freier API
+entgegen deren Nutzungsbedingungen. Hinweise zur Verwendung des Projektlogos:
+[Logo und Gestaltung](docs/branding.md).
