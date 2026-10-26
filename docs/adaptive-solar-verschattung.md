@@ -1,11 +1,13 @@
 # Direktstrahl-Verschattung aus Globalstrahlung und Stufenleistung
 
-Stand: 26.10.2026. Planungsgrundlage gegen Codebasis **0.2.11**. Die Beschreibung
-ist eine Vorgabe für spätere Arbeitspakete. Weder Umsetzung noch ein
-Gütevergleich sind damit begonnen. Eine gefüllte Tabelle ist kein Nachweis eines
-Forecastvorsprungs. Dafür bleibt [Validierung](validierung.md) zuständig.
-Einordnung der übrigen Modellthemen: [Analyse](adaptive-solar-analyse.md),
-[Bewertung](adaptive-solar-bewertung.md), [Vertrag](implementation-contract.md).
+Stand: 26.10.2026. Spezifikation und Umsetzungsstand gegen Codebasis **0.2.11**.
+Die Arbeitspakete `VS-01` bis `VS-06` sind im Code und in der Testsuite umgesetzt;
+`VS-00` bleibt die anlagenseitige Konfigurationsvorgabe ohne Codeänderung. Ein
+prospektiver Gütevergleich ist damit noch nicht durchgeführt. Eine gefüllte
+Tabelle ist kein Nachweis eines Forecastvorsprungs. Dafür bleibt
+[Validierung](validierung.md) zuständig. Einordnung der übrigen Modellthemen:
+[Analyse](adaptive-solar-analyse.md), [Bewertung](adaptive-solar-bewertung.md),
+[Vertrag](implementation-contract.md).
 
 ## 1. Zweck
 
@@ -71,7 +73,15 @@ nicht aus Nachbarn gefüllt.
 Am Leistungszeitpunkt werden zwei unverschattete Stufenrechnungen ausgeführt.
 `P0` setzt den Direktanteil auf 0. `P1` behält ihn. Beide nutzen dieselbe gültige
 Modellkohorte und dieselbe Momentan-Wetterform wie die bestehende
-Nowcast-Referenz. Fehlt diese Referenz, gibt es keine Aufnahme.
+Nowcast-Referenz, verlangen jedoch unabhängig von der 15°-/150-W/m²-Schwelle des
+veröffentlichten GHI-Nowcasts eine eigenständig qualifizierte, zum
+Leistungszeitpunkt passende GHI-Momentanreferenz aller Kohortenmitglieder
+(mindestens 10° Sonnenhöhe und 50 W/m² Haurwitz-Klarhimmel). Fehlt diese
+Referenz, gibt es keine Aufnahme.
+Auch eine an den Grenzen 0,35/1,65 oder an den Strahlungsobergrenzen gekappte
+GHI-Normalisierung liefert keine Schattenaufnahme: Ihr verbleibender Wetterfehler
+darf nicht dauerhaft in die Tabelle gelangen. Der kurzlebige GHI-Nowcast behält
+seine bisherigen Grenzen.
 
 `t = clip((P_messung - P0) / (P1 - P0), 0, 1)`
 
@@ -118,10 +128,22 @@ bisherigen Provenienzregeln erhalten.
 
 Ein Wechsel der physischen Historienbindung verwirft den Primary wie bisher und
 damit auch die Tabelle. Neue kWp, Ausrichtung oder ein zusätzlicher String machen
-alte Faktoren gegenstandslos.
+alte Faktoren gegenstandslos. Ein Wechsel der für die Schattenaufnahme maßgeblichen
+Sensor- oder Wettermodellbindungen (`shade_fingerprint`, d. h. ohne `forecast_days`)
+setzt `beam_shade_v1` ebenfalls auf eine leere Tabelle zurück, während gültige
+Messintervalle und Tages-Snapshots erhalten bleiben.
 
 Der Featurevertrag wird auf `beam-shade-table-v1` gesetzt. Forecastzeilen, deren
-Baseline noch ohne Tabelle entstand, trainieren den Residuallernen nicht mehr.
+Baseline noch ohne Tabelle (`beam_shade_factor = 1,0`) oder in einer
+inkompatiblen Schatten-Baselinephase (Abweichung über `SHADE_BASELINE_TOLERANCE = 0,10`
+oder Wechsel zwischen unverschattet und verschattet) desselben Sonnenstandsfensters
+entstand, werden beim Training als `stale_beam_shade_baseline` ausgeschlossen,
+ohne das unveränderliche Archiv umzuschreiben; kleinere Medianschwankungen
+innerhalb einer freigegebenen verschatteten Baselinephase bleiben kompatibel. Bis
+für ein neu freigegebenes Fenster eigene Trainings- und Validierungsstützung
+vorliegt, bleibt die Prognose dort bei `physics_unvalidated_shade_baseline`;
+Holdout-Validierung und empirische Kalibrierung bewerten dieselbe
+Schattenstützungs- und Rückfallregel wie `predict`.
 Gemessene Energie bleibt. Die Aktivierungsschwellen des Lerners bleiben. Spätere
 Vertragswechsel dürfen `beam_shade_v1` nur verwerfen, wenn sich die Definition
 von `t` ändert.
@@ -179,11 +201,11 @@ Tabellendefinition und kein stilles Nachjustieren.
 
 ## 6. Ableitbare Arbeitspakete
 
-Die Pakete sind Planungszuschnitte. Ihr Status ist offen. Kurzzeichen `VS`
-kollidieren nicht mit `AS-OPT`. Aufwand ist relativ zu diesem Repository:
-S = ein Modul und seine Tests, M = mehrere Module. Die Pakete dürfen in der
-genannten Reihenfolge gemeinsam umgesetzt werden, sofern jede Abnahme einzeln
-prüfbar bleibt.
+Die Pakete sind einzeln prüfbare Zuschnitte. `VS-01` bis `VS-06` sind umgesetzt
+und durch Verhaltenstests abgedeckt; `VS-00` betrifft die lokale
+Anlagenkonfiguration. Kurzzeichen `VS` kollidieren nicht mit `AS-OPT`. Aufwand
+ist relativ zu diesem Repository: S = ein Modul und seine Tests, M = mehrere
+Module.
 
 ### VS-00 Flächen an einer Stufe beschreiben
 

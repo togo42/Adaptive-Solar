@@ -131,3 +131,44 @@ async def test_restored_control_blocks_labels_and_power_until_genuine_recovery(h
         assert coordinator.intervals[0]["start"] == (NOW + timedelta(minutes=3)).isoformat()
         assert coordinator.intervals[0]["energy_kwh"] == pytest.approx(0.01)
     await coordinator.async_close()
+
+
+@pytest.mark.parametrize("energy_between", [False, True])
+async def test_curtailment_burst_without_intermediate_flush_latches_and_blocks_delta(hass, energy_between):
+    config = site()
+    entry = MockConfigEntry(domain="adaptive_solar", data={"site": config.to_dict()})
+    entry.add_to_hass(hass)
+    coordinator = AdaptiveSolarCoordinator(hass, entry, config, AsyncMock())
+    energy_unit = {"unit_of_measurement": "kWh"}
+    with freeze_time(NOW):
+        hass.states.async_set("binary_sensor.curtailed", "off")
+        coordinator.async_start_tracking()
+        hass.states.async_set("sensor.energy", "10", energy_unit)
+        await hass.async_block_till_done()
+    with freeze_time(NOW + timedelta(minutes=1)):
+        hass.states.async_set("sensor.energy", "10.05", energy_unit)
+        await hass.async_block_till_done()
+        assert len(coordinator.intervals) == 1
+        assert coordinator.intervals[0]["energy_kwh"] == pytest.approx(0.05)
+    # Synchronous burst: curtailment on -> (optional energy) -> curtailment off before flush.
+    with freeze_time(NOW + timedelta(seconds=90)):
+        hass.states.async_set("binary_sensor.curtailed", "on")
+        if energy_between:
+            hass.states.async_set("sensor.energy", "10.10", energy_unit)
+        hass.states.async_set("binary_sensor.curtailed", "off")
+        await hass.async_block_till_done()
+        assert "i" in coordinator.tracker.dirty and "i" not in coordinator.tracker.anchors
+        assert len(coordinator.intervals) == 1
+    # Next energy report after recovery only establishes a fresh anchor, never a curtailed delta.
+    with freeze_time(NOW + timedelta(minutes=2)):
+        hass.states.async_set("sensor.energy", "10.15", energy_unit)
+        await hass.async_block_till_done()
+        assert len(coordinator.intervals) == 1
+        assert coordinator.tracker.anchors["i"][0] == NOW + timedelta(minutes=2)
+    with freeze_time(NOW + timedelta(minutes=3)):
+        hass.states.async_set("sensor.energy", "10.20", energy_unit)
+        await hass.async_block_till_done()
+        assert len(coordinator.intervals) == 2
+        assert coordinator.intervals[-1]["start"] == (NOW + timedelta(minutes=2)).isoformat()
+        assert coordinator.intervals[-1]["energy_kwh"] == pytest.approx(0.05)
+    await coordinator.async_close()

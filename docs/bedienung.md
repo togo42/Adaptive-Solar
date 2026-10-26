@@ -80,11 +80,46 @@ Verschattung. Dämpfung verläuft linear zwischen Sonnenaufgang, Tageslichtmitte
 Sonnenuntergang, vor der gemeinsamen Stufenbegrenzung. Ohne definiertes Auf-/Untergangspaar
 bleibt sie neutral. Übernommene Werte anderer Integrationen sind zunächst Annahmen.
 
+Horizontprofil, Morgen-/Abenddämpfung und die gelernte Direktstrahl-Tabelle
+([Direktstrahl-Verschattung](adaptive-solar-verschattung.md)) haben getrennte Aufgaben:
+
+- **Horizontpunkte (`horizon`)** beschreiben nur eine ferne Vollfeld-Silhouette, die den
+  gesamten String unterhalb der angegebenen Sonnenhöhe gleichmäßig betrifft. Nahe
+  Dachkanten, Bäume oder Wandvorsprünge mit starker Parallaxe und Teilverschattung großer
+  Modulflächen gehören nicht in `horizon`, weil ein Horizontpunkt für alle Teilflächen
+  gilt und den Direktanteil vor dem Tabellenlernen abschneiden würde.
+- **Morgen-/Abenddämpfung (`damping_morning`, `damping_evening`)** ist eine pauschale
+  lineare Randabsenkung der Stringleistung über die Tageshälfte. Dieselbe Schattenkante
+  darf nicht zusätzlich als Dämpfung eingetragen werden; für Flächen mit gelernter
+  Direktstrahl-Verschattung bleiben `damping_morning` und `damping_evening` auf `0`.
+- **Gelernte Direktstrahl-Tabelle (`beam_shade_v1`)** lernt je Ausgangsstufe in einem
+  `10°`-Azimut- × `5°`-Höhenraster aus gebundener Globalstrahlung (`irradiance_entity_id`)
+  und gemeinsamer Stufenleistung (`power_entity_id`) an klaren, ungedrosselten Stunden
+  (`Clearness-Index >= 0,6`, Sonnenhöhe `>= 10°`, Haurwitz-Klarhimmel `>= 50 W/m²`,
+  Paarung innerhalb von fünf Minuten, ausreichender Direktanteil, unterhalb 98 % der
+  Stufengrenze) den wirksamen Direktstrahl-Faktor `t` in `[0, 1]`. Ab fünf verschiedenen
+  UTC-Viertelstunden je Fenster wird der Median freigegeben; leere oder noch nicht
+  freigegebene Fenster bleiben bei Faktor `1` ohne Nachbarschaftsfüllung. Der Faktor
+  skaliert nur `poa_direct` nach einem etwaigen fernen Horizont und lässt Diffuslicht
+  an bedeckten Tagen unverändert.
+
+Teilen zwei unterschiedlich ausgerichtete Flächen (etwa Hauswand und Schuppen) denselben
+Wechselrichter/MPPT und Zähler, werden sie als **zwei Strings derselben Ausgangsstufe**
+mit jeweils eigener Neigung, eigenem Azimut und eigener kWp konfiguriert (`horizon` für
+nahe Hindernisse leer, `damping_morning=0`, `damping_evening=0`). Der gelernte Faktor
+gilt gemeinsam für die gesamte Stufe; getrennte Einzelprognosen je Teilfläche entstehen
+ohne eigene Messpunkte nicht. Ein gemessener Prognosevorteil gegenüber unverschatteter
+Physik oder Referenzintegrationen wird durch die bloße Einrichtung nicht behauptet.
+
 Über **Konfigurieren/Optionen** werden Standort, bestehende Stufen und Strings
 nacheinander bearbeitet. Der letzte abgeschlossene Stringdialog speichert und lädt
 den Eintrag neu. Den Flow bei einer bloßen Inspektion abbrechen. Physische Änderungen
-und neue Messbindungen können die Lernhistorie zurücksetzen; reine Wetter-/Beobachtungs-
-Änderungen erhalten unabhängig gültige Istintervalle nach dem Persistenzvertrag.
+(wie geänderte kWp, Ausrichtung, Neigung, Horizont, Dämpfung oder ein zusätzlicher
+String) ändern den `history_fingerprint` und setzen den Primary-Store einschließlich
+der gelernten Direktstrahl-Tabelle `beam_shade_v1` nach erfolgreichem Setup zurück;
+reine Wetter-/Beobachtungs- oder Featurevertragswechsel (`beam-shade-table-v1`)
+erhalten unabhängig gültige Istintervalle, Tages-Snapshots und eine gültige
+Schattentabelle nach dem Persistenzvertrag.
 
 ## 5. Sensoren und Lernstatus
 
@@ -119,7 +154,13 @@ den Ausgabeverlauf, `coverage` den Resttag. Der Statussensor enthält außerdem
 `energy_kwh` ist bereits Intervallenergie und wird nicht nochmals integriert.
 
 `learning.<Stufe>.training_quality` erklärt Zähler- und Alignment-Ablehnungen.
-Standardmäßig sind mindestens 28 qualifizierte Zieltage und 240 Stunden eindeutiger
+`learning.<Stufe>.beam_shade` zeigt für die Direktstrahl-Schattentabelle das aktuelle
+Sonnenfenster (`azimuth_bin_deg`, `elevation_bin_deg`), den wirksamen Faktor
+(`transmittance`, ohne Freigabe `1.0`), die gespeicherten Viertelstunden dieses Fensters
+(`samples`), die Freigabe ab fünf Viertelstunden (`released`), die Gesamtzahl
+freigegebener Fenster der Stufe (`filled_bins`) und den letzten (auch mehrteiligen)
+Ablehnungsgrund (`last_rejection`).
+Standardmäßig sind für den Residuallerner mindestens 28 qualifizierte Zieltage und 240 Stunden eindeutiger
 Messdauer nötig; getrennte chronologische Train-/Prüf-/Kalibrierblöcke und Lead-Gates
 kommen hinzu. 28 vergangene Kalendertage allein aktivieren kein Modell. Fehlende,
 abgeregelte oder unzureichend abgedeckte Intervalle zählen nicht als gute Labels.

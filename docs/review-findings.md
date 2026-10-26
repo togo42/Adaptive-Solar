@@ -1,5 +1,50 @@
 # Reviewnachweise und fachliche Bearbeitung
 
+## Lokaler Codeaudit der Änderungen seit `4ac18e2`
+
+Stand: 26.10.2026. Der neue Arbeitsstand ergänzt die Direktstrahl-Schattentabelle,
+deren Physik-/Nowcast-Anwendung, Persistenz, Diagnose und die Abstimmung mit dem
+Residuallernen. Er ändert außerdem Istwert-Revisionen und den Codex-Reviewtransport.
+Die folgenden Korrekturen sind ein lokaler Codeaudit; sie erteilen keinen neuen
+externen Freigabenachweis und ändern die historischen Receipts nicht.
+
+Die beiden letzten abgeschlossenen Reviews stammen von **Codex GPT-6.1-Sol/high**,
+jeweils `all/chunks`, 100 öffentliche Originaldateien, Urteil **blocked** mit je drei
+Findings. Die lokalen Archive `reviews/private/20261026T181410.618324Z/` und
+`reviews/private/20261026T184424.953641Z/` wurden erneut anhand der nativen Sitzungen,
+aller Promptbytes, des tatsächlichen Abschluss-JSON sowie der Payload-, Datei- und
+Reviewhashes geprüft: keine Compaction, Tools oder Hintergrundaufgaben.
+Das ist ein Nachweis dieser historischen Prüfungen, keine Freigabe neuer Quellen.
+
+| Review / Befund | Bearbeitung und Gegenprobe |
+| --- | --- |
+| 18:14 UTC AS-001, hoch: NWP-Fehler als Schatten lernen | Eigenständige GHI-Momentanreferenz aller Kohortenmitglieder ist Pflicht, auch bei 10–15° Sonnenhöhe. Fehlende/zu schwache Referenzen verhindern Aufnahmen. Zusätzlich werden jetzt gekappte GHI-Normalisierungen ausgeschlossen. |
+| 18:14 UTC AS-002, mittel: Medianrauschen verwirft Lernhistorie | Verschattete Baselines bleiben innerhalb der expliziten Toleranz 0,10 kompatibel; der Wechsel zwischen unverschattet und verschattet bleibt strikt. Synthetische Trainings-, Validierungs- und Kalibrierungsblöcke mit schwankenden Faktoren prüfen lernbare Historie ohne doppelte Schattenkorrektur. |
+| 18:14 UTC AS-003, mittel: Holdout umgeht Schattenstützung | Holdout verwendet denselben Schattenrückfall wie die öffentliche Vorhersage; Kalibrierung verwendet nur unterstützte Anwendungen. Unbelegte verschattete Fenster dürfen das Aktivierungsgate nicht durch scheinbare Residualgewinne bestehen. |
+| 18:44 UTC AS-001, hoch: Rohdatenreread überdeckt Qualitätsinvalidierung | Positive und negative Qualität werden nach ihrer eigenen Revision verglichen. Eine alte positive Maske bleibt nach neuer Invalidierung gesperrt, auch mit neuerem Recorderabruf. Tests prüfen beide Reihenfolgen, As-of-Grenzen und spätere echte Neuqualifikation. Zusätzlich laufen positive Qualitätsrevision und gültiger Rohdatenempfang unabhängig vorwärts, damit eine späte Prüfung alter Rohdaten neuere gültige Rohdaten nicht verdeckt. |
+| 18:44 UTC AS-002, mittel: selbst erzeugter Store überschreitet Restoregrenze | Intervallaufnahme und jeder Speichervorgang erzwingen Retention und Zeilengrenzen, auch ohne erfolgreichen Wetterabruf und beim Beenden. Der Intervallindex wird neu aufgebaut; entfernte Lernhistorie invalidiert den Fit. Neustart am reduzierten Testlimit prüft normale sowie stundenübergreifende Zusatzintervalle, Wetterausfall, erhaltene Tages-Snapshots und anschließendes Koaleszieren. |
+| 18:44 UTC AS-003, mittel: Revision passt nicht zum Worker-Snapshot | Revision wird gemeinsam mit Intervallen vor dem Executor-Aufruf eingefroren. Ein Bericht während der Übergabe erzwingt beim nächsten Refresh ohne weitere Ereignisse einen neuen Fit. Ein unveränderter dritter Refresh benötigt keinen weiteren Fit. |
+
+Gesamtbewertung: Die Erweiterung trennt direkte Verschattung, Diffuslicht und
+kurzlebige Beobachtungskorrekturen nachvollziehbar. Messhistorie und ausgegebene
+Tages-Snapshots bleiben von inkompatiblen Forecastfeatures getrennt. Die zusätzlichen
+Baseline-, Regime- und Holdoutregeln erhöhen allerdings die Komplexität und verlangen
+ausreichend wiederkehrende Sonnenstandsfenster. Die 0,10-Toleranz ist eine deklarierte
+Modellannahme, keine empirisch optimierte Schwelle. Der Fit-Schlüssel enthält auch
+unfreigegebene Tabellensamples und garantiert daher keine messbare Refitersparnis.
+Reale Forecastgüte, saisonale Übertragbarkeit und Laufzeitnutzen sind hier nicht
+gemessen; der prospektive Vergleich gegen beide Referenzen bleibt offen.
+
+Validierung: **107 gezielte Tests**, anschließend jeweils **964 bestandene Tests
+ohne Skips** unter echtem HA Core **2026.10.3** / Plugin **0.13.374** sowie dem
+Repository-Pin **2026.10.4** / Plugin **0.13.375**, Python **3.14.4**, pvlib
+**0.16.1**, scikit-learn **1.9.1**. Zehn neue Regressionsfälle gegenüber dem
+vorgefundenen Arbeitsstand. Ruff, `pip check` und `git diff --check` erfolgreich;
+geänderte Markdowntexte gerendert und relative Dateilinks geprüft. Lokale
+JUnit-Belege: `artifacts/review-fixes-20261026-tests.xml` (Core .3) und
+`artifacts/review-fixes-20261026-ha-2026.10.4-tests.xml` (Core .4).
+Kein neuer externer Reviewlauf, keine Veröffentlichung und keine produktive HA-Änderung.
+
 Stand: 26.10.2026. Der neue vollständige Review 0.2.11 erfasst die ergänzten
 Anleitungen, die GPL-Lizenztexte und alle sechs konsolidierten Forschungstexte.
 Ältere Urteile bleiben ausschließlich an ihre eingefrorenen Quellen gebunden;

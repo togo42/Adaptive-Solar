@@ -303,3 +303,29 @@ def test_real_learner_lead_range_cannot_double_apply_an_active_target_plant_bias
     assert result.points[0].power_w < baseline.points[0].power_w  # Physics/physics remains useful.
     assert "ignored:incomparable_learning_support" in result.model_status["power_nowcast:i"]
     assert "usable:instantaneous_physics_approximation" in result.model_status["power_nowcast:i"]
+
+
+def test_stable_partial_beam_shading_in_nowcast_reference_creates_no_false_residual():
+    from custom_components.adaptive_solar.core.physics import solar_position
+    from custom_components.adaptive_solar.core.shading import BeamShadeTable
+
+    config, issued, hourly, _, _, instant_weather, _ = case(10, 5)
+    sun = solar_position(config, issued)
+    table = BeamShadeTable()
+    for idx in range(5):
+        table.record("i", sun.azimuth_deg, sun.elevation_deg, issued - timedelta(minutes=15 * idx), 0.5)
+    shaded_actual = inverter_power(config, instant_weather, beam_shade_factor=0.5)["i"]
+    forecast = source(hourly, issued)
+    observed = Observation(issued, "i", power_w=shaded_actual)
+    reference, status = _instantaneous_reference(
+        config, {"a": forecast}, ("a",), observed, issued, (observed,), None, None, {}, table
+    )
+    assert status == "usable:instantaneous_physics_approximation"
+    assert reference.power_w == pytest.approx(shaded_actual, abs=0.05)
+    engine = ForecastEngine(config, shading=table)
+    baseline = engine.forecast((forecast,), issued)
+    with_nowcast = engine.forecast((forecast,), issued, (observed,))
+    # Future hours outside the shaded bin are not pulled down by the already-modeled shade factor.
+    later = next(p for p in baseline.points if p.start == issued.replace(minute=0) + timedelta(hours=2))
+    later_nowcast = next(p for p in with_nowcast.points if p.start == later.start)
+    assert later_nowcast.power_w == pytest.approx(later.power_w, abs=0.05)

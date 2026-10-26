@@ -209,3 +209,50 @@ def test_numerical_member_gap_preserves_cohort_and_regime_in_instant_cache(monke
     assert {regime for _, regime in seen} == {0.0, 1.0}
     expected = engine.forecast((first,), T, observations)
     assert result.points == expected.points
+
+
+def test_beam_shade_table_in_engine_cohort_partial_midpoint_and_gaps():
+    from custom_components.adaptive_solar.core.physics import inverter_power, solar_position
+    from custom_components.adaptive_solar.core.shading import BeamShadeTable
+
+    cfg = config(models=("a", "b"), cap=10)
+    # Partial interval at issue: [10:40, 11:00) has midpoint 10:50, while full [10:00, 11:00) has midpoint 10:30.
+    issued = START + timedelta(minutes=40)
+    full_mid = START + timedelta(minutes=30)
+    part_mid = issued + (START + timedelta(hours=1) - issued) / 2
+    sun_full = solar_position(cfg, full_mid)
+    sun_part = solar_position(cfg, part_mid)
+    table = BeamShadeTable()
+    for idx in range(5):
+        table.record("i", sun_part.azimuth_deg, sun_part.elevation_deg, T + timedelta(minutes=15 * idx), 0.5)
+    assert table.transmittance("i", sun_part.azimuth_deg, sun_part.elevation_deg) == pytest.approx(0.5)
+    if (int(sun_full.azimuth_deg // 10), int(sun_full.elevation_deg // 5)) != (
+        int(sun_part.azimuth_deg // 10), int(sun_part.elevation_deg // 5)
+    ):
+        assert table.transmittance("i", sun_full.azimuth_deg, sun_full.elevation_deg) == 1.0
+    a = forecast("a", (weather(START, ghi=800), weather(START + timedelta(hours=1), ghi=800)), issue=issued)
+    b = forecast("b", (weather(START, ghi=600),), issue=issued)
+    unshaded = ForecastEngine(cfg).forecast((a, b), issued)
+    shaded = ForecastEngine(cfg, shading=table).forecast((a, b), issued)
+    expected_a = inverter_power(cfg, replace(weather(START, ghi=800), start=issued), beam_shade_factor=0.5)["i"]
+    expected_b = inverter_power(cfg, replace(weather(START, ghi=600), start=issued), beam_shade_factor=0.5)["i"]
+    assert shaded.points[0].baseline_w == pytest.approx((expected_a + expected_b) / 2)
+    assert shaded.points[0].baseline_w < unshaded.points[0].baseline_w
+    # Missing member b does not alter the shade factor applied to member a.
+    shaded_a_only = ForecastEngine(cfg, shading=table).forecast((a,), issued)
+    assert shaded_a_only.points[0].baseline_w == pytest.approx(expected_a)
+    # Diffuse-only hour is unaffected even in a shaded bin.
+    diffuse_pt = WeatherPoint(START, START + timedelta(hours=1), 300, 0, 300, 20, 2, 100)
+    diff_fc = WeatherForecast("a", issued, (diffuse_pt,))
+    shaded_diff = ForecastEngine(cfg, shading=table).forecast((diff_fc,), issued)
+    unshaded_diff = ForecastEngine(cfg).forecast((diff_fc,), issued)
+    assert [(p.start, p.end, p.baseline_w, p.power_w) for p in shaded_diff.points] == [
+        (p.start, p.end, p.baseline_w, p.power_w) for p in unshaded_diff.points
+    ]
+    assert shaded_diff.points[0].features["beam_shade_factor"] == pytest.approx(0.5)
+    assert unshaded_diff.points[0].features["beam_shade_factor"] == pytest.approx(1.0)
+    # Night and missing cohort remain 0 / gaps.
+    night = START.replace(hour=23)
+    night_fc = WeatherForecast("a", issued, (weather(night),))
+    assert ForecastEngine(cfg, shading=table).forecast((night_fc,), issued).points[0].power_w == 0
+    assert ForecastEngine(cfg, shading=table).forecast((), issued).points == ()

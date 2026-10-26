@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import pvlib
 
-from .models import HorizonPoint, SiteConfig, StringConfig, WeatherPoint, utc_time
+from .models import HorizonPoint, SiteConfig, StringConfig, WeatherPoint, finite_number, utc_time
 
 
 class PhysicsUnavailable(ValueError):
@@ -214,7 +214,9 @@ def horizon_at(horizon: tuple[HorizonPoint, ...], azimuth_deg: float) -> tuple[f
             left.beam_transmission + weight * (right.beam_transmission - left.beam_transmission))
 
 
-def string_dc_power(config: SiteConfig, string: StringConfig, weather: WeatherPoint, *, at: datetime | None = None) -> float:
+def string_dc_power(config: SiteConfig, string: StringConfig, weather: WeatherPoint, *, at: datetime | None = None,
+                    beam_shade_factor: float = 1.0) -> float:
+    beam_shade_factor = finite_number(beam_shade_factor, "beam_shade_factor", 0, 1)
     midpoint = weather.start + (weather.end - weather.start) / 2 if at is None else utc_time(at)
     if not weather.start <= midpoint < weather.end:
         raise ValueError("physical evaluation instant must be inside original weather support")
@@ -232,6 +234,7 @@ def string_dc_power(config: SiteConfig, string: StringConfig, weather: WeatherPo
     direct = _finite_physics(poa["poa_direct"], "poa_direct")
     if sun.elevation_deg <= horizon_elevation:
         direct *= transmission
+    direct *= beam_shade_factor
     irradiance = max(0.0, _finite_physics(direct + _finite_physics(poa["poa_diffuse"], "poa_diffuse"), "poa_total"))
     module_temperature = _finite_physics(pvlib.temperature.faiman(irradiance, weather.temperature_c, weather.wind_m_s), "module_temperature")
     power = float(pvlib.pvsystem.pvwatts_dc(irradiance, module_temperature,
@@ -240,7 +243,7 @@ def string_dc_power(config: SiteConfig, string: StringConfig, weather: WeatherPo
 
 
 def inverter_power(config: SiteConfig, weather: WeatherPoint, *, at: datetime | None = None,
-                   inverter_id: str | None = None) -> dict[str, float]:
+                   inverter_id: str | None = None, beam_shade_factor: float = 1.0) -> dict[str, float]:
     """Power at each declared AC or DC output, after summing all its strings.
 
     The historical function name remains for compatibility. A DC stage models
@@ -250,13 +253,16 @@ def inverter_power(config: SiteConfig, weather: WeatherPoint, *, at: datetime | 
     Selecting inverter_id evaluates only that stage's strings; unrelated
     numerical failures cannot suppress its output. None retains the all-stage API.
     """
+    beam_shade_factor = finite_number(beam_shade_factor, "beam_shade_factor", 0, 1)
     inverters = tuple(inv for inv in config.inverters if inverter_id is None or inv.id == inverter_id)
     if not inverters:
         raise ValueError("unknown output stage")
     dc = {inverter.id: 0.0 for inverter in inverters}
     for string in config.strings:
         if string.inverter_id in dc:
-            dc[string.inverter_id] += string_dc_power(config, string, weather, at=at)
+            dc[string.inverter_id] += string_dc_power(
+                config, string, weather, at=at, beam_shade_factor=beam_shade_factor
+            )
     outputs = {}
     for inverter in inverters:
         # Check before multiplication/clip: min(cap, NaN) can return the cap,

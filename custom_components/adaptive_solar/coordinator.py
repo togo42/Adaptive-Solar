@@ -9,7 +9,7 @@ import hashlib
 import json
 import logging
 import math
-from typing import Any
+from typing import Any, Mapping
 
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_state_change_event, async_track_state_report_event
@@ -20,17 +20,25 @@ from .const import (
     DOMAIN, MAX_ARCHIVE_ROWS, MAX_ENERGY_GAP_SECONDS, MAX_TRAINING_ROWS,
     RETENTION_DAYS, SENSOR_MAX_AGE_SECONDS, UPDATE_SECONDS,
 )
-from .core.engine import ForecastEngine
+from .core.engine import ForecastEngine, shade_reference_powers
 from .core.learning import (MAX_MEASUREMENT_EDGE_FRACTION, MIN_MEASUREMENT_COVERAGE,
                             MIN_TRAINING_SECONDS, ResidualLearner, feature_regime, ghi_feature_values, lead_bin)
 from .core.models import ForecastPoint, Observation, SiteConfig, TrainingSample, midpoint_lead_hours, utc_time
+from .core.physics import PhysicsUnavailable, clear_sky_ghi, solar_position
+from .core.shading import (
+    BEAM_SHADE_STORE_KEY, BeamShadeTable, MAX_SHADE_CAP_FRACTION, MAX_SHADE_PAIR_SECONDS,
+    MIN_SHADE_BEAM_ABS_W, MIN_SHADE_BEAM_CAP_FRACTION, MIN_SHADE_BEAM_SHARE,
+    MIN_SHADE_CLEARNESS_INDEX, MIN_SHADE_CLEAR_SKY_W_M2, MIN_SHADE_ELEVATION_DEG,
+    MIN_SHADE_SAMPLES, compute_beam_shade_factor, feature_solar_angles, shade_bin,
+    shade_factors_compatible,
+)
 from .weather import WeatherError
 
 _LOGGER = logging.getLogger(__name__)
 
 # Independent of site geometry and the HA Store's serialization version. Bump
 # when archived baseline/feature semantics change; measurements are independent.
-LEARNING_FEATURE_CONTRACT = "atomic-ghi-cohort-centered-weather-v2"
+LEARNING_FEATURE_CONTRACT = "beam-shade-table-v1"
 CURTAILMENT_MEASUREMENT_CONTRACT = "non-restored-control-v1"
 
 
@@ -152,7 +160,8 @@ def _unique_seconds(spans) -> float:
 
 
 def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: dict | None = None,
-                  as_of: datetime | None = None) -> list[TrainingSample]:
+                  as_of: datetime | None = None, shading: BeamShadeTable | None = None,
+                  output_caps: Mapping[str, float] | None = None) -> list[TrainingSample]:
     """Join only nearly complete, centrally covered forecast cells.
 
     Coverage >=95%, each edge missing <=2.5%, and cells >=30 minutes are fixed
@@ -198,10 +207,26 @@ def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: di
         issued = utc_time(datetime.fromisoformat(row["issued_at"]))
         target = inverter, a, b
         target_duration = (b - a).total_seconds()
+        raw_shade_factor = row["features"].get("beam_shade_factor", 1.0)
+        shade_factor_valid = (
+            not isinstance(raw_shade_factor, bool)
+            and isinstance(raw_shade_factor, (int, float))
+            and math.isfinite(float(raw_shade_factor))
+            and 0.0 <= float(raw_shade_factor) <= 1.0
+        )
+        stale_shade = not shade_factor_valid
+        if shade_factor_valid and shading is not None:
+            angles = feature_solar_angles(row["features"])
+            if angles is not None:
+                current_factor = shading.transmittance(inverter, angles[0], angles[1])
+                stale_shade = not shade_factors_compatible(float(raw_shade_factor), current_factor)
+            elif shading.filled_bins(inverter) > 0 or not shade_factors_compatible(float(raw_shade_factor), 1.0):
+                stale_shade = True
         rejected = False
         for condition, reason in ((issued > a, "issued_after_target_start"),
                                   (target_duration < 1800, "target_shorter_than_minimum"),
-                                  (row["features"].get("source_partial_at_issue", 0) != 0, "source_partial_at_issue")):
+                                  (row["features"].get("source_partial_at_issue", 0) != 0, "source_partial_at_issue"),
+                                  (stale_shade, "stale_beam_shade_baseline")):
             if condition:
                 note(target, reason)
                 rejected = True
@@ -254,6 +279,8 @@ def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: di
             continue
         features = {**row["features"], "lead_hours": midpoint_lead_hours(issued, a, b), "target_duration_seconds": target_duration,
                     "measurement_coverage_fraction": coverage, "measurement_edge_fraction": edge}
+        if output_caps is not None and inverter in output_caps and "output_cap_w" not in features:
+            features["output_cap_w"] = float(output_caps[inverter])
         samples.append(TrainingSample(issued_at=issued, start=start, end=stop, observed_at=observed,
             inverter_id=inverter, baseline_w=row["baseline_w"], actual_w=energy * 3600000 / duration,
             features=features, curtailed=False))
@@ -290,7 +317,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         super().__init__(hass, _LOGGER, config_entry=entry, name=DOMAIN, update_interval=timedelta(seconds=UPDATE_SECONDS))
         self.site = config
         self.client = client
-        self.engine = ForecastEngine(config)
+        self.shading = BeamShadeTable()
+        self.engine = ForecastEngine(config, shading=self.shading)
         self.tracker = EnergyIntervalTracker()
         self.archive: list[dict] = []
         self.intervals: list[dict] = []
@@ -299,10 +327,16 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self._history_revision = 0
         self.learner_status: dict = {}
         self.input_quality: dict[str, str] = {}
+        self._shade_inputs: dict[str, dict[str, Any]] = {}
         self._unsub = None
         self._unsub_reports = None
         self._measurement_valid_since: dict[str, datetime | None] = {}
         self._measurement_seen_changed: dict[str, datetime] = {}
+        self._curtailment_clear_since: dict[str, datetime | None] = {}
+        self._curtailment_seen_changed: dict[str, datetime] = {}
+        self._curtailment_seen_updated: dict[str, datetime] = {}
+        self._curtailment_invalidated_at: dict[str, datetime] = {}
+        self._curtailment_tracking_active = False
         self._learner = None
         self._fit_signature = None
         self._closing = False
@@ -317,6 +351,9 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             fingerprint_data.pop("irradiance_entity_id", None)
         fingerprint = hashlib.sha256(json.dumps(fingerprint_data, sort_keys=True).encode()).hexdigest()[:16]
         self._fingerprint = fingerprint
+        shade_data = dict(fingerprint_data)
+        shade_data.pop("forecast_days", None)
+        self._shade_fingerprint = hashlib.sha256(json.dumps(shade_data, sort_keys=True).encode()).hexdigest()
         # Observations/weather change forecast features, not measured output
         # lineage or already issued day-start forecasts. Physical/source and
         # civil-day provenance remain strict, including energy/curtailment IDs.
@@ -352,6 +389,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             if stored["history_fingerprint"] != self._history_fingerprint:
                 # A known physical/source change starts a fresh primary only
                 # after successful setup; failed reloads preserve the old file.
+                self.shading = BeamShadeTable()
+                self.engine.shading = self.shading
                 return
         compatible_features = (stored.get("fingerprint") == self._fingerprint
                                and stored.get("learning_feature_contract") == LEARNING_FEATURE_CONTRACT)
@@ -399,10 +438,22 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                         raise ValueError("invalid day-start snapshot")
             else:
                 raise ValueError("invalid snapshots")
+            shade_compatible = (
+                stored.get("shade_fingerprint") == self._shade_fingerprint
+                or ("shade_fingerprint" not in stored and stored.get("fingerprint") == self._fingerprint)
+            )
             self.archive, self.intervals, self.daily_snapshots = archive, intervals, snapshots
+            self.shading = (
+                BeamShadeTable.from_dict(stored.get(BEAM_SHADE_STORE_KEY), inverter_ids=set(caps))
+                if shade_compatible
+                else BeamShadeTable()
+            )
+            self.engine.shading = self.shading
             self._prune(datetime.now(UTC))
         except (KeyError, TypeError, ValueError, OverflowError):
             self.archive, self.intervals, self.daily_snapshots, self._interval_latest = [], [], {}, {}
+            self.shading = BeamShadeTable()
+            self.engine.shading = self.shading
             self._store_writable = legacy  # Preserve corrupt existing primary.
             _LOGGER.warning("Ignoring invalid Adaptive Solar history")
 
@@ -417,16 +468,23 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
     def async_start_tracking(self) -> None:
         """Track original meter/control/validity reports; never synthesize energy."""
         started = datetime.now(UTC)
+        self._curtailment_tracking_active = True
         for inv in self.site.inverters:
             if inv.measurement_valid_entity_id:
                 state = self.hass.states.get(inv.measurement_valid_entity_id)
                 self._measurement_valid_since[inv.id] = started if self._measurement_flag_valid(state) else None
                 if state is not None:
                     self._measurement_seen_changed[inv.id] = state.last_changed
+            if inv.curtailed_entity_id:
+                state = self.hass.states.get(inv.curtailed_entity_id)
+                self._curtailment_clear_since[inv.id] = started if self._curtailment_flag_clear(state) else None
+                if state is not None:
+                    self._curtailment_seen_changed[inv.id] = state.last_changed
+                    self._curtailment_seen_updated[inv.id] = state.last_updated
         ids = [entity for inv in self.site.inverters for entity in (inv.energy_entity_id, inv.curtailed_entity_id, inv.measurement_valid_entity_id) if entity]
         if ids:
             self._unsub = async_track_state_change_event(self.hass, ids, self._async_state_changed)
-        report_ids = [entity for inv in self.site.inverters for entity in (inv.energy_entity_id, inv.measurement_valid_entity_id) if entity]
+        report_ids = [entity for inv in self.site.inverters for entity in (inv.energy_entity_id, inv.curtailed_entity_id, inv.measurement_valid_entity_id) if entity]
         if report_ids:
             self._unsub_reports = async_track_state_report_event(self.hass, report_ids, self._async_state_reported)
         # Wait for the first actual numeric meter event before anchoring. A
@@ -442,8 +500,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         for inv in self.site.inverters:
             if entity == inv.measurement_valid_entity_id:
                 self._measurement_flag_report(inv, event.data.get("new_state"), now)
-            if entity == inv.curtailed_entity_id and not self._curtailment_safe(inv):
-                self.tracker.invalidate(inv.id)
+            if entity == inv.curtailed_entity_id:
+                self._curtailment_flag_report(inv, event.data.get("new_state"), now)
             if entity == inv.energy_entity_id:
                 old, new = event.data.get("old_state"), event.data.get("new_state")
                 # A forced report advances last_changed even for the same
@@ -468,6 +526,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         for inv in self.site.inverters:
             if entity == inv.measurement_valid_entity_id:
                 self._measurement_flag_report(inv, event.data.get("new_state"), max(now, stamp.astimezone(UTC)))
+            if entity == inv.curtailed_entity_id:
+                self._curtailment_flag_report(inv, event.data.get("new_state"), max(now, stamp.astimezone(UTC)))
             if entity == inv.energy_entity_id:
                 self._record_energy(inv, event.data["new_state"], now, reported_at=stamp)
         self._schedule_save()
@@ -511,6 +571,10 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             return None  # a newer on transition is not processed/qualified yet
         return since
 
+    @staticmethod
+    def _curtailment_flag_clear(state) -> bool:
+        return state is not None and state.state == "off" and not state.attributes.get("restored")
+
     def _curtailment_status(self, inv) -> str:
         if not inv.curtailed_entity_id:
             return "not_configured"
@@ -522,6 +586,38 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
     def _curtailment_safe(self, inv) -> bool:
         return self._curtailment_status(inv) in ("not_configured", "clear")
 
+    def _curtailment_flag_report(self, inv, state, received: datetime) -> None:
+        # Use the event's state, not a newer state already in hass.states: an
+        # on/off or restored/off burst must retain invalidation independently of ordering.
+        if not self._curtailment_flag_clear(state):
+            self._curtailment_clear_since[inv.id] = None
+            stamp = received
+            if state is not None:
+                stamp = max(received, state.last_changed.astimezone(UTC), state.last_updated.astimezone(UTC))
+            prev_inv = self._curtailment_invalidated_at.get(inv.id)
+            self._curtailment_invalidated_at[inv.id] = max(prev_inv, stamp) if prev_inv is not None else stamp
+            self.tracker.anchors.pop(inv.id, None)
+            self.tracker.invalidate(inv.id, "curtailment_invalidated")
+        elif self._curtailment_clear_since.get(inv.id) is None:
+            self._curtailment_clear_since[inv.id] = received
+        if state is not None:
+            self._curtailment_seen_changed[inv.id] = state.last_changed
+            self._curtailment_seen_updated[inv.id] = state.last_updated
+        self.input_quality[f"curtailment_{inv.id}"] = self._curtailment_status(inv)
+
+    def _curtailment_since(self, inv) -> datetime | None:
+        state = self.hass.states.get(inv.curtailed_entity_id)
+        if not self._curtailment_flag_clear(state):
+            return None
+        if not self._curtailment_tracking_active:
+            return datetime.min.replace(tzinfo=UTC)
+        since = self._curtailment_clear_since.get(inv.id)
+        if (since is None
+                or state.last_changed != self._curtailment_seen_changed.get(inv.id)
+                or state.last_updated != self._curtailment_seen_updated.get(inv.id)):
+            return None
+        return since
+
     def _record_energy(self, inv, state, now: datetime, *, reported_at: datetime | None = None) -> None:
         stamp = reported_at or (state.last_updated.astimezone(UTC) if state is not None else now)
         if inv.measurement_valid_entity_id:
@@ -531,7 +627,17 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 self.tracker.invalidate(inv.id, "blocked_measurement_invalid" if since is None else "counter_predates_measurement_valid")
                 return
         value = state_number(state, now, "energy", reported_at=stamp)
-        interval = self.tracker.record(inv.id, stamp, value, self._curtailment_safe(inv), inv.output_cap_w, observed_at=now)
+        if inv.curtailed_entity_id:
+            clear_since = self._curtailment_since(inv)
+            invalidated_at = self._curtailment_invalidated_at.get(inv.id)
+            curtailment_safe = (
+                clear_since is not None
+                and stamp >= clear_since
+                and (invalidated_at is None or stamp > invalidated_at)
+            )
+        else:
+            curtailment_safe = True
+        interval = self.tracker.record(inv.id, stamp, value, curtailment_safe, inv.output_cap_w, observed_at=now)
         if interval is not None:
             if inv.curtailed_entity_id:
                 interval["curtailment_measurement_contract"] = CURTAILMENT_MEASUREMENT_CONTRACT
@@ -550,6 +656,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             # A larger original forecast cell may contain the whole delta.
             # Do not discard measured energy merely because hours divide it.
             self.intervals.append(interval)
+            if len(self.intervals) > MAX_TRAINING_ROWS:
+                self._prune(datetime.now(UTC))
             self._history_revision += 1
             return
         key = (interval["inverter_id"], hour)
@@ -562,15 +670,23 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         else:
             self.intervals.append(interval)
             self._interval_latest[key] = (len(self.intervals) - 1, interval)
+            if len(self.intervals) > MAX_TRAINING_ROWS:
+                self._prune(datetime.now(UTC))
         self._history_revision += 1
 
     def _observations(self, now: datetime) -> tuple[Observation, ...]:
         observations = []
         self.input_quality = {}
+        self._shade_inputs = {}
         temp_state = self.hass.states.get(self.site.temperature_entity_id) if self.site.temperature_entity_id else None
         wind_state = self.hass.states.get(self.site.wind_entity_id) if self.site.wind_entity_id else None
         ghi_state = self.hass.states.get(self.site.irradiance_entity_id) if self.site.irradiance_entity_id else None
         ghi = state_number(ghi_state, now, "irradiance")
+        ghi_time = (
+            utc_time(getattr(ghi_state, "last_reported", None) or ghi_state.last_updated)
+            if ghi is not None and ghi_state is not None
+            else None
+        )
         if self.site.irradiance_entity_id:
             self.input_quality["irradiance"] = "valid" if ghi is not None else "ignored:missing_stale_future_or_invalid"
         temp = state_number(temp_state, now, "temperature")
@@ -589,14 +705,15 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 # power measurement. Its value is independently unavailable.
                 observations.append(Observation(time=now, inverter_id=inv.id, curtailed=True))
             state = self.hass.states.get(inv.power_entity_id) if inv.power_entity_id else None
-            power = state_number(state, now, "power")
-            if power is not None and power > inv.output_cap_w * 1.1:
-                power = None
+            raw_power = state_number(state, now, "power")
+            over_cap = raw_power is not None and raw_power > inv.output_cap_w * 1.1
+            power = None if over_cap else raw_power
             power_time = (getattr(state, "last_reported", None) or state.last_updated) if state is not None else None
+            raw_power_time = utc_time(power_time) if raw_power is not None and power_time is not None else None
             # Current off cannot rehabilitate a report from an earlier active
             # or unknown phase. Attribute-only removal of restored preserves
             # last_changed, so last_updated also bounds the clear phase.
-            predates_clear = (power is not None and control_state == "clear"
+            predates_clear = (raw_power is not None and control_state == "clear"
                               and power_time <= max(control.last_changed, control.last_updated))
             measurement_ignored = None
             if inv.measurement_valid_entity_id:
@@ -609,8 +726,20 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                     power = None
             if inv.power_entity_id:
                 self.input_quality[f"power_{inv.id}"] = (measurement_ignored or
-                    ("ignored:predates_curtailment_clear" if predates_clear else
+                    ("ignored:predates_curtailment_clear" if (power is not None and predates_clear) else
                      "valid" if power is not None else "missing_stale_or_invalid"))
+            self._shade_inputs[inv.id] = {
+                "power_w": raw_power,
+                "power_time": raw_power_time,
+                "ghi_w_m2": ghi,
+                "ghi_time": ghi_time,
+                "curtailed_or_invalid": (
+                    control_state in ("active", "unknown")
+                    or predates_clear
+                    or bool(measurement_ignored)
+                    or over_cap
+                ),
+            }
             # Environmental readings carry their original timestamps separately:
             # refreshing a recent temperature must not freshen an old power value.
             if power is not None:
@@ -621,10 +750,97 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                     observations.append(Observation(time=getattr(source, "last_reported", None) or source.last_updated, inverter_id=inv.id, **{key: value}))
         return tuple(observations)
 
+    @staticmethod
+    def _evaluate_beam_shade_stage(config: SiteConfig, inv, forecasts, now: datetime,
+                                   observations: tuple[Observation, ...],
+                                   shading: BeamShadeTable,
+                                   stage_input: dict[str, Any] | None = None) -> dict[str, Any]:
+        if stage_input is not None:
+            raw_power = stage_input.get("power_w")
+            power_time = stage_input.get("power_time")
+            ghi = stage_input.get("ghi_w_m2")
+            ghi_time = stage_input.get("ghi_time")
+            curtailed_or_invalid = bool(stage_input.get("curtailed_or_invalid"))
+        else:
+            own = [o for o in observations if o.inverter_id == inv.id]
+            power_obs = next(
+                (o for o in sorted(own, key=lambda item: item.time, reverse=True)
+                 if o.power_w is not None and 0 <= (now - o.time).total_seconds() <= SENSOR_MAX_AGE_SECONDS),
+                None,
+            )
+            ghi_obs = next(
+                (o for o in sorted(own, key=lambda item: item.time, reverse=True)
+                 if o.ghi_w_m2 is not None and 0 <= (now - o.time).total_seconds() <= 300),
+                None,
+            )
+            raw_power = power_obs.power_w if power_obs is not None else None
+            power_time = power_obs.time if power_obs is not None else None
+            ghi = ghi_obs.ghi_w_m2 if ghi_obs is not None else None
+            ghi_time = ghi_obs.time if ghi_obs is not None else None
+            curtailed_or_invalid = any(
+                o.curtailed or (o.power_w is not None and o.power_w > inv.output_cap_w * 1.1)
+                for o in own
+            )
+        reasons: set[str] = set()
+        if curtailed_or_invalid:
+            reasons.add("curtailed_or_invalid")
+        if (raw_power is None or power_time is None or ghi is None or ghi_time is None
+                or abs((power_time - ghi_time).total_seconds()) > MAX_SHADE_PAIR_SECONDS):
+            reasons.add("stale_or_unpaired")
+        eval_time = power_time if power_time is not None else (ghi_time if ghi_time is not None else now)
+        try:
+            eval_sun = solar_position(config, eval_time)
+            eval_clear_sky = clear_sky_ghi(config, eval_time)
+        except PhysicsUnavailable:
+            eval_sun = None
+            eval_clear_sky = 0.0
+        if (eval_sun is None or eval_sun.elevation_deg < MIN_SHADE_ELEVATION_DEG
+                or eval_clear_sky < MIN_SHADE_CLEAR_SKY_W_M2):
+            reasons.add("low_elevation")
+        if ghi is not None and ghi_time is not None:
+            try:
+                ghi_clear_sky = eval_clear_sky if ghi_time == eval_time else clear_sky_ghi(config, ghi_time)
+            except PhysicsUnavailable:
+                ghi_clear_sky = 0.0
+            if ghi_clear_sky <= 0.0 or (ghi / ghi_clear_sky) < MIN_SHADE_CLEARNESS_INDEX:
+                reasons.add("low_clearness")
+        ref_powers = shade_reference_powers(config, forecasts, now, inv.id, eval_time, observations)
+        cap_limit = MAX_SHADE_CAP_FRACTION * inv.output_cap_w
+        if raw_power is not None and raw_power <= inv.output_cap_w * 1.1 and raw_power >= cap_limit:
+            reasons.add("at_cap")
+        if ref_powers is None:
+            reasons.add("no_reference")
+        else:
+            p0_w, p1_w = ref_powers
+            beam_w = p1_w - p0_w
+            min_beam_w = max(MIN_SHADE_BEAM_ABS_W, MIN_SHADE_BEAM_CAP_FRACTION * inv.output_cap_w)
+            if beam_w < MIN_SHADE_BEAM_SHARE * p1_w or beam_w < min_beam_w:
+                reasons.add("low_beam")
+            if p1_w >= cap_limit:
+                reasons.add("at_cap")
+            if not reasons and eval_sun is not None and power_time is not None:
+                factor = compute_beam_shade_factor(raw_power, p0_w, p1_w)
+                shading.record(inv.id, eval_sun.azimuth_deg, eval_sun.elevation_deg, power_time, factor)
+        try:
+            now_sun = eval_sun if eval_time == now else solar_position(config, now)
+        except PhysicsUnavailable:
+            now_sun = None
+        az_now = now_sun.azimuth_deg if now_sun is not None else None
+        el_now = now_sun.elevation_deg if now_sun is not None else None
+        if shade_bin(az_now, el_now) is not None:
+            if len(shading.bin_samples(inv.id, az_now, el_now)) < MIN_SHADE_SAMPLES:
+                reasons.add("insufficient_samples")
+        elif eval_sun is not None and shade_bin(eval_sun.azimuth_deg, eval_sun.elevation_deg) is not None:
+            if len(shading.bin_samples(inv.id, eval_sun.azimuth_deg, eval_sun.elevation_deg)) < MIN_SHADE_SAMPLES:
+                reasons.add("insufficient_samples")
+        last_rejection = ";".join(sorted(reasons)) if reasons else None
+        return shading.status_for(inv.id, az_now, el_now, last_rejection=last_rejection)
+
     async def _async_update_data(self):
         if self._closing:
             raise UpdateFailed("Coordinator is closed")
         now = datetime.now(UTC)
+        self._prune(now)
         try:
             forecasts = await self.client.async_forecasts(now)
         except WeatherError as err:
@@ -636,6 +852,9 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         observations = self._observations(now)
         # Copy event-loop-owned mutable rows before passing them to a worker.
         archive, intervals = list(self.archive), [dict(row) for row in self.intervals]
+        shading = self.shading.copy()
+        shade_inputs = {inv_id: dict(values) for inv_id, values in self._shade_inputs.items()}
+        history_revision = self._history_revision
         meter_quality = {}
         for inv in self.site.inverters:
             state = self.hass.states.get(inv.energy_entity_id) if inv.energy_entity_id else None
@@ -667,17 +886,29 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 "report_evidence": "ha_receipt_not_physical_source_qualification",
             }
 
-        signature = (self._history_revision, now.astimezone(ZoneInfo(self.site.timezone)).date())
+        output_caps = {inv.id: inv.output_cap_w for inv in self.site.inverters}
 
         def calculate():
+            beam_shade_by_inv = {
+                inv.id: self._evaluate_beam_shade_stage(
+                    self.site, inv, forecasts, now, observations, shading, shade_inputs.get(inv.id)
+                )
+                for inv in self.site.inverters
+            }
+            shade_key = json.dumps(shading.to_dict(), sort_keys=True)
+            signature = (history_revision, now.astimezone(ZoneInfo(self.site.timezone)).date(), shade_key)
             alignment = {}
-            samples = join_training(archive, intervals, diagnostics=alignment, as_of=now)
+            samples = join_training(
+                archive, intervals, diagnostics=alignment, as_of=now,
+                shading=shading, output_caps=output_caps,
+            )
             if self._learner is None or self._fit_signature != signature:
-                self._learner = ResidualLearner(timezone_name=self.site.timezone)
+                self._learner = ResidualLearner(timezone_name=self.site.timezone, output_caps=output_caps)
                 self._learner.fit(samples, now)
                 self._fit_signature = signature
             status = {}
             for inv in self.site.inverters:
+                beam_shade = beam_shade_by_inv[inv.id]
                 quality = alignment.get(inv.id, {"completed_target_cells": 0, "pending_target_cells": 0,
                                                 "accepted_target_cells": 0, "rejected_target_cells": 0,
                                                 "accepted_unique_measured_seconds": 0,
@@ -688,6 +919,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 if not quality["completed_target_cells"]:
                     reasons.append("no_completed_archived_forecast_targets")
                 status[inv.id] = {**self._learner.status.get(inv.id, {"state": "insufficient_history"}),
+                    "beam_shade": beam_shade,
                     "training_quality": {"meter": meter_quality[inv.id], "alignment": quality,
                         "blocking_reasons": sorted(set(reasons)),
                         "policy": {"min_coverage_fraction": MIN_MEASUREMENT_COVERAGE,
@@ -695,11 +927,15 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                                    "minimum_source_target_seconds": 1800,
                                    "max_counter_delta_seconds": MAX_ENERGY_GAP_SECONDS,
                                    "whole_measurements_only": True}}}
-            return self.engine.forecast(forecasts, now, observations=observations, learner=self._learner), status
+            return self.engine.forecast(
+                forecasts, now, observations=observations, learner=self._learner, shading=shading
+            ), status, shading
 
-        result, status = await self.hass.async_add_executor_job(calculate)
+        result, status, shading = await self.hass.async_add_executor_job(calculate)
         if self._closing:
             raise UpdateFailed("Coordinator is closed")
+        self.shading = shading
+        self.engine.shading = shading
         self.learner_status = status
         if self.site.irradiance_entity_id:
             self.input_quality["irradiance_nowcast"] = result.model_status.get("irradiance", "ignored:no_observation")
@@ -761,12 +997,15 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 self.daily_snapshots[day.isoformat()] = {"issued_at": result.issued_at.isoformat(), "energies": energies}
 
     def _prune(self, now: datetime) -> None:
+        previous_size = len(self.archive), len(self.intervals)
         cutoff = (now - timedelta(days=RETENTION_DAYS)).isoformat()
         self.archive = [row for row in self.archive if row["end"] >= cutoff][-MAX_ARCHIVE_ROWS:]
         self.intervals = [row for row in self.intervals if row["end"] >= cutoff][-MAX_TRAINING_ROWS:]
         self._interval_latest = {(row["inverter_id"], datetime.fromisoformat(row["start"]).replace(minute=0, second=0, microsecond=0)): (index, row) for index, row in enumerate(self.intervals)}
         oldest_day = (now.astimezone(ZoneInfo(self.site.timezone)).date() - timedelta(days=7)).isoformat()
         self.daily_snapshots = {key: value for key, value in self.daily_snapshots.items() if key >= oldest_day}
+        if previous_size != (len(self.archive), len(self.intervals)):
+            self._history_revision += 1
 
     @callback
     def _schedule_save(self) -> None:
@@ -778,8 +1017,13 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
     @callback
     def _stored(self) -> dict[str, Any]:
         self._save_pending = False
+        # Enforce the same bounds the reader requires even if no forecast
+        # refresh succeeds between meter reports, delayed writes or shutdown.
+        self._prune(datetime.now(UTC))
         return {"fingerprint": self._fingerprint, "history_schema": 2, "history_fingerprint": self._history_fingerprint,
+                "shade_fingerprint": self._shade_fingerprint,
                 "learning_feature_contract": LEARNING_FEATURE_CONTRACT,
+                BEAM_SHADE_STORE_KEY: self.shading.to_dict(),
                 "archive": list(self.archive), "intervals": [dict(row) for row in self.intervals], "daily_snapshots": dict(self.daily_snapshots)}
 
     async def async_close(self) -> None:

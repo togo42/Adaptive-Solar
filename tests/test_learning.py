@@ -338,3 +338,62 @@ def test_overlapping_whole_targets_are_purged_at_both_chronological_boundaries(m
     strict = ResidualLearner(timezone_name=zone.key, min_samples=len(rows)).fit(rows, EPOCH + timedelta(days=51))
     assert strict.status["wr"]["regimes"]["nwp"]["state"] == "insufficient_history"
     assert strict.status["wr"]["regimes"]["nwp"]["unique_target_hours"] == len(rows) - 2
+
+
+def test_validation_and_calibration_respect_issue_time_label_availability():
+    rows = synthetic_days(count=50)
+    # Delay observed_at of all training-block rows (days 0..29) until after validation issues (days 30..39).
+    late_observed = EPOCH + timedelta(days=45)
+    delayed = [
+        replace(row, observed_at=late_observed) if row.start < EPOCH + timedelta(days=30) else row
+        for row in rows
+    ]
+    learner = ResidualLearner().fit(delayed, EPOCH + timedelta(days=50))
+    assert learner.status["wr"]["state"] == "rejected_validation"
+    # Multi-day validation rows issued before late training days were observed cannot use those future labels:
+    # with an 8-day lead, validation days 30..34 were issued on days 22..26 (00:00), when only the unshaded
+    # days 0..25 had been observed, so causal validation wins at most 5/10 days and rejects activation.
+    eight_day = [
+        replace(
+            row,
+            issued_at=row.issued_at - timedelta(days=8),
+            features={**row.features, "lead_hours": row.features["lead_hours"] + 192},
+        )
+        for row in (
+            synthetic_days(first=0, count=26, unshaded=True)
+            + synthetic_days(first=26, count=24, unshaded=False)
+        )
+    ]
+    shifted_learner = ResidualLearner().fit(eight_day, EPOCH + timedelta(days=50))
+    assert shifted_learner.status["wr"]["state"] == "rejected_validation"
+    assert shifted_learner.status["wr"]["validation_daily_win_fraction"] <= 0.5
+
+
+def test_validation_clips_predictions_at_output_cap_and_rejects_unachievable_boost():
+    rows = []
+    for day in range(50):
+        issue = EPOCH + timedelta(days=day)
+        for hour in range(6, 18):
+            start = issue + timedelta(hours=hour)
+            baseline = 2000.0
+            # Actual is 2100W (within 10% meter tolerance above 2000W cap).
+            actual = 2100.0
+            features = {
+                "baseline_w": baseline, "sun_elevation_deg": 45.0,
+                "sun_azimuth_sin": 0.0, "sun_azimuth_cos": -1.0,
+                "day_of_year_sin": 0.5, "day_of_year_cos": 0.5,
+                "temperature_c": 20.0, "wind_m_s": 2.0,
+                "cloud_cover_pct": 10.0, "lead_hours": hour + 0.5,
+                "output_cap_w": 2000.0,
+            }
+            rows.append(TrainingSample(
+                issue, start, start + timedelta(hours=1),
+                start + timedelta(hours=1, minutes=5), "wr", baseline, actual, features,
+            ))
+    learner = ResidualLearner(output_caps={"wr": 2000.0}).fit(rows, EPOCH + timedelta(days=50))
+    # Because predictions are clipped to cap_w=2000W during validation just as in predict(),
+    # the model MAE equals the baseline MAE (100W) and validation rejects activation.
+    assert learner.status["wr"]["state"] == "rejected_validation"
+    assert learner.status["wr"]["residual_validation_mae_w"] == pytest.approx(
+        learner.status["wr"]["physics_validation_mae_w"]
+    )

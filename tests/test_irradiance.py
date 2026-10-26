@@ -291,3 +291,27 @@ def test_hourly_means_have_bounded_window_integration_without_a_false_instant_cl
     assert result.power_at(cutoff + timedelta(minutes=10), "i") > baseline.power_at(cutoff + timedelta(minutes=10), "i")
     # The first source hour with no overlap is exactly the original forecast.
     assert result.power_at(START + timedelta(hours=2, minutes=15), "i") == baseline.power_at(START + timedelta(hours=2, minutes=15), "i")
+
+
+def test_ghi_nowcast_with_released_beam_shade_scales_direct_only():
+    from custom_components.adaptive_solar.core.shading import BeamShadeTable
+
+    cfg = site()
+    midpoint = NOW + (START + timedelta(hours=1) - NOW) / 2
+    sun = solar_position(cfg, midpoint)
+    table = BeamShadeTable()
+    for idx in range(5):
+        table.record("i", sun.azimuth_deg, sun.elevation_deg, NOW - timedelta(minutes=15 * idx), 0.5)
+    unshaded = ForecastEngine(cfg).forecast(forecasts(), NOW, (observation(900),))
+    shaded = ForecastEngine(cfg, shading=table).forecast(forecasts(), NOW, (observation(900),))
+    assert shaded.points[0].features["ghi_regime"] == 1.0
+    assert 0 < shaded.points[0].power_w < unshaded.points[0].power_w
+    # Purely diffuse NWP hour scaled by GHI observation keeps diffuse power unchanged under beam shading.
+    diffuse_pt = WeatherPoint(START, START + timedelta(hours=1), 600, 0, 600, 20, 2, 100)
+    diffuse_fc = forecasts(points=[diffuse_pt])
+    shaded_diff = ForecastEngine(cfg, shading=table).forecast(diffuse_fc, NOW, (observation(600),))
+    unshaded_diff = ForecastEngine(cfg).forecast(diffuse_fc, NOW, (observation(600),))
+    assert [(p.start, p.end, p.baseline_w, p.power_w) for p in shaded_diff.points] == [
+        (p.start, p.end, p.baseline_w, p.power_w) for p in unshaded_diff.points
+    ]
+    assert shaded_diff.points[0].features["beam_shade_factor"] == pytest.approx(0.5)

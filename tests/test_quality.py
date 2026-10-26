@@ -297,3 +297,53 @@ async def test_actual_today_physics_gap_remains_partial(hass):
         assert sensor.native_value == "partial"
         assert sensor.extra_state_attributes["coverage"] == "partial"
     await coordinator.async_close()
+
+
+async def test_beam_shade_diagnostics_in_quality_and_entry_diagnostics(hass):
+    from unittest.mock import AsyncMock
+    from custom_components.adaptive_solar.diagnostics import async_get_config_entry_diagnostics
+    from custom_components.adaptive_solar.core.physics import solar_position
+
+    coordinator, entry, sensor = sensors(hass, irradiance=True, power=True)
+    entry.runtime_data = coordinator
+    sun = solar_position(coordinator.site, NOW)
+    for idx in range(5):
+        coordinator.shading.record("i0", sun.azimuth_deg, sun.elevation_deg, NOW - timedelta(minutes=15 * idx), 0.65)
+    forecast = WeatherForecast("best_match", NOW, tuple(
+        WeatherPoint(NOW + timedelta(hours=h), NOW + timedelta(hours=h + 1), 700, 700, 100, 20, 2, 10)
+        for h in range(14)
+    ))
+    coordinator.client = AsyncMock()
+    coordinator.client.errors = {}
+    coordinator.client.async_forecasts.return_value = (forecast,)
+    with freeze_time(NOW):
+        hass.states.async_set("sensor.ghi", "100", {"unit_of_measurement": "W/m²"})
+        hass.states.async_set("sensor.power0", "4950", {"unit_of_measurement": "W"})
+        await coordinator._async_update_data()
+        attrs = sensor.extra_state_attributes
+        diag = await async_get_config_entry_diagnostics(hass, entry)
+        shade = attrs["learning"]["i0"]["beam_shade"]
+        assert diag["learning"]["i0"]["beam_shade"] == shade
+        assert shade["azimuth_bin_deg"] is not None
+        assert shade["elevation_bin_deg"] is not None
+        assert shade["transmittance"] == pytest.approx(0.65)
+        assert shade["samples"] == 5
+        assert shade["released"] is True
+        assert shade["filled_bins"] == 1
+        assert {"at_cap", "low_clearness"} <= set(shade["last_rejection"].split(";"))
+    # Night without sun shows factor 1, unreleased and no invented bin.
+    night = NOW.replace(hour=23)
+    night_fc = WeatherForecast("best_match", night, (
+        WeatherPoint(night, night + timedelta(hours=1), 0, 0, 0, 15, 2, 0),
+    ))
+    coordinator.client.async_forecasts.return_value = (night_fc,)
+    with freeze_time(night):
+        await coordinator._async_update_data()
+        night_shade = coordinator.learner_status["i0"]["beam_shade"]
+        assert night_shade["azimuth_bin_deg"] is None
+        assert night_shade["elevation_bin_deg"] is None
+        assert night_shade["transmittance"] == 1.0
+        assert night_shade["samples"] == 0
+        assert night_shade["released"] is False
+        assert night_shade["filled_bins"] == 1
+    await coordinator.async_close()
