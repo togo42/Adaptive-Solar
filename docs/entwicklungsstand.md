@@ -1,6 +1,6 @@
 # Entwicklungsstand und offene Nachweise
 
-Stand: 26.10.2026. **Adaptive Solar 0.2.10 ist implementiert und lokal validiert; letzter bestätigter produktiver Stand ist 0.2.9 unter Core 2026.10.4.** Der gebundene Grok-4.7/high-Review ist ohne Findings abgeschlossen. Veröffentlichung und HACS-Aktivierung der neuen Version folgen separat. Ein qualifizierter produktiver ML-Fit und bessere Prognosegüte bleiben offen.
+Stand: 26.10.2026. **Adaptive Solar 0.2.10 ist veröffentlicht und über HACS unter Core 2026.10.4 installiert.** Der gebundene Grok-4.7/high-Review ist ohne Findings abgeschlossen; GitHub-CI erfolgreich. Vier Anlageneinträge, native Einrichtung und installierte Paketbytes sind zurückgelesen. Ein qualifizierter produktiver ML-Fit und bessere Prognosegüte bleiben offen.
 
 ## Update 0.2.10
 
@@ -9,6 +9,14 @@ Morgen-/Abenddämpfungen sind pro String in Modell und Einrichtung ergänzt, mit
 Je **893 Tests ohne Fehler oder Skips** bestanden mit Core **2026.10.2/.3/.4**, Testplugins **0.13.373/.374/.375**, Python 3.14.4/glibc. Laufzeiten: **95,96 / 93,99 / 94,61 Sekunden**. Drei Kopien der bestehenden Prüfumgebungen wurden regulär mit demselben 0.2.10-Wheel installiert; ursprüngliche Umgebungen blieben unverändert. Isolierter Paketimport und sämtliche **22 Paketdateien einschließlich Markenbild** wurden außerhalb des Repositorypfads gegen den Wheel geprüft; `pip check` jeweils erfolgreich. Belege: `artifacts/compatibility-ha-2026.10.2-0.2.10-r2/` und entsprechend .3/.4.
 
 Die Migrationstests prüfen AC/DC, mehrere Strings je Stufe, stabile Entity-/Unique-IDs und Benutzeranpassungen, native Energy-Ausgaben und unveränderte Messhistorie nach Reload sowie wiederholte Einzel-/Mehrfachstufenwechsel. Die Physiktests prüfen Dämpfungsgrenzen, Neutraldefaults, Zeitumstellungen, Mitternacht überschreitende Sonnentage, Polartag/-nacht und die Reihenfolge vor dem gemeinsamen Clip. Diese Nachweise ersetzen keine reale Genauigkeitsauswertung.
+
+### Produktive Rücklese vom 26.10.2026
+
+Die Veröffentlichung `v0.2.10` wurde nativ aus dem öffentlichen GitHub-Repository in HACS registriert und heruntergeladen; kein manueller Ersatz der ausgelieferten Komponentenbytes. Alle 22 Dateien stimmen mit dem geprüften Stand überein. Nach einer neuen geschützten Sicherung und einem Core-Neustart sind alle vier Einträge geladen. Drei Optionsflows übernahmen die passenden Open-Meteo-Horizont-/Dämpfungswerte; beim vierten Eintrag waren die entsprechenden Nullwerte bereits vorhanden. Die übrigen numerischen Einstellungen, Messbindungen und Energy-Präferenzen blieben erhalten.
+
+Die Laufzeitrücklese bestätigt 80 unveränderte Entity-/Unique-IDs und Benutzeranpassungen bei vier Geräten statt acht. Alte Gesamtanzeigen bleiben als ausgeblendete Kompatibilitätsanzeigen am Einzelgerät. Die nächsten drei vollen lokalen Tage sind je Anlage vollständig, alle modellierten Leistungen innerhalb der nominellen Grenzen. Temperatur, Wind, Globalstrahlung und vorgesehene Leistungseingänge sind gültig; alle vier Anlagen melden Physik/kalt. HA-Konfiguration gültig, keine aktiven Repairs. Native GitHub-CI vor Installation auf Hauptbranch und Tag erfolgreich; die spätere Statusdokumentation ist von der eingefrorenen Implementierungsprüfung getrennt.
+
+Bekannte nicht blockierende Hinweise: Core meldete die für 2027.10 angekündigte Abkündigung des verwendeten Geräte-Zuordnungszugriffs; die geprüften 2026.10-Versionen funktionieren. Eine bereits aus der Quellqualifikation bekannte MQTT-UTF8-Warngruppe trat beim Start erneut auf; nachfolgend sind alle benötigten Eingänge gültig. Es wird weder ein vollständig warnungsfreies Log noch die physische Zertifizierung der Quellen behauptet. Alte Komponentenbytes und die vier Historienstores vor der Korrekturübernahme sind zusätzlich lokal gesichert.
 
 Die folgenden Abschnitte dokumentieren den historischen Stand 0.2.9 und dessen getrennte Nachweise.
 

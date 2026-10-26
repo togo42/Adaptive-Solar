@@ -17,4 +17,4 @@ Der aktualisierte Featurevertrag setzt alte Archivfeatures und daraus abgeleitet
 
 ## Validierung und Installation
 
-Je 893 Tests ohne Fehler oder Skips mit HA Core 2026.10.2/.3/.4 bestanden; drei reguläre Wheel-Installationen mit isolierter Paketprüfung und erfolgreichem `pip check`. Die alten Prüfumgebungen blieben erhalten. Der gebundene externe Grok-4.7/high-Implementierungsreview ist ohne Findings abgeschlossen; [Scope und Bindung](review-findings.md). Produktive Installation und Rückleseprüfung werden nach Abschluss im [Entwicklungsstand](entwicklungsstand.md) dokumentiert. Der reale Genauigkeitsnachweis bleibt separat offen.
+Je 893 Tests ohne Fehler oder Skips mit HA Core 2026.10.2/.3/.4 bestanden; drei reguläre Wheel-Installationen mit isolierter Paketprüfung und erfolgreichem `pip check`. Die alten Prüfumgebungen blieben erhalten. Der gebundene externe Grok-4.7/high-Implementierungsreview ist ohne Findings abgeschlossen; [Scope und Bindung](review-findings.md). Produktive Installation aus GitHub über HACS und Rückleseprüfung sind im [Entwicklungsstand](entwicklungsstand.md) dokumentiert. Der reale Genauigkeitsnachweis bleibt separat offen.
