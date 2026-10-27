@@ -92,6 +92,17 @@ HA verbindet vor Zielbeginn bekannte Features erst nach Intervallende mit echten
 | 4–6 | Beide Ränder | Beide Ränder |
 | Ab 7 | Mitte | Nahe 1,5 h im ersten Bin, sonst Binmitte |
 
+Bei unmittelbar benachbarten Originalzellen ersetzt eine gemeinsame zeitliche
+Paar-Origin-Auswahl die unabhängigen Repräsentanten der betroffenen Zell-Bins:
+bis sechs Stufen frühester/spätester gemeinsamer Issue, ab sieben der gemeinsame
+Issue an der festen Binmitte. Jeweils beide Originalzeilen bleiben verbunden;
+Auswahl ausschließlich nach Zeit/Regime. Isolierte Zellen oder Bins ohne
+Paar-Origin behalten ihre bisherige Auswahl. Damit entfernt die Verdichtung
+nicht sämtliche passenden Origins für verschobene echte Messfenster. Die
+60.000-Zeilen-Grenze bleibt bestehen; der engere Lead-Support des einzelnen
+Repräsentanten wird weiterhin nur innerhalb seiner nachgewiesenen Grenzen
+freigegeben. [Details und Retentionsgrenzen](measurement-learning.md).
+
 Regime verdrängen einander nicht; Gesamtzeilengrenzen gelten weiterhin. Mehrere Origins/Regime erzeugen keine zusätzlichen Iststunden. Zeitdauergewichte und Entdoppelung begrenzen häufige Mess-/Ausgabeereignisse. Im flachen Lernbericht stammen Zustand, MAE, Gewinnquote und Lead-Bins nur aus `primary_regime`: aktives NWP vor aktivem GHI. `active_regimes` und vollständige `regimes` bleiben getrennt; Gesamt-Historienzähler tragen `history_scope=deduplicated_all_regimes` und sind keine Primärregime-Trainingsmenge.
 
 ### Messintervalle und Persistenz
@@ -131,6 +142,12 @@ Mixed-Entries behalten Stufensensoren und `mixed_output_generation_sum` verschie
 `core/evaluation.py` bewertet archivierte statt neu rekonstruierte Prognosen auf identischen Fenstern/Cutoffs. Gemeinsamer Lead geht vom Cutoff bis Fenstermitte, Issuezeiten wählen nur zulässige Snapshots. Ganze gemessene Istintervalle bleiben ungeschnitten, Prognosemittel zuschneidbar, fehlende Werte niemals Null. `interval_task_identity=[cutoff,inverter_id,start,end]`: Intervallzählung/-energie ist Taskexposition, dauergewichtet, keine unabhängige Stichprobe/einmalige Erzeugung. Schätzer/Gates bleiben unverändert.
 
 Je Stratum/Referenz liefern nur vollständige geplante Origins eines Zieltags mittleren Fehler/eine Stimme; Gesamtquote ist das Minimum. `statistical_validation.py` resampelt alle Strata/Referenzen desselben Tages gemeinsam. Familienkonfidenz, Bonferroni, Seed/Resamples versioniert; keine Ersatzaussage bei fehlenden Strata/gescheitertem deskriptivem Gate. [Vorabkriterien/Reviewaudit](validierung.md) und Testdatenfluss sind keine Feldgüte; fairer prospektiver Vergleich bleibt nötig.
+
+Die deskriptive Mindesthistorie je Stufen-/Horizontstratum zählt dieselbe
+vollständige Tagesmenge wie die Tagesgewinnquote: Sämtliche geplanten Origins
+des Tages müssen vollständig gepaart sein. Bei weniger als 30 solchen Tagen
+sperren Bereitschaft und Tagesgewinnprüfung auch ohne Bootstrap; Tage mit nur
+einem erfolgreichen Teil der geplanten Origins erhöhen diesen Nenner nicht.
 
 
 ## Abregelungsprüfung und Bestandsdaten ab 0.2.11

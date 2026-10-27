@@ -43,12 +43,15 @@ Messdelta-Aufteilung und liefert keine neu gemessene Feinauflösung.
 
 ## Feste Capturepolitik und brauchbare Aufbewahrung
 
-Je Arm und **lokalem Anlagentag** zählt genau der erste echte erfolgreiche
-Prognoselauf mit Archivempfang **ab 18:00 Uhr**. Läuft er beispielsweise erst um
+Je Arm und **lokalem Anlagentag** zählt genau der erste echte
+Prognoseversuch mit Archivempfang **ab 18:00 Uhr**, einschließlich eines
+beobachteten Wetter- oder Physikausfalls. Läuft er beispielsweise erst um
 18:07:12, bleibt dies seine Verfügbarkeitszeit. Es gibt keine stündlichen
 Vollkurven, kein Zurückdatieren auf 18:00 und keine Auswahl nach Prognosefehlern.
-Vorherige Tagesläufe ersetzen diesen Capture nicht. Fällt der verbleibende Abend
-aus, entsteht für diesen Tag eine Lücke. Beide Zeitumstellungen verwenden die
+Vorherige Tagesläufe ersetzen diesen Capture nicht. Ein als `unavailable`
+archivierter Fehlversuch bleibt der Tagescapture; ein späterer Erfolg desselben
+Tages ersetzt ihn nicht. Gibt es am verbleibenden Abend keinen beobachteten
+Versuch, entsteht für diesen Tag eine Archivlücke. Beide Zeitumstellungen verwenden die
 konfigurierte Zeitzone; Zielintervalle und Dauern bleiben UTC-bezogen.
 
 Grenzen gelten gleichzeitig für das gesamte Vergleichsarchiv: **höchstens

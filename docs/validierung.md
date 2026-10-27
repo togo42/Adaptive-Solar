@@ -22,6 +22,16 @@ Aufwärmphase/primäre Prüfperiode vorher festlegen. Physikfallback gehört zur
 
 Mindestens **30 vollständige gepaarte Zieltage je Stufe/Horizont**; bei einförmigem Wetter verlängern, Ausfälle zusätzlich zur Paarungsmenge ausweisen. Eine Saison belegt kein Ganzjahr.
 
+Bei mehreren geplanten Origins zählt ein Zieltag innerhalb seines Stufen-/
+Horizontstratums erst dann, wenn **sämtliche geplanten Origins** über alle
+Vergleichsquellen vollständig gepaart sind. `strata.*.complete_target_days` und
+die `paired_target_days` der zugehörigen Tagesgewinnprüfung verwenden dieselbe
+Tagesmenge. 30 deklarierte Tage mit nur 29 so vollständigen Tagen genügen auch
+dann nicht, wenn ihre Tagesgewinnquote 100 % beträgt. Diese Mindesthistorie
+gehört bereits zum deskriptiven Gate und gilt unabhängig von `--bootstrap`.
+Die aggregierte Anzahl von Tagen mit irgendeinem gepaarten Intervall ersetzt
+diese stratumweise Vollständigkeit nicht.
+
 Primär Tages-/Resttagenergie-MAE(kWh), zusätzlich dauergewichtete Leistungs-MAE/RMSE(W), Energie-Bias/Abdeckung nach Stufe/Horizont; Tageslicht getrennt von Nacht. Intervallaggregate zählen deklarierte Forecasttasks, nicht unabhängige oder einmalige physische Zielstunden. Gesamtwerte dürfen Einzelverschlechterung nicht verdecken.
 
 Vor Sichtung der Daten bestätigen/einfrieren:

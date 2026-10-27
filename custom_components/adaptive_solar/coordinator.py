@@ -214,6 +214,53 @@ def _unique_seconds(spans) -> float:
     return sum((end - start).total_seconds() for start, end in merged)
 
 
+def _paired_forecast_origins(rows, *, slots, forecast_days):
+    """Keep common temporal edge origins of adjacent original forecast cells.
+
+    Selection uses only prospective issue/target times and the declared regime.
+    Returning whole row pairs preserves an actually issued curve; independent
+    per-cell representatives can otherwise delete every common short origin.
+    """
+    issues = defaultdict(dict)
+    for row in rows:
+        regime = feature_regime(row["features"])
+        if (regime is None or row["features"].get("source_partial_at_issue", 0) != 0
+                or row["baseline_w"] <= 0 or row["features"].get("sun_elevation_deg", 0) <= 0):
+            continue
+        start, end = utc_time(datetime.fromisoformat(row["start"])), utc_time(datetime.fromisoformat(row["end"]))
+        issued = utc_time(datetime.fromisoformat(row["issued_at"]))
+        if issued <= start:
+            issues[row["inverter_id"], issued, regime][start, end] = row
+    edges = {}
+    centers = (3, 15, 36, 72, (96 + max(96, forecast_days * 24)) / 2)
+    for (inverter, issued, regime), cells in issues.items():
+        ordered = sorted(cells.items())
+        for ((start, end), left), ((next_start, next_end), right) in zip(ordered, ordered[1:]):
+            if end != next_start:
+                continue
+            bucket = lead_bucket(issued, start, end)
+            key = inverter, start, end, next_end, regime, bucket
+            previous = edges.get(key)
+            candidate = issued, left, right
+            center = 1.5 if regime == "ghi" and bucket == 0 else centers[bucket]
+            def distance(value):
+                return abs(midpoint_lead_hours(value[0], start, end) - center), -value[0].timestamp()
+            if previous is None:
+                edges[key] = candidate, candidate, candidate
+            else:
+                earliest, latest, middle = previous
+                edges[key] = (candidate if issued < earliest[0] else earliest,
+                              candidate if issued > latest[0] else latest,
+                              candidate if distance(candidate) < distance(middle) else middle)
+    selected = {}
+    for earliest, latest, middle in edges.values():
+        for _, left, right in ((middle,) if slots == 1 else (earliest, latest)):
+            for row in (left, right):
+                key = row["inverter_id"], row["start"], row["end"], row["issued_at"], feature_regime(row["features"])
+                selected[key] = row
+    return list(selected.values())
+
+
 def _measurement_block(measured, index, a, b, as_of):
     """Longest qualified block; gap seconds are never measured support."""
     candidates, reasons = measured_blocks(measured, index, a, b, as_of)
@@ -1477,6 +1524,19 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             if budget == 3:
                 choices.append(middle)
             selected.extend({row["issued_at"]: row for row in choices}.values())
+        paired = _paired_forecast_origins(candidates, slots=1 if len(self.site.inverters) >= 7 else 2,
+                                          forecast_days=self.site.forecast_days)
+        def target_bin(row):
+            return (row["inverter_id"], row["start"], row["end"], feature_regime(row["features"]),
+                    lead_bucket(datetime.fromisoformat(row["issued_at"]), datetime.fromisoformat(row["start"]),
+                                datetime.fromisoformat(row["end"])))
+        paired_targets = {target_bin(row)
+                          for row in paired}
+        # Replace independently chosen origins for paired targets, rather
+        # than silently doubling their full old row budget. Isolated cells
+        # keep the established per-cell representatives unchanged.
+        selected = [row for row in selected if target_bin(row) not in paired_targets]
+        selected.extend(paired)
         self.archive = sorted(selected, key=lambda row: (row["start"], row["inverter_id"], row["issued_at"]))[-MAX_ARCHIVE_ROWS:]
         zone = ZoneInfo(self.site.timezone)
         for offset in range(self.site.forecast_days):

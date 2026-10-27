@@ -37,7 +37,10 @@ Es werden keine Herstellerdaten, Geräte-APIs oder Batteriedaten benötigt.
 
 `physics_substeps` ist 1 (bisheriger Mittelpunkt), 2, 4, 6 oder 12. Werte größer
 1 aktivieren einen Kandidaten. Die ursprünglichen Wetterintervalle und ihre
-GHI/DNI/DHI-Mittelwerte bleiben bestehen. Eine komponentenweise Ineichen-
+GHI/DNI/DHI-Mittelwerte bleiben bestehen. Das gilt auch für die Auswahl der
+Wettermodellkohorte für Schattenreferenzen, vor und nach einer GHI-Anpassung:
+deren Teilintervallintegration normiert auf derselben ursprünglichen
+Quellstütze wie die veröffentlichte Prognose. Eine komponentenweise Ineichen-
 Clear-Sky-Zeitform, normiert über das **ursprüngliche** Quellintervall mittels
 8-Punkt-Gauss-Legendre-Quadratur, liefert interne Momentan-Proxys. Die Ausgabe
 mittelt gleich lange UTC-Teilintervalle an deren Mittelpunkten. Das ist

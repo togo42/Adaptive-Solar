@@ -1,5 +1,44 @@
 # Reviewnachweise und fachliche Bearbeitung
 
+## Entwicklungsnachtrag nach 0.2.14
+
+Der ursprüngliche Arbeitsstand `d73fc4c` erhielt noch keine Freigabe. Ein
+vollständiger Grok-4.7/high-Lauf bestätigte 29 Quelltextteile, scheiterte aber
+beim Abschlussturn mit `max_tokens_truncation`: kein gültiges Reviewurteil.
+
+Der alternative vollständige **Codex GPT-6.1-Sol/high**-Review desselben Standes
+war transportgültig, aber **blocked**. 126 öffentliche Originaldateien,
+1.731.723 Payloadbytes, 30 erfolgreich abgeschlossene Turns; exakte
+Prompt-/Antwortbindung, Modell/High und null Compaction/Tools wurden nach dem
+Abschluss unabhängig erneut geprüft. Receipt-SHA256:
+`d7073a885733e1c89f12610ee48aec3c980e64f874984e81c5bdedea79acc71f`.
+
+Die drei Findings wurden mit gezielten Regressionen bearbeitet:
+
+- **AS-001 (hoch):** Mindesthistorie und Tagesgewinnprüfung verwenden jetzt
+  dieselben Tage, an denen sämtliche geplanten Origins des Stufen-/
+  Horizontstratums vollständig gepaart sind. 29 vollständige von 30 deklarierten
+  Tagen reichen auch ohne optionalen Bootstrap nicht aus.
+- **AS-002 (mittel):** Beide Aufrufe zur Schattenkohortenbestimmung erhalten
+  die ursprünglichen Wetterintervalle. Bei Teilintervallintegration wird die
+  interne Zeitform damit über dieselbe Stütze wie die operative Prognose
+  normiert. Regressionen prüfen Rohphysik und GHI-Anpassung.
+- **AS-003 (niedrig):** Die Vergleichsdokumentation beschreibt den ersten
+  tatsächlichen Versuch ab 18 Uhr einschließlich Ausfall; ein späterer Erfolg
+  ersetzt diesen Tagescapture nicht.
+
+Der zusätzliche eigene Ende-zu-Ende-Review fand verlorene gemeinsame
+Forecast-Origins durch zellweise Archivverdichtung. Die zeitliche Paarauswahl
+erhält jetzt tatsächlich gemeinsam ausgegebene Nachbarzellen. Regressionen mit
+wiederholtem echtem Archivierungsablauf prüfen NWP-Lead-Bins, GHI, eindeutige
+Messstunden sowie die Budgets bei einer, vier und sieben Stufen.
+[Vertrag und Grenzen](measurement-learning.md).
+
+Die lokalen 1241 Tests prüfen den korrigierten Stand. Die vorstehenden Läufe
+sind ausdrücklich keine Freigabe dieses korrigierten Standes; ein positiver
+Nachreview wird separat an seine tatsächlichen Quellen gebunden. Rohpayloads
+und native Sitzungsbelege bleiben unter ignoriertem `reviews/private/`.
+
 ## Gültiger Grok-Nachreview der Ablehnungsdiagnose
 
 27.10.2026, **Grok 4.7/high**, Arbeitsstand auf Basis `1634e08`:

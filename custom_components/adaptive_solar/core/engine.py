@@ -290,7 +290,9 @@ def shade_reference_powers(config: SiteConfig, forecasts, issued_at: datetime,
                     wind_m_s=point.wind_m_s if wind is None else point.wind_m_s * (1 - blend) + wind * blend,
                 )
             prepared.append((model, adjusted))
-        evaluated = _physical_members(config, prepared, inverter_id, start, end, dummy_status)
+        evaluated = _physical_members(
+            config, prepared, inverter_id, start, end, dummy_status, source_support=dict(members)
+        )
         if not evaluated:
             continue
         weight = (
@@ -302,7 +304,7 @@ def shade_reference_powers(config: SiteConfig, forecasts, issued_at: datetime,
         if stage_use_ghi:
             evaluated = _physical_members(
                 config, [(model, point) for model, point, _, _ in evaluated],
-                inverter_id, start, end, dummy_status, ghi_gains, weight,
+                inverter_id, start, end, dummy_status, ghi_gains, weight, source_support=dict(members),
             )
             if not evaluated:
                 continue

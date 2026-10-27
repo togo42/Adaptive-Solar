@@ -109,6 +109,15 @@ Archiviert werden native WS-Millisekunden, Metadaten/Einheiten, Rohänderungen u
 
 Abdeckung, Quellenlücken und Leistungs-/Energiefehler werden nach Stufe/Horizont/Tages-/Resttagaufgabe berichtet. Intervallaggregate sind dauergewichtete **Prognoseaufgaben** unterschiedlicher Cutoffs: Exposition, keine einmalige Erzeugung/unabhängige Stichprobenzahl.
 
+Schon ohne Bootstrap benötigt jedes Stufen-/Horizontstratum mindestens 30
+Zieltage, an denen sämtliche für diesen Tag geplanten Origins vollständig
+gepaart sind. `strata.*.complete_target_days` ist derselbe Nenner wie
+`daily_win_by_inverter_horizon.*.paired_target_days`. Ein vollständiger Origin
+kann einen fehlenden zweiten Origin desselben Tages nicht ersetzen; eine hohe
+Gewinnquote auf nur 29 vollständigen Tagen reicht nicht. `paired_target_days`
+auf Berichtsebene zählt dagegen Tage mit gepaarten Intervallaufgaben und ist
+allein kein Bereitschaftsnachweis.
+
 Ohne `--bootstrap`: `not_evaluated`. Policy `paired-target-day-bootstrap-v1`: mindestens30 gemeinsam vollständige Zieltage; Origins/Strata/Referenzen desselben Tages gemeinsam ziehen. Defaults:95% Familienkonfidenz/Bonferroni, mindestens20.000 Resamples, Seed`20261024`; nur Familiengröße darf die CI-Auflösung erhoehen. `--bootstrap-resamples`, `--bootstrap-seed`, `--bootstrap-confidence` vor Sichtung fixieren; Ergebnis dokumentiert sie.
 
 Primäre Energie-Strata, deskriptives Gate,5%-Skill-Untergrenze/negative MAE-Differenz-Obergrenze sowie Grenzen von `accepted_conditional`: [Annahmekriterien](validierung.md#3-vorläufige-annahmekriterien). Repräsentative austauschbare Tage bleiben eine Annahme; keine Ganzjahres-/Produktionsfreigabe.

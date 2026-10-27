@@ -93,6 +93,55 @@ filtert auch verspätete Labels. Chronologische Trainings-/Validierungs-/
 Kalibrierungsgrenzen, Ausgangskappen und sonstige Datenleck-Gates bleiben aktiv.
 Alle Dauern verwenden UTC, auch bei beiden Zeitumstellungen.
 
+## Gemeinsame archivierte Ausgabezeitpunkte
+
+Die Auswahl gemeinsamer Origins muss bereits bei der Archivverdichtung erhalten
+bleiben. Unabhängige Min-/Max-/Mittel-Origins je Stunde können durch ihren
+Stundenversatz sämtliche gemeinsamen kurzfristigen oder GHI-Ausgaben entfernen.
+Ein synthetischer End-to-End-Gegenfall mit 1.765 echten Archivaufrufen im
+Fünfminutenraster, sechs Tagen Vorlauf und drei Messfenstern ab 10:02 bestätigte
+diesen Fehler: Bei vier konfigurierten Stufen blieben nur drei lange NWP-Labels
+im `96h+`-Bin; sämtliche GHI- und kürzeren NWP-Labels fehlten. Ab sieben Stufen
+blieben gar keine Endpunktlabels. Das ungekürzte Kontrollarchiv enthielt dafür
+geeignete ursprüngliche Ausgaben.
+
+Bei unmittelbar benachbarten Originalzellen werden deshalb beide Zeilen einer
+wirklich gemeinsamen Ausgabe zusammen aufbewahrt, je Lead-Bin und Regime. Für
+bis zu sechs Stufen sind dies frühester und spätester gemeinsamer Issue; ab
+sieben Stufen ist es der gemeinsame Issue am nächsten zur bestehenden festen
+Binmitte (GHI im ersten Bin: 1,5 Stunden). Gleichstand nimmt die spätere echte
+Ausgabe. Die Auswahl verwendet ausschließlich Zeiten und Regime, niemals
+Messenergie oder Modellfehler. Isolierte Zellen und Bins ohne geeignete
+Paar-Origin behalten die bisherigen Einzelzellrepräsentanten. Vorhandene
+historische gemeinsame Ausgaben werden nicht nachträglich erfunden.
+
+Paar-Origin ersetzt die unabhängige Auswahl der betroffenen Zell-Bins, statt
+deren gesamte frühere Zeilenmenge zusätzlich anzuhängen. Eine Zelle gehört zu
+höchstens zwei unmittelbar benachbarten Paaren. Im normalen Stundenraster mit
+fünf NWP-Bins und dem kurzfristigen GHI-Bin sind damit höchstens 24 Origins je
+Zelle bei bis zu sechs Stufen beziehungsweise zwölf ab sieben Stufen nötig.
+Bei 16 positiven Zielstunden täglich passen beispielsweise 28 Historientage
+plus sechs volle Zukunftstage für vier Stufen in 52.224 Zeilen, für sieben
+Stufen in 45.696 Zeilen. Das globale Limit von 60.000 Zeilen und 120 Tagen bleibt
+hart. Mehr Stufen, längere Tagesunterstützung oder zusätzliche Zellraster können
+die tatsächlich gespeicherte Dauer weiterhin verkürzen.
+
+Ab sieben Stufen begrenzt der einzelne zeitliche Mittelrepräsentant den
+belegbaren Lead-Bereich stärker. Außerhalb der tatsächlich separat validierten
+Trainings-/Validierungsunterstützung bleibt die Physik maßgeblich. Bei exakt
+periodischen Ausgaben und konstanter Messphase kann dieser Bereich sogar
+punktförmig sein: ein Messmittelpunkt zwei Minuten nach der Quellstundenmitte
+kann beispielsweise 3,033 Stunden Lead belegen, während die operative
+Stundenprognose 3,0 Stunden trägt. Auch dann entsteht keine automatische
+Residualfreigabe; angenommene Endpunktlabels sind kein Nachweis produktiver
+ML-Anwendung. Es werden weder Lead-Gates noch Chronologie gelockert. Bei feineren oder unregelmäßigen
+Forecastzellen, deren Messfenster mehr als zwei Originalzellen umfasst, reicht
+ein gemeinsames benachbartes Paar nicht notwendigerweise für das ganze Fenster;
+fehlende gemeinsame Ausgabe bleibt dann konservativ eine Trainingslücke.
+`tests/test_endpoint_origin_retention.py` prüft die reale wiederholte
+Archivierung und anschließend verbundene NWP-/GHI-Endpunktlabels für ein, vier
+und sieben konfigurierte Stufen gegen das ungekürzte Kontrollarchiv.
+
 ## Persistenz, Aufwand und Grenzen
 
 Der optionale Messvertrag erweitert Zeilen im bestehenden `history_v2`-Store;

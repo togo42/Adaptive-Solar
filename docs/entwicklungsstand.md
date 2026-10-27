@@ -27,14 +27,21 @@ Gültige bisherige Messhistorie und ausgegebene Tagesstartprognosen bleiben nach
 ihren bisherigen Bindungsprüfungen erhalten.
 
 Lokale Abschlussprüfung mit Python 3.14.4 und HA Core 2026.10.4:
-**1228 Tests bestanden, keine Skips**, Ruff und Dependencycheck sauber.
-Die kombinierte Zeilen-/Zweigabdeckung beträgt **92,17 %**; das neue CI-Gate
+**1241 Tests bestanden, keine Skips**, Ruff und Dependencycheck sauber.
+Die kombinierte Zeilen-/Zweigabdeckung beträgt **92,27 %**; das neue CI-Gate
 verlangt mindestens 90 % über den gesamten Komponentenquelltext. Ein reguläres
 Wheel wurde isoliert installiert: alle 30 Integrationsdateien sind bytegleich
 zum Arbeitsstand, zwölf HA-/Kernmodule importieren aus dieser Installation.
 Private Prüfartefakte liegen unter `artifacts/forecast-quality-*`. Der gebundene
 externe Fachreview ist ein separater Nachweis; die Tests beweisen keinen
 Genauigkeitsvorsprung und keine produktive HA-Stabilität.
+
+Der erste gültige Codex-Review von `d73fc4c` fand drei behebungsbedürftige Punkte:
+vollständige Tage bei mehreren Vergleichs-Origins, ursprüngliche Wetterstützen
+der Schattenreferenz und die Beschreibung fehlgeschlagener Tagescaptures. Die
+Korrekturen und ein zusätzlicher Ende-zu-Ende-Befund zur gemeinsamen Aufbewahrung
+benachbarter Forecast-Origins sind in den 1241 Tests enthalten.
+[Reviewbearbeitung](review-findings.md#entwicklungsnachtrag-nach-0214).
 
 Dies ist ein lokaler Implementierungsstand; Paketversion und veröffentlichter
 Stand bleiben 0.2.14. Produktive Einstellungen, HACS und HA wurden in diesem
