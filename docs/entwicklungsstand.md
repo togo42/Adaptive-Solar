@@ -1,5 +1,20 @@
 # Entwicklungsstand und offene Nachweise
 
+## Releasevorbereitung 0.2.13
+
+Die [Releasebeschreibung](release-0.2.13.md) bündelt die nachfolgenden lokalen
+Messdaten-/Diagnoseänderungen. Geprüfte Implementierung: `9259903`, 1057 Tests
+ohne Skips und akzeptierter Grok-4.7/high-Nachreview. Die Vorbereitung ändert
+an Integrationsdateien nur das Manifest-Versionsfeld. Kein Featurevertragswechsel,
+keine neuen Runtimepins oder HA-Optionen. Veröffentlichung und HA-Update sind
+ausdrücklich beauftragt; Paket-, CI- und Installationsbelege folgen getrennt.
+
+Wheel, Sdist und Integrations-ZIP lokal gebaut. **25 Integrationsdateien**,
+beide GPL-Lizenzkopien und Metadaten geprüft; reguläres Wheel separat installiert
+und elf Module mit HA Core importiert. Alle Integrationsbytes außer der
+Manifestversion stimmen mit dem akzeptierten Review überein. Paket-/Hashbelege:
+`artifacts/release-0.2.13/`. Remote-CI und produktive Installation stehen noch aus.
+
 ## Lokale Ablehnungsdiagnose vom 27.10.2026
 
 Die [Diagnoseschnittstelle](ablehnungsdiagnose.md) ergänzt Originalzeiten und

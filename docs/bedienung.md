@@ -1,6 +1,6 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 27.10.2026, Codebasis 0.2.12 mit lokalem, noch nicht veröffentlichtem [Messdaten-Nachtrag](messintervalle-92-prozent.md). [Installation](installation.md),
+Stand: 27.10.2026, Codebasis 0.2.13 in Releasevorbereitung einschließlich des [Messdaten-Nachtrags](messintervalle-92-prozent.md). [Installation](installation.md),
 [Datenverträge](implementation-contract.md), [Datenschutz](datenschutz.md).
 
 ## 1. Anlagenaufteilung vorbereiten

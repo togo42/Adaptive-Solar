@@ -1,7 +1,7 @@
 # Messintervalle: 92 Prozent Abdeckung und drei Minuten Randlücke
 
-Stand: 27.10.2026. Lokal implementierter Nachtrag zur veröffentlichten Version
-0.2.12; noch kein neues Release oder produktiver HA-Rollout.
+Stand: 27.10.2026. Für Version 0.2.13 vorbereiteter Nachtrag zum bisherigen
+Release 0.2.12. Veröffentlichung und HA-Rollout sind separat nachzuweisen.
 Der aktuelle [Prüf-/Reviewstand](entwicklungsstand.md) ist separat gebunden.
 Die Änderungen betreffen die Messaufbereitung und Lernlabelauswahl, nicht die
 Wetter-/PV-Baselines oder die Annahmekriterien des externen Prognosevergleichs.

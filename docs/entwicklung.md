@@ -64,7 +64,11 @@ verlängern einen früheren Grok- oder Codex-Receipt nicht automatisch auf den n
 Der [Reviewablauf](validierung.md#4-lokale-prüfung-und-review) in `scripts/review.py` unterstützt Grok 4.7
 (`--reviewer grok`, Standard) sowie alternativ Codex mit
 GPT-6.1-Sol und Effort `high` (`--reviewer codex`) und
-benötigt eine gesonderte Freigabe für externe Übertragung. `--prepare-only` prüft lokal den
+benötigt eine Nutzerfreigabe für externe Übertragung. Für öffentliche
+Repositoryquellen und nötige Grok-Nachreviews liegt seit 27.10.2026 die
+dauerhafte [Freigabe in AGENTS.md](../AGENTS.md#dauerhafte-grok-transferfreigabe)
+vor; keine erneute Nachfrage je Payload-Hash. Private Daten und andere Empfänger
+sind nicht umfasst. `--prepare-only` prüft lokal den
 Exportumfang. Der aktuelle vollständige Scope benötigt dabei ausdrücklich
 `--transport chunks`, da er die unveränderte Single-Bytegrenze überschreitet;
 die Vorbereitung ist kein Kontext- oder Reviewnachweis. Geänderte Forschung kann
