@@ -1,5 +1,26 @@
 # Entwicklungsstand und offene Nachweise
 
+## Releasevorbereitung 0.2.12
+
+Stand: 27.10.2026. [0.2.12](release-0.2.12.md) basiert auf der mit Grok 4.7/high
+erneut vollständig geprüften Implementierung `507ab4e`: 100 Originaltextdateien,
+keine Findings, nativer Kontext-/Hashaudit unabhängig wiederholt. Die
+Releasevorbereitung ändert nur Versionsmetadaten und öffentliche Release-/Statushinweise.
+Alle übrigen Integrationsdateien bleiben bytegleich zum geprüften Stand.
+
+Erneut **978 Tests ohne Fehler oder Skips** unter Core **2026.10.4** / Plugin
+**0.13.375**, Ruff und Dependencycheck erfolgreich. Wheel, Sdist und Integrations-ZIP
+gebaut; **24 Integrationsdateien**, beide GPL-Kopien und Paketmetadaten geprüft.
+Das Wheel wurde separat regulär installiert; zehn Module aus diesem Paket wurden
+mit echtem HA Core importiert. Bestehende Runtimepins und Musl-Binärbasis bleiben.
+Lokale Paket-/Testnachweise: `artifacts/release-0.2.12/`.
+
+GitHub-Veröffentlichung, abgeschlossene CI und produktive HACS-Rücklese sind
+separate folgende Schritte. Bisheriger Live-Abgleich: vier geladene Einträge,
+Core 2026.10.4, HACS 0.2.11, keine aktiven Repairs. Der Featurevertrag wechselt
+beim Update; passende Messintervalle und ausgegebene Tagesbeginn-Snapshots bleiben.
+Qualifiziertes produktives Lernen und realer Prognosevorsprung bleiben offen.
+
 ## Veröffentlichter und installierter Stand 0.2.11
 
 Stand: 26.10.2026. [v0.2.11](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.11)
