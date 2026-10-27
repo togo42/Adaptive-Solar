@@ -1,11 +1,14 @@
 # Entwicklungsstand und offene Nachweise
 
-## Korrekturkandidat 0.2.14
+## Geprüfter Stand 0.2.14
 
 Stand: 27.10.2026. [Nachtstrahlung und historische Tagesstartwerte](forecast-repairs.md)
-sind lokal implementiert. [Releasebeschreibung](release-0.2.14.md). Tests, gebundener
-Grok-Review, Veröffentlichung/CI und produktive Übernahme werden vor Abschluss
-getrennt nachgewiesen. Die nachfolgenden 0.2.13-Belege sind historisch.
+sind implementiert und vollständig geprüft. [Releasebeschreibung](release-0.2.14.md).
+
+Geprüfte Implementierung `af3df57`: **1102 Tests ohne Skips**, Ruff und Dependencycheck erfolgreich. Vollständiger Grok-4.7/high-Textreview über **111 Originaldateien**, 1,500,456 Payloadbytes und 27 erfolgreiche Turns: **mergeable, keine Findings**. Separater Nachaudit bestätigt identische Original-/Promptbytes, Quell-/CLI-Hashes, native Modell-/High-Identität, erfolgreichen Abschluss und null Compaction/Tools. Private Belege: `reviews/private/forecast-repairs-20261027-round2/` und `artifacts/forecast-repairs-20261027/review-closeout.json`; Receipt-SHA256 `56788cd17274a57645bbc676ded073ff07c8792625d6baf3aca949e93ce64724`.
+
+Veröffentlichung, Pakete/Remote-CI und produktive Übernahme stehen noch aus.
+Die nachfolgenden 0.2.13-Belege sind historisch.
 
 ## Veröffentlichter und installierter Stand 0.2.13
 

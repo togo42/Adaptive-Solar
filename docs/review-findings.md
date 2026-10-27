@@ -288,3 +288,13 @@ Gültige blockierende Vollreviews0.2.0–0.2.6 führten zu Korrekturen an Zeit-/
 [Live-Stand und Tests](entwicklungsstand.md): 0.2.11 über GitHub/HACS installiert, vier geladene Anlageneinträge unter Core 2026.10.4. Jeweils 900 bestandene Tests unter Core .2/.3/.4 und abgeschlossener Vollreview einschließlich der überarbeiteten Recherchen. Core-ML-Fit auf qualifizierter Messhistorie und fairer prospektiver Vorsprung gegenüber **beiden** Referenzen sind offen. Ein Review belegt keine Prognosegüte.
 
 Archive und rohe Receipts bleiben lokal; die genannten `artifacts/`-Pfade sind keine öffentlichen Downloads. Die optionale Messgültigkeits-Erweiterung hat einen eigenen 0.2.9-Review, einen separaten unabhängigen Codeaudit und native Integrator-Gegenfälle. Die Testmatrix dokumentiert ausdrücklich auch eine außerhalb des sicheren Adaptervertrags liegende Zählerpoll-Sequenz. Der Review belegt den generischen Eingangsvertrag, keine konkrete produktive Quellenzuordnung. [Vertrag und Grenze](measurement-validity.md).
+
+## Gültiger Grok-Review der Prognosereparaturen 0.2.14
+
+Geprüfte Implementierung `af3df57`: **1102 Tests ohne Skips**, Ruff und Dependencycheck erfolgreich. Vollständiger Grok-4.7/high-Textreview über **111 Originaldateien**, 1,500,456 Payloadbytes und 27 erfolgreiche Turns: **mergeable, keine Findings**. Separater Nachaudit bestätigt identische Original-/Promptbytes, Quell-/CLI-Hashes, native Modell-/High-Identität, erfolgreichen Abschluss und null Compaction/Tools. Private Belege: `reviews/private/forecast-repairs-20261027-round2/` und `artifacts/forecast-repairs-20261027/review-closeout.json`; Receipt-SHA256 `56788cd17274a57645bbc676ded073ff07c8792625d6baf3aca949e93ce64724`.
+
+Ein voriger Lauf wurde nach einem aktiven Self-Review-Befund zur nativen
+HA-Speicherfehlerbehandlung durch die Quellkorrektur ungültig; er ist kein
+akzeptierter Review. Der neue Lauf prüft die echte Dateirückleseprüfung und ihre
+Regressionen erneut im vollständigen Kontext. Dieser Review ist weder HA-
+Aktivierung noch Genauigkeitsnachweis.

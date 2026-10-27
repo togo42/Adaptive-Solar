@@ -30,7 +30,9 @@ Werte daher nicht als Beleg für den neuen Konfigurationsstand übernehmen.
 
 ## Prüfstand
 
-Lokale Implementierung; Tests, gebundener Grok-4.7/high-Review, Veröffentlichung,
-abgeschlossene Remote-CI und produktive HA-Übernahme werden vor Abschluss separat
-nachgewiesen. [Aktueller Stand](entwicklungsstand.md). Keine Aussage über
-Prognoseüberlegenheit, qualifiziertes produktives ML oder allgemeine Wettergüte.
+Geprüfte Implementierung `af3df57`: **1102 Tests ohne Skips**, Ruff und Dependencycheck erfolgreich. Vollständiger Grok-4.7/high-Textreview über **111 Originaldateien**, 1,500,456 Payloadbytes und 27 erfolgreiche Turns: **mergeable, keine Findings**. Separater Nachaudit bestätigt identische Original-/Promptbytes, Quell-/CLI-Hashes, native Modell-/High-Identität, erfolgreichen Abschluss und null Compaction/Tools. Private Belege: `reviews/private/forecast-repairs-20261027-round2/` und `artifacts/forecast-repairs-20261027/review-closeout.json`; Receipt-SHA256 `56788cd17274a57645bbc676ded073ff07c8792625d6baf3aca949e93ce64724`.
+
+Veröffentlichung, abgeschlossene Remote-CI und produktive HA-Übernahme werden separat
+im [Entwicklungsstand](entwicklungsstand.md) nachgewiesen. Diese Statusangaben
+liegen außerhalb des eingefrorenen Reviews; Integrationsbytes sind unverändert.
+Tests/Review beweisen keine Prognoseüberlegenheit oder qualifiziertes produktives ML.
