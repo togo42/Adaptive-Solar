@@ -17,8 +17,8 @@ ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 | ARM/aarch64, Raspberry Pi, andere Python-ABIs | Bisher nicht qualifiziert; kein passender Build-/Installationsnachweis im Projekt |
 
 Die HACS-Untergrenze 2026.10.2 entspricht dem ältesten geprüften Core. Sie ist keine
-Zusage für alle späteren Versionen. Versionsdetails und historische Testnachweise
-stehen im [Entwicklungsstand](entwicklungsstand.md). Runtimepins stehen im
+Zusage für alle späteren Versionen. Die vollständige Release-Suite für 0.2.15 prüft Core 2026.10.4;
+die Nachweise für .2/.3 stammen aus früheren Releases. Versionsdetails stehen im [Entwicklungsstand](entwicklungsstand.md). Runtimepins stehen im
 [Manifest](../custom_components/adaptive_solar/manifest.json): pvlib 0.16.1 und
 scikit-learn 1.9.1. Ein früherer erfolgreicher Import anderer Versionen reicht nicht.
 

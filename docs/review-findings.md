@@ -29,8 +29,12 @@ und `artifacts/forecast-quality-closeout.json`.
 Dieser Abschlussabschnitt und die zugehörige aktuelle Statusdokumentation
 entstehen nach dem eingefrorenen Reviewtext; Implementierungs-, Test- und
 übrige Dateibytes bleiben unverändert. Der Review erteilt keine produktive
-HA-Freigabe und beweist keinen Prognosevorsprung. Es erfolgten kein Push,
-Release oder produktiver Eingriff.
+HA-Freigabe und beweist keinen Prognosevorsprung. Während dieses Reviewabschlusses
+erfolgten kein Push, Release oder produktiver Eingriff. Der anschließend ausdrücklich
+beauftragte Release-/Installationsschritt ist im [Entwicklungsstand](entwicklungsstand.md)
+separat nachgewiesen. Dabei trat der neue offene Startimportbefund
+[AS-START-001](geplante-updates.md#as-start-001-kalten-wetter-physikimport-aus-dem-eventloop-nehmen)
+auf; ein akzeptierter Review ersetzt die native Prüfung nicht.
 
 ## Entwicklungsnachtrag nach 0.2.14
 

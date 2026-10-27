@@ -69,3 +69,27 @@ separat nachgewiesen. Nachträgliche Statusangaben liegen außerhalb des eingefr
 Reviews. Tests, Review und Installation beweisen keine Prognoseüberlegenheit;
 produktives qualifiziertes ML und ein Vorteil des frühen Bias-Kandidaten brauchen
 weiterhin ihre prospektive Auswertung.
+
+## Veröffentlichung und produktive Prüfung
+
+Am 27.10.2026 aus Commit `3fb1985ce43781933c6a7fa2110b4fbed59fb0fd`
+veröffentlicht und nach Sicherung über HACS mit einem Core-Neustart auf
+bestehendem Core 2026.10.4 installiert. Main- und Tag-CI erfolgreich mit je
+1364 Tests ohne Skips; alle vier Release-Assets bytegleich zurückgeladen.
+30 Komponentendateien, vier geladene Einträge und native Version 0.2.15 bestätigt.
+IDs, Benutzeranpassungen, Geräte, Optionen, Energy, Dashboard, passende Historie
+und originale Tagesstartwerte erhalten. Drei vollständige Folgetage je Anlage;
+vier persistente Vergleichsstores mit insgesamt 16 Captures und 1.764 Punkten geprüft.
+
+**Bekannte Startregression:** Vier HA-Warnungen über blockierende Datei-/Modulzugriffe
+beim kalten pvlib-/SciPy-Import. Der neue Import von `WEATHER_MAX_AGE` aus `engine`
+durch `weather` erreicht die schweren Bibliotheken vor dem vorgesehenen HA-
+Importexecutor. Alle Einträge sind geladen und die Prognosen funktionieren;
+eine Blockierungsdauer ist nicht gemessen. Der enge Folgefix und ein Test mit
+frischen, noch nicht geladenen Modulen stehen unter
+[AS-START-001](geplante-updates.md#as-start-001-kalten-wetter-physikimport-aus-dem-eventloop-nehmen).
+Nach echten Quellenberichten alle vier Statusanzeigen Physik/kalt mit gültigen
+Eingängen, ohne Fit-/Wetterabruffehler; Konfiguration gültig, keine aktiven Repairs.
+
+[Vollständiger Betriebsnachweis](entwicklungsstand.md#veröffentlichter-und-installierter-stand-0215).
+Dieser Statusnachtrag liegt außerhalb des unveränderten Release-Tags und Reviews.

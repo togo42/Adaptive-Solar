@@ -1,6 +1,6 @@
 # Messdaten und Lernfenster aus echten Zählerberichten
 
-Stand: 27.10.2026; Implementierungsnachtrag nach 0.2.14. Die beschriebenen
+Stand: 27.10.2026; Datenvertrag ab Version 0.2.15. Die beschriebenen
 Softwareprüfungen belegen Datenverarbeitung, keine physische Zählerqualität,
 produktive Aktivierung oder bessere Prognosen.
 

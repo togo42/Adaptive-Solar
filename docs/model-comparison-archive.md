@@ -1,6 +1,6 @@
 # Prospektives Vergleichsarchiv der Modellarme
 
-Stand: 27.10.2026; lokale Implementierung nach 0.2.14. Dieses Archiv schafft
+Stand: 27.10.2026; Funktionsumfang ab Version 0.2.15. Dieses Archiv schafft
 prüfbare Originalausgaben für einen späteren Vergleich. Es verändert weder die
 operative Prognose noch Trainingsdaten, Modellgewichte oder Annahmekriterien.
 Ein vorhandenes Archiv oder ein Review belegt keine bessere Prognose.

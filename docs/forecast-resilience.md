@@ -1,7 +1,8 @@
 # Fehlerbehandlung und Ressourcen der Prognose
 
-Diese lokale Implementierung ergänzt die bestehende Physik- und Lernpipeline.
-Sie ist kein Nachweis besserer Prognosen und ändert keine produktive HA-Installation.
+Version 0.2.15 ergänzt die bestehende Physik- und Lernpipeline.
+Veröffentlichung und produktive Übernahme sind im [Entwicklungsstand](entwicklungsstand.md)
+getrennt nachgewiesen; diese Fehlerbehandlung ist kein Nachweis besserer Prognosen.
 
 ## Optionales Residualmodell
 

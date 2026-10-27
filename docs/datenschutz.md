@@ -1,6 +1,6 @@
 # Datenschutz und Datenflüsse von Adaptive Solar
 
-Stand: 27.10.2026; beschrieben ist das Referenzrelease 0.2.14 mit lokalem Implementierungsnachtrag, keine
+Stand: 27.10.2026; beschrieben ist Version 0.2.15, keine
 Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 
 ## 1. Externe Verbindungen
@@ -29,7 +29,7 @@ Webserverlogs mit Löschung nach 90 Tagen. Wetterdaten unterliegen CC BY 4.0;
 bei einer eigenen Weiterveröffentlichung die [Attribution](https://open-meteo.com/en/licence)
 beachten. Die GPL des Projektcodes ersetzt diese Bedingungen nicht.
 
-Der lokale Nachtrag kann nach Abruffehlern vorhandenes Wetter mit unverändertem
+Seit 0.2.15 kann die Integration nach Abruffehlern vorhandenes Wetter mit unverändertem
 ursprünglichem Empfang höchstens zwölf Stunden lang weiterverwenden. Dadurch
 entsteht keine zusätzliche externe Datenübertragung; fehlgeschlagene Abrufe
 können weiter wiederholt werden. [Cache- und Fehlerdiagnosen](forecast-resilience.md).
@@ -57,7 +57,7 @@ HA-Aktionsspuren/Recorder/Logs können eigene Datenkopien enthalten.
 
 Die Tabelle `beam_shade_v1` speichert je Stufe und Sonnenstandsfenster bis zu
 24 zeitlich qualifizierte UTC-Viertelstunden mit echtem Mess-/Verfügbarkeitszeitpunkt
-und Transmissionsfaktor. Im lokalen Nachtrag enthält Schema 3 außerdem höchstens
+und Transmissionsfaktor. Seit 0.2.15 enthält Schema 3 außerdem höchstens
 64 Freigabeänderungen je Fenster. Alte Schema-1/2-Proben bleiben separat als
 unqualifizierte Altdaten diagnostisch erhalten, ebenfalls höchstens 24 je Fenster;
 sie begründen keine aktive Freigabe. Gespeicherte
