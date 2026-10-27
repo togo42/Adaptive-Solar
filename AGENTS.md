@@ -98,3 +98,15 @@ external reviewer is Grok 4.7 (`grok-4.7`, effort `high`) or alternatively Codex
 with GPT-6.1-Sol (`gpt-6.1-sol`, effort `high`); follow the hash-bound procedure in
 `docs/validierung.md`, and respect external transfer approval. Creating or testing
 the integration does not authorize modifying productive HA settings.
+
+### Dauerhafte Grok-Transferfreigabe
+
+Explizite Nutzerfreigabe vom 27.10.2026: Der öffentliche Quellumfang dieses
+Repositories darf für Reviews und nötige Nachreviews nach Befundkorrekturen
+an Grok 4.7/high über den konfigurierten Grok-CLI-Reviewhelfer übertragen werden.
+Das gilt auch für künftige Änderungen dieses öffentlichen Projektumfangs;
+keine erneute Einzelfreigabe je Payload-Hash anfordern. Private
+Installationsdaten, Zugangsdaten, Secrets, sachfremde Daten und andere Empfänger
+sind nicht umfasst. Hashbindung, vollständiger Kontextaudit und aktiver
+Self-Review bleiben Pflicht. Diese Transferfreigabe allein autorisiert keine
+produktiven HA-Änderungen; dafür gilt der jeweils konkrete Nutzerauftrag.

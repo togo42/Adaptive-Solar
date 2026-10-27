@@ -2,6 +2,17 @@
 
 Stand: 27.10.2026; Codebasis 0.2.12 mit lokalem, noch nicht veröffentlichtem [Messdaten-Nachtrag](messintervalle-92-prozent.md). Anwenderfelder und Abläufe: [Bedienung](bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen. Thematisch konsolidiert aus dem lokal archivierten Vorgänger `artifacts/releases/0.2.5-context-window-invalid/source/docs/implementation-contract.md`; das Archiv wird nicht veröffentlicht.
 
+Der lokale Nachtrag [Ablehnungsdiagnose](ablehnungsdiagnose.md) erweitert diesen
+Stand um `training_quality.rejection_details` (Schema 1). Join-Ziele stammen aus
+den bestehenden Outcomes; Learner-Codes aus den tatsächlichen Prüfstellen.
+Je Gruppe höchstens 50 eindeutige Einträge, vollständige unveränderte Rohzähler,
+Originalzeiten/Regime und zusammengeführte Gründe. Der bereits gezählte spätere
+Schattenfilter erscheint als `incompatible_shade_baseline`; andere spätere Filter
+und Validierungsgates erzeugen keine Fake-Zeilen. `alignment` und Detailgruppen
+bilden ausdrücklich einen gemeinsamen Snapshot des letzten tatsächlichen Fits;
+Cachehits behalten dessen Cutoff. Fittrigger und Modelle bleiben unverändert.
+Keine Detailpersistenz oder neue Recorderreihen; bestehende Redaktion bleibt.
+
 ## Ziel und Aufteilung
 
 Native Custom-Integration `adaptive_solar` unter `custom_components/adaptive_solar/`; `core/` bleibt HA-unabhängig. HA-Imports erst in Setup-Funktionen des obersten `__init__.py` erlauben Offline-Werkzeuge. Modellkern Python ab 3.13, geprüfte HA-Ziele 2026.10.2/.3/.4 mit Python 3.14; pvlib/scikit-learn sind explizite Abhängigkeiten. Kein Helios-Quellcode.

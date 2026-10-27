@@ -132,7 +132,7 @@ async def test_measured_interval_extension_cannot_change_executor_snapshot(hass,
     coordinator_._append_interval(first)
     captured = []
 
-    def capture_fit(self, samples, as_of):
+    def capture_fit(self, samples, as_of, *, diagnostics=None):
         captured.extend(samples)
         return self
 

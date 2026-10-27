@@ -1,5 +1,31 @@
 # Entwicklungsstand und offene Nachweise
 
+## Lokale Ablehnungsdiagnose vom 27.10.2026
+
+Die [Diagnoseschnittstelle](ablehnungsdiagnose.md) ergänzt Originalzeiten und
+Gründe für eindeutige abgelehnte Ziele und die schon gezählten Learner-Zeilen.
+Schema 1, maximal 50 eindeutige Einträge je Gruppe, vollständige Rohzähler,
+keine erfundenen Zeitwerte. Zwei mit dem Auftraggeber abgestimmte
+Präzisierungen: Der bereits gezählte Schattenfilter wird erklärt; Alignment
+und beide Detailgruppen bleiben als gemeinsamer Fit-Snapshot einschließlich
+seines Cutoffs erhalten. Trainingsauswahl, Fits, Prognosen und Gates bleiben
+unverändert. Keine Änderungen an HA-Config, kein Deploy, Push oder Release.
+
+**1057 Tests ohne Fehler oder Skips** unter Core 2026.10.4 bestanden, darunter
+40 neue Diagnose-Regressionen. Ruff, Dependencycheck und Markdownziele geprüft.
+Die 20 bestehenden HA-Config-Verbrauchertests und vier aus dem Producer erzeugte
+Vertragsbeispiele bestehen ebenfalls; HA-Config bleibt unverändert.
+Lokale Belege: `artifacts/rejection-details-20261027/`.
+Der [erste externe Review](review-findings.md#lokale-ablehnungsdiagnose-erster-review-und-doku-korrektur)
+mit Grok 4.7/high fand einen veralteten Schwellenwertabsatz in der
+Datenquellenrecherche (AS-001, mittel), keine Implementierungsfindings.
+Die Dokumentationsstelle ist korrigiert. Der [frische Nachreview](review-findings.md#gültiger-grok-nachreview-der-ablehnungsdiagnose)
+ist **mergeable ohne Findings**: 106 Originaltexte, 1.446.687 Payloadbytes,
+26 erfolgreiche Turns, native Kontext-/Hashprüfung unabhängig wiederholt.
+Keine Compaction, Tools oder aktiven Hintergrundaufgaben. Push und HA-Update
+sind inzwischen ausdrücklich beauftragt und werden separat nachgewiesen.
+Frühere Receipts werden nicht auf neue Dateien erweitert.
+
 ## Lokaler Messdaten-Nachtrag vom 27.10.2026
 
 Zusätzlich zur unveränderten veröffentlichten Version 0.2.12 ist die
@@ -16,7 +42,9 @@ Wiederfreigabe, As-of-Verfügbarkeit und beide Zeitumstellungen. Ruff und
 Dependencycheck erfolgreich. Lokale Nachweise:
 `artifacts/measurement-windows-20261027/`.
 
-Noch kein neuer externer Review, Release, Push oder produktiver HA-Rollout.
+Zum Abschluss dieses Messdaten-Nachtrags in `1634e08` lag noch kein neuer
+externer Review vor; der spätere Diagnosereview ist oben separat gebunden.
+Weiterhin kein neues Release, Push oder produktiver HA-Rollout.
 Bestehende Release-/Reviewbelege gelten dem jeweils eingefrorenen Stand;
 sie werden nicht auf diesen Nachtrag erweitert. Die Lernhistorie wird nicht
 pauschal zurückgesetzt; früher verworfene Energie wird nicht rekonstruiert.

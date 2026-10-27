@@ -131,9 +131,12 @@ Brücke über die Störung erzeugen. Interpolation/Forward-Fill und Clear-Sky-Er
 können in ausdrücklich synthetischen Experimenten vorkommen, sind aber keine
 qualifizierten Originalenergielabels.
 
-Adaptive Solar verlangt mindestens halbstündige Zielzellen, mindestens 95 %
-Messabdeckung und höchstens 2,5 % Lücke an jedem Rand. Diese konkreten Projektgates
-stehen im [Vertrag](docs/implementation-contract.md). Starre globale Prozentwerte
+Die lokale Adaptive-Solar-Implementierung verlangt mindestens halbstündige
+Zielzellen, mindestens 92 % Messabdeckung der ursprünglichen Zieldauer und
+höchstens 180 Sekunden Lücke an jedem Rand. Die frühere relative Randregel ist
+seit dem [Messdaten-Nachtrag](docs/messintervalle-92-prozent.md) abgelöst;
+dessen Release-/Installationsstatus bleibt separat ausgewiesen. Diese konkreten
+Projektgates stehen im [Vertrag](docs/implementation-contract.md). Starre globale Prozentwerte
 für „typische“ Ausfälle, Ausreißer oder Quellenqualität sind nicht belegt und werden
 nicht als Zertifizierung verwendet.
 

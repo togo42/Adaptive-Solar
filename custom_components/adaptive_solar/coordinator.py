@@ -24,6 +24,7 @@ from .core.engine import ForecastEngine, shade_reference_powers
 from .core.learning import (MAX_MEASUREMENT_EDGE_SECONDS, MIN_MEASUREMENT_COVERAGE,
                             MIN_TRAINING_SECONDS, ResidualLearner, feature_regime, ghi_feature_values, lead_bin)
 from .core.models import ForecastPoint, Observation, SiteConfig, TrainingSample, midpoint_lead_hours, utc_time
+from .core.rejection import RejectionDetails, detail_time
 from .core.physics import PhysicsUnavailable, clear_sky_ghi, solar_position
 from .core.shading import (
     BEAM_SHADE_STORE_KEY, BeamShadeTable, MAX_SHADE_CAP_FRACTION, MAX_SHADE_PAIR_SECONDS,
@@ -238,7 +239,8 @@ def _measurement_block(measured, index, a, b, as_of):
 
 def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: dict | None = None,
                   as_of: datetime | None = None, shading: BeamShadeTable | None = None,
-                  output_caps: Mapping[str, float] | None = None) -> list[TrainingSample]:
+                  output_caps: Mapping[str, float] | None = None,
+                  rejection_details: dict | None = None) -> list[TrainingSample]:
     """Join the longest eligible measured block to each forecast cell.
 
     Coverage >=92%, each edge missing <=180 seconds, and target cells >=30
@@ -274,7 +276,7 @@ def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: di
     selected_blocks = {}
 
     def note(target, reason):
-        if diagnostics is not None:
+        if diagnostics is not None or rejection_details is not None:
             outcomes[target].add(reason)
 
     for row in archive:
@@ -348,21 +350,33 @@ def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: di
             inverter_id=inverter, baseline_w=row["baseline_w"], actual_w=energy * 3600000 / duration,
             features=features, curtailed=False))
         seen.add(key)
-    if diagnostics is not None:
-        diagnostics.clear()
+    if diagnostics is not None or rejection_details is not None:
+        if diagnostics is not None:
+            diagnostics.clear()
+        if rejection_details is not None:
+            rejection_details.clear()
         inverters = set(by_inverter) | {row["inverter_id"] for row in archive}
         for inverter in sorted(inverters):
-            completed = [reasons for (key, _, end), reasons in outcomes.items()
+            completed = [(start, end, reasons) for (key, start, end), reasons in outcomes.items()
                          if key == inverter and (as_of is None or end <= as_of)]
-            rejected = [reasons for reasons in completed if "accepted" not in reasons]
-            counts = Counter(reason for reasons in rejected for reason in reasons)
+            rejected = [(start, end, reasons) for start, end, reasons in completed if "accepted" not in reasons]
+            if rejection_details is not None:
+                details = RejectionDetails()
+                for start, end, reasons in rejected:
+                    if start < end:
+                        details.add(start, end, reasons)
+                details.total = len(rejected)
+                rejection_details[inverter] = details.to_dict()
+            if diagnostics is None:
+                continue
+            counts = Counter(reason for _, _, reasons in rejected for reason in reasons)
             measured_rows = by_inverter.get(inverter, [])
             seconds = _unique_seconds(accepted_spans[inverter])
             diagnostics[inverter] = {
                 "count_scope": "unique_target_cells_not_forecast_origins",
                 "completed_target_cells": len(completed),
                 "pending_target_cells": sum(key == inverter and end > as_of for key, _, end in outcomes) if as_of is not None else 0,
-                "accepted_target_cells": sum("accepted" in reasons for reasons in completed),
+                "accepted_target_cells": sum("accepted" in reasons for _, _, reasons in completed),
                 "rejected_target_cells": len(rejected), "rejection_reasons": dict(counts),
                 "accepted_unique_measured_seconds": seconds, "accepted_unique_target_hours": int(seconds // 3600),
                 "stored_measurement_intervals": len(measured_rows),
@@ -402,6 +416,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self._curtailment_tracking_active = False
         self._learner = None
         self._fit_signature = None
+        self._training_snapshot: dict | None = None
         self._closing = False
         self._save_pending = False
         self._persistence_active = False
@@ -463,6 +478,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             # Keep independently validated meters and actually published daily
             # snapshots, but never reuse those features or a derived learner.
             self._learner = self._fit_signature = None
+            self._training_snapshot = None
             self.learner_status = {}
         try:
             archive = stored.get("archive", []) if compatible_features else []
@@ -962,18 +978,25 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             shade_key = json.dumps(shading.to_dict(), sort_keys=True)
             signature = (history_revision, now.astimezone(ZoneInfo(self.site.timezone)).date(), shade_key)
             alignment = {}
+            targets = {}
             samples = join_training(
                 archive, intervals, diagnostics=alignment, as_of=now,
-                shading=shading, output_caps=output_caps,
+                shading=shading, output_caps=output_caps, rejection_details=targets,
             )
             if self._learner is None or self._fit_signature != signature:
                 self._learner = ResidualLearner(timezone_name=self.site.timezone, output_caps=output_caps)
-                self._learner.fit(samples, now)
+                rows = {}
+                self._learner.fit(samples, now, diagnostics=rows)
                 self._fit_signature = signature
+                self._training_snapshot = {"evaluated_at": detail_time(now), "alignment": alignment,
+                                           "targets": targets, "rows": rows}
+            # Diagnostic counts and details describe the SAME actual fit input.
+            # A cache hit must not attach the current time to old row decisions.
+            snapshot = self._training_snapshot
             status = {}
             for inv in self.site.inverters:
                 beam_shade = beam_shade_by_inv[inv.id]
-                quality = alignment.get(inv.id, {"completed_target_cells": 0, "pending_target_cells": 0,
+                quality = snapshot["alignment"].get(inv.id, {"completed_target_cells": 0, "pending_target_cells": 0,
                                                 "accepted_target_cells": 0, "rejected_target_cells": 0,
                                                 "accepted_unique_measured_seconds": 0,
                                                 "accepted_unique_target_hours": 0, "rejection_reasons": {}})
@@ -985,6 +1008,9 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 status[inv.id] = {**self._learner.status.get(inv.id, {"state": "insufficient_history"}),
                     "beam_shade": beam_shade,
                     "training_quality": {"meter": meter_quality[inv.id], "alignment": quality,
+                        "rejection_details": {"schema_version": 1, "evaluated_at": snapshot["evaluated_at"],
+                            "targets": snapshot["targets"].get(inv.id, RejectionDetails().to_dict()),
+                            "rows": snapshot["rows"].get(inv.id, RejectionDetails().to_dict())},
                         "blocking_reasons": sorted(set(reasons)),
                         "policy": {"min_coverage_fraction": MIN_MEASUREMENT_COVERAGE,
                                    "max_missing_edge_seconds": MAX_MEASUREMENT_EDGE_SECONDS,

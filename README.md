@@ -12,6 +12,8 @@ Wetterprognosen, PV-Physik und lokale Residualmodelle für bis zu sieben lokale 
 
 **Lokaler Entwicklungsnachtrag, 27.10.2026:** Die [Messaufbereitung](docs/messintervalle-92-prozent.md) behandelt kurze Rundungsbursts, wählt den längsten gültigen Messblock und verlangt nun 92 % Abdeckung mit höchstens drei Minuten Lücke je Rand. Diese Repositoryänderung ist noch nicht als neues Release veröffentlicht oder auf HA installiert; die obigen Release-/Reviewnachweise gelten weiterhin dem eingefrorenen 0.2.12-Stand.
 
+Die lokale [Ablehnungsdiagnose](docs/ablehnungsdiagnose.md) ergänzt eindeutige Ziel-/Zeilendetails mit Originalzeiten und Gründen (`schema_version: 1`, höchstens 50 Einträge je Gruppe). Zielzähler und Details zeigen gemeinsam den letzten tatsächlichen Fit-Cutoff; Cachehits erfinden keine neue Auswertung. Auch diese Erweiterung ist noch nicht installiert.
+
 ## Funktionsweise
 
 Open-Meteo liefert verfügbare Modellintervalle. pvlib berechnet Sonnenstand, Transposition und Temperaturverluste je String; Stringsumme und Begrenzung erfolgen gemeinsam je deklarierter AC-/DC-Stufe. DC hat keine versteckte AC-Effizienz. Optionale Horizonte dämpfen direkte Strahlung teilweise.

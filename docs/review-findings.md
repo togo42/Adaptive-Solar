@@ -1,5 +1,67 @@
 # Reviewnachweise und fachliche Bearbeitung
 
+## Gültiger Grok-Nachreview der Ablehnungsdiagnose
+
+27.10.2026, **Grok 4.7/high**, Arbeitsstand auf Basis `1634e08`:
+**mergeable, keine Findings**. AS-001 aus dem ersten Lauf ist behoben und
+erneut geprüft. Vollständiger Textreview über **106 öffentliche Originaldateien**,
+einschließlich aller sechs Forschungstexte und beider Lizenzkopien,
+**1.446.687 Payloadbytes**, `all/chunks` mit 25 Textabschnitten und einem finalen
+Reviewaufruf. Binäre Bilder sind außerhalb des Textreviews.
+
+Native Kontextprüfung nach Abschluss unabhängig wiederholt: alle 26 Turns
+erfolgreich, `grok-4.7` mit Effort `high`, exakte Benutzer-Promptbytes und
+tatsächliche Endantwort. Keine Compaction, Tools oder aktiven Hintergrundaufgaben.
+Quell-, CLI-1.0.62-, Payload-, Prompt-, Stdout-/Stderr- und Reviewhashes geprüft.
+**1057 Tests ohne Skips**, Ruff und Dependencycheck erfolgreich; zusätzlich
+20 bestehende Verbrauchertests und vier aus dem Producer erzeugte Vertragsfälle.
+
+Receipt-SHA256: `4440e49db1b0ebb26e61f962f3f2941799d4abb40e93d610d8dcc6de77a41610`;
+Review-SHA256: `495b496b8f36533beda3a9b3a4fa23ac263d3ec3fb157a885628c776374f3fd7`;
+Payload-SHA256: `58f5aa5f866ddb9aefbb858b94ff9539005ff5e8461ab6fc72a12545cbae38a4`.
+Rohbelege: `reviews/private/rejection-details-20261027-round2/`;
+unabhängiger Nachweis: `artifacts/rejection-details-20261027/review-closeout.json`.
+Diese nachträgliche Nachweisdokumentation liegt außerhalb des eingefrorenen
+Reviewtexts; geprüfte Implementierungs- und Testbytes bleiben unverändert.
+Ein Release, Push und HA-Update sind anschließend ausdrücklich beauftragt;
+sie benötigen eigene Paket-, CI- und Laufzeitnachweise. Der Review belegt
+keinen Prognosevorsprung.
+
+## Lokale Ablehnungsdiagnose: erster Review und Doku-Korrektur
+
+27.10.2026, **Grok 4.7/high**, Arbeitsstand auf Basis `1634e08`:
+**blocked**, ein Befund mittlerer Schwere (**AS-001**). Der vollständige
+Textreview umfasst **106 öffentliche Originaldateien**, einschließlich aller
+Forschungstexte und beider Lizenzkopien, **1.443.131 Payloadbytes**, `all/chunks`
+mit 25 Textabschnitten und einem finalen Aufruf. Binäre Bilder sind außerhalb
+des Textreviews. Es wurden keine Implementierungsfindings gemeldet.
+
+Der Forschungstext `solarprognose_datenquellen_feature_engineering.md`, Abschnitt 6,
+nannte noch die früheren 95-%-/2,5-%-Projektgates. Der Absatz ist auf mindestens
+92 % der ursprünglichen Zieldauer und höchstens 180 Sekunden je Rand korrigiert;
+die relative Randregel ist ausdrücklich abgelöst und der lokale, noch nicht
+installierte Stand verlinkt. Die übrigen 95-%-Angaben in der Validierungsdoku
+bezeichnen statistische Familienkonfidenz und bleiben unverändert.
+
+Der native Kontextaudit wurde nach Abschluss unabhängig wiederholt: alle
+26 Abschlussturns erfolgreich, `grok-4.7` mit Effort `high`, exakte Promptbytes
+und tatsächliche Endantwort, keine Compaction, Tools oder aktiven
+Hintergrundaufgaben. Unveränderte Quellen, Payload, Prompts und CLI 1.0.62
+sowie Stdout-/Stderr-/Reviewhashes geprüft.
+
+Receipt-SHA256: `7e245fd3ef1f88d9dfb6be2ec14082e17596e15e914157acf7a7cfdb6e3008fb`;
+Review-SHA256: `b18235eca443e37a5951d5183485267e5c32755dc9b27a9545479a75a8b85a41`;
+Payload-SHA256: `f98742b5942bf355105d7c7c9f85a9de683159b819cf53085cacd72434ff0177`.
+Lokale Belege: `reviews/private/rejection-details-20261027-round1/` und
+`artifacts/rejection-details-20261027/review-round1-closeout.json`.
+
+Zum Abschluss dieses ersten Laufs stand ein frischer, gültiger Nachreview noch
+aus; der oben gebundene zweite Lauf hat AS-001 inzwischen bestätigt behoben.
+Diese Korrektur und die nachträgliche Nachweisdokumentation liegen außerhalb
+des eingefrorenen ersten Reviewtexts; die Implementierungs-/Testbytes bleiben
+unverändert und die **1057 bestandenen Tests ohne Skips** weiterhin gebunden.
+Kein Release, Push, Deploy oder Nachweis verbesserter Prognosegüte.
+
 ## Gültiger Grok-Nachreview des korrigierten GHI-Paar-Gains
 
 26.10.2026, **Grok 4.7/high**, Commit `507ab4ecf5af0c205038ca15716f055def00a433`:

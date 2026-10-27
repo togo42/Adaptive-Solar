@@ -172,6 +172,18 @@ Kurze auffällige Zählerdifferenzen können bis zu einem echten Folgebericht
 innerhalb eines begrenzten 60-Sekunden-Fensters zurückgehalten werden;
 `meter.pending_counter_aggregation` und die Ereigniszähler erklären den Zustand.
 
+Die lokale [Ablehnungsdiagnose](ablehnungsdiagnose.md) ergänzt
+`training_quality.rejection_details` mit Schema 1: ursprüngliche Zielzeiträume,
+bei Trainingszeilen zusätzlich Ausgabezeit und Regime, sowie technische Gründe.
+`targets` und `rows` haben getrennte Nenner und dürfen nicht addiert werden.
+Je Gruppe höchstens 50 eindeutige Einträge; `total` zählt vollständig,
+`truncated` kennzeichnet Begrenzung oder zusammengefasste gleiche Zeilen.
+Ungültige Originalzeiten sind `null`, nicht die aktuelle Uhrzeit.
+`evaluated_at`, Zielzähler und Detailgruppen bleiben bei Cachehits gemeinsam auf
+dem letzten tatsächlich ausgeführten Fit. Aktueller Forecastzeitpunkt und
+aktuelle Eingangsanzeigen bedeuten daher keine erneute Historienauswertung.
+Die Erweiterung ist noch nicht produktiv installiert.
+
 Standardmäßig sind für den Residuallerner mindestens 28 qualifizierte Zieltage und 240 Stunden eindeutiger
 Messdauer nötig; getrennte chronologische Train-/Prüf-/Kalibrierblöcke und Lead-Gates
 kommen hinzu. 28 vergangene Kalendertage allein aktivieren kein Modell. Fehlende,

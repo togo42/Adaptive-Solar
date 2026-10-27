@@ -23,6 +23,7 @@ import numpy as np
 from sklearn.ensemble import GradientBoostingRegressor
 
 from .models import TrainingSample
+from .rejection import RejectionDetails
 from .shading import SHADE_BASELINE_TOLERANCE, feature_shade_bin, shade_factors_compatible
 
 MIN_MEASUREMENT_COVERAGE = 0.92
@@ -126,6 +127,54 @@ def _vector(features: Mapping[str, float]) -> list[float] | None:
     return row if all(math.isfinite(value) for value in row) else None
 
 
+def _input_rejection(row: TrainingSample, as_of: datetime, vector, shade_factor, cap_w) -> str | None:
+    """The input gate itself, in the original short-circuit order."""
+    for name in ("issued_at", "start", "end", "observed_at"):
+        if not _aware(getattr(row, name)):
+            return f"invalid_{name}"
+    if row.issued_at > row.start:
+        return "issued_after_target_start"
+    if row.start >= row.end:
+        return "nonpositive_target_duration"
+    if row.end > row.observed_at:
+        return "observation_before_target_end"
+    if row.observed_at > as_of:
+        return "observation_not_yet_available"
+    if not isinstance(row.features, Mapping):
+        return "invalid_feature_vector"
+    try:
+        if not _aligned_duration(row):
+            return "invalid_measurement_alignment"
+    except (TypeError, ValueError, OverflowError):
+        return "invalid_measurement_alignment"
+    if row.curtailed:
+        return "curtailed"
+    if vector is None:
+        return "invalid_feature_vector"
+    if shade_factor is None:
+        return "invalid_shade_factor"
+    if cap_w is None:
+        return "invalid_output_cap"
+    try:
+        if not math.isfinite(row.baseline_w):
+            return "invalid_baseline"
+        if not math.isfinite(row.actual_w):
+            return "invalid_actual_power"
+        if not 0 < row.baseline_w <= cap_w * (1.0 + 1e-8):
+            return "baseline_out_of_range"
+        if not 0 <= row.actual_w <= cap_w * (1.1 + 1e-8):
+            return "actual_power_out_of_range"
+        if not row.features.get("sun_elevation_deg", 0) > 0:
+            return "nonpositive_sun_elevation"
+        if not row.features["lead_hours"] >= 0:
+            return "negative_lead_time"
+        if not math.isclose(row.features["baseline_w"], row.baseline_w, rel_tol=1e-8, abs_tol=1e-6):
+            return "baseline_feature_mismatch"
+    except (TypeError, ValueError, OverflowError):
+        return "invalid_feature_vector"
+    return None
+
+
 def _valid_shade_factor(features: Mapping[str, float]) -> float | None:
     raw = features.get("beam_shade_factor", 1.0)
     if isinstance(raw, bool) or not isinstance(raw, (int, float)) or not math.isfinite(float(raw)):
@@ -221,7 +270,7 @@ class ResidualLearner:
         self._regime_status: dict[str, dict[str, dict]] = {}
 
     def fit(self, samples: Iterable[TrainingSample], as_of: datetime,
-            *, output_caps: Mapping[str, float] | None = None) -> ResidualLearner:
+            *, output_caps: Mapping[str, float] | None = None, diagnostics: dict | None = None) -> ResidualLearner:
         """Rebuild only from finalized labels available at ``as_of``.
 
         Ambiguous duplicate issues (same issue/interval, different features or
@@ -243,32 +292,28 @@ class ResidualLearner:
         self._bin_shade_factors.clear()
         self.status.clear()
         self._regime_status.clear()
+        if diagnostics is not None:
+            diagnostics.clear()
+        details: dict[str, RejectionDetails] = {}
         groups: dict[str, list[TrainingSample]] = defaultdict(list)
         rejected: Counter[str] = Counter()
         rejected_regimes: Counter[tuple[str, str | None]] = Counter()
         for row in samples:
             groups[row.inverter_id]  # Keep diagnostics even if every row is rejected.
-            vector = _vector(row.features)
-            shade_factor = _valid_shade_factor(row.features)
-            cap_w = _valid_output_cap(row.features, self.output_caps.get(row.inverter_id))
-            valid = (
-                all(_aware(t) for t in (row.issued_at, row.start, row.end, row.observed_at))
-                and row.issued_at <= row.start < row.end <= row.observed_at <= as_of
-                and _aligned_duration(row)
-                and not row.curtailed and vector is not None
-                and shade_factor is not None and cap_w is not None
-                and math.isfinite(row.baseline_w) and math.isfinite(row.actual_w)
-                and 0 < row.baseline_w <= cap_w * (1.0 + 1e-8)
-                and 0 <= row.actual_w <= cap_w * (1.1 + 1e-8)
-                and row.features.get("sun_elevation_deg", 0) > 0
-                and row.features["lead_hours"] >= 0
-                and math.isclose(row.features["baseline_w"], row.baseline_w, rel_tol=1e-8, abs_tol=1e-6)
-            )
-            if valid:
+            mapped = isinstance(row.features, Mapping)
+            vector = _vector(row.features) if mapped else None
+            shade_factor = _valid_shade_factor(row.features) if mapped else None
+            cap_w = _valid_output_cap(row.features, self.output_caps.get(row.inverter_id)) if mapped else None
+            reason = _input_rejection(row, as_of, vector, shade_factor, cap_w)
+            if reason is None:
                 groups[row.inverter_id].append(row)
             else:
                 rejected[row.inverter_id] += 1
-                rejected_regimes[row.inverter_id, feature_regime(row.features)] += 1
+                regime = feature_regime(row.features) if mapped else None
+                rejected_regimes[row.inverter_id, regime] += 1
+                if diagnostics is not None:
+                    details.setdefault(row.inverter_id, RejectionDetails()).add(
+                        row.start, row.end, [reason], issued_at=row.issued_at, regime=regime or "unknown")
         for inverter, raw_rows in groups.items():
             issues: dict[tuple, list[TrainingSample]] = defaultdict(list)
             for row in raw_rows:
@@ -300,6 +345,10 @@ class ResidualLearner:
                 if s_bin is not None and not shade_factors_compatible(factor, latest_shade_by_bin[s_bin][1]):
                     rejected[inverter] += 1
                     rejected_regimes[inverter, feature_regime(row.features)] += 1
+                    if diagnostics is not None:
+                        details.setdefault(inverter, RejectionDetails()).add(
+                            row.start, row.end, ["incompatible_shade_baseline"],
+                            issued_at=row.issued_at, regime=feature_regime(row.features) or "unknown")
                 else:
                     consistent_rows.append(row)
             rows = consistent_rows
@@ -322,6 +371,8 @@ class ResidualLearner:
                       "unique_intervals": len({(row.start, row.end) for row in rows}),
                       "unique_target_hours": _target_hours(rows), "issues": len(rows), "rejected_rows": rejected[inverter]}
             self.status[inverter] = report
+            if diagnostics is not None:
+                diagnostics[inverter] = details.get(inverter, RejectionDetails()).to_dict()
         return self
 
     def _fit_regime(self, inverter: str, regime: str, rows: list[TrainingSample], rejected: int) -> None:
