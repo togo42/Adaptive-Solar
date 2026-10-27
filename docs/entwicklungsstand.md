@@ -36,8 +36,10 @@ genau ein Core-Neustart; Core selbst und die Runtimepins bleiben unverändert.
 Vier geladene Einträge melden nativ **0.2.13** und erfolgreiche Updates. **80
 Entity-/Unique-IDs samt Benutzeranpassungen, vier Geräte, sämtliche Optionen und
 Energy-Einstellungen unverändert.** Physische/volle Fingerprints,
-`beam-shade-table-v1`, zuvor abgeschlossene Messintervalle und echte vergangene/
-heutige Tagesbeginn-Snapshots erhalten. Kein pauschaler Historienreset.
+`beam-shade-table-v1`, zuvor abgeschlossene Messintervalle und beim Update noch
+vorhandene Tagesbeginn-Snapshots erhalten. Die heutigen Snapshots fehlten bereits
+vor dem Update nach vorherigen Optionsänderungen; der Updatevergleich belegt
+keine Wiederherstellung dieser Daten. Kein Historienreset durch dieses Update.
 
 Alle vier neuen Ablehnungsdiagnosen liefern Schema 1, echte Fit-Cutoffs,
 vollständige passende Ziel-/Zeilenzähler und höchstens 50 eindeutige Einträge
@@ -51,9 +53,53 @@ Systemlogfilter `adaptive_solar`. HACS: installiert/angeboten v0.2.13, kein Upda
 **Laufzeitgrenze:** Zwei vollständige lokale Folgetage je Stufe geprüft.
 Am dritten Folgetag fehlt in allen vier nativen Prognosekurven am 30.10.2026
 19–20 Uhr UTC eine Stunde; direkt im HA-Zustand zusätzlich bestätigt.
-Die Lücke bleibt fehlend. Ursache und Prognosegüte sind damit nicht geklärt;
-der Nachweis behauptet ausdrücklich keine drei vollständigen Folgetage.
+Die Lücke bleibt fehlend. Die nachfolgende Ursachenanalyse klärt den Auslöser;
+der Nachweis behauptet ausdrücklich keine drei vollständigen Folgetage oder
+geklärte Prognosegüte.
 Verfügbare Intervalle halten nominelle Grenzen, Einheiten und Energiebezug ein.
+
+### Ursachenanalyse: Stundenlücke und fehlender heutiger Tageswert
+
+Read-only-Nachprüfung am 27.10.2026 gegen native HA-Zustände, Recorder-Historie,
+gespeicherte Historien, Optionsvergleiche und einen frischen Wetterabruf:
+
+- Die Stundenlücke betrifft alle vier Stufen am 30.10.2026 von **19–20 Uhr UTC**
+  (**20–21 Uhr Europe/Berlin**). Open-Meteo `best_match` liefert am zugehörigen
+  Endzeitstempel 20 Uhr UTC `shortwave_radiation=-1.0 W/m²`; DNI und DHI sind null.
+  Alle anderen abgefragten Wetterwerte liegen im zulässigen Bereich.
+- `weather.parse_forecast()` verwirft negative Strahlungswerte und dadurch die
+  vollständige betroffene Stunde. Open-Meteo-Strahlung beschreibt den Mittelwert
+  der vorhergehenden Stunde ([Parameterdefinition](https://open-meteo.com/en/docs#hourly-parameter-definition),
+  geprüft am 27.10.2026). Die Zuordnung ist daher kein Zeitzonenversatz.
+  Ein Diagnoseversuch ausschließlich auf einer Kopie der frischen Antwort,
+  mit genau diesem einen Wert von −1 auf 0 gesetzt, stellt genau die fehlende
+  Parserstunde wieder her. Dies belegt den technischen Auslöser; die Entstehung
+  des negativen Werts beim Anbieter wurde nicht untersucht.
+- `ForecastResult.energy_kwh()` verlangt lückenlose Abdeckung. Deshalb ist auch
+  `prognose_tag_3` nicht verfügbar, obwohl die Lücke nachts liegt. Die native
+  Kurve enthält die Lücke bereits vor der Dashboarddarstellung. Leere
+  `weather_errors` schließen solche verworfenen Einzelwerte nicht aus; der
+  aktuelle Qualitätsstatus prüft die Abdeckung des verbleibenden heutigen Tages.
+- `prognose_tag_0` verwendet ausschließlich einen vor Tagesbeginn ausgegebenen
+  vollständigen Snapshot. Bei Änderungen des physischen Historienfingerprints
+  lädt `async_restore()` bisher auch diese Snapshots nicht mehr. Dämpfung,
+  Horizont und die Energiezähler-Anbindung gehören zu diesem Fingerprint.
+  Optionsvergleich und Recorder zeigen den Verlust der heutigen Werte nach
+  solchen Änderungen; in allen vier aktuellen Stores fehlt der heutige Schlüssel.
+  Die Werte fehlten schon vor dem Download von 0.2.13, während dessen
+  vorheriger/nachheriger Vergleich die vorhandene Historie erhielt.
+- Nach Tagesbeginn erzeugt `_archive()` keinen nachträglichen heutigen
+  Tagesstartwert. Resttag und zukünftige Tage können trotzdem verfügbar sein.
+  Frühere heutige Tageswerte sind noch im Recorder und in privaten
+  Voränderungsbelegen nachweisbar, gehören aber zum damaligen Konfigurationsstand.
+
+Private Analysebelege: `data/forecast-gap-analysis-20261027/`. Keine produktiven
+Schreibzugriffe, keine Interpolation und keine Datenwiederherstellung. Mögliche
+Folgearbeiten sind eine eng begrenzte, explizit diagnostizierte Behandlung kleiner
+negativer Nachtstrahlung sowie die separate Erhaltung historischer
+Tagesstartprognosen mit ihrer ursprünglichen Konfigurationsprovenienz. Beides ist
+hier weder implementiert noch freigegeben; echte Lücken dürfen nicht pauschal
+mit null gefüllt werden.
 
 Private Rohbelege: `data/release-0.2.13-20261027/`;
 Laufzeitaudit-SHA256: `1b1854520cb9e586f31330675fa41c46dc7ec51cfb9fe3e86a06c07d077549b0`.
