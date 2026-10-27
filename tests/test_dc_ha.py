@@ -9,6 +9,8 @@ from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 import pytest
 
+from tests.storage_helpers import seed_store
+
 from custom_components.adaptive_solar.const import DOMAIN
 from custom_components.adaptive_solar.coordinator import AdaptiveSolarCoordinator
 from custom_components.adaptive_solar.core.models import ForecastPoint, ForecastResult, InverterConfig, SiteConfig, StringConfig, WeatherForecast, WeatherPoint
@@ -111,7 +113,7 @@ async def test_output_type_change_invalidates_history_and_uses_new_entity_namesp
     original = AdaptiveSolarCoordinator(hass, entry, ac, AsyncMock())
     changed = AdaptiveSolarCoordinator(hass, entry, dc, AsyncMock())
     assert original._fingerprint != changed._fingerprint
-    changed._store.async_load = AsyncMock(return_value={"fingerprint": original._fingerprint, "archive": [{"old": "ac"}], "intervals": [{"old": "ac"}], "daily_snapshots": {}})
+    seed_store(changed._store, {"fingerprint": original._fingerprint, "archive": [{"old": "ac"}], "intervals": [{"old": "ac"}], "daily_snapshots": {}})
     await changed.async_restore()
     assert changed.archive == changed.intervals == []
     assert AdaptiveSolarSensor(changed, entry, "i0", "power").unique_id == f"{entry.entry_id}_dc_inverter_i0_power"
@@ -163,8 +165,8 @@ async def test_dc_cap_applies_to_live_meter_and_restored_history(hass):
     assert len(coordinator.intervals) == 1
     assert coordinator.intervals[0]["energy_kwh"] == pytest.approx(0.1)
     corrupt = {"fingerprint": coordinator._fingerprint, "archive": [], "intervals": [{**coordinator.intervals[0], "energy_kwh": 0.3}], "daily_snapshots": {}}
-    coordinator._store.async_load = AsyncMock(return_value=None)
-    coordinator._legacy_store.async_load = AsyncMock(return_value=corrupt)
+
+    seed_store(coordinator._legacy_store, corrupt)
     await coordinator.async_restore()
     assert coordinator.intervals == []  # Legacy 3.6kW exceeds 3kW DC cap *1.1
     await coordinator.async_close()

@@ -9,6 +9,8 @@ from homeassistant.helpers.storage import Store
 from freezegun import freeze_time
 import pytest
 
+from tests.storage_helpers import seed_store
+
 from custom_components.adaptive_solar.core import comparison_archive as archive_module
 from custom_components.adaptive_solar.core.comparison_archive import COMPARISON_ARCHIVE_KEY, ComparisonArchive
 from custom_components.adaptive_solar.core.evaluation import ActualRecord, EvaluationWindow, evaluate_forecasts
@@ -185,7 +187,7 @@ async def test_coordinator_archives_all_arms_in_separate_fixed_store(hass):
         assert instance._comparison_store.async_save.await_count == 1
         restored = coordinator(hass)
         restored._comparison_store = instance._comparison_store
-        restored._store.async_load = AsyncMock(return_value=stored)
+        seed_store(restored._store, stored)
         await restored.async_restore()
     sources = {row["source"]: row for row in restored._comparison_archive.snapshots}
     assert set(sources) == {"adaptive", "operative_baseline", "shadow:early_bias", "nwp:best_match"}
@@ -207,7 +209,7 @@ async def test_corrupt_comparison_store_is_preserved_without_blocking_meters(has
     instance = coordinator(hass)
     instance.intervals = [measured()]
     stored = instance._stored()
-    instance._store.async_load = AsyncMock(return_value=stored)
+    seed_store(instance._store, stored)
     path = Path(instance._comparison_store.path)
     path.parent.mkdir(parents=True, exist_ok=True)
     broken = {"version": 1, "minor_version": 1, "key": instance._comparison_store.key,

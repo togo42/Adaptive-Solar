@@ -1,9 +1,10 @@
 """Available conflicts at either target edge cannot become training labels."""
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock
 
 from freezegun import freeze_time
 import pytest
+
+from tests.storage_helpers import seed_store
 
 from custom_components.adaptive_solar.coordinator import join_training
 from custom_components.adaptive_solar.core.measurement import MeasurementIndex, blocks
@@ -74,7 +75,7 @@ async def test_restored_individually_plausible_crossings_cannot_train_affected_h
     archive = [archived(), archived(start=independent)]
     with freeze_time(NOW + timedelta(hours=4)):
         payload = {**instance._stored(), "intervals": original, "archive": archive}
-        instance._store.async_load = AsyncMock(return_value=payload)
+        seed_store(instance._store, payload)
         await instance.async_restore()
         assert instance._store_writable
         assert instance.intervals == original  # Preserve unrelated valid history.

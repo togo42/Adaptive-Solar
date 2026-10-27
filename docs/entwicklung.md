@@ -58,6 +58,13 @@ Die native HA-Konfiguration nutzt pro Test die Pluginfixture `hass_tmp_config_di
 über `hass_config_dir`. Echte Storeprüfungen schreiben so ausschließlich in die
 temporäre Testkonfiguration und verändern keine installierten Pluginfixtures.
 Coverage-Rohdaten liegen ebenfalls ignoriert unter `artifacts/`.
+Für `adaptive_solar`-Stores schreibt die Testfixture native Dateien zusätzlich
+zum Speicherabbild des HA-Testplugins. Restorefixtures legen vollständige echte
+Store-Envelopes an; sie ersetzen das Laden nicht durch ein vorgefertigtes
+`async_load`-Ergebnis. Verzögerte Datenfunktionen werden dabei genau einmal
+ausgewertet, bevor derselbe eingefrorene Payload auf Platte und ins Speicherabbild
+geht. Damit bleiben Korruptionsschutz, echte Schreibfehler, Rücklesen und
+Migrationen unter den normalen Setup-/Close-Gates prüfbar.
 
 ## 2. Änderungen und Beiträge
 

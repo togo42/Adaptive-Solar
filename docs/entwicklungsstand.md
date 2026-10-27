@@ -27,8 +27,8 @@ Gültige bisherige Messhistorie und ausgegebene Tagesstartprognosen bleiben nach
 ihren bisherigen Bindungsprüfungen erhalten.
 
 Lokale Abschlussprüfung mit Python 3.14.4 und HA Core 2026.10.4:
-**1256 Tests bestanden, keine Skips**, Ruff und Dependencycheck sauber.
-Die kombinierte Zeilen-/Zweigabdeckung beträgt **92,36 %**; das neue CI-Gate
+**1279 Tests bestanden, keine Skips**, Ruff und Dependencycheck sauber.
+Die kombinierte Zeilen-/Zweigabdeckung beträgt **92,48 %**; das neue CI-Gate
 verlangt mindestens 90 % über den gesamten Komponentenquelltext. Ein reguläres
 Wheel wurde isoliert installiert: alle 30 Integrationsdateien sind bytegleich
 zum Arbeitsstand, zwölf HA-/Kernmodule importieren aus dieser Installation.
@@ -48,6 +48,17 @@ unabhängige saubere Zeitbereiche zu sperren. 15 zusätzliche Regressionen und
 ein unabhängiger Vergleich von 63.000 Intervallabfragen mit einer einfachen
 Referenzberechnung prüfen diese Korrektur.
 [Reviewbearbeitung](review-findings.md#entwicklungsnachtrag-nach-0214).
+
+Der dritte Nachreview von `18dbbd2` ergänzte einen Befund zum nativen
+HA-Dateilader: beschädigtes JSON konnte als fehlender Hauptspeicher erscheinen
+und eine alte Legacy-Historie aktivieren. Der direkte Leser prüft die
+vorhandenen Originalbytes und ihre Storehülle ohne Umbenennung oder automatische
+Migration. Nur ein tatsächlich fehlender Hauptspeicher erlaubt den Legacy-Pfad;
+ein beschädigter Hauptspeicher bleibt unverändert und schreibgeschützt. Die
+Physikprognose kann mit neutraler Lernhistorie weiterlaufen. 23 neue native
+Speicherfälle und die auf reale Dateien umgestellten Restoretests prüfen die
+Fehler- und Migrationspfade einschließlich eines verzögerten Saves. Der
+unabhängige Gegencheck fand in diesem korrigierten Bereich keinen weiteren Befund.
 
 Dies ist ein lokaler Implementierungsstand; Paketversion und veröffentlichter
 Stand bleiben 0.2.14. Produktive Einstellungen, HACS und HA wurden in diesem

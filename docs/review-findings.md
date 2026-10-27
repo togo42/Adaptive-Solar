@@ -46,10 +46,34 @@ und den Aufwand. Ein unabhängiger Gegencheck bestätigt 63.000 Abfragen gegen
 eine einfache Referenzberechnung. Dieser zweite Lauf bleibt ein historischer
 blockierender Befund, kein positiver Nachweis.
 
-Die lokalen 1256 Tests prüfen den korrigierten Stand. Die vorstehenden Läufe
-sind ausdrücklich keine Freigabe dieses korrigierten Standes; ein positiver
-Nachreview wird separat an seine tatsächlichen Quellen gebunden. Rohpayloads
-und native Sitzungsbelege bleiben unter ignoriertem `reviews/private/`.
+Der dritte gültige **Codex GPT-6.1-Sol/high**-Nachreview von `18dbbd2`
+fand einen weiteren Speicherfehler (AS-001 dieser Runde, mittel): HA kann
+syntaktisch beschädigtes JSON beim normalen Store-Laden umbenennen und `None`
+zurückgeben. Die Integration behandelte dies wie einen fehlenden Hauptspeicher
+und konnte dadurch eine alte Legacy-Historie übernehmen und den Hauptspeicher
+neu beschreiben. Der Lauf umfasste 129 Originaldateien, 1.766.544 Payloadbytes
+und 31 erfolgreiche Turns. Der unabhängige Nachaudit bestätigt Prompt-/
+Antwortbindung, Modell/High und null Compaction/Tools; Receipt-SHA256:
+`050faf278867bc4841125bc3f52b2b01dcf782bc0bb4ad0d7678f6e4843ba522`.
+Die 1256 Tests dieses Standes deckten beschädigte Inhaltsdaten ab, aber nicht
+diesen nativen Dateifehler. Auch dieser Review bleibt ein blockierender Befund.
+
+Die Korrektur liest Primary und Legacy jeweils ohne verändernde HA-Load-
+Operation im Executor. Nur eine wirklich fehlende Primärdatei erlaubt den
+Legacy-Pfad; vorhandene beschädigte oder unbekannte Dateien bleiben unverändert
+und sperren die Hauptpersistenz. 23 neue Fälle prüfen native Dateifehler,
+Storehüllen, lesbare ältere Hüllen, reguläre Migration, neutrale Physik,
+Schreibsperren und einen tatsächlichen verzögerten Save. Die bisherigen
+Restoretests verwenden jetzt reale Dateien statt vorgefertigter Ladeantworten.
+Der unabhängige Gegencheck fand und behob zusätzlich einen Fixturefehler bei
+der Auswertung verzögerter Datenfunktionen; diese werden genau einmal ausgeführt.
+
+Der korrigierte Stand besteht lokal **1279 Tests ohne Skips**, Ruff und die
+Paketprüfung. Die kombinierte Zeilen-/Zweigabdeckung beträgt **92,48 %**.
+Die vorstehenden Läufe sind ausdrücklich keine Freigabe eines nachträglich
+korrigierten Standes; ein positiver Nachreview wird separat an seine tatsächlichen
+Quellen gebunden. Rohpayloads und native Sitzungsbelege bleiben unter ignoriertem
+`reviews/private/`.
 
 ## Gültiger Grok-Nachreview der Ablehnungsdiagnose
 

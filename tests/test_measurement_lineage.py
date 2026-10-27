@@ -1,10 +1,13 @@
 """Real endpoint support under slow/irregular counters; no accuracy claim."""
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+import json
 
 from freezegun import freeze_time
 import numpy as np
 import pytest
+
+from tests.storage_helpers import seed_store
 
 from custom_components.adaptive_solar.const import MEASUREMENT_CONTRACT
 from custom_components.adaptive_solar.coordinator import EnergyIntervalTracker, join_training
@@ -249,8 +252,6 @@ def test_sixty_thousand_origins_share_one_hour_without_manufacturing_duration():
 
 
 async def test_live_coalescing_and_restore_preserve_endpoint_energy_and_provenance(hass):
-    from unittest.mock import AsyncMock
-
     instance = coordinator(hass)
     start = NOW + timedelta(minutes=2)
     rows = counter_series(start, [300] * 24)
@@ -263,9 +264,9 @@ async def test_live_coalescing_and_restore_preserve_endpoint_energy_and_provenan
     with freeze_time(start + timedelta(hours=3)):
         stored = instance._stored()
         restored = coordinator(hass)
-        restored._store.async_load = AsyncMock(return_value=stored)
+        seed_store(restored._store, stored)
         await restored.async_restore()
-    assert restored.intervals == instance.intervals
+    assert restored.intervals == json.loads(json.dumps(instance.intervals))
     assert sum(row["energy_kwh"] for row in restored.intervals) == pytest.approx(before)
     assert join_training(restored.archive, restored.intervals) == samples
     assert restored.tracker.anchors == {} and restored.tracker.lineage == {}
@@ -274,8 +275,6 @@ async def test_live_coalescing_and_restore_preserve_endpoint_energy_and_provenan
 
 
 async def test_live_coalescing_preserves_irregular_original_endpoints_after_restart(hass):
-    from unittest.mock import AsyncMock
-
     instance = coordinator(hass)
     start = NOW + timedelta(minutes=7)
     rows = counter_series(start, [300] * 10 + [180] + [300] * 6)
@@ -291,7 +290,7 @@ async def test_live_coalescing_preserves_irregular_original_endpoints_after_rest
     with freeze_time(cutoff):
         stored = instance._stored()
         restored = coordinator(hass)
-        restored._store.async_load = AsyncMock(return_value=stored)
+        seed_store(restored._store, stored)
         await restored.async_restore()
     assert join_training(restored.archive, restored.intervals, as_of=cutoff) == expected
     assert sum(row["energy_kwh"] for row in instance.intervals) == pytest.approx(sum(row["energy_kwh"] for row in rows))
@@ -365,7 +364,7 @@ async def test_malformed_original_measurement_parts_preserve_store_and_allow_phy
     with freeze_time(NOW):
         stored = instance._stored()
         stored["intervals"] = [bad]
-        instance._store.async_load = AsyncMock(return_value=stored)
+        seed_store(instance._store, stored)
         instance._store.async_save = AsyncMock()
         await instance.async_restore()
         assert not instance._store_writable and instance.intervals == []

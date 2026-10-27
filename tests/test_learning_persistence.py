@@ -5,6 +5,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from freezegun import freeze_time
 import pytest
+
+from tests.storage_helpers import seed_store
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.adaptive_solar.coordinator import AdaptiveSolarCoordinator, join_training
@@ -43,7 +45,7 @@ async def test_incompatible_learning_contract_cold_starts_features_only(hass, ma
     payload = evidence(instance)
     if marker != "missing":
         payload["learning_feature_contract"] = marker
-    instance._legacy_store.async_load = AsyncMock(return_value=payload)
+    seed_store(instance._legacy_store, payload)
     instance._learner, instance._fit_signature = object(), (42, NOW.date())
     instance.learner_status = {"i": {"state": "active"}}
     with freeze_time(NOW + timedelta(hours=2)):
@@ -118,7 +120,7 @@ async def test_obsolete_feature_structure_cannot_discard_valid_independent_evide
     instance, _ = coordinator(hass)
     payload = evidence(instance)
     payload["archive"] = {"obsolete_feature_structure": True}
-    instance._legacy_store.async_load = AsyncMock(return_value=payload)
+    seed_store(instance._legacy_store, payload)
     with freeze_time(NOW + timedelta(hours=2)):
         await instance.async_restore()
     assert instance.archive == []

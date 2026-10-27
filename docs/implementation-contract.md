@@ -121,6 +121,16 @@ HA `Store`: höchstens120 Tage,60.000 Forecast-/30.000 Istzeilen; Raster/Stufenz
 
 Modelle beim Erstaufbau oder bei geänderter Fit-Signatur rekonstruieren: Historienrevision, lokaler Tag, vollständig serialisierte Schattentabelle, tatsächlich verbundene Samples und Alignmentdiagnose. Neue Learner werden lokal gefittet und erst mit erfolgreicher Prognose übernommen; ein Fitfehler verwirft den alten Learner, liefert gültige Physik und erlaubt späteren Retry. Join-/Fit-/Prognoselaufzeiten und Fitereignisse stehen in `resources`. Der separate `EarlyBiasShadow` verändert keine veröffentlichten Punkte; sein Fitcutoff und sein Status stehen in `bias_shadow`. Auch neue/ersetzte Schattenaufnahmen bei unverändertem Median können einen Refit auslösen; HA serialisiert Updates, offline kein paralleles `fit`/`predict` zugesichert. Tagesbeginnenergie: eigener vollständiger Snapshot vor Mitternacht, nie aus späterem Forecast rückdatieren. Keine Secrets/ausführbaren Modellobjekte persistieren. Das große Vergleichsarchiv wird ausschließlich nach echten Tagescaptures, Retentionänderungen oder dem Retry einer noch unbestätigten Änderung geschrieben, unabhängig vom 30-Sekunden-Savepfad der Zählerhistorie. Export, JSON-Serialisierung, Validierung und Readback-Hashprüfung laufen in Workern mit unveränderlicher Capturesicht. Erst eine passende tatsächliche Diskrücklese bestätigt die gespeicherte Revision; Fehler lassen sie für einen späteren Retry offen. Unbekannte/defekte Vergleichsdateien bleiben unverändert und nur lesend, während Messungen und Prognosen weiterlaufen. Einrichtung und Schließen respektieren dieselbe erfolgreiche Setupgrenze. [Vergleichspersistenz](model-comparison-archive.md).
 
+Historien werden ohne native Load-/Migrationsnebenwirkungen jeweils einmal
+read-only im Executor gelesen. Nur ein tatsächlich fehlender Primary erlaubt
+Legacyfallback. Vorhandene JSON-/UTF-8-/I/O-Fehler, Verzeichnisse und unbekannte
+Envelopes einschließlich falschem Key, Haupt-/Unterversion oder `data=None`
+sperren Primary-Laden und -Persistenz, ohne die Originaldatei umzubenennen.
+Ein historisch fehlendes `minor_version` bleibt als Unterversion 1 lesbar.
+Bei wirklich fehlendem Primary und unlesbarem Legacy ist weiterhin ein neuer
+neutraler Primary nach erfolgreichem Setup möglich; der Legacy bleibt unverändert.
+`history_storage_status` benennt den Speicherzustand. [Fehlervertrag](forecast-resilience.md#geschützte-historien-beim-start).
+
 ### HA und native Energy
 
 `weather.py`, `coordinator.py`, `config_flow.py`, `sensor.py`, `__init__.py`, `const.py`, `manifest.json`, Strings/Übersetzungen: Anlagen-/String-/Stufen-UI, native Entity-Selektoren, lokale Einheiten-/Zeit-/unavailable-Prüfung. Netzwerk async mit Timeout, Physik/ML im Executor, Wettercache, häufigerer Resttag-Refresh. Nach Abruffehlern ist unverändertes Cachewetter höchstens zwölf Stunden ab ursprünglichem Empfang und nur mit verbleibendem Zukunftsintervall zulässig; Fehler/Alter/Abdeckung bleiben sichtbar. Der Kern prüft das Alter zusätzlich an seiner Ausgabezeit. [Fehlervertrag](forecast-resilience.md). Keine produktiven Fremdeinstellungen ändern.

@@ -22,6 +22,33 @@ oder eine Wiederverwendung allein nach Revision würde Änderungen an der
 As-of-Verfügbarkeit übersehen. Alle bisherigen Qualitäts- und Historiengates
 bleiben erforderlich.
 
+## Geschützte Historien beim Start
+
+Primary `history_v2` und der nur lesende Legacy-Key werden jeweils einmal im
+Worker gelesen. Der Ladepfad prüft die reale Datei und ihren HA-Store-Envelope,
+bevor Historienzeilen verwendet werden. Ausschließlich ein beim Dateisystemcheck
+tatsächlich fehlender Primary erlaubt den Legacyfallback. Ungültiges JSON oder
+UTF-8, ein Verzeichnis, fehlende Leserechte, andere Lesefehler und unbekannte
+Envelopes gelten nicht als fehlender Primary. Key, Haupt-/Unterversion und
+Dictionary-Payload müssen passen; historisch fehlendes `minor_version` bedeutet
+wie bei HA Unterversion 1 und löst keinen Schreibvorgang aus.
+
+Vorhandene beschädigte oder unbekannte Primärdateien bleiben bytegleich erhalten.
+Ihre Historie wird ausgeschlossen; weder Legacyfallback noch Primary-Saves beim
+Setup, verzögerten Speichern oder Schließen werden freigegeben. Gültige aktuelle
+Physik kann weiterhin berechnet werden. `history_storage_status` erklärt diesen
+Zustand in der HA-Diagnose. Der Ladepfad verwendet hierfür nicht das native
+`Store.async_load()`, dessen automatische Umbenennung oder Migration sonst vor
+der erfolgreichen Setupgrenze stattfinden könnte.
+
+Fehlt der Primary wirklich, bleibt das bisherige Neutralstartverhalten erhalten:
+Ein gültiger passender Legacy wird unter den bisherigen Daten-/Hashgates gelesen;
+ein unlesbarer oder unbekannter Legacy liefert keine Historie und bleibt selbst
+unverändert. Ein neuer Primary darf in beiden Fällen erst nach erfolgreichem
+Erstrefresh und Plattform-/Service-Setup gespeichert werden. Ein fehlgeschlagenes
+Setup schreibt weiterhin nichts. Der unabhängige Vergleichsstore behält seine
+eigenen Schutz- und Schreibfreigaben.
+
 ## Wettercache und Abruffehler
 
 Der normale Wettercache gilt für weniger als 3600 Sekunden. Scheitert danach ein

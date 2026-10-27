@@ -588,6 +588,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self._save_pending = False
         self._persistence_active = False
         self._store_writable = False
+        self._history_storage_status = "not_loaded"
         # Old geometry/bindings must never train a newly configured system.
         self._fingerprint, self._history_fingerprint, self._shade_fingerprint = config_fingerprints(config)
         self._comparison_archive = ComparisonArchive(self._fingerprint, self._history_fingerprint,
@@ -605,11 +606,25 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
     async def async_restore(self) -> None:
         """Restore data, not executable model objects or unverified anchors."""
         await self._async_restore_comparison()
-        stored = await self._store.async_load()
+        self._store_writable = False
+        try:
+            stored = await self.hass.async_add_executor_job(self._read_history_store, self._store)
+        except Exception as err:
+            self._history_storage_status = "invalid_primary_preserved_read_only"
+            _LOGGER.warning("Preserving unreadable/unknown Adaptive Solar primary history: %s", type(err).__name__)
+            return
         legacy = stored is None
         if legacy:
-            stored = await self._legacy_store.async_load()
             self._store_writable = True  # New namespace; legacy is never written.
+            self._history_storage_status = "new_primary"
+            try:
+                stored = await self.hass.async_add_executor_job(self._read_history_store, self._legacy_store)
+            except Exception as err:
+                # A missing Primary can start neutral. The unreadable legacy
+                # source remains untouched and is never treated as evidence.
+                self._history_storage_status = "invalid_legacy_preserved_new_primary"
+                _LOGGER.warning("Preserving unreadable/unknown Adaptive Solar legacy history: %s", type(err).__name__)
+                return
             if stored is None:
                 return
             if not isinstance(stored, dict) or stored.get("fingerprint") != self._fingerprint:
@@ -620,9 +635,11 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
               or len(stored["history_fingerprint"]) != 64
               or any(char not in "0123456789abcdef" for char in stored["history_fingerprint"])):
             _LOGGER.warning("Retaining unrecognized Adaptive Solar history without overwriting it")
+            self._history_storage_status = "invalid_primary_preserved_read_only"
             return
         else:
             self._store_writable = True
+            self._history_storage_status = "recognized_primary"
             if stored["history_fingerprint"] != self._history_fingerprint:
                 # A known physical/source change starts a fresh primary only
                 # after successful setup; failed reloads preserve the old file.
@@ -636,6 +653,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 except (KeyError, TypeError, ValueError, OverflowError):
                     self.daily_snapshots, self.daily_snapshot_provenance = {}, {}
                     self._store_writable = False
+                    self._history_storage_status = "invalid_primary_preserved_read_only"
                     _LOGGER.warning("Retaining invalid Adaptive Solar day-start provenance")
                 return
         compatible_features = (stored.get("fingerprint") == self._fingerprint
@@ -714,7 +732,26 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             self.shading = BeamShadeTable()
             self.engine.shading = self.shading
             self._store_writable = legacy  # Preserve corrupt existing primary.
+            self._history_storage_status = ("invalid_legacy_preserved_new_primary" if legacy
+                                            else "invalid_primary_preserved_read_only")
             _LOGGER.warning("Ignoring invalid Adaptive Solar history")
+
+    @staticmethod
+    def _read_history_store(store):
+        """Read each real file once without native load/migration side effects."""
+        path = Path(store.path)
+        try:
+            path.lstat()
+        except FileNotFoundError:
+            return None  # Only an absent directory entry permits legacy fallback.
+        envelope = load_json(str(path))
+        minor = envelope.get("minor_version", 1) if isinstance(envelope, dict) else None
+        if (not isinstance(envelope, dict) or type(envelope.get("version")) is not int
+                or envelope["version"] != store.version or type(minor) is not int
+                or minor != store.minor_version or envelope.get("key") != store.key
+                or not isinstance(envelope.get("data"), dict)):
+            raise ValueError("unrecognized history Store envelope")
+        return envelope["data"]
 
     async def _async_restore_comparison(self) -> None:
         """Read optional large history in a worker, preserving invalid originals."""
