@@ -36,3 +36,21 @@ Veröffentlichung, abgeschlossene Remote-CI und produktive HA-Übernahme werden 
 im [Entwicklungsstand](entwicklungsstand.md) nachgewiesen. Diese Statusangaben
 liegen außerhalb des eingefrorenen Reviews; Integrationsbytes sind unverändert.
 Tests/Review beweisen keine Prognoseüberlegenheit oder qualifiziertes produktives ML.
+
+## Veröffentlichung und produktive Prüfung
+
+Am 27.10.2026 aus Commit `b5bff6b` veröffentlicht und nativ über HACS auf bestehendem
+Core 2026.10.4 installiert. Branch- und Tag-CI erfolgreich mit je 1102 Tests ohne
+Skips; vier Release-Assets bytegleich zurückgeladen. Nach verifizierter geschützter
+Sicherung und gezieltem Rückweg ein Core-Neustart; alle 26 Integrationsdateien und
+vier geladene Einträge mit Version 0.2.14 bestätigt. IDs, Geräte, Optionen, Energy,
+Fingerprints und vorhandene abgeschlossene Messintervalle erhalten.
+
+Drei vollständige Folgetage je Stufe, ursprüngliche Nachtlücke geschlossen und
+jeweils in der Rohwertdiagnose erklärt. Vier heutige Original-Tagesstartwerte aus
+verifizierten zusammengehörigen Archiven gezielt über die Administratoraktion
+importiert und persistent zurückgelesen, ursprüngliche Konfiguration gekennzeichnet.
+Beide betroffenen Dashboardansichten visuell geprüft, Dashboardkonfiguration
+unverändert. Konfiguration gültig, keine aktiven Repairs und keine aktuellen
+Systemlogeinträge im Integrationsfilter. [Gebundener Laufzeitnachweis](entwicklungsstand.md#veröffentlichter-und-installierter-stand-0214).
+Dieser Statusnachtrag liegt außerhalb des unveränderten Release-Tags und Reviews.

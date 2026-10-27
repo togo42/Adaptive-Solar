@@ -1,14 +1,54 @@
 # Entwicklungsstand und offene Nachweise
 
-## Geprüfter Stand 0.2.14
+## Veröffentlichter und installierter Stand 0.2.14
 
 Stand: 27.10.2026. [Nachtstrahlung und historische Tagesstartwerte](forecast-repairs.md)
 sind implementiert und vollständig geprüft. [Releasebeschreibung](release-0.2.14.md).
 
 Geprüfte Implementierung `af3df57`: **1102 Tests ohne Skips**, Ruff und Dependencycheck erfolgreich. Vollständiger Grok-4.7/high-Textreview über **111 Originaldateien**, 1,500,456 Payloadbytes und 27 erfolgreiche Turns: **mergeable, keine Findings**. Separater Nachaudit bestätigt identische Original-/Promptbytes, Quell-/CLI-Hashes, native Modell-/High-Identität, erfolgreichen Abschluss und null Compaction/Tools. Private Belege: `reviews/private/forecast-repairs-20261027-round2/` und `artifacts/forecast-repairs-20261027/review-closeout.json`; Receipt-SHA256 `56788cd17274a57645bbc676ded073ff07c8792625d6baf3aca949e93ce64724`.
 
-Veröffentlichung, Pakete/Remote-CI und produktive Übernahme stehen noch aus.
-Die nachfolgenden 0.2.13-Belege sind historisch.
+[v0.2.14](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.14) aus Commit
+`b5bff6ba7deff3a9b7831cdc77bcc595a7942353` veröffentlicht. Wheel, Sdist,
+Integrations-ZIP und SHA256-Liste gebaut und nach Veröffentlichung bytegleich
+zurückgeladen. Alle **26 Integrationsdateien** sind bytegleich zum akzeptierten
+Reviewstand; reguläre Wheelinstallation und **zwölf HA-Modulimports** geprüft.
+[Branch-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40534533990) und
+[Tag-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40534536271)
+erfolgreich, jeweils 1102 Tests ohne Skips.
+
+Neue geschützte native Konfigurations-/App-Sicherung ohne Recorder-DB angelegt;
+Create-Timeout durch native Auflistung geklärt, Metadaten und vollständiger äußerer
+SHA256 geprüft. Entschlüsselung/Wiederherstellung nicht getestet. Zusätzlich
+Komponentenbytes und vier aktuelle Historienstores für einen gezielten Rückweg
+gesichert. Native HACS-Übernahme, exakter 26-Dateien-Readback und **ein Core-Neustart**;
+Core selbst, Runtimepins und `beam-shade-table-v1` bleiben unverändert.
+
+Vier Einträge geladen, **80 Entity-/Unique-IDs mit Benutzeranpassungen, vier Geräte,
+sämtliche Optionen und Energy-Einstellungen identisch**. Vorhandene abgeschlossene
+Messintervalle und Fingerprints erhalten. Nach natürlichen Quellenberichten nur
+die vier eigenen Prognosestatusanzeigen aktualisiert; alle vier Physik/kalt mit
+gültigen Umwelt-/Leistungseingängen. Keine Originalmessquelle erzwungen.
+
+Die native Wetterdiagnose bestätigt bei allen vier Stufen exakt eine kleine
+negative Nachtstrahlungsnormalisierung. **Drei vollständige lokale Folgetage mit
+je 24 Stunden pro Stufe**, keine Kurvenlücken, Energiebezug und nominelle Grenzen
+geprüft. Die heutigen vier Original-Tagesstartwerte wurden ausschließlich über
+die neue Administratoraktion aus zusammengehörigen alten Snapshots und ihren
+Originalkonfigurationen importiert, tatsächlich gespeichert zurückgelesen und mit
+`source=operator_restore` sowie geändertem Original-Konfigurationsstand gekennzeichnet.
+Keine alten Lernzeilen importiert und keine Prognose aus heutigem Wetter rückdatiert.
+
+Anzeige für heute und die nächsten drei Tage visuell gerendert geprüft;
+Dashboardkonfiguration unverändert. Konfiguration gültig, keine aktiven Repairs,
+keine aktuellen Systemlogeinträge im Filter `adaptive_solar`. HACS installiert und
+angeboten v0.2.14, kein Update offen. Private Belege:
+`data/release-0.2.14-20261027/`; Laufzeitaudit-SHA256
+`8aef546af70cd07692320c7a14bfd6a90b96dcfcd74ff04200977e215acca526`.
+
+Dieser nachträgliche Status liegt außerhalb von Release-Tag und eingefrorenem
+Reviewtext; ausgelieferte Integrationsbytes und Tag bleiben unverändert.
+Qualifiziertes produktives ML und ein Prognosevorteil gegenüber Referenzen bleiben
+eigene offene Nachweise. Die nachfolgenden 0.2.13-Belege sind historisch.
 
 ## Veröffentlichter und installierter Stand 0.2.13
 
