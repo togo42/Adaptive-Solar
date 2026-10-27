@@ -122,11 +122,37 @@ Der Vergleichsloader erlaubt eine Neuanlage nur bei echter Abwesenheit des
 Verzeichniseintrags gemäß `lstat()`. Vorhandene defekte Symlinks bleiben nach
 Setup, Capture, Save und Close schreibgeschützt erhalten.
 
-Der erneut korrigierte Stand besteht **1349 Tests ohne Skips**, Ruff und die
+Der damalige erneut korrigierte Stand bestand **1349 Tests ohne Skips**, Ruff und die
 Paketprüfung. Zeilenabdeckung **94,61 %**, Zweigabdeckung **87,63 %**, kombinierte
 Komponentenabdeckung **92,57 %**. Zehn neue Executor-/Archivierungsfälle und drei
 Dateisystemregressionen ergänzen die bisherigen Tests; ein unabhängiger Gegencheck
 bestätigt DST, Trainingszellen, vorhandene Snapshots und Operatorimporte.
+
+Der sechste Codex-Lauf von `2f78698` ist **kein gültiger Review**: Der
+Kontextaudit brach mit ungültigen `token_usage_record`-Metadaten ab; die native
+Sitzung enthält eine tatsächliche Compaction und nennt ein effektives
+Kontextfenster von 475.000 Tokens. Auch der Reviewer selbst meldete einen
+unvollständigen, komprimierten Quellkontext und keine Mergefreigabe. Daraus
+folgt weder ein positiver Nachweis noch ein neuer bestätigter Codebefund.
+Der vollständige Quellumfang muss mit ausreichend großem, nativ überprüftem
+Kontext erneut gelesen werden; diese Sitzung wird nicht als Referenz verwendet.
+
+Der Reviewhelfer fordert für neue Codex-Aufrufe deshalb 800.000 Kontexttokens
+an; Grok bleibt bei 500.000. Historische 500k-/800k-Codex-Referenzen werden
+ausschließlich mit ihren exakt gebundenen Budgetwerten und unveränderten
+strikten Flags akzeptiert. Scope, Quell-/Prompt-/CLI-Hashes sowie die Ablehnung
+von Compaction, Tools oder unvollständigem Abschluss bleiben unverändert.
+Ein echter einzelner Konfigurationsprobelauf mit Codex 0.164.0 und
+GPT-6.1-Sol/high bestätigt 760.000 effektive Tokens, einen abgeschlossenen Turn
+und null Compaction/Tools. Er enthält keinen Quellreview und erteilt keine
+Mergefreigabe. Private Belege: `reviews/private/forecast-quality-codex-800k-probe/`.
+176 Transporttests und 14 zusätzliche unabhängige Gegenchecks prüfen die
+Budgetbindung, historischen Referenzen und die unveränderten Sperren.
+
+Die anschließende Gesamtsuite besteht **1364 Tests ohne Skips**; Ruff und
+Diffprüfung sind sauber. Die Komponentenabdeckung bleibt **92,57 %**. Alle
+30 Integrationsdateien sind seit `2f78698` unverändert und entsprechen weiterhin
+dem isoliert installierten und geprüften Wheel.
 
 Die vorstehenden Läufe sind ausdrücklich keine Freigabe eines nachträglich
 korrigierten Standes; ein positiver Nachreview wird separat an seine tatsächlichen

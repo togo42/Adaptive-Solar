@@ -104,7 +104,12 @@ Repositoryquellen und nötige Grok-Nachreviews liegt seit 27.10.2026 die
 dauerhafte [Freigabe in AGENTS.md](../AGENTS.md#dauerhafte-grok-transferfreigabe)
 vor; keine erneute Nachfrage je Payload-Hash. Private Daten und andere Empfänger
 sind nicht umfasst. `--prepare-only` prüft lokal den
-Exportumfang. Der aktuelle vollständige Scope benötigt dabei ausdrücklich
+Exportumfang. Neue Codex-Aufrufe binden 800.000 angeforderte Kontexttokens in
+Receipt und beiden Kontextflags; Grok bleibt bei 500.000. Nur die bekannten
+vollständig gebundenen Codex-Referenzvarianten 500k/800k bleiben zulässig. Das
+angeforderte Budget ist keine garantierte native Effektivkapazität und ersetzt
+keinen vollständigen Audit ohne Compaction; [Details](validierung.md#4-lokale-prüfung-und-review).
+Der aktuelle vollständige Scope benötigt dabei ausdrücklich
 `--transport chunks`, da er die unveränderte Single-Bytegrenze überschreitet;
 die Vorbereitung ist kein Kontext- oder Reviewnachweis. Geänderte Forschung kann
 nicht über alte Forschungs-SHAs geerbt werden.

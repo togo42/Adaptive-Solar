@@ -27,7 +27,7 @@ Gültige bisherige Messhistorie und ausgegebene Tagesstartprognosen bleiben nach
 ihren bisherigen Bindungsprüfungen erhalten.
 
 Lokale Abschlussprüfung mit Python 3.14.4 und HA Core 2026.10.4:
-**1349 Tests bestanden, keine Skips**, Ruff und Dependencycheck sauber.
+**1364 Tests bestanden, keine Skips**, Ruff und Dependencycheck sauber.
 Die kombinierte Zeilen-/Zweigabdeckung beträgt **92,57 %**; das neue CI-Gate
 verlangt mindestens 90 % über den gesamten Komponentenquelltext. Ein reguläres
 Wheel wurde isoliert installiert: alle 30 Integrationsdateien sind bytegleich
@@ -78,6 +78,14 @@ Außerdem erkennt auch der Vergleichsloader einen vorhandenen defekten Symlink
 als unlesbaren Eintrag, der nicht durch einen neuen Store ersetzt werden darf.
 Neue Regressionen verwenden den tatsächlichen HA-Executor, beide
 Zeitumstellungstage sowie echte Dateisystemeinträge.
+
+Der sechste Codex-Lauf wurde wegen nativer Kontextkomprimierung verworfen.
+Der Reviewhelfer fordert für Codex nun 800.000 Kontexttokens an; Grok bleibt
+unverändert bei 500.000. Ein einzelner echter Konfigurationsprobelauf bestätigt
+760.000 effektive Tokens mit derselben gepinnten CLI, ohne Compaction/Tools.
+Dieser Probelauf ist kein Fachreview. Die vollständige Quellprüfung und ihre
+strikten Hash-/Kontextgates bleiben erforderlich; die Anpassung ändert keine
+Prognosebytes oder globale CLI-Konfiguration. [Reviewvertrag](validierung.md).
 
 Dies ist ein lokaler Implementierungsstand; Paketversion und veröffentlichter
 Stand bleiben 0.2.14. Produktive Einstellungen, HACS und HA wurden in diesem

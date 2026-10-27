@@ -63,28 +63,51 @@ Vorbereitung selbst beweist weder Kontextkapazität noch einen gültigen Review.
 Ohne Prepare startet der angeforderte Review nach internem Pre-Review; z.B. `--timeout 3600` (Standard1800 s, Obergrenze3600 s). Deadline ist kein Review; denselben laufenden Prozess bis Ende beobachten. ESS-Grundlage: `AGENTS.md`/`scripts/ai_review.sh`, gelesen24.10.2026. Unterstützt sind zwei alternative Reviewer in [review.py](../scripts/review.py) mit identischem Payload-, Hash- und Kontextaudit-Vertrag:
 
 - **Grok 4.7 (`--reviewer grok`, Standard):** festes Modell `grok-4.7` mit explizitem `--reasoning-effort high`; Lesemodus (`--permission-mode plan`), Tools/Web/Memory/Subagenten aus (`--tools ""`, `--disable-web-search`, `--no-subagents`, `--no-memory`), ein echter Abschlussturn mit `--max-turns 1 --verbatim`.
-- **Codex mit GPT-6.1-Sol (`--reviewer codex`):** Alternative zum Grok-Review über `codex exec` mit festem Modell `gpt-6.1-sol` und explizitem Reasoning-Effort `high` (`-c model_reasoning_effort="high"`), `--strict-config`, `--ignore-user-config`, `--ignore-rules`, Read-Only-Sandbox (`--sandbox read-only`, `-c sandbox_mode="read-only"`), `-c approval_policy="never"`, `-c web_search="disabled"`, `model_context_window=500000`, `model_auto_compact_token_limit=500000`, deaktivierten Features (`--disable shell_tool`, `unified_exec`, `multi_agent`, `memories`, `plugins`, `apps`) und `--json`.
+- **Codex mit GPT-6.1-Sol (`--reviewer codex`):** Alternative zum Grok-Review über `codex exec` mit festem Modell `gpt-6.1-sol` und explizitem Reasoning-Effort `high` (`-c model_reasoning_effort="high"`), `--strict-config`, `--ignore-user-config`, `--ignore-rules`, Read-Only-Sandbox (`--sandbox read-only`, `-c sandbox_mode="read-only"`), `-c approval_policy="never"`, `-c web_search="disabled"`, `model_context_window=800000`, `model_auto_compact_token_limit=800000`, deaktivierten Features (`--disable shell_tool`, `unified_exec`, `multi_agent`, `memories`, `plugins`, `apps`) und `--json`.
 
 Standard bleibt `--scope all --transport single`: neue Sitzung mit allen aktuellen öffentlichen Original-UTF8-Bytes/Dateipfaden, einschließlich endungsloser `LICENSE`-Dateien. Binäre Markenbilder sind außerhalb der Textprüfung. Receipt bindet Reviewer, Modell, Effort, SHA, Länge und Byteoffset je Datei; kein Kontextkürzen/Quellzeilennummerieren. Über 1.250.000 Bytes Abbruch vor CLI; Bytecap garantiert kein Kontextfenster. `chunks`/ACKs allein belegen keine Retention.
 
 Die Byteobergrenze wurde für 0.2.11 vor einem neuen Review von 1.020.000 auf
 1.250.000 angehoben, da der vollständige Quellumfang einschließlich beider
 GPL-Lizenzkopien rund 1,14 MB umfasst. Das ist ausschließlich ein lokales
-Transportbudget. [Providerdokumentation](https://docs.x.ai/developers/grok-4-7)
-sowie die nativen Modellkataloge für `grok-4.7` und `gpt-6.1-sol` nennen jeweils
-bis zu 500.000 Tokens; der CLI-Default kann geringer
-sein. Weder eine Byte-/Tokenschätzung noch dieser größere Vorprüfwert erlaubt
-Compaction oder ausgelassene Quellen. Sämtliche nachfolgenden nativen Inhalts-,
-Abschluss- und Identitätsprüfungen bleiben unverändert; ein gekürzter Lauf ist ungültig.
-Die Obergrenze wird zusätzlich im neuen Receipt gespeichert. Globale CLI-/Modell-
-Konfigurationen werden für den Review nicht verändert.
+Transportbudget. Die [Grok-Providerdokumentation](https://docs.x.ai/developers/grok-4-7)
+nennt ein Kontextfenster bis 500.000 Tokens. Die am 27.10.2026 tatsächlich gelesene
+[OpenAI-Modellkarte für GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol)
+nennt 1.050.000 Kontexttokens und bis zu 128.000 Ausgabetokens. Das ist keine
+Zusage derselben nutzbaren Grenze im lokal gebundenen Codex-CLI. Dessen aktueller
+Modellkatalog nennt 500.000 als Default, 872.000 als Maximum und einen separaten
+Effektivkontextfaktor. Der Helfer fordert daher konservativ 800.000 nur für neue
+Codex-Kindprozesse; Grok bleibt bei 500.000. Globale CLI-/Modellkonfigurationen
+werden nicht verändert.
+
+Weder API-Grenze noch Byte-/Tokenschätzung oder der größere Vorprüfwert erlauben
+Compaction oder ausgelassene Quellen. Sämtliche nativen Inhalts-, Abschluss- und
+Identitätsprüfungen bleiben unverändert; ein gekürzter Lauf ist ungültig.
+Der angeforderte reviewerabhängige Wert wird im Receipt gespeichert und muss zu
+den vollständigen Aufrufargumenten passen.
 
 Der erste 0.2.11-Versuch im nativen 256k-Default löste `auto_compact_started` aus
-und wurde als ungültig beendet. Die native Modellliste unterstützt auch 500k.
-Der Helfer fordert dieses größere Fenster bei Grok nur für seinen Kindprozess mit
+und wurde als ungültig beendet. Spätere Grok- und Codex-Läufe forderten 500k an.
+Aktuell fordert der Helfer bei Grok nur für seinen Kindprozess mit
 `GROK_DEBUG_CONTEXT_WINDOW=500000` und bei Codex pro Aufruf über
-`-c model_context_window=500000 -c model_auto_compact_token_limit=500000` an und
+`-c model_context_window=800000 -c model_auto_compact_token_limit=800000` an und
 bindet die Anforderung im Receipt.
+
+Angeforderte und vom nativen Rollout gemeldete effektive Fenster sind nicht
+gleichzusetzen: Beim fehlgeschlagenen Codex-500k-Lauf am 27.10.2026 meldete
+`task_started` 475.000. Daraus wird keine allgemeine Prozentformel oder Garantie
+für andere CLI-Versionen abgeleitet. Der Kontextaudit bindet die vollständigen
+nativen Metadaten über ihren SHA; der Requestwert behauptet keine bescheinigte
+Effektivkapazität. Ein kleiner Konfigurationsprobelauf ersetzt ebenfalls nicht
+den vollständigen anschließenden Nachaudit mit null Compaction.
+
+Historische akzeptierte Codex-Referenzen bleiben ausschließlich mit den bekannten
+500k- oder 800k-Varianten lesbar: typisierter ganzzahliger Receiptwert, beide dazu
+exakt passenden Kontextargumente und sämtliche übrigen unveränderten strikten
+Flags/Artefakte. Beliebige Budgets, gemischte Argumente und abgeschwächte Flags
+werden zurückgewiesen. Bei Grok muss ein vorhandener Budgetwert genau 500k sein;
+historische Grok-Receipts ohne dieses Feld behalten den bisherigen vollständigen
+Auditvertrag.
 Das sind implementationsspezifische Schalter der gebundenen CLIs, keine Änderung
 der Anbieteridentität oder einer globalen Konfiguration. Ihr Vorhandensein allein
 ist kein Kapazitätsnachweis: Erst die vollständigen identischen Promptbytes, ein
