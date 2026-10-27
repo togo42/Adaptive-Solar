@@ -10,6 +10,8 @@ Wetterprognosen, PV-Physik und lokale Residualmodelle für bis zu sieben lokale 
 
 **Stand, 27.10.2026:** **0.2.12 veröffentlicht und über HACS auf HA Core 2026.10.4 installiert.** Neue Direktstrahl-Schattentabelle, voller GHI-Paar-Gain bei zeitversetzten Aufnahmen und abgesicherte Lern-/Persistenz-/Istwertverträge. **978 Tests unter Core 2026.10.4**, vollständiger Grok-4.7/high-Textreview ohne Findings und erfolgreiche Release-CI. Vier Einträge, 80 Entity-/Unique-IDs, vier Geräte, Optionen, Energy-Zuordnungen und passende abgeschlossene Messhistorie nach dem Update geprüft. Tagesbeginn-Snapshots erhalten; alte Forecastfeatures sind mit dem neuen Featurevertrag kalt gestartet. Qualifiziertes produktives Lernen und Überlegenheit gegenüber beiden Referenzen bleiben offen. [Release](docs/release-0.2.12.md), [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
 
+**Lokaler Entwicklungsnachtrag, 27.10.2026:** Die [Messaufbereitung](docs/messintervalle-92-prozent.md) behandelt kurze Rundungsbursts, wählt den längsten gültigen Messblock und verlangt nun 92 % Abdeckung mit höchstens drei Minuten Lücke je Rand. Diese Repositoryänderung ist noch nicht als neues Release veröffentlicht oder auf HA installiert; die obigen Release-/Reviewnachweise gelten weiterhin dem eingefrorenen 0.2.12-Stand.
+
 ## Funktionsweise
 
 Open-Meteo liefert verfügbare Modellintervalle. pvlib berechnet Sonnenstand, Transposition und Temperaturverluste je String; Stringsumme und Begrenzung erfolgen gemeinsam je deklarierter AC-/DC-Stufe. DC hat keine versteckte AC-Effizienz. Optionale Horizonte dämpfen direkte Strahlung teilweise.
@@ -41,7 +43,7 @@ Je String kWp, Neigung, Azimut und Verluste: **0°N/90°O/180°S/270°W**. AC: W
 
 Optional lassen sich je String Horizontpunkte sowie Morgen-/Abenddämpfungen von 0 bis 1 eintragen. 0 bedeutet keine Dämpfung; zwischen Sonnenaufgang, Tageslichtmitte und Sonnenuntergang wird linear überblendet. Vorhandene Dämpfungen anderer Prognoseintegrationen können als Ausgangswerte dienen, müssen aber dieselbe Solarfläche beschreiben. Die Horizontkorrektur lässt diffuse Strahlung erhalten. Bei einer Ausgangsstufe erscheint nur ihr Gerätebereich; vorhandene alte Gesamt-Sensoren bleiben ausgeblendet für bestehende Verweise verfügbar.
 
-Lernen braucht kumulative PV-Energie am richtigen Messpunkt, Nowcast Leistung in W. Keine Zählermehrfachbindung an unabhängige Stufen; Netzbilanz/Batterieentladung sind keine PV-Produktion. Mindestens95% Messabdeckung/höchstens2,5% Randlücke; `training_quality` erklärt Ablehnungen. Energieintegrale, Verfügbarkeit und Abregelung separat qualifizieren; HA-Empfang allein genügt nicht.
+Lernen braucht kumulative PV-Energie am richtigen Messpunkt, Nowcast Leistung in W. Keine Zählermehrfachbindung an unabhängige Stufen; Netzbilanz/Batterieentladung sind keine PV-Produktion. Mindestens 92 % Messabdeckung und höchstens drei Minuten Lücke je Rand; `training_quality` erklärt Ablehnungen. Energieintegrale, Verfügbarkeit und Abregelung separat qualifizieren; HA-Empfang allein genügt nicht.
 
 Optional kann je Stufe ein [Messgültigkeitssignal](docs/measurement-validity.md) ungültige Energie- und Leistungsdaten sperren. Es ersetzt kein Abregelungssignal. Bei aus mehreren Leistungen berechneter Energie muss der externe Qualitätsadapter alle benötigten Originalquellen prüfen; ursprüngliche Zähler und echte Nullberichte bleiben erhalten.
 

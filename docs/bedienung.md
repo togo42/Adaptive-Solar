@@ -1,6 +1,6 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 27.10.2026, Codebasis 0.2.12. [Installation](installation.md),
+Stand: 27.10.2026, Codebasis 0.2.12 mit lokalem, noch nicht veröffentlichtem [Messdaten-Nachtrag](messintervalle-92-prozent.md). [Installation](installation.md),
 [Datenverträge](implementation-contract.md), [Datenschutz](datenschutz.md).
 
 ## 1. Anlagenaufteilung vorbereiten
@@ -164,6 +164,14 @@ Sonnenfenster (`azimuth_bin_deg`, `elevation_bin_deg`), den wirksamen Faktor
 (`samples`), die Freigabe ab fünf Viertelstunden (`released`), die Gesamtzahl
 freigegebener Fenster der Stufe (`filled_bins`) und den letzten (auch mehrteiligen)
 Ablehnungsgrund (`last_rejection`).
+Für Lernlabels gelten mindestens 92 % Messabdeckung des ursprünglichen Ziels
+und höchstens drei Minuten fehlende Zeit je Rand. Der längste zusammenhängende
+gültige Messblock zählt; Lücken werden nicht aufgefüllt.
+`training_quality.policy.max_missing_edge_seconds` nennt die absolute Randgrenze.
+Kurze auffällige Zählerdifferenzen können bis zu einem echten Folgebericht
+innerhalb eines begrenzten 60-Sekunden-Fensters zurückgehalten werden;
+`meter.pending_counter_aggregation` und die Ereigniszähler erklären den Zustand.
+
 Standardmäßig sind für den Residuallerner mindestens 28 qualifizierte Zieltage und 240 Stunden eindeutiger
 Messdauer nötig; getrennte chronologische Train-/Prüf-/Kalibrierblöcke und Lead-Gates
 kommen hinzu. 28 vergangene Kalendertage allein aktivieren kein Modell. Fehlende,

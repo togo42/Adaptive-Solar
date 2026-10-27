@@ -74,6 +74,14 @@ ausgewiesenen Gegenfalls steht in
 `tests/test_integrated_source_validity.py`; produktive Eingriffe oder
 Ausfallversuche werden daraus nicht abgeleitet.
 
+## Messdaten-Nachtrag vom 27.10.2026
+
+Im lokalen, noch nicht veröffentlichten [Nachtrag](messintervalle-92-prozent.md)
+gelten 92 % Messabdeckung und höchstens drei Minuten Randlücke je Seite.
+Ein zurückgehaltenes kurzes Zählerdelta wird bei ungültiger Messquelle oder
+Abregelung verworfen. Nach Wiederfreigabe ankert weiterhin erst ein echter
+neuer Originalbericht; der bisherige Abschnitt wird nicht nachträglich gültig.
+
 ## Diagnose und Prognose
 
 `inputs.measurement_valid_<Stufe>` meldet `valid`, `invalid` oder `unknown` für

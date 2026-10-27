@@ -1,5 +1,27 @@
 # Entwicklungsstand und offene Nachweise
 
+## Lokaler Messdaten-Nachtrag vom 27.10.2026
+
+Zusätzlich zur unveränderten veröffentlichten Version 0.2.12 ist die
+[Messaufbereitung](messintervalle-92-prozent.md) im Repository angepasst:
+92 % Mindestabdeckung, höchstens drei Minuten Lücke je Rand, Auswahl des
+längsten gültigen zusammenhängenden Messblocks und begrenztes Zurückhalten
+kurzer auffälliger Zählerdifferenzen bis zu einem echten Folgebericht.
+Resets, ungültige/abgeregelte Phasen, überhöhte Dauerdifferenzen, große Sprünge,
+Überschneidungen und zukünftige Labels bleiben ausgeschlossen.
+
+**1017 Tests ohne Fehler oder Skips** unter Core 2026.10.4 bestanden, darunter
+39 neue Regressionen für Grenzwerte, Rundungsbursts, echte HA-Ereignisse,
+Wiederfreigabe, As-of-Verfügbarkeit und beide Zeitumstellungen. Ruff und
+Dependencycheck erfolgreich. Lokale Nachweise:
+`artifacts/measurement-windows-20261027/`.
+
+Noch kein neuer externer Review, Release, Push oder produktiver HA-Rollout.
+Bestehende Release-/Reviewbelege gelten dem jeweils eingefrorenen Stand;
+sie werden nicht auf diesen Nachtrag erweitert. Die Lernhistorie wird nicht
+pauschal zurückgesetzt; früher verworfene Energie wird nicht rekonstruiert.
+Mehr angenommene Lernlabels sind kein Nachweis besserer Prognosegüte.
+
 ## Veröffentlichter und installierter Stand 0.2.12
 
 Stand: 27.10.2026. [v0.2.12](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.12)

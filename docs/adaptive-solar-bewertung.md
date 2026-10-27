@@ -8,6 +8,12 @@ Die [Analyse](adaptive-solar-analyse.md) beschreibt nun auch die Schattentabelle
 und die erweiterten Refit-Auslöser von 0.2.12. Die Prioritäten bleiben
 Planungshypothesen ohne neuen Güte- oder Ressourcenmessnachweis.
 
+Der spätere lokale [Messdaten-Nachtrag](messintervalle-92-prozent.md) setzt die
+ausdrücklich beauftragte Änderung auf 92 % und feste drei Minuten Randlücke
+sowie Korrekturen der Messaufbereitung um. Dieser Text bleibt die Bewertung
+der oben gebundenen Releasebasis; er behauptet damit keine Abnahme der
+nachfolgenden Optimierungs- oder Benchmarkpakete.
+
 **Ergebnis:** Die überarbeitete Analyse ist fachlich deutlich belastbarer. Sie
 berücksichtigt die wesentlichen Einwände der ersten Bewertung. Vorrang haben eine
 qualifizierte Messgrundlage, reproduzierbare Vergleiche und gemessene

@@ -25,14 +25,15 @@ def measured(start=NOW, end=NOW + timedelta(hours=1), power=1000):
     return {"start": start.isoformat(), "end": end.isoformat(), "observed_at": end.isoformat(), "inverter_id": "i", "energy_kwh": power * (end - start).total_seconds() / 3600000}
 
 
-@pytest.mark.parametrize("duration,edge", [(3600, 90), (1800, 45), (10800, 270)])
+@pytest.mark.parametrize("duration,edge", [(3600, 144), (1800, 72), (10800, 180)])
 def test_fixed_coverage_and_edge_limits_align_hour_half_hour_and_three_hour_means(duration, edge):
     end = NOW + timedelta(seconds=duration)
     row = archived(duration=duration, lead=4)
     sample = join_training([row], [measured(NOW + timedelta(seconds=edge), end - timedelta(seconds=edge))])[0]
     assert sample.actual_w == pytest.approx(1000)
-    assert sample.features["measurement_coverage_fraction"] == pytest.approx(0.95)
-    assert sample.features["measurement_edge_fraction"] == pytest.approx(0.025)
+    assert sample.features["measurement_coverage_fraction"] == pytest.approx((duration - 2 * edge) / duration)
+    assert sample.features["measurement_edge_fraction"] == pytest.approx(edge / duration)
+    assert sample.features["measurement_edge_seconds"] == edge
     assert sample.features["lead_hours"] == row["features"]["lead_hours"]
     assert join_training([row], [measured(NOW + timedelta(seconds=edge + 1), end - timedelta(seconds=edge))]) == []
 
@@ -40,7 +41,8 @@ def test_fixed_coverage_and_edge_limits_align_hour_half_hour_and_three_hour_mean
 def test_internal_gap_and_biased_partial_interval_never_invent_boundary_energy():
     row = archived()
     assert join_training([row], [measured(NOW, NOW + timedelta(minutes=30)), measured(NOW + timedelta(minutes=31), NOW + timedelta(hours=1))]) == []
-    assert join_training([row], [measured(NOW, NOW + timedelta(minutes=57))]) == []  # 95%, but one-sided morning bias
+    assert join_training([row], [measured(NOW, NOW + timedelta(minutes=57))])
+    assert join_training([row], [measured(NOW, NOW + timedelta(minutes=56, seconds=59))]) == []
     assert join_training([row], [measured(NOW + timedelta(minutes=1), NOW + timedelta(minutes=59))])
     assert join_training([row], [measured(NOW + timedelta(minutes=55), NOW + timedelta(hours=1))]) == []
 

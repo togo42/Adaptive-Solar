@@ -1,6 +1,6 @@
 # Analyse der Adaptive-Solar-Erweiterung: Ensemble und ML-Learning
 
-Stand: 27.10.2026. Gegen Codebasis 0.2.12 abgeglichen. Abschnitte 1–3 beschreiben den Code; Abschnitte 4–5 sind mögliche Prüfaufträge, keine belegten Optimierungen oder automatisch beauftragten Modelländerungen. [Vertrag](implementation-contract.md), [Anwenderhandbuch](bedienung.md).
+Stand: 27.10.2026. Gegen Codebasis 0.2.12 einschließlich des lokalen, noch nicht veröffentlichten [Messdaten-Nachtrags](messintervalle-92-prozent.md) abgeglichen. Abschnitte 1–3 beschreiben den Code; Abschnitte 4–5 sind mögliche Prüfaufträge, keine belegten Optimierungen oder automatisch beauftragten Modelländerungen. [Vertrag](implementation-contract.md), [Anwenderhandbuch](bedienung.md).
 
 Die [Bewertung mit Vorschlägen für Arbeitspakete](adaptive-solar-bewertung.md) konkretisiert Nutzen, Voraussetzungen, Abhängigkeiten und Abnahmekriterien dieser Prüfaufträge.
 
@@ -54,7 +54,7 @@ Rückfallregel. [Details](adaptive-solar-verschattung.md).
 
 - Archivierte Forecast-Punkte (`_archive_result`) mit Features und Baseline.
 - Gemessene Energieintervalle erzeugt `EnergyIntervalTracker` aus kumulativen PV-Zählerberichten über HA-Zustandsereignisse; die Messung muss zusammenhängend und ungedrosselt sein.
-- `join_training()` verknüpft beides: mindestens 30 Minuten Zielzeit, mindestens 95 % Messabdeckung und höchstens 2,5 % Lücke an jedem Rand; ganze Messstücke ohne erfundene Randenergie.
+- `join_training()` verknüpft beides über den längsten gültigen zusammenhängenden Messblock: mindestens 30 Minuten Zielzeit, mindestens 92 % Messabdeckung und höchstens drei Minuten Lücke an jedem Rand; ganze Messstücke ohne erfundene Randenergie.
 
 ### Aktivierungsgates
 
@@ -135,9 +135,11 @@ dürfen nicht als neue momentane Messungen ausgegeben werden.
 
 ### D. Datenqualität und Archivierung
 
-Mehr Origins dürfen keine mehrfachen Iststunden erzeugen. Messabdeckung lockern,
-Lücken auffüllen oder einen Energieanker über Neustarts erhalten würde bisherige
-Sicherheitsannahmen ändern. Solche Änderungen sind keine Standardoptimierung und
+Mehr Origins dürfen keine mehrfachen Iststunden erzeugen. Die ausdrücklich
+beauftragte Lockerung auf 92 % und feste drei Minuten je Rand sowie die
+begrenzte Behandlung kurzer Zählerbursts sind im Messdaten-Nachtrag umgesetzt.
+Lücken auffüllen oder einen Energieanker über Neustarts erhalten würde weiterhin
+die Sicherheitsannahmen ändern. Solche Änderungen sind keine Standardoptimierung und
 brauchen eigene Quellen-/Chronologienachweise. Ein zusätzlicher Qualitätsstatus
 macht ein ungeeignetes Label nicht zu einer validierten Messung.
 

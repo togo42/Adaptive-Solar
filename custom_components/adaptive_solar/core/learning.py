@@ -25,9 +25,9 @@ from sklearn.ensemble import GradientBoostingRegressor
 from .models import TrainingSample
 from .shading import SHADE_BASELINE_TOLERANCE, feature_shade_bin, shade_factors_compatible
 
-MIN_TRAINING_SECONDS = 0.95 * 1800
-MIN_MEASUREMENT_COVERAGE = 0.95
-MAX_MEASUREMENT_EDGE_FRACTION = 0.025
+MIN_MEASUREMENT_COVERAGE = 0.92
+MIN_TRAINING_SECONDS = MIN_MEASUREMENT_COVERAGE * 1800
+MAX_MEASUREMENT_EDGE_SECONDS = 180
 
 FEATURE_NAMES = (
     "baseline_w", "sun_elevation_deg", "sun_azimuth_sin", "sun_azimuth_cos",
@@ -61,9 +61,11 @@ def _aligned_duration(row: TrainingSample) -> bool:
     target = row.features.get("target_duration_seconds", duration)
     coverage = row.features.get("measurement_coverage_fraction", 1.0)
     edge = row.features.get("measurement_edge_fraction", 0.0)
+    edge_seconds = row.features.get("measurement_edge_seconds", edge * target)
     return (duration >= MIN_TRAINING_SECONDS and target >= 1800
             and MIN_MEASUREMENT_COVERAGE <= coverage <= 1.0
-            and 0 <= edge <= MAX_MEASUREMENT_EDGE_FRACTION
+            and 0 <= edge_seconds <= MAX_MEASUREMENT_EDGE_SECONDS
+            and math.isclose(edge_seconds, edge * target, rel_tol=1e-9, abs_tol=1e-9)
             and math.isclose(duration / target, coverage, rel_tol=1e-9, abs_tol=1e-9))
 
 

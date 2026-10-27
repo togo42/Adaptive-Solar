@@ -56,11 +56,11 @@ async def test_counter_cadence_is_not_a_promise_of_hourly_alignment(hass, cadenc
     assert quality["accepted_target_cells"] == int(accepted)
     if accepted:
         assert samples[0].actual_w == pytest.approx(1000)
-        assert samples[0].features["measurement_coverage_fraction"] >= 0.95
-        assert samples[0].features["measurement_edge_fraction"] <= 0.025
+        assert samples[0].features["measurement_coverage_fraction"] >= 0.92
+        assert samples[0].features["measurement_edge_seconds"] <= 180
     else:
         assert quality["rejection_reasons"]["insufficient_measurement_coverage"] == 1
-        assert quality["rejection_reasons"]["measurement_edge_exceeded"] == 1
+        assert quality["rejection_reasons"].get("measurement_edge_exceeded", 0) == int(max(phase, cadence - phase) > 180)
     await instance.async_close()
 
 
@@ -72,11 +72,13 @@ async def test_whole_crossing_preserves_energy_and_supports_only_a_containing_ta
     assert crossing["end"] == (NOW + timedelta(hours=1, minutes=1)).isoformat()
     assert crossing["energy_kwh"] == pytest.approx(5 / 60)
     assert join_training([archived()], instance.intervals) == []
-    sample = join_training([archived(duration=10800)], instance.intervals)[0]
+    # Four missing minutes at the far edge now exceed the absolute 3min limit.
+    assert join_training([archived(duration=10800)], instance.intervals) == []
+    sample = join_training([archived(duration=10860)], instance.intervals)[0]
     assert sample.start == NOW + timedelta(minutes=1)
-    assert sample.end == NOW + timedelta(hours=2, minutes=56)
+    assert sample.end == NOW + timedelta(hours=3, minutes=1)
     assert sample.actual_w == pytest.approx(1000)
-    assert sample.features["measurement_coverage_fraction"] == pytest.approx(175 / 180)
+    assert sample.features["measurement_coverage_fraction"] == pytest.approx(180 / 181)
     # Retaining the crossing never spreads its energy into either UTC hour.
     assert crossing in instance.intervals
     await instance.async_close()
@@ -270,7 +272,8 @@ async def test_learning_status_explains_missing_source_and_alignment(hass, confi
     assert quality["alignment"]["accepted_target_cells"] == 0
     assert quality["alignment"]["rejection_reasons"] == {"no_whole_measurement_inside_target": 1}
     assert ("invalid_or_unavailable_energy_source" if configured else "missing_energy_source") in quality["blocking_reasons"]
-    assert quality["policy"]["min_coverage_fraction"] == 0.95
-    assert quality["policy"]["max_missing_edge_fraction"] == 0.025
+    assert quality["policy"]["min_coverage_fraction"] == 0.92
+    assert quality["policy"]["max_missing_edge_seconds"] == 180
+    assert quality["policy"]["counter_plausibility_window_seconds"] == 60
     assert quality["meter"]["report_evidence"] == "ha_receipt_not_physical_source_qualification"
     await instance.async_close()

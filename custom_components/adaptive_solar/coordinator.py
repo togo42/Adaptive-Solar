@@ -17,11 +17,11 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
-    DOMAIN, MAX_ARCHIVE_ROWS, MAX_ENERGY_GAP_SECONDS, MAX_TRAINING_ROWS,
+    COUNTER_PLAUSIBILITY_WINDOW_SECONDS, DOMAIN, MAX_ARCHIVE_ROWS, MAX_ENERGY_GAP_SECONDS, MAX_TRAINING_ROWS,
     RETENTION_DAYS, SENSOR_MAX_AGE_SECONDS, UPDATE_SECONDS,
 )
 from .core.engine import ForecastEngine, shade_reference_powers
-from .core.learning import (MAX_MEASUREMENT_EDGE_FRACTION, MIN_MEASUREMENT_COVERAGE,
+from .core.learning import (MAX_MEASUREMENT_EDGE_SECONDS, MIN_MEASUREMENT_COVERAGE,
                             MIN_TRAINING_SECONDS, ResidualLearner, feature_regime, ghi_feature_values, lead_bin)
 from .core.models import ForecastPoint, Observation, SiteConfig, TrainingSample, midpoint_lead_hours, utc_time
 from .core.physics import PhysicsUnavailable, clear_sky_ghi, solar_position
@@ -97,6 +97,7 @@ class EnergyIntervalTracker:
 
     def __init__(self) -> None:
         self.anchors: dict[str, tuple[datetime, float]] = {}
+        self.pending: dict[str, tuple[datetime, float]] = {}
         self.dirty: set[str] = set()
         self.events: dict[str, Counter] = defaultdict(Counter)
         self.last_outcome: dict[str, str] = {}
@@ -107,38 +108,66 @@ class EnergyIntervalTracker:
         self.last_outcome[inverter_id] = outcome
 
     def invalidate(self, inverter_id: str, reason: str = "curtailment_invalidated") -> None:
+        self.pending.pop(inverter_id, None)
         self.dirty.add(inverter_id)
         self.note(inverter_id, reason)
 
     def record(self, inverter_id: str, time: datetime, energy_kwh: float | None, safe: bool, cap_w: float, *, observed_at: datetime | None = None) -> dict | None:
         previous = self.anchors.get(inverter_id)
+        latest = self.pending.get(inverter_id, previous)
         # Delayed or duplicate states cannot revise the measurement lineage or
         # consume a pending availability/curtailment invalidation.
-        if previous is not None and time <= previous[0]:
+        if latest is not None and time <= latest[0]:
             self.note(inverter_id, "nonforward_timestamp")
             return None
         dirty = inverter_id in self.dirty
         self.dirty.discard(inverter_id)
         if energy_kwh is None or not safe:
             self.anchors.pop(inverter_id, None)
+            self.pending.pop(inverter_id, None)
             self.dirty.add(inverter_id)
             self.note(inverter_id, "blocked_curtailment" if not safe else "invalid_or_unavailable_counter")
             return None
-        self.anchors[inverter_id] = (time, energy_kwh)
         if previous is None or dirty:
+            self.anchors[inverter_id] = (time, energy_kwh)
+            self.pending.pop(inverter_id, None)
             self.note(inverter_id, "anchor_after_invalidation" if dirty else "initial_anchor")
             return None
         start, before = previous
         duration = (time - start).total_seconds()
         delta = energy_kwh - before
-        if not 0 < duration <= MAX_ENERGY_GAP_SECONDS or delta < 0:
-            self.note(inverter_id, "counter_reset" if delta < 0 else "measurement_gap")
+        reset = energy_kwh < latest[1]
+        if duration > MAX_ENERGY_GAP_SECONDS or (time - latest[0]).total_seconds() > MAX_ENERGY_GAP_SECONDS or reset:
+            self.anchors[inverter_id] = (time, energy_kwh)
+            self.pending.pop(inverter_id, None)
+            self.note(inverter_id, "counter_reset" if reset else "measurement_gap")
+            return None
+        if inverter_id in self.pending and duration > COUNTER_PLAUSIBILITY_WINDOW_SECONDS:
+            self.anchors[inverter_id] = (time, energy_kwh)
+            self.pending.pop(inverter_id, None)
+            self.note(inverter_id, "counter_aggregation_timeout")
             return None
         power = delta * 3600000 / duration
         # Small quantisation tolerance; gross unit mistakes/resets fail closed.
         if power > cap_w * 1.1:
+            # Rounding can publish a small energy step milliseconds after an
+            # otherwise valid report. Keep the original endpoint temporarily,
+            # without emitting energy, and validate the WHOLE delta against a
+            # subsequent genuine report. Never clip energy or invent its time.
+            # Both time and deferred energy are bounded; large jumps fail now.
+            if (duration < COUNTER_PLAUSIBILITY_WINDOW_SECONDS
+                    and delta <= cap_w * 1.1 * COUNTER_PLAUSIBILITY_WINDOW_SECONDS / 3600000):
+                self.pending[inverter_id] = (time, energy_kwh)
+                self.note(inverter_id, "deferred_power_check")
+                return None
+            self.anchors[inverter_id] = (time, energy_kwh)
+            self.pending.pop(inverter_id, None)
             self.note(inverter_id, "power_above_output_cap")
             return None
+        if inverter_id in self.pending:
+            self.note(inverter_id, "accepted_deferred_delta")
+        self.anchors[inverter_id] = (time, energy_kwh)
+        self.pending.pop(inverter_id, None)
         self.note(inverter_id, "accepted_zero_delta" if delta == 0 else "accepted_positive_delta")
         return {"inverter_id": inverter_id, "start": start.isoformat(), "end": time.isoformat(), "observed_at": (observed_at or time).isoformat(), "energy_kwh": delta}
 
@@ -159,15 +188,63 @@ def _unique_seconds(spans) -> float:
     return sum((end - start).total_seconds() for start, end in merged)
 
 
+def _measurement_block(measured, index, a, b, as_of):
+    """Longest unambiguous, finalized contiguous block wholly inside a target.
+
+    Choice uses duration and then earliest start, never energy or model error.
+    Future receipts are removed before duplicate/conflict checks. No energy is
+    split at target boundaries and no gap between blocks is filled.
+    """
+    available = {}
+    reasons = set()
+    for part_index in range(index, len(measured)):
+        part_start, part_end, part = measured[part_index]
+        if part_start >= b:
+            break
+        if part_end > b:
+            reasons.add("measurement_crosses_target_boundary")
+            continue
+        stamp = utc_time(datetime.fromisoformat(part["observed_at"]))
+        if stamp < part_end:
+            reasons.add("no_finalized_measurements")
+            continue
+        if as_of is not None and stamp > as_of:
+            reasons.add("observation_not_yet_available")
+            continue
+        key = part_start, part_end
+        previous = available.get(key)
+        value = part["energy_kwh"]
+        contract = part.get("curtailment_measurement_contract")
+        if previous is not None:
+            if previous[0] != value or previous[2] != contract:
+                return None, {"overlapping_measurements"}
+            stamp = min(stamp, previous[1])
+        available[key] = value, stamp, contract
+    if not available:
+        return None, reasons or {"no_whole_measurement_inside_target"}
+    blocks = []
+    for (start, end), (energy, observed, _) in sorted(available.items()):
+        if blocks and start < blocks[-1][1]:
+            return None, {"overlapping_measurements"}
+        if blocks and start == blocks[-1][1]:
+            first, _, total, receipt = blocks[-1]
+            blocks[-1] = first, end, total + energy, max(receipt, observed)
+        else:
+            if blocks:
+                reasons.add("internal_measurement_gap")
+            blocks.append((start, end, energy, observed))
+    return max(blocks, key=lambda block: (block[1] - block[0], -block[0].timestamp())), reasons
+
+
 def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: dict | None = None,
                   as_of: datetime | None = None, shading: BeamShadeTable | None = None,
                   output_caps: Mapping[str, float] | None = None) -> list[TrainingSample]:
-    """Join only nearly complete, centrally covered forecast cells.
+    """Join the longest eligible measured block to each forecast cell.
 
-    Coverage >=95%, each edge missing <=2.5%, and cells >=30 minutes are fixed
-    before evaluation. Actual energy is summed only across exactly contiguous
-    measured pieces, with no boundary interpolation or internal gap filling.
-    Thus a 5-minute post-reset observation cannot label a whole forecast hour.
+    Coverage >=92%, each edge missing <=180 seconds, and target cells >=30
+    minutes are fixed before evaluation. Actual energy is summed only across
+    exactly contiguous measured pieces. Early fragments cannot hide a longer
+    valid later block; no boundary interpolation or internal gap filling.
 
     Optional diagnostics count unique original target cells, not forecast
     origins/regimes. Labels received after as_of are excluded before deduping;
@@ -176,11 +253,9 @@ def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: di
     A valid cross-hour measurement may support a larger original target cell,
     but may never be clipped to fill an hourly boundary.
 
-    For a regular cadence d dividing an hour, nonzero phase p leaves p and
-    d-p seconds at its edges. Both must be <=90s and their sum <=180s. Thus
-    60/90s cadences qualify at any phase; aligned 5/15min cadences qualify,
-    whereas shifted 5/15min cadences cannot qualify an original hourly cell.
-    MAX_ENERGY_GAP_SECONDS limits a delta, not these separate alignment gates.
+    A complete hour needs >=3312 measured seconds, with <=180 missing seconds
+    at either edge. MAX_ENERGY_GAP_SECONDS limits a counter delta, not these
+    separate alignment gates. Multiple origins reuse the same block selection.
     """
     by_inverter = {}
     for row in intervals:
@@ -191,11 +266,12 @@ def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: di
             continue
         by_inverter.setdefault(row["inverter_id"], []).append((start, end, row))
     for rows in by_inverter.values():
-        rows.sort(key=lambda item: item[0])
+        rows.sort(key=lambda item: (item[0], item[1]))
     starts = {key: [item[0] for item in rows] for key, rows in by_inverter.items()}
     samples, seen = [], set()
     outcomes: dict[tuple, set[str]] = defaultdict(set)
     accepted_spans: dict[str, set[tuple]] = defaultdict(set)
+    selected_blocks = {}
 
     def note(target, reason):
         if diagnostics is not None:
@@ -232,44 +308,30 @@ def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: di
                 rejected = True
         if rejected:
             continue
+        if as_of is not None and b > as_of:
+            note(target, "target_not_yet_completed")
+            continue
         measured = by_inverter.get(inverter, [])
-        index = bisect_left(starts.get(inverter, []), a)
-        if index >= len(measured):
-            note(target, "no_whole_measurement_inside_target")
+        if target not in selected_blocks:
+            selected_blocks[target] = _measurement_block(
+                measured, bisect_left(starts.get(inverter, []), a), a, b, as_of)
+        selected, reasons = selected_blocks[target]
+        for reason in reasons:
+            note(target, reason)
+        if selected is None:
             continue
-        start = measured[index][0]
-        if start >= b:
-            note(target, "no_whole_measurement_inside_target")
-            continue
-        stop, energy, observed = start, 0.0, None
-        for part_index in range(index, len(measured)):
-            part_start, part_end, part = measured[part_index]
-            if part_start != stop or part_end > b:
-                note(target, "internal_measurement_gap" if part_start != stop
-                     else "measurement_crosses_target_boundary")
-                break
-            stop = part_end
-            energy += part["energy_kwh"]
-            stamp = utc_time(datetime.fromisoformat(part["observed_at"]))
-            observed = max(observed, stamp) if observed is not None else stamp
-            if stop == b:
-                break
+        start, stop, energy, observed = selected
         duration = (stop - start).total_seconds()
         coverage = duration / target_duration
-        edge = max((start - a).total_seconds(), (b - stop).total_seconds()) / target_duration
+        edge_seconds = max((start - a).total_seconds(), (b - stop).total_seconds())
         if (duration < MIN_TRAINING_SECONDS or coverage < MIN_MEASUREMENT_COVERAGE
-                or edge > MAX_MEASUREMENT_EDGE_FRACTION or observed is None or observed < stop):
+                or edge_seconds > MAX_MEASUREMENT_EDGE_SECONDS):
             if duration < MIN_TRAINING_SECONDS:
                 note(target, "insufficient_measured_duration")
             if coverage < MIN_MEASUREMENT_COVERAGE:
                 note(target, "insufficient_measurement_coverage")
-            if edge > MAX_MEASUREMENT_EDGE_FRACTION:
+            if edge_seconds > MAX_MEASUREMENT_EDGE_SECONDS:
                 note(target, "measurement_edge_exceeded")
-            if observed is None or observed < stop:
-                note(target, "no_finalized_measurements")
-            continue
-        if as_of is not None and observed > as_of:
-            note(target, "observation_not_yet_available")
             continue
         note(target, "accepted")
         if diagnostics is not None and (as_of is None or max(b, observed) <= as_of):
@@ -278,7 +340,8 @@ def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: di
         if key in seen:
             continue
         features = {**row["features"], "lead_hours": midpoint_lead_hours(issued, a, b), "target_duration_seconds": target_duration,
-                    "measurement_coverage_fraction": coverage, "measurement_edge_fraction": edge}
+                    "measurement_coverage_fraction": coverage, "measurement_edge_fraction": edge_seconds / target_duration,
+                    "measurement_edge_seconds": edge_seconds}
         if output_caps is not None and inverter in output_caps and "output_cap_w" not in features:
             features["output_cap_w"] = float(output_caps[inverter])
         samples.append(TrainingSample(issued_at=issued, start=start, end=stop, observed_at=observed,
@@ -877,6 +940,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                     and inv.curtailed_entity_id and row.get("curtailment_measurement_contract") != CURTAILMENT_MEASUREMENT_CONTRACT),
                 "legacy_curtailment_scope": "retained_history_requires_operator_qualification",
                 "anchor_present": inv.id in self.tracker.anchors,
+                "pending_counter_aggregation": inv.id in self.tracker.pending,
                 "pending_invalidation": inv.id in self.tracker.dirty,
                 "last_event_outcome": self.tracker.last_outcome.get(inv.id),
                 "event_counts_since_restart": dict(self.tracker.events.get(inv.id, {})),
@@ -923,9 +987,10 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                     "training_quality": {"meter": meter_quality[inv.id], "alignment": quality,
                         "blocking_reasons": sorted(set(reasons)),
                         "policy": {"min_coverage_fraction": MIN_MEASUREMENT_COVERAGE,
-                                   "max_missing_edge_fraction": MAX_MEASUREMENT_EDGE_FRACTION,
+                                   "max_missing_edge_seconds": MAX_MEASUREMENT_EDGE_SECONDS,
                                    "minimum_source_target_seconds": 1800,
                                    "max_counter_delta_seconds": MAX_ENERGY_GAP_SECONDS,
+                                   "counter_plausibility_window_seconds": COUNTER_PLAUSIBILITY_WINDOW_SECONDS,
                                    "whole_measurements_only": True}}}
             return self.engine.forecast(
                 forecasts, now, observations=observations, learner=self._learner, shading=shading
