@@ -76,9 +76,11 @@ Die Aktion überschreibt keinen vorhandenen Tag, akzeptiert keine Zukunftswerte,
 keine Konfigurationsfremden und keine nach Tagesbeginn ausgegebenen Prognosen.
 Sie persistiert nur den Snapshot mit seinen Hashes/ursprünglichen Grenzen, nicht
 das übergebene vollständige `source_site`. Lernzeilen, Zähleranker, Optionen,
-Geräte, Entity-IDs und Energy-Einstellungen bleiben unverändert. Schreibfehler
-rollen den Import im Speicher zurück; die Anzeige wird erst nach Speicherung
-aktualisiert. Ein fehlerhafter oder nicht schreibbarer Store sperrt die Aktion.
+Geräte, Entity-IDs und Energy-Einstellungen bleiben unverändert. Die Aktion liest
+nach dem nativen Speichern die tatsächliche Datei zurück, weil HA manche
+Schreibfehler nur protokolliert. Bis zur passenden Rücklesebestätigung bleibt der
+Wert für Sensoren unsichtbar; Fehler verwerfen den vorgeschlagenen Import.
+Ein fehlerhafter oder nicht schreibbarer Store sperrt die Aktion.
 
 Über die HA-Aktionsoberfläche mit einem Administrator ausführen; keine direkte
 Bearbeitung von `.storage` und keine vollständige HA-Backup-Wiederherstellung.

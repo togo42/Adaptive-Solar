@@ -9,6 +9,7 @@ from freezegun import freeze_time
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import Context
 from homeassistant.exceptions import Unauthorized
+from homeassistant.helpers.storage import Store
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 import pytest
 
@@ -23,6 +24,7 @@ from custom_components.adaptive_solar.weather import UNITS, VARIABLES, WeatherEr
 NOW = datetime(2026, 10, 27, 12, tzinfo=UTC)
 DAY = "2026-10-27"
 SNAPSHOT = {"issued_at": "2026-10-26T22:55:00+00:00", "energies": {"i": 20.0}}
+NATIVE_WRITE = Store._async_write_data  # Before HA fixtures patch storage to RAM.
 
 
 def site():
@@ -110,6 +112,17 @@ def coordinator(hass, config=None, entry=None):
     return AdaptiveSolarCoordinator(hass, entry, config, AsyncMock()), entry
 
 
+def enable_snapshot_disk_writes(instance):
+    """Exercise HA's real writer as well as its fixture's reload memory map."""
+    memory_write = instance._store._async_write_data
+
+    async def write(data):
+        await NATIVE_WRITE(instance._store, deepcopy(data))
+        await memory_write(data)
+
+    instance._store._async_write_data = write
+
+
 @pytest.mark.parametrize("change", ["damping", "horizon", "energy", "cap"])
 @freeze_time(NOW)
 async def test_physical_change_retains_only_issued_historical_forecasts_with_original_provenance(hass, change):
@@ -174,6 +187,7 @@ async def test_legacy_snapshot_keeps_original_full_hash_after_weather_change(has
 @freeze_time(NOW)
 async def test_import_restores_only_original_forecast_and_roundtrips_without_training_data(hass):
     instance, entry = coordinator(hass)
+    enable_snapshot_disk_writes(instance)
     await instance.async_restore()
     instance.async_commit_setup()
     original = replace(site(), strings=(replace(site().strings[0], damping_morning=0.3),))
@@ -223,6 +237,44 @@ async def test_failed_import_write_rolls_back_without_publishing(hass):
             await instance.async_restore_day_start(DAY, SNAPSHOT, site())
         notify.assert_not_called()
     assert not instance.daily_snapshots
+    await instance.async_close()
+
+
+@freeze_time(NOW)
+async def test_native_store_logged_disk_error_cannot_publish_import(hass):
+    from homeassistant.helpers.storage import WriteError
+
+    instance, _ = coordinator(hass)
+    enable_snapshot_disk_writes(instance)
+    await instance.async_restore()
+    instance.async_commit_setup()
+    await instance._store.async_save(instance._stored())
+    with patch.object(instance._store, "_async_write_data", new=AsyncMock(side_effect=WriteError("disk full"))), patch.object(instance, "async_update_listeners") as notify:
+        with pytest.raises(ValueError, match="readback"):
+            await instance.async_restore_day_start(DAY, SNAPSHOT, site())
+        notify.assert_not_called()
+    assert not instance.daily_snapshots and not instance._pending_day_start_imports
+    await instance.async_close()
+
+
+@freeze_time(NOW)
+async def test_pending_import_is_not_sensor_visible_and_duplicate_import_is_blocked(hass):
+    instance, _ = coordinator(hass)
+    enable_snapshot_disk_writes(instance)
+    await instance.async_restore()
+    instance.async_commit_setup()
+    original_save = instance._store.async_save
+
+    async def save(data):
+        assert not instance.daily_snapshots
+        assert instance._stored()["daily_snapshots"][DAY] == SNAPSHOT
+        with pytest.raises(ValueError, match="missing"):
+            await instance.async_restore_day_start(DAY, SNAPSHOT, site())
+        await original_save(data)
+
+    with patch.object(instance._store, "async_save", side_effect=save):
+        await instance.async_restore_day_start(DAY, SNAPSHOT, site())
+    assert instance.daily_snapshots[DAY] == SNAPSHOT and not instance._pending_day_start_imports
     await instance.async_close()
 
 

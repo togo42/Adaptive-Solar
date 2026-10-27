@@ -14,6 +14,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_state_change_event, async_track_state_report_event
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util.json import load_json
 
 from .const import (
     COUNTER_PLAUSIBILITY_WINDOW_SECONDS, DOMAIN, MAX_ARCHIVE_ROWS, MAX_ENERGY_GAP_SECONDS, MAX_TRAINING_ROWS,
@@ -401,6 +402,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self.intervals: list[dict] = []
         self.daily_snapshots: dict[str, dict] = {}
         self.daily_snapshot_provenance: dict[str, dict] = {}
+        self._pending_day_start_imports: dict[str, tuple[dict, dict]] = {}
         self._interval_latest: dict[tuple[str, datetime], tuple[int, dict]] = {}
         self._history_revision = 0
         self.learner_status: dict = {}
@@ -554,19 +556,24 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         now = datetime.now(UTC)
         today = now.astimezone(ZoneInfo(self.site.timezone)).date()
         target = datetime.fromisoformat(day).date()
-        if not today - timedelta(days=7) <= target <= today or day in self.daily_snapshots:
+        if (not today - timedelta(days=7) <= target <= today
+                or day in self.daily_snapshots or day in self._pending_day_start_imports):
             raise ValueError("only a missing retained historical day may be restored")
         snapshot, origin = validate_snapshot(day, snapshot, provenance(source_site, source="operator_restore"), self.site)
-        # Insert before yielding so a second import cannot race this one and
-        # concurrent scheduled saves include the restored original. Publish
-        # listeners only after saving; roll back this one day on write failure.
-        self.daily_snapshots[day], self.daily_snapshot_provenance[day] = snapshot, origin
+        # Keep proposals out of sensor-visible data while making concurrent
+        # scheduled writes include them. Store.async_save logs some disk errors
+        # without raising: verify the actual file rather than its memory cache.
+        self._pending_day_start_imports[day] = snapshot, origin
         try:
             await self._store.async_save(self._stored())
-        except BaseException:
-            self.daily_snapshots.pop(day, None)
-            self.daily_snapshot_provenance.pop(day, None)
-            raise
+            persisted = await self.hass.async_add_executor_job(load_json, self._store.path)
+            data = persisted.get("data", {})
+            if (data.get("daily_snapshots", {}).get(day) != snapshot
+                    or data.get("daily_snapshot_provenance", {}).get(day) != origin):
+                raise ValueError("day-start forecast storage readback failed")
+            self.daily_snapshots[day], self.daily_snapshot_provenance[day] = snapshot, origin
+        finally:
+            self._pending_day_start_imports.pop(day, None)
         self.async_update_listeners()
 
     @callback
@@ -1147,14 +1154,16 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         # Enforce the same bounds the reader requires even if no forecast
         # refresh succeeds between meter reports, delayed writes or shutdown.
         self._prune(datetime.now(UTC))
+        snapshots = dict(self.daily_snapshots)
+        origins = {day: self.daily_snapshot_provenance.get(day, provenance(self.site)) for day in snapshots}
+        for day, (snapshot, origin) in self._pending_day_start_imports.items():
+            snapshots[day], origins[day] = snapshot, origin
         return {"fingerprint": self._fingerprint, "history_schema": 2, "history_fingerprint": self._history_fingerprint,
                 "shade_fingerprint": self._shade_fingerprint,
                 "learning_feature_contract": LEARNING_FEATURE_CONTRACT,
                 BEAM_SHADE_STORE_KEY: self.shading.to_dict(),
                 "archive": list(self.archive), "intervals": [dict(row) for row in self.intervals],
-                "daily_snapshots": dict(self.daily_snapshots),
-                "daily_snapshot_provenance": {day: self.daily_snapshot_provenance.get(day, provenance(self.site))
-                                               for day in self.daily_snapshots}}
+                "daily_snapshots": snapshots, "daily_snapshot_provenance": origins}
 
     async def async_close(self) -> None:
         self._closing = True
