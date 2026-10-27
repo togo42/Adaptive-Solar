@@ -249,13 +249,13 @@ async def test_archive_fixed_slot_budget_keeps_actual_bin_edges_and_middle(hass,
     point = ForecastPoint(NOW, NOW + timedelta(hours=1), ids[0], 1000, 1000, features={"baseline_w": 1000, "sun_elevation_deg": 45})
     for lead in (95.9, 80, 72, 60, 48.1):
         issue = NOW + timedelta(minutes=30) - timedelta(hours=lead)
-        instance._archive_result(ForecastResult(issue, (point,)))
+        instance._archive_result(ForecastResult(issue, (point,)), available_at=issue)
     assert sorted(row["features"]["lead_hours"] for row in instance.archive) == pytest.approx(expected)
     # Repeated capture cannot manufacture more origins; night/zero baselines
     # never spend the bounded training archive budget.
-    instance._archive_result(ForecastResult(issue, (point,)))
+    instance._archive_result(ForecastResult(issue, (point,)), available_at=issue)
     night = replace(point, start=NOW + timedelta(hours=1), end=NOW + timedelta(hours=2), features={"baseline_w": 1000, "sun_elevation_deg": -1})
-    instance._archive_result(ForecastResult(issue, (night,)))
+    instance._archive_result(ForecastResult(issue, (night,)), available_at=issue)
     assert len(instance.archive) == len(expected)
     await instance.async_close()
 

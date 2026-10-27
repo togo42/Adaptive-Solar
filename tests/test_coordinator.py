@@ -210,7 +210,7 @@ async def test_archive_retains_representative_leads_within_each_bin(hass):
     coordinator = AdaptiveSolarCoordinator(hass, entry, config, AsyncMock())
     point = ForecastPoint(NOW, NOW + timedelta(hours=1), "i", 2000, 2100, features={"baseline_w": 2000, "sun_elevation_deg": 45})
     for hours in (120, 100, 72, 30, 12, 4, 2):
-        coordinator._archive_result(ForecastResult(NOW - timedelta(hours=hours), (point,)))
+        coordinator._archive_result(ForecastResult(NOW - timedelta(hours=hours), (point,)), available_at=NOW - timedelta(hours=hours))
     assert len(coordinator.archive) == 7
     assert {datetime.fromisoformat(row["issued_at"]) for row in coordinator.archive} == {NOW - timedelta(hours=hours) for hours in (120, 100, 72, 30, 12, 4, 2)}
     tracker = EnergyIntervalTracker()
@@ -277,13 +277,13 @@ async def test_complete_daily_snapshot_is_frozen_at_midnight_and_survives_reload
     await coordinator.async_restore()
     start, end = day_bounds(NOW, config.timezone, 1)
     points = tuple(ForecastPoint(start + timedelta(hours=h), start + timedelta(hours=h + 1), "i", 1000, 1000) for h in range(24))
-    coordinator._archive_result(ForecastResult(start - timedelta(hours=2), points))
+    coordinator._archive_result(ForecastResult(start - timedelta(hours=2), points), available_at=start - timedelta(hours=2))
     first = coordinator.daily_snapshots["2026-06-02"]
     assert first["energies"] == {"i": 24}
-    coordinator._archive_result(ForecastResult(start - timedelta(minutes=5), points))
+    coordinator._archive_result(ForecastResult(start - timedelta(minutes=5), points), available_at=start - timedelta(minutes=5))
     saved = dict(coordinator.daily_snapshots["2026-06-02"])
     revised = tuple(ForecastPoint(point.start, point.end, "i", 4000, 4000) for point in points)
-    coordinator._archive_result(ForecastResult(start + timedelta(minutes=5), revised))
+    coordinator._archive_result(ForecastResult(start + timedelta(minutes=5), revised), available_at=start + timedelta(minutes=5))
     assert coordinator.daily_snapshots["2026-06-02"] == saved
     with freeze_time(start + timedelta(hours=1)):
         coordinator.async_commit_setup()

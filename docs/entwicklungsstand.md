@@ -27,8 +27,8 @@ Gültige bisherige Messhistorie und ausgegebene Tagesstartprognosen bleiben nach
 ihren bisherigen Bindungsprüfungen erhalten.
 
 Lokale Abschlussprüfung mit Python 3.14.4 und HA Core 2026.10.4:
-**1336 Tests bestanden, keine Skips**, Ruff und Dependencycheck sauber.
-Die kombinierte Zeilen-/Zweigabdeckung beträgt **92,48 %**; das neue CI-Gate
+**1349 Tests bestanden, keine Skips**, Ruff und Dependencycheck sauber.
+Die kombinierte Zeilen-/Zweigabdeckung beträgt **92,57 %**; das neue CI-Gate
 verlangt mindestens 90 % über den gesamten Komponentenquelltext. Ein reguläres
 Wheel wurde isoliert installiert: alle 30 Integrationsdateien sind bytegleich
 zum Arbeitsstand, zwölf HA-/Kernmodule importieren aus dieser Installation.
@@ -69,6 +69,15 @@ Istwerte alternativ zum Capturearchiv, damit keine ungeprüfte Mischung die
 Revisionsprüfung umgeht. 53 neue Revisionstests, vier neue CLI-Fälle und
 unabhängige Ablauf-/Indexvergleiche decken die bestätigten Fehlerpfade ab.
 [Aufnahme- und Revisionsvertrag](benchmark-aufnahme.md#5-istwerte-lesend-archivieren).
+
+Der fünfte Nachreview von `44aec9d` ergänzte zwei Randfälle: Ergebnisse aus
+einer erst nach Mitternacht abgeschlossenen Berechnung dürfen keine
+Tagesstartwerte erzeugen; die gleiche Verfügbarkeitsgrenze schützt begonnene
+Trainingszellen. Vorhandene Originale und Administratorimporte bleiben erhalten.
+Außerdem erkennt auch der Vergleichsloader einen vorhandenen defekten Symlink
+als unlesbaren Eintrag, der nicht durch einen neuen Store ersetzt werden darf.
+Neue Regressionen verwenden den tatsächlichen HA-Executor, beide
+Zeitumstellungstage sowie echte Dateisystemeinträge.
 
 Dies ist ein lokaler Implementierungsstand; Paketversion und veröffentlichter
 Stand bleiben 0.2.14. Produktive Einstellungen, HACS und HA wurden in diesem

@@ -98,8 +98,35 @@ eine Wiederfreigabe. 53 neue Revisionsfälle und vier CLI-Fälle ergänzen die
 bestehenden Tests. Ein unabhängiger Gegencheck bestätigt 110 Ablaufprüfungen
 und 4.729 Maskenindexvergleiche gegen eine einfache Referenzberechnung.
 
-Der gemeinsam korrigierte Stand besteht lokal **1336 Tests ohne Skips**, Ruff
-und die Paketprüfung. Die kombinierte Komponentenabdeckung bleibt **92,48 %**.
+Der damalige gemeinsam korrigierte Stand bestand lokal **1336 Tests ohne Skips**,
+Ruff und die Paketprüfung. Seine kombinierte Komponentenabdeckung betrug **92,48 %**.
+
+Der fünfte gültige **Codex GPT-6.1-Sol/high**-Nachreview von `44aec9d`
+fand zwei weitere Fehler mittlerer Schwere. **AS-001**: Bei einer über Mitternacht
+laufenden Berechnung konnte der vor dem Executor gesetzte Ausgabezeitpunkt eine
+erst danach verfügbare Tagesstartprognose zulassen. Derselbe Verfügbarkeitsfehler
+betrifft Trainingszellen an normalen Stundengrenzen. **AS-002**: Der
+Vergleichsloader verwendete für fehlende Dateien noch `exists()` und erkannte
+deshalb einen vorhandenen defekten Symlink fälschlich als neuen Speicher.
+134 Originaldateien, 1.817.258 Payloadbytes und 32 erfolgreiche Turns wurden
+vollständig geprüft. Der unabhängige Nachaudit bestätigt die Quell-/Promptbindung,
+Modell/High und null Compaction/Tools; Receipt-SHA256:
+`626e266247f610a6cc1475c8b417bb074611f3fe8f854fe255a4b4cc8083c484`.
+Dieser Lauf bleibt ein historischer blockierender Befund für den damaligen Stand.
+
+Die Korrektur prüft für neue Tagesstartwerte und Trainingszellen zusätzlich
+die tatsächliche lokale Verfügbarkeit des vollständig zurückgekehrten
+Executor-Ergebnisses. Der ursprüngliche Berechnungsissue bleibt erhalten;
+historische Werte oder Operatorimporte werden nicht nachträglich umgedeutet.
+Der Vergleichsloader erlaubt eine Neuanlage nur bei echter Abwesenheit des
+Verzeichniseintrags gemäß `lstat()`. Vorhandene defekte Symlinks bleiben nach
+Setup, Capture, Save und Close schreibgeschützt erhalten.
+
+Der erneut korrigierte Stand besteht **1349 Tests ohne Skips**, Ruff und die
+Paketprüfung. Zeilenabdeckung **94,61 %**, Zweigabdeckung **87,63 %**, kombinierte
+Komponentenabdeckung **92,57 %**. Zehn neue Executor-/Archivierungsfälle und drei
+Dateisystemregressionen ergänzen die bisherigen Tests; ein unabhängiger Gegencheck
+bestätigt DST, Trainingszellen, vorhandene Snapshots und Operatorimporte.
 
 Die vorstehenden Läufe sind ausdrücklich keine Freigabe eines nachträglich
 korrigierten Standes; ein positiver Nachreview wird separat an seine tatsächlichen

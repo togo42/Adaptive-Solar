@@ -176,7 +176,7 @@ async def test_coordinator_archives_all_arms_in_separate_fixed_store(hass):
     instance._shadow_archive_pending = (replace(target, power_w=950),)
     with freeze_time(NOW + timedelta(seconds=1)):
         await instance.async_restore()
-        instance._archive_result(result)
+        instance._archive_result(result, available_at=result.issued_at)
         instance.intervals = [measured()]
         stored = instance._stored()
         assert COMPARISON_ARCHIVE_KEY not in stored
@@ -469,3 +469,60 @@ async def test_cancelled_or_unloading_forecast_does_not_archive_a_failed_attempt
             await instance._async_update_data()
         assert instance._comparison_archive.snapshots == []
         await instance.async_close()
+
+
+@pytest.mark.parametrize("existing_symlink", [True, False])
+async def test_comparison_loader_distinguishes_dangling_symlink_from_missing_store(hass, existing_symlink):
+    from pathlib import Path
+
+    instance = coordinator(hass)
+    native_comparison_writes(instance)
+    path = Path(instance._comparison_store.path)
+    target = path.with_name("missing-comparison-target.json")
+    if existing_symlink:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.symlink_to(target)
+        assert path.is_symlink() and not path.exists()
+    with freeze_time(NOW):
+        await instance.async_restore()
+        assert instance._comparison_store_writable is (not existing_symlink)
+        assert instance._comparison_storage_status == (
+            "invalid_store_preserved_read_only" if existing_symlink else "writable")
+        instance._capture_comparison(ForecastResult(NOW, (point(),)), received_at=NOW)
+        instance.async_commit_setup()
+        instance._schedule_save()
+        if existing_symlink:
+            await instance._async_save_comparison()
+        await hass.async_block_till_done()
+        await instance.async_close()
+    if existing_symlink:
+        instance._comparison_store.async_save.assert_not_awaited()
+        assert path.is_symlink() and path.readlink() == target
+        assert not target.exists()
+    else:
+        assert instance._comparison_store.async_save.await_count == 1
+        assert path.is_file() and not path.is_symlink()
+        assert json.loads(path.read_bytes())["data"]["snapshots"]
+
+
+async def test_primary_dangling_symlink_also_blocks_legacy_save_and_snapshot_import(hass):
+    from pathlib import Path
+
+    instance = coordinator(hass)
+    seed_store(instance._legacy_store, {**instance._stored(), "intervals": [measured()]})
+    path = Path(instance._store.path)
+    target = path.with_name("missing-primary-target.json")
+    path.symlink_to(target)
+    instance._store.async_save = AsyncMock()
+    with freeze_time(NOW):
+        await instance.async_restore()
+        assert not instance._store_writable and instance.intervals == []
+        assert instance._history_storage_status == "invalid_primary_preserved_read_only"
+        instance.async_commit_setup()
+        with pytest.raises(ValueError, match="persistence is not writable"):
+            await instance.async_restore_day_start(NOW.date().isoformat(), {}, instance.site)
+        instance._schedule_save()
+        await hass.async_block_till_done()
+        await instance.async_close()
+    instance._store.async_save.assert_not_awaited()
+    assert path.is_symlink() and path.readlink() == target and not target.exists()

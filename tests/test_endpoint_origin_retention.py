@@ -53,7 +53,7 @@ def test_repeated_five_minute_archives_preserve_nwp_and_ghi_endpoint_labels(stag
             raw.append({"issued_at": issue.isoformat(), "start": point.start.isoformat(),
                         "end": point.end.isoformat(), "inverter_id": "i0", "baseline_w": baseline,
                         "power_w": baseline, "features": features})
-        instance._archive_result(ForecastResult(issue, tuple(points)))
+        instance._archive_result(ForecastResult(issue, tuple(points)), available_at=issue)
         issue += timedelta(minutes=5)
     tracker = EnergyIntervalTracker()
     start = TARGET + timedelta(minutes=2)

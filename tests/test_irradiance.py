@@ -267,7 +267,7 @@ async def test_only_preissued_ghi_features_are_archived_and_never_backfilled(has
     coordinator = AdaptiveSolarCoordinator(hass, entry, config, AsyncMock())
     engine = ForecastEngine(config)
     initial = engine.forecast(forecasts(), NOW, (observation(1000),))
-    coordinator._archive_result(initial)
+    coordinator._archive_result(initial, available_at=initial.issued_at)
     archived = [dict(row) for row in coordinator.archive]
     influenced = [row for row in archived if "ghi_observation_w_m2" in row["features"]]
     assert influenced
@@ -276,7 +276,7 @@ async def test_only_preissued_ghi_features_are_archived_and_never_backfilled(has
     tomorrow = NOW + timedelta(days=1)
     stale = engine.forecast(forecasts(tomorrow), tomorrow, (observation(1000),))
     assert all("ghi_observation_w_m2" not in point.features for point in stale.points)
-    coordinator._archive_result(stale)
+    coordinator._archive_result(stale, available_at=stale.issued_at)
     assert all(row in coordinator.archive for row in influenced)
     await coordinator.async_close()
 

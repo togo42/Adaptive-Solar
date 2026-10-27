@@ -146,6 +146,6 @@ async def test_quality_partial_wh_matches_result_and_training_cannot_relabel_ful
     # The coordinator additionally rejects these issue-created targets entirely,
     # avoiding a different short-lived target on every HA refresh.
     live = AdaptiveSolarCoordinator(hass, entry, config, Mock())
-    live._archive_result(result)
+    live._archive_result(result, available_at=result.issued_at)
     assert all(row["start"] != issued.isoformat() for row in live.archive)
     await live.async_close()

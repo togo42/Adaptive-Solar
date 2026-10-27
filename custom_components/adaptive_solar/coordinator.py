@@ -778,7 +778,9 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         # A direct read is deliberate: Store.async_load renames broken JSON.
         # Preserve the original optional file unchanged, including unknown formats.
         path = Path(self._comparison_store.path)
-        if not path.exists():
+        try:
+            path.lstat()
+        except FileNotFoundError:
             return None
         return ComparisonArchive.from_dict(self._read_comparison_data())
 
@@ -1491,11 +1493,16 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self.learner_status = status
         if self.site.irradiance_entity_id:
             self.input_quality["irradiance_nowcast"] = result.model_status.get("irradiance", "ignored:no_observation")
-        self._archive_result(result)
+        # This is actual local availability after the complete executor result
+        # returned, including optional shadow computation. issued_at alone is
+        # the earlier calculation origin and cannot prove a day/target cutoff.
+        self._archive_result(result, available_at=datetime.now(UTC))
         self._schedule_save()
         return result
 
-    def _archive_result(self, result) -> None:
+    def _archive_result(self, result, *, available_at: datetime | None = None) -> None:
+        available_at = utc_time(datetime.now(UTC) if available_at is None else available_at, "available_at")
+        prospective_at = max(result.issued_at, available_at)
         self._archive_comparison(result)
         # Slot count is fixed by configured site size, never by outcome scores.
         # Budget includes future targets and has a 120-day / 60k-row upper bound;
@@ -1504,7 +1511,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         groups = {}
         candidates = list(self.archive)
         for point in result.points:
-            if (result.issued_at > point.start or point.baseline_w <= 0
+            if (prospective_at > point.start or point.baseline_w <= 0
                     or point.features.get("sun_elevation_deg", 0) <= 0
                     or point.features.get("source_partial_at_issue", 0) != 0
                     or feature_regime(point.features) is None):
@@ -1556,7 +1563,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             day = result.issued_at.astimezone(zone).date() + timedelta(days=offset)
             start = datetime.combine(day, time.min, zone).astimezone(UTC)
             end = datetime.combine(day + timedelta(days=1), time.min, zone).astimezone(UTC)
-            if result.issued_at > start:
+            if prospective_at > start:
                 continue
             energies = {inv.id: result.energy_kwh(start, end, inv.id) for inv in self.site.inverters}
             if all(value is not None for value in energies.values()):

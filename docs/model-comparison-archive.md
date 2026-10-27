@@ -75,6 +75,10 @@ Receipt und die aktive Capturepolitik.
 Ein einzelner übergroßer oder zeitlich ungültiger Capture wird vor Mutation
 abgewiesen. Ein unbekannter oder beschädigter Vergleichsstore bleibt unverändert
 und schreibgeschützt; seine Daten werden nicht für den Vergleich freigegeben.
+Nur ein bei `lstat()` tatsächlich fehlender Verzeichniseintrag erlaubt einen
+neuen Store. Ein vorhandener hängender Symlink gilt als unlesbarer Eintrag und
+bleibt auch nach Setup, Capture, Save und Close erhalten; ein fehlendes Linkziel
+ist keine Freigabe zum Ersetzen des Links.
 Bei einer validierten früheren Konfiguration beginnt das aktuelle Archiv leer
 im RAM und wird erst nach erfolgreichem Setup und einem echten neuen Capture
 schreibbar. Gültige Messintervalle, Haupt-Lernhistorie und Tagesstartwerte werden
