@@ -310,7 +310,7 @@ def test_actual_capture_and_bootstrap_cli_pipeline_remains_insufficient_without_
         assert evaluated["scores"]["adaptive"]["overall"]["mae_w"] is None
 
 
-def test_actual_capture_cli_combines_explicit_actuals_and_uses_as_of_cutoff(offline_process, tmp_path):
+def test_actual_capture_cli_rejects_mixed_actuals_and_uses_as_of_cutoff(offline_process, tmp_path):
     payload = evaluation_payload(include_actuals=True)
     first = payload["actuals"][0]
     second = {**first, "start": first["end"],
@@ -323,9 +323,9 @@ def test_actual_capture_cli_combines_explicit_actuals_and_uses_as_of_cutoff(offl
     schedule.write_text(json.dumps(payload))
     captures.write_text(json.dumps(actual_capture()) + "\n")
     run = offline_process("evaluate.py", schedule, "--actual-captures", captures, "--output", output)
-    assert run.returncode == 0, run.stderr
-    assert json.loads(output.read_text())["paired_intervals"] == 2
-    assert json.loads(output.read_text())["statistical_acceptance"] == "not_evaluated"
+    assert run.returncode == 2
+    assert "cannot be combined with nonempty input.actuals" in run.stderr
+    assert not output.exists()
     payload["as_of"] = "2026-06-21T11:30:00+00:00"
     payload["actuals"] = []
     schedule.write_text(json.dumps(payload))

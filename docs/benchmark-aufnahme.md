@@ -73,7 +73,7 @@ JSONL wird exklusiv gesperrt ergänzt, nie ersetzt; auch gleiche Kurven behalten
  "windows":[{"inverter_id":"roof","cutoff":"2026-05-31T18:00:00+02:00","start":"2026-06-01T12:00:00+02:00","end":"2026-06-01T13:00:00+02:00","daylight":true}]}
 ```
 
-Echte Auswertung braucht den vollständigen vorher deklarierten Zielplan und alle qualifizierten Istintervalle. Produktive Sensor-/Statistikzuordnung bleibt zu prüfen. Alternativ können `forecasts` direkt als `ForecastRecord` vorliegen; dann muss der Aufrufer vollständige Ausgabe-/Ausfallprovenienz liefern. Direkte `actuals`/`forecasts` zusätzlich zu Archiven bleiben denselben Anforderungen unterworfen. Siehe [Implementierungsvertrag](implementation-contract.md) für unverändert ganze Istintervalle, zuschneidbare Prognosemittel und Revisionen.
+Echte Auswertung braucht den vollständigen vorher deklarierten Zielplan und alle qualifizierten Istintervalle. Produktive Sensor-/Statistikzuordnung bleibt zu prüfen. Alternativ können `forecasts` direkt als `ForecastRecord` vorliegen; dann muss der Aufrufer vollständige Ausgabe-/Ausfallprovenienz liefern. Direkte `forecasts` dürfen wie bisher zusätzlich zu Prognosearchiven vorliegen und bleiben denselben Anforderungen unterworfen. Direkte `actuals` sind dagegen eine Alternative zu `--actual-captures`; nichtleere Inline-Istwerte dürfen nicht mit dem Ist-Capturearchiv kombiniert werden. Siehe [Implementierungsvertrag](implementation-contract.md) für unverändert ganze Istintervalle, zuschneidbare Prognosemittel und Revisionen.
 
 ## 5. Istwerte lesend archivieren
 
@@ -94,9 +94,65 @@ Ohne Qualitätsdatei nur Rohdaten: vollständiges Statistikraster beweist keine 
  "intervals":[{"inverter_id":"roof","start":"2026-06-01T00:00:00+02:00","end":"2026-06-02T00:00:00+02:00","quality":"valid","complete_coverage":true,"curtailed":false,"counter_reset":false}]}
 ```
 
+Positive Freigabe benötigt weiterhin eine vollständig belegte Recorderstunde;
+eine klare Teilmaske genügt nicht und erneuert keine positive Qualitätsrevision.
+Negative oder ausdrücklich unbestätigte Qualität wirkt dagegen bereits bei
+jeder echten zeitlichen Überschneidung: Abregelung, Reset, ungültige oder
+unbestätigte Messabdeckung sperren die **ganze unteilbare Stunde**. Die Energie
+wird nicht in einen vermeintlich guten Rest aufgeteilt. Reine Randberührung
+ist keine Überschneidung.
+
+Der Adapter berücksichtigt negative Masken auch gegen bereits akzeptierte
+Stunden aus anderen Captures, selbst wenn die aktuelle Recorderabfrage einen
+anderen Zeitraum oder eine andere Stufe betrifft. Eine Negativmaske erzeugt
+keine neuen Messlabels. Maßgeblich sind ihr eigener `validated_at`-Zeitpunkt
+und die tatsächliche Verfügbarkeit `max(retrieved_at, validated_at)`. Vor diesem
+Cutoff wirkt sie nicht. Ein neuer Rohabruf mit einer älteren positiven Maske
+hebt eine neuere Qualitätsinvalidierung nicht auf. Eine tatsächlich neuere
+vollständige positive Qualitätsrevision kann dieselben unveränderten Istwerte
+wieder qualifizieren; konkurrierende Qualitätsaussagen gleicher Revision
+bleiben gesperrt. Eine noch spätere negative Revision sperrt erneut.
+
 Erst nach tatsächlicher Prüfung `--quality data/actual-quality.json` ergänzen. Unbekannte Qualität ausschließen; später geprüfte Masken behalten ihre echte Verfügbarkeitszeit, keine rückdatierten Labels. Integrierte Leistung ist keine native Gerätezählung: zusätzlich Verfügbarkeit, Abdeckung, Reset-/Integrationsverhalten und unabhängige Referenz prüfen. Ein Gesamtzähler qualifiziert nicht automatisch Teilzähler; nominelles Hardwarelimit ist keine betriebliche Abregelung.
 
-Archiviert werden native WS-Millisekunden, Metadaten/Einheiten, Rohänderungen und Qualitätsprovenienz. Eine Vorläuferstunde hilft, nach Statistiklücken aufgelaufene Deltas auszuschließen. Recorder-Korrekturen bleiben eigene Revisionen; Widersprüche klären. Spät geprüfte Altstände verdecken keine neuere Invalidierung. Dateisperre schützt Ergänzungen. Gemeinsame Auswertung:
+Archiviert werden native WS-Millisekunden, Metadaten/Einheiten, Rohänderungen und Qualitätsprovenienz. Eine Vorläuferstunde hilft, nach Statistiklücken aufgelaufene Deltas auszuschließen. Recorder-Korrekturen bleiben eigene Revisionen; Widersprüche klären. Spät geprüfte Altstände verdecken keine neuere Invalidierung. Dateisperre schützt Ergänzungen.
+
+Eine tatsächlich vorhandene Vorlaufzeile mit `change=None`, fehlendem Wert,
+negativer oder nichtendlicher Energie ist eine eigene negative Rohrevision für
+ihre Stunde, auch wenn diese nicht zum positiven Zielbereich des neuen Captures
+gehört. Ihre Verfügbarkeit und Revisionsachse sind der echte Rohdatenempfang,
+nicht eine spätere Qualitätsprüfung. Eine lediglich fehlende Vorlaufzeile
+widerlegt dagegen keine ältere vollständige Messung. Im lokal geprüften
+HA Core 2026.10.4 liest `_augment_result_with_change` die DB-Summenbasis vor
+Abrufbeginn separat über `_statistics_at_time`; `change=None` entsteht bei
+aktueller `sum=None`, nicht wegen eines verkürzten Abfragekontexts.
+
+Ein vollständig vorhandener, metadatengültiger Vorlaufsummenwert wird nur mit
+einer bereits akzeptierten gleichstündigen Energie desselben Scopes verglichen.
+Ein abweichender Wert ab deren letztem qualifizierten Rohdatenempfang ist ein
+expliziter Revisionskonflikt. Teilwerte oder unverifizierte Einheiten ergeben
+keinen solchen Summenvergleich. Ein identischer Vorlauf erzeugt kein neues
+Positivlabel und erneuert keine positive Rohrevision; eine frühere Invalidierung
+bleibt damit gesperrt, bis ein regulär qualifizierter Targetcapture sie aufhebt.
+Ein älterer Vorlauf sperrt keinen neueren qualifizierten Targetwert.
+
+Der Adapter normalisiert jedes Capture erneut und prüft die gespeicherte
+Ableitung exakt. Alte vollständig gültige Captures bleiben lesbar. Unter der
+früheren fehlerhaften Teilmaskenregel gespeicherte negative Captures können nur
+`missing_quality_evidence` enthalten und stimmen dadurch nicht mehr mit dem
+korrigierten Vertrag überein: Sie führen bewusst zu `CaptureError`, weil die
+Integritätsprüfung vor der As-of-Auswahl erfolgt. Originale bleiben unverändert. Eine gesonderte explizite Neunormalisierung muss dieselben
+ursprünglichen Rohdaten und Qualitätsmasken verwenden und deren echten
+`retrieved_at`-/`validated_at`-Zeitpunkte erhalten; `normalized_at` benennt den
+wahren Zeitpunkt der neuen Ableitung. Es werden weder alte
+Ableitungen still ignoriert noch Empfangszeiten neu erfunden.
+
+Für `--actual-captures` muss die Eingabedatei `actuals` weglassen oder
+`"actuals": []` enthalten. Nichtleere Inline-Istwerte dürfen nicht gleichzeitig
+mit dem Capturearchiv verwendet werden: Dessen spätere Invalidierungen könnten
+sonst an alten Inline-Positivlabels vorbeigehen. Reiner Inlinebetrieb bleibt
+möglich, er verlangt weiterhin vollständige eigene Qualitätsprovenienz.
+Gemeinsame Auswertung:
 
 ```bash
 .venv/bin/python scripts/evaluate.py data/vergleich.json \

@@ -147,7 +147,26 @@ Mixed-Entries behalten Stufensensoren und `mixed_output_generation_sum` verschie
 
 ## Nachweis
 
-`services.py` liest native Helios-/Open-Meteo-Wh mit Domain-Allowlist/Timeout, ohne Energy-Preferences-Write. `capture_ha.py`/`capture_actuals.py` bewahren Empfang, Rohrevision, Einheiten/Qualitätsprovenienz; spät geprüfte Altstände verdecken keine neuere Invalidierung und erzeugen keine rückdatierten Labels. Ablauf/Formate: [Aufnahmeleitfaden](benchmark-aufnahme.md).
+`services.py` liest native Helios-/Open-Meteo-Wh mit Domain-Allowlist/Timeout, ohne Energy-Preferences-Write. `capture_ha.py`/`capture_actuals.py` bewahren Empfang, Rohrevision, Einheiten/Qualitätsprovenienz; spät geprüfte Altstände verdecken keine neuere Invalidierung und erzeugen keine rückdatierten Labels. Positive Recorderfreigabe braucht weiterhin vollständige Stundenabdeckung;
+negative oder ausdrücklich unbestätigte Qualitätsmasken invalidieren jede
+zeitlich überlappte unteilbare Stunde, auch angenommene Stunden außerhalb der
+aktuellen Rawquery. Maskenrevision und tatsächliche Verfügbarkeit
+`max(retrieved_at, validated_at)` bleiben getrennt; zukünftige Evidenz wirkt
+nicht rückwirkend. Eine partielle positive Maske erneuert keine Freigabe. Tatsächlich vorhandene
+explizit ungültige Recorder-Vorlaufwerte gelten für ältere angenommene Stunden
+als negative Rohrevision ab ihrem Empfang; eine fehlende Vorlaufzeile ist
+bloße Abwesenheit. Ein vollständiger metadatengültiger geänderter Vorlaufsummenwert
+widerspricht derselben angenommenen Stunde ab deren letzter qualifizierter
+Rohrevision. Identischer Vorlauf erzeugt weder Positivlabel noch positive
+Revisionsfortschreibung und heilt keine Invalidierung. Native Core-2026.10.4-
+Semantik und Grenzen sind im Aufnahmeleitfaden erläutert.
+Neuere vollständige positive Evidenz kann requalifizieren; gleichzeitige oder
+noch neuere negative Evidenz sperrt. Der Consumer validiert gespeicherte
+Normalisierungen erneut: Alte fehlerhafte Teilnegativ-Derivationen erfordern
+eine explizite neue Ableitung aus unveränderten Originalen mit unveränderten
+Quell-/Qualitätszeiten. `evaluate.py --actual-captures` lehnt gleichzeitig
+nichtleere Inline-`actuals` ab, statt Qualitätsinvalidierungen an ihnen
+vorbeizulassen. Ablauf/Formate: [Aufnahmeleitfaden](benchmark-aufnahme.md).
 
 `core/evaluation.py` bewertet archivierte statt neu rekonstruierte Prognosen auf identischen Fenstern/Cutoffs. Gemeinsamer Lead geht vom Cutoff bis Fenstermitte, Issuezeiten wählen nur zulässige Snapshots. Ganze gemessene Istintervalle bleiben ungeschnitten, Prognosemittel zuschneidbar, fehlende Werte niemals Null. `interval_task_identity=[cutoff,inverter_id,start,end]`: Intervallzählung/-energie ist Taskexposition, dauergewichtet, keine unabhängige Stichprobe/einmalige Erzeugung. Schätzer/Gates bleiben unverändert.
 

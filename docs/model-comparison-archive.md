@@ -112,8 +112,14 @@ fehlende Prognose. Es gibt keinen Rückgriff auf einen älteren erfolgreichen
 Capture. `None` wird nicht als Nullleistung bewertet.
 
 Beispiel für einen vorab festgelegten Vergleichsauftrag in `data/schedule.json`:
-Das vorhandene Evaluationseingabeformat behält `as_of`, `windows`, `actuals` und
-seine Cutoffs. Die Quellen werden ausdrücklich gewählt, etwa
+Das vorhandene Evaluationseingabeformat behält `as_of`, `windows` und seine
+Cutoffs. Istwerte stammen entweder ausschließlich aus `actuals` im
+Eingabedokument oder aus `--actual-captures`. Mit `--actual-captures` muss
+`actuals` fehlen oder eine leere Liste sein. Eine nichtleere Inline-Liste wird
+mit einer Fehlermeldung abgelehnt: Ihre vollständige Qualitätshistorie ist
+unbekannt. Sonst könnten ältere Inline-Labels trotz einer späteren negativen
+Capture-Revision weiter bewertet werden. Reiner Inlinebetrieb bleibt möglich.
+Die Quellen werden ausdrücklich gewählt, etwa
 `["adaptive", "operative_baseline", "shadow:early_bias"]`; für einen anderen
 Vergleich ergänzt oder ersetzt man sie durch einen konkreten `nwp:<model>`-Arm.
 Ein Cutoff 18:00:00 kann einen erst um 18:07:12 archivierten Capture nicht nutzen.

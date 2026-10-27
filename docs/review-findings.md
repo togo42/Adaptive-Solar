@@ -68,8 +68,39 @@ Restoretests verwenden jetzt reale Dateien statt vorgefertigter Ladeantworten.
 Der unabhängige Gegencheck fand und behob zusätzlich einen Fixturefehler bei
 der Auswertung verzögerter Datenfunktionen; diese werden genau einmal ausgeführt.
 
-Der korrigierte Stand besteht lokal **1279 Tests ohne Skips**, Ruff und die
-Paketprüfung. Die kombinierte Zeilen-/Zweigabdeckung beträgt **92,48 %**.
+Der vierte gültige **Codex GPT-6.1-Sol/high**-Nachreview von `1beb9da`
+fand einen Fehler im Istwert-Capturewerkzeug (AS-001 dieser Runde, mittel):
+Spätere negative Qualitätsevidenz für eine Teilstunde wurde nur als fehlende
+Vollstundenfreigabe behandelt. Dadurch konnte ein älteres positives Stundenlabel
+im Vergleich weiterverwendet werden. Dieser Lauf umfasste 131 Originaldateien,
+1.784.219 Payloadbytes und 31 erfolgreiche Turns; der unabhängige Audit bestätigt
+Modell/High, exakte Prompt-/Antwortbindung und null Compaction/Tools.
+Receipt-SHA256:
+`b69e0beb77212ef317e467d1cc37fbd3b26538c4bb4c90c91f6fbaf01aa5ce5f`.
+Die **1279 Tests ohne Skips** und die Paketprüfung dieses Standes deckten diesen
+Revisionsfall noch nicht ab. Seine kombinierte Komponentenabdeckung betrug
+**92,48 %**; auch dieser Review bleibt ein historischer blockierender Befund.
+
+Der gezielte unabhängige Gegencheck bestätigte zwei verwandte Pfade: Eine
+negative Maske außerhalb des aktuellen Recorder-Abruffensters kann eine ältere
+archivierte Stunde betreffen. Außerdem konnte ein positives Inline-Istlabel aus
+`payload.actuals` eine negative Revision in `--actual-captures` umgehen. Diese
+Fälle werden gemeinsam mit dem ursprünglichen Befund durch zeitlich verfügbare
+Negativrevisionen über tatsächlich archivierte Stunden und eine explizite
+Trennung der CLI-Istquellen abgesichert.
+
+Auch explizit ungültige oder geänderte vorhandene Recorder-Vorlaufwerte müssen
+ältere akzeptierte Stunden mit ihrer tatsächlichen Rohrevision konfrontieren.
+Die native HA-Quellprüfung unterscheidet sie von bloß fehlendem Abfragekontext.
+Vollständige metadatengültige Summen werden nur gegen bestehende Stundenlabels
+verglichen; fehlende oder identische Vorläufe erzeugen weder neue Labels noch
+eine Wiederfreigabe. 53 neue Revisionsfälle und vier CLI-Fälle ergänzen die
+bestehenden Tests. Ein unabhängiger Gegencheck bestätigt 110 Ablaufprüfungen
+und 4.729 Maskenindexvergleiche gegen eine einfache Referenzberechnung.
+
+Der gemeinsam korrigierte Stand besteht lokal **1336 Tests ohne Skips**, Ruff
+und die Paketprüfung. Die kombinierte Komponentenabdeckung bleibt **92,48 %**.
+
 Die vorstehenden Läufe sind ausdrücklich keine Freigabe eines nachträglich
 korrigierten Standes; ein positiver Nachreview wird separat an seine tatsächlichen
 Quellen gebunden. Rohpayloads und native Sitzungsbelege bleiben unter ignoriertem

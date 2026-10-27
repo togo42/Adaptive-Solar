@@ -27,7 +27,7 @@ Gültige bisherige Messhistorie und ausgegebene Tagesstartprognosen bleiben nach
 ihren bisherigen Bindungsprüfungen erhalten.
 
 Lokale Abschlussprüfung mit Python 3.14.4 und HA Core 2026.10.4:
-**1279 Tests bestanden, keine Skips**, Ruff und Dependencycheck sauber.
+**1336 Tests bestanden, keine Skips**, Ruff und Dependencycheck sauber.
 Die kombinierte Zeilen-/Zweigabdeckung beträgt **92,48 %**; das neue CI-Gate
 verlangt mindestens 90 % über den gesamten Komponentenquelltext. Ein reguläres
 Wheel wurde isoliert installiert: alle 30 Integrationsdateien sind bytegleich
@@ -59,6 +59,16 @@ Physikprognose kann mit neutraler Lernhistorie weiterlaufen. 23 neue native
 Speicherfälle und die auf reale Dateien umgestellten Restoretests prüfen die
 Fehler- und Migrationspfade einschließlich eines verzögerten Saves. Der
 unabhängige Gegencheck fand in diesem korrigierten Bereich keinen weiteren Befund.
+
+Der vierte Nachreview von `1beb9da` fand eine unberücksichtigte negative
+Teilmaskenrevision im Ist-Capturewerkzeug. Die Korrektur berücksichtigt verfügbare
+negative Qualität auch außerhalb des aktuellen Abruffensters sowie explizit
+ungültige oder widersprechende Recorder-Vorlaufrevisionen. Fehlende oder
+identische Vorlaufwerte erhalten keine neue Freigabe. Der CLI erlaubt direkte
+Istwerte alternativ zum Capturearchiv, damit keine ungeprüfte Mischung die
+Revisionsprüfung umgeht. 53 neue Revisionstests, vier neue CLI-Fälle und
+unabhängige Ablauf-/Indexvergleiche decken die bestätigten Fehlerpfade ab.
+[Aufnahme- und Revisionsvertrag](benchmark-aufnahme.md#5-istwerte-lesend-archivieren).
 
 Dies ist ein lokaler Implementierungsstand; Paketversion und veröffentlichter
 Stand bleiben 0.2.14. Produktive Einstellungen, HACS und HA wurden in diesem

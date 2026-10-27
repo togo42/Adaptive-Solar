@@ -121,7 +121,8 @@ def main():
     parser.add_argument("input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--captures", type=Path, help="Read-only capture JSONL, preserving unavailable issues")
-    parser.add_argument("--actual-captures", type=Path, help="Read-only validated Recorder actual-capture JSONL")
+    parser.add_argument("--actual-captures", type=Path,
+                        help="Read-only validated Recorder actual-capture JSONL; input.actuals must be absent or empty")
     parser.add_argument("--comparison-archive", type=Path,
                         help="Private comparison_archive_v1 branch JSON or HA Store export; actual receipts retained")
     parser.add_argument("--bootstrap", action="store_true", help="Run conditional paired target-day statistical policy v1")
@@ -140,6 +141,9 @@ def main():
         for field in ("windows", "forecasts", "actuals", "sources"):
             if field in payload and not isinstance(payload[field], list):
                 raise ValueError(f"Evaluation {field} must be a list")
+        if args.actual_captures and payload.get("actuals"):
+            raise ValueError("--actual-captures cannot be combined with nonempty input.actuals; "
+                             "use one actual-data source so quality revisions cannot be bypassed")
         as_of = _receipt(payload["as_of"])
         sources = tuple(payload.get("sources", ("adaptive", "physics", "helios", "open_meteo")))
         windows = [EvaluationWindow.from_dict(row) for row in payload["windows"]]
