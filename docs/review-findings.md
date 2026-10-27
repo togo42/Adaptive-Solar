@@ -34,7 +34,19 @@ wiederholtem echtem Archivierungsablauf prüfen NWP-Lead-Bins, GHI, eindeutige
 Messstunden sowie die Budgets bei einer, vier und sieben Stufen.
 [Vertrag und Grenzen](measurement-learning.md).
 
-Die lokalen 1241 Tests prüfen den korrigierten Stand. Die vorstehenden Läufe
+Der zweite gültige **Codex GPT-6.1-Sol/high**-Nachreview von `9e85391`
+blockierte noch einen Messkonfliktfall (AS-001 dieser Runde, mittel): Links
+beginnenden beziehungsweise rechts endenden überlappenden Messstücken wurde
+vor der Auswahl ganzer Stundenstücke nicht ausreichend Rechnung getragen.
+Die Korrektur erstellt einen gemeinsamen, nach tatsächlicher Verfügbarkeit
+gefilterten Intervallindex. Die Konfliktprüfung erfolgt vor dem Randbeschnitt;
+unabhängige saubere Stunden und Endpunktfenster bleiben nutzbar. 15 neue
+Regressionen prüfen beide Ränder, Verschachtelungen, Restore, Zukunftsreceipts
+und den Aufwand. Ein unabhängiger Gegencheck bestätigt 63.000 Abfragen gegen
+eine einfache Referenzberechnung. Dieser zweite Lauf bleibt ein historischer
+blockierender Befund, kein positiver Nachweis.
+
+Die lokalen 1256 Tests prüfen den korrigierten Stand. Die vorstehenden Läufe
 sind ausdrücklich keine Freigabe dieses korrigierten Standes; ein positiver
 Nachreview wird separat an seine tatsächlichen Quellen gebunden. Rohpayloads
 und native Sitzungsbelege bleiben unter ignoriertem `reviews/private/`.

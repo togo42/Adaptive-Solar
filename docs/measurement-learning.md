@@ -31,6 +31,35 @@ Support. Unverändert gelten mindestens 92 % Abdeckung, höchstens 180 Sekunden
 Verlust je Rand und mindestens 30 Minuten ursprüngliche Zieldauer. Fehlende
 Randenergie wird nicht interpoliert.
 
+## Konflikte vor der Auswahl von Zielteilen
+
+Jeder Join filtert Messstücke zunächst nach tatsächlicher Empfangsverfügbarkeit
+und finalisiertem Ende. Anschließend werden exakte Duplikate entdoppelt und
+Überlappungs-/Widerspruchsbereiche einmal je Stufe indiziert. Erst danach wird
+für ein Prognoseziel ein vollständig enthaltener Messblock ausgewählt.
+
+Die Konfliktprüfung umfasst **alle verfügbaren Messstücke, die das Ziel
+schneiden**, einschließlich links vor Zielbeginn startender und rechts über das
+Zielende laufender Stücke. Ein scheinbar passender Block 10:01–10:59 darf deshalb
+kein Stundenlabel bilden, wenn ein ebenfalls verfügbares Stück 09:55–10:05 oder
+10:55–11:05 ihm widerspricht. Exakt angrenzende Nachbarn sind keine
+Überlappungen. Ein erst später empfangener Widerspruch sperrt die betroffene
+Auswertung erst ab seiner tatsächlichen Verfügbarkeit; frühere As-of-Auswertungen
+werden nicht mit zukünftiger Information kontaminiert.
+
+Die Sperre betrifft nur Ziele, die einen Konfliktbereich schneiden. Unabhängige
+spätere Stunden und Endpunktfenster bleiben nutzbar. Individuell plausible
+historische Zeilen werden beim Restore nicht pauschal gelöscht; der gleiche
+Joinfilter verhindert daraus widersprüchliche Trainingslabels. Fehlende oder
+widersprechende Energie wird weiterhin nicht verteilt oder ersetzt.
+
+Sortierte Startzeiten und Prefix-Maxima der Endzeiten erlauben Konfliktabfragen
+in logarithmischer Zeit. Der Index entsteht einmal je Stufe und Join; die
+anschließende Blockwahl liest nur Stücke mit Start im jeweiligen Ziel. Es gibt
+keinen Vollscan der gesamten Historie für jede Zielzelle. Regressionen in
+`tests/test_measurement_conflicts.py` prüfen beide Ränder, verschachtelte linke
+Übertritte, Restore, Nachbarintervalle, Empfangscutoffs und unabhängige Ziele.
+
 ## Langsame Berichte und kleine Energiequanten
 
 Ein kleines positives Delta unmittelbar nach einem Bericht kann durch Rundung

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from bisect import bisect_left
 import math
 
 from ..const import (MAX_MEASUREMENT_GAP_SECONDS_PER_HOUR,
@@ -83,35 +84,83 @@ def can_follow(block, start, lineage, *, budget_seconds=MAX_MEASUREMENT_GAP_SECO
             and block.gap_seconds + gap <= budget_seconds)
 
 
-def blocks(measured, index, a, b, as_of):
-    """Return all finalized unambiguous blocks, with exact support retained."""
-    available, reasons = {}, set()
-    for position in range(index, len(measured)):
-        start, end, row = measured[position]
-        if start >= b:
-            break
-        if start < a or end > b:
+class _SpanIndex:
+    """Existence of a half-open overlap in O(log n), including left crossings."""
+
+    def __init__(self, spans):
+        self.starts, self.prefix_ends = [], []
+        maximum = None
+        for start, end in sorted(spans):
+            maximum = max(maximum, end) if maximum is not None else end
+            self.starts.append(start)
+            self.prefix_ends.append(maximum)
+
+    def overlaps(self, start, end):
+        position = bisect_left(self.starts, end) - 1
+        return position >= 0 and self.prefix_ends[position] > start
+
+
+class MeasurementIndex:
+    """One availability-filtered interval/conflict index per inverter and join.
+
+    Deduplication and the prefix-end sweep see every available interval before
+    target clipping. Their overlap regions therefore also protect target edges,
+    while future receipts and conflicts outside a target cannot invalidate it.
+    """
+
+    def __init__(self, measured, as_of):
+        available, conflicts, unfinalized, future = {}, [], [], []
+        for start, end, row in measured:
+            observed = utc_time(datetime.fromisoformat(row["observed_at"]))
+            if observed < end:
+                unfinalized.append((start, end))
+                continue
+            if as_of is not None and observed > as_of:
+                future.append((start, end))
+                continue
+            signature = (row["energy_kwh"], row.get("curtailment_measurement_contract"),
+                         continuity(row), row.get("boundary_reason"))
+            previous = available.get((start, end))
+            if previous is not None:
+                if previous[0] != signature:
+                    conflicts.append((start, end))
+                if previous[1] <= observed:
+                    continue
+            available[start, end] = signature, observed, row
+        self.rows = [(start, end, row) for (start, end), (_, _, row) in sorted(available.items())]
+        self.starts = [start for start, _, _ in self.rows]
+        self.prefix_ends = []
+        maximum = None
+        for start, end, _ in self.rows:
+            if maximum is not None and start < maximum:
+                conflicts.append((start, min(end, maximum)))
+            maximum = max(maximum, end) if maximum is not None else end
+            self.prefix_ends.append(maximum)
+        self.conflicts = _SpanIndex(conflicts)
+        self.unfinalized = _SpanIndex(unfinalized)
+        self.future = _SpanIndex(future)
+
+
+def blocks(index, a, b):
+    """Check all available intersections before choosing whole contained parts."""
+    if index.conflicts.overlaps(a, b):
+        return [], {"overlapping_measurements"}
+    reasons = set()
+    if index.unfinalized.overlaps(a, b):
+        reasons.add("no_finalized_measurements")
+    if index.future.overlaps(a, b):
+        reasons.add("observation_not_yet_available")
+    first, stop = bisect_left(index.starts, a), bisect_left(index.starts, b)
+    if first and index.prefix_ends[first - 1] > a:
+        reasons.add("measurement_crosses_target_boundary")
+    result = []
+    for position in range(first, stop):
+        start, end, row = index.rows[position]
+        if end > b:
             reasons.add("measurement_crosses_target_boundary")
             continue
-        observed = utc_time(datetime.fromisoformat(row["observed_at"]))
-        if observed < end:
-            reasons.add("no_finalized_measurements")
-            continue
-        if as_of is not None and observed > as_of:
-            reasons.add("observation_not_yet_available")
-            continue
-        signature = (row["energy_kwh"], row.get("curtailment_measurement_contract"),
-                     continuity(row), row.get("boundary_reason"))
-        previous = available.get((start, end))
-        if previous is not None:
-            if previous[0] != signature:
-                return [], {"overlapping_measurements"}
-            observed = min(observed, previous[1])
-        available[start, end] = signature, observed
-    result = []
-    for (start, end), ((energy, _, lineage, boundary), observed) in sorted(available.items()):
-        if result and start < result[-1].end:
-            return [], {"overlapping_measurements"}
+        energy, observed = row["energy_kwh"], utc_time(datetime.fromisoformat(row["observed_at"]))
+        lineage, boundary = continuity(row), row.get("boundary_reason")
         if (result and boundary is None and can_follow(result[-1], start, lineage,
                 budget_seconds=MAX_MEASUREMENT_GAP_SECONDS_PER_HOUR * (b - a).total_seconds() / 3600)):
             previous = result.pop()

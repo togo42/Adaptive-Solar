@@ -32,7 +32,7 @@ from .core.comparison_archive import ComparisonArchive
 from .core.early_bias import EarlyBiasShadow
 from .core.learning import (MAX_MEASUREMENT_EDGE_SECONDS, MIN_MEASUREMENT_COVERAGE,
                             MIN_TRAINING_SECONDS, ResidualLearner, feature_regime, ghi_feature_values, lead_bin)
-from .core.measurement import MeasuredBlock, blocks as measured_blocks, can_follow, continuity, expand_interval, integrate_original
+from .core.measurement import MeasurementIndex, MeasuredBlock, blocks as measured_blocks, can_follow, continuity, expand_interval, integrate_original
 from .core.models import ForecastPoint, Observation, SiteConfig, TrainingSample, midpoint_lead_hours, utc_time
 from .core.nowcast import PowerObservationHistory
 from .core.rejection import RejectionDetails, detail_time
@@ -261,14 +261,14 @@ def _paired_forecast_origins(rows, *, slots, forecast_days):
     return list(selected.values())
 
 
-def _measurement_block(measured, index, a, b, as_of):
+def _measurement_block(index, a, b):
     """Longest qualified block; gap seconds are never measured support."""
-    candidates, reasons = measured_blocks(measured, index, a, b, as_of)
+    candidates, reasons = measured_blocks(index, a, b)
     return (max(candidates, key=lambda block: (block.duration, -block.start.timestamp()))
             if candidates else None), reasons
 
 
-def _endpoint_training(archive, by_inverter, existing, as_of, shading, output_caps):
+def _endpoint_training(archive, measurement_indexes, existing, as_of, shading, output_caps):
     """Additional disjoint hourly windows bounded by genuine meter reports.
 
     Only v2 monitored lineages qualify. A frozen common issue must cover every
@@ -295,41 +295,17 @@ def _endpoint_training(archive, by_inverter, existing, as_of, shading, output_ca
     for values in sources.values():
         values.sort(key=lambda item: item[0])
     result = []
-    for inverter, measured in by_inverter.items():
-        if not measured:
-            continue
-        # Validate/dedupe on the full available series before window selection;
-        # conflicting measurements cannot become valid through repartitioning.
-        available, conflict = {}, False
-        for a, b, row in measured:
-            observed = utc_time(datetime.fromisoformat(row["observed_at"]))
-            if observed < b or (as_of is not None and observed > as_of):
-                continue
-            previous = available.get((a, b))
-            if previous is not None:
-                fields = ("energy_kwh", "measurement_contract", "continuity_id", "boundary_reason",
-                          "curtailment_measurement_contract")
-                if tuple(previous.get(key) for key in fields) != tuple(row.get(key) for key in fields):
-                    conflict = True
-                    break
-                if utc_time(datetime.fromisoformat(previous["observed_at"])) <= observed:
-                    continue
-            available[a, b] = row
-        previous_end = None
-        for a, b in sorted(available):
-            if previous_end is not None and a < previous_end:
-                conflict = True
-                break
-            previous_end = b
-        if conflict:
-            continue
-        # Retain original report endpoints, including those hidden inside
-        # already-coalesced hour pieces. Coalescing itself never invents one.
-        unique = {span: row for span, row in available.items() if continuity(row) is not None}
+    for inverter, index in measurement_indexes.items():
         current = None
         source_index, active_sources = 0, []
         source_rows = sources[inverter]
-        for (start, end), row in sorted(unique.items()):
+        for start, end, row in index.rows:
+            # A bad interval excludes only its own indivisible support. Reset
+            # the candidate at that boundary instead of disabling the entire
+            # inverter's otherwise independent endpoint windows.
+            if continuity(row) is None or index.conflicts.overlaps(start, end):
+                current = None
+                continue
             lineage = continuity(row)
             observed = utc_time(datetime.fromisoformat(row["observed_at"]))
             if current is None or row.get("boundary_reason") is not None or not can_follow(current, start, lineage):
@@ -440,7 +416,7 @@ def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: di
             by_inverter.setdefault(row["inverter_id"], []).append((start, end, row))
     for rows in by_inverter.values():
         rows.sort(key=lambda item: (item[0], item[1]))
-    starts = {key: [item[0] for item in rows] for key, rows in by_inverter.items()}
+    measurement_indexes = {key: MeasurementIndex(rows, as_of) for key, rows in by_inverter.items()}
     samples, seen = [], set()
     outcomes: dict[tuple, set[str]] = defaultdict(set)
     accepted_spans: dict[str, set[tuple]] = defaultdict(set)
@@ -484,10 +460,10 @@ def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: di
         if as_of is not None and b > as_of:
             note(target, "target_not_yet_completed")
             continue
-        measured = by_inverter.get(inverter, [])
         if target not in selected_blocks:
-            selected_blocks[target] = _measurement_block(
-                measured, bisect_left(starts.get(inverter, []), a), a, b, as_of)
+            index = measurement_indexes.get(inverter)
+            selected_blocks[target] = (_measurement_block(index, a, b) if index is not None
+                                       else (None, {"no_whole_measurement_inside_target"}))
         selected, reasons = selected_blocks[target]
         for reason in reasons:
             note(target, reason)
@@ -524,7 +500,7 @@ def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: di
         seen.add(key)
     # Shifted windows reuse original forecasts, never regenerate historical
     # physics. They may use only support not already selected by legacy cells.
-    extra = _endpoint_training(archive, by_inverter, samples, as_of, shading, output_caps)
+    extra = _endpoint_training(archive, measurement_indexes, samples, as_of, shading, output_caps)
     samples.extend(extra)
     for sample in extra:
         target = sample.inverter_id, sample.start, sample.end
