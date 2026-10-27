@@ -29,6 +29,7 @@ edits need no dependency installation. For implementation work use a local venv:
 - `.venv/bin/python -m pip check`
 - `.venv/bin/python -m pytest -q`: includes tests with actual HA Core.
 - `.venv/bin/ruff check custom_components tests scripts`
+- `node --test tests/frontend/*.mjs`: optional Lovelace card behavior tests with Node.js 22.
 - `.venv/bin/python scripts/forecast.py --help`: explicit synthetic or live weather.
 - `.venv/bin/python scripts/evaluate.py --help`: paired archived forecast evaluation.
 - `.venv/bin/python scripts/capture_ha.py --help`: explicit read-only HA capture using private mappings.

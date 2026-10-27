@@ -27,6 +27,7 @@ Herstellerunabhängige String-/Stufenkonfiguration, optionale HA-Sensoren: keine
 | [Installation](docs/installation.md) | Geprüfte Plattformen, HACS, manuelle Installation, Upgrade und Rückweg |
 | [HAOS-Binärabhängigkeiten](docs/haos-installation.md) | amd64-Musl-Wheel bauen, vorbereiten und im persistenten Corepfad bereitstellen |
 | [Bedienung](docs/bedienung.md) | Alle Einrichtungsfelder, Sensoren, Energy, Lernstatus und Fehlerbehebung |
+| [Lernstatus-Dashboard](docs/lernstatus-dashboard.md) | Optionale Lovelace-Karte für Datenreife, interne Modellgüte, Messlücken und Schattenlernen |
 | [Datenschutz](docs/datenschutz.md) | Externe Datenflüsse, lokale Speicherung und Diagnoseweitergabe |
 
 HACS-Mindestversion ist **Core 2026.10.2**. Geprüft sind **2026.10.2/.3/.4** mit Python 3.14; neuere Versionen sind damit nicht automatisch geprüft. **HAOS ist bislang nur auf amd64 mit passender CPython-3.14-Musl-Binärbasis belegt.** ARM/Raspberry Pi und andere Python-ABIs sind nicht qualifiziert. Der HA-unabhängige Modellkern unterstützt Python ab 3.13.

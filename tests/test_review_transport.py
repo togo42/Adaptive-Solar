@@ -251,12 +251,15 @@ def test_fake_cli_failure_and_drift_fail_closed(transport_workspace, mode, reaso
         assert receipt["calls"][-1]["returncode"] == "timeout"
 
 
-def test_snapshot_includes_extensionless_licenses_without_private_files(tmp_path, monkeypatch):
+def test_snapshot_includes_licenses_and_frontend_sources_without_private_files(tmp_path, monkeypatch):
     monkeypatch.setattr(review, "ROOT", tmp_path)
     files = {
         "LICENSE": b"Public project license\n",
         "custom_components/example/LICENSE": b"Shipped component license\n",
+        "examples/lovelace/example-card.js": b"export const example = 1;\n",
+        "tests/frontend/example.mjs": b"import assert from 'node:assert';\n",
         "data/LICENSE": b"Private data must remain excluded\n",
+        "data/example-card.js": b"Private dashboard bindings must remain excluded\n",
         "icon.png": b"\x89PNG\r\n",
     }
     for name, data in files.items():
@@ -265,10 +268,12 @@ def test_snapshot_includes_extensionless_licenses_without_private_files(tmp_path
         path.write_bytes(data)
     monkeypatch.setattr(review, "git", lambda *args: "\0".join(files))
     snapshot = review.snapshot()
-    assert set(snapshot) == {"LICENSE", "custom_components/example/LICENSE"}
+    assert set(snapshot) == {"LICENSE", "custom_components/example/LICENSE",
+                             "examples/lovelace/example-card.js", "tests/frontend/example.mjs"}
     payload, _ = review.build_payload(snapshot)
     assert all(data in payload for name, data in files.items() if name in snapshot)
     assert files["data/LICENSE"] not in payload
+    assert files["data/example-card.js"] not in payload
 
 
 def test_raw_payload_preserves_all_bytes_and_documents_exact_offsets(tmp_path, monkeypatch):

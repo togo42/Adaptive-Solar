@@ -56,6 +56,11 @@ und die dokumentierte Testmatrix gemeinsam prüfen. Dokumentation auf Deutsch,
 Codebezeichner und etablierte technische Begriffe beibehalten. Eigenständige fremde
 Lizenzen erhalten; Projektlizenz ist [GPL-3.0-only](../LICENSE).
 
+Die optionale [Lovelace-Lernstatuskarte](lernstatus-dashboard.md) benötigt für ihre
+Frontendtests Node.js 22: `node --test tests/frontend/*.mjs`. CI führt diese
+Verhaltenstests zusätzlich zu pytest aus. Öffentliche `.js`- und `.mjs`-Dateien
+gehören ebenfalls zum vollständigen Textumfang von `scripts/review.py`.
+
 ## 3. Veröffentlichung und Nachweise
 
 Paketbau, Installation, nativer Core-Import, qualifizierter ML-Fit und reale
