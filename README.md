@@ -12,6 +12,8 @@ Wetterprognosen, PV-Physik und lokale Residualmodelle für bis zu sieben lokale 
 
 **Messdatenänderungen in 0.2.13:** Die [Messaufbereitung](docs/messintervalle-92-prozent.md) behandelt kurze Rundungsbursts, wählt den längsten gültigen Messblock und verlangt nun 92 % Abdeckung mit höchstens drei Minuten Lücke je Rand. Veröffentlichung und Installation sind gegenüber dem bisherigen 0.2.12-Stand getrennt nachgewiesen.
 
+**Lokaler Implementierungsnachtrag nach 0.2.14:** [Messkontinuität und echte Endpunktfenster](docs/measurement-learning.md) ergänzen die bisherigen Qualitätsgates. Ein kleiner [früher Bias-Kandidat](docs/early-bias-shadow.md) läuft ausschließlich im Shadow-Betrieb. [Physik-, Schatten- und Nowcastoptionen](docs/physics-learning-options.md), [Wetter-/Lernfehler und Ressourcen](docs/forecast-resilience.md) sowie ein [getrenntes Modellvergleichsarchiv](docs/model-comparison-archive.md) machen Kandidaten überprüfbar. Dieser Entwicklungsstand ist noch kein veröffentlichtes oder produktiv aktiviertes Release und kein Genauigkeitsnachweis.
+
 Die [Ablehnungsdiagnose](docs/ablehnungsdiagnose.md) ergänzt eindeutige Ziel-/Zeilendetails mit Originalzeiten und Gründen (`schema_version: 1`, höchstens 50 Einträge je Gruppe). Zielzähler und Details zeigen gemeinsam den letzten tatsächlichen Fit-Cutoff; Cachehits erfinden keine neue Auswertung. Der tatsächliche Installationsstand steht im Prüfstand.
 
 ## Funktionsweise
@@ -60,7 +62,8 @@ python3.14 -m venv .venv
 .venv/bin/python -m pip install '.[test,ha-test]'
 .venv/bin/python -m pip install 'pvlib==0.16.1' 'scikit-learn==1.9.1'
 .venv/bin/python -m pip check
-.venv/bin/python -m pytest
+.venv/bin/python -m pytest -q --cov=custom_components.adaptive_solar --cov-branch \
+    --cov-report=term-missing:skip-covered --cov-report=xml:artifacts/coverage.xml
 .venv/bin/ruff check custom_components tests scripts
 ```
 

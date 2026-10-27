@@ -301,7 +301,7 @@ def test_ghi_nowcast_with_released_beam_shade_scales_direct_only():
     sun = solar_position(cfg, midpoint)
     table = BeamShadeTable()
     for idx in range(5):
-        table.record("i", sun.azimuth_deg, sun.elevation_deg, NOW - timedelta(minutes=15 * idx), 0.5)
+        table.record("i", sun.azimuth_deg, sun.elevation_deg, NOW - timedelta(days=idx), 0.5, as_of=NOW)
     unshaded = ForecastEngine(cfg).forecast(forecasts(), NOW, (observation(900),))
     shaded = ForecastEngine(cfg, shading=table).forecast(forecasts(), NOW, (observation(900),))
     assert shaded.points[0].features["ghi_regime"] == 1.0

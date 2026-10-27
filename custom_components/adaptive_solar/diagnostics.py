@@ -19,6 +19,10 @@ async def async_get_config_entry_diagnostics(hass, entry):
         "weather_errors": dict(coordinator.client.errors),
         "weather_diagnostics": weather_diagnostics if isinstance(weather_diagnostics, dict) else {},
         "learning": coordinator.learner_status,
+        "resources": getattr(coordinator, "resource_diagnostics", {}),
+        "bias_shadow": getattr(coordinator, "bias_shadow_status", {}),
+        "comparison_archive": {**coordinator._comparison_archive.diagnostics(),
+                               "storage_status": coordinator._comparison_storage_status},
         "archived_forecast_points": len(coordinator.archive),
         "measured_energy_intervals": len(coordinator.intervals),
     }

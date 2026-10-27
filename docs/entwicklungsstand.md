@@ -1,5 +1,46 @@
 # Entwicklungsstand und offene Nachweise
 
+## Lokaler Entwicklungsstand nach 0.2.14
+
+Basis ist `6193efc39b4da87a5fad3252b991493c8b9fcda4` auf dem Entwicklungszweig
+`feat/forecast-quality-20261027`. Drei Subagenten mit GPT-6.1-Sol und Reasoning
+`high` haben die Änderungen implementiert und gegenseitig geprüft.
+
+- [Messkontinuität](measurement-learning.md): begrenzte Zeitstempeltoleranz,
+  unveränderte echte Energie, längeres Warten auf Zählerberichte und zusätzliche
+  Lernfenster an erhaltenen Messendpunkten.
+- [Fehlerbehandlung](forecast-resilience.md): Physikfallback bei gescheitertem
+  Fit, begrenzter alter Wettercache bei Abruffehlern und Laufzeitdiagnosen.
+- [Früher Bias-Kandidat](early-bias-shadow.md) und
+  [Vergleichsarchiv](model-comparison-archive.md): ausschließlich prospektive
+  Prüfung, keine automatische Änderung der Modellgewichte oder Aktivierung.
+- [Physik und Schatten](physics-learning-options.md): optionale Parameter und
+  Teilintervallintegration, zeitlich qualifizierte Schattentabelle und optionale
+  Glättung normalisierter Leistungsabweichungen.
+
+Der gegenseitige Review führte unter anderem zu Regressionstests für den Verlust
+echter Messendpunkte beim Zusammenfassen, zeitlich rückwirkende Schattenberichte,
+unbeabsichtigt verfallende Schattenfreigaben und beschädigte Historien. Alte
+Schattenproben ohne belegte Beobachtungs-/Empfangszeit bleiben als zeitlich
+unqualifizierte Altdaten erhalten und beeinflussen die neue Schattentabelle nicht.
+Gültige bisherige Messhistorie und ausgegebene Tagesstartprognosen bleiben nach
+ihren bisherigen Bindungsprüfungen erhalten.
+
+Lokale Abschlussprüfung mit Python 3.14.4 und HA Core 2026.10.4:
+**1228 Tests bestanden, keine Skips**, Ruff und Dependencycheck sauber.
+Die kombinierte Zeilen-/Zweigabdeckung beträgt **92,17 %**; das neue CI-Gate
+verlangt mindestens 90 % über den gesamten Komponentenquelltext. Ein reguläres
+Wheel wurde isoliert installiert: alle 30 Integrationsdateien sind bytegleich
+zum Arbeitsstand, zwölf HA-/Kernmodule importieren aus dieser Installation.
+Private Prüfartefakte liegen unter `artifacts/forecast-quality-*`. Der gebundene
+externe Fachreview ist ein separater Nachweis; die Tests beweisen keinen
+Genauigkeitsvorsprung und keine produktive HA-Stabilität.
+
+Dies ist ein lokaler Implementierungsstand; Paketversion und veröffentlichter
+Stand bleiben 0.2.14. Produktive Einstellungen, HACS und HA wurden in diesem
+Arbeitsauftrag nicht geändert. Eine bessere reale Prognose und eine Freigabe
+des frühen Bias-Kandidaten brauchen die getrennte prospektive Auswertung.
+
 ## Veröffentlichter und installierter Stand 0.2.14
 
 Stand: 27.10.2026. [Nachtstrahlung und historische Tagesstartwerte](forecast-repairs.md)

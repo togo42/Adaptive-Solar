@@ -224,8 +224,8 @@ def test_beam_shade_table_in_engine_cohort_partial_midpoint_and_gaps():
     sun_part = solar_position(cfg, part_mid)
     table = BeamShadeTable()
     for idx in range(5):
-        table.record("i", sun_part.azimuth_deg, sun_part.elevation_deg, T + timedelta(minutes=15 * idx), 0.5)
-    assert table.transmittance("i", sun_part.azimuth_deg, sun_part.elevation_deg) == pytest.approx(0.5)
+        table.record("i", sun_part.azimuth_deg, sun_part.elevation_deg, issued - timedelta(days=idx), 0.5, as_of=issued)
+    assert table.transmittance("i", sun_part.azimuth_deg, sun_part.elevation_deg, as_of=issued) == pytest.approx(0.5)
     if (int(sun_full.azimuth_deg // 10), int(sun_full.elevation_deg // 5)) != (
         int(sun_part.azimuth_deg // 10), int(sun_part.elevation_deg // 5)
     ):

@@ -313,7 +313,7 @@ def test_stable_partial_beam_shading_in_nowcast_reference_creates_no_false_resid
     sun = solar_position(config, issued)
     table = BeamShadeTable()
     for idx in range(5):
-        table.record("i", sun.azimuth_deg, sun.elevation_deg, issued - timedelta(minutes=15 * idx), 0.5)
+        table.record("i", sun.azimuth_deg, sun.elevation_deg, issued - timedelta(days=idx), 0.5, as_of=issued)
     shaded_actual = inverter_power(config, instant_weather, beam_shade_factor=0.5)["i"]
     forecast = source(hourly, issued)
     observed = Observation(issued, "i", power_w=shaded_actual)

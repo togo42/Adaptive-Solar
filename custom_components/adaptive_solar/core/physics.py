@@ -156,7 +156,8 @@ def _clear_component_means(latitude: float, longitude: float, start: datetime, e
                  for name in ("ghi", "dni", "dhi"))
 
 
-def instantaneous_weather(config: SiteConfig, weather: WeatherPoint, at: datetime) -> WeatherPoint | None:
+def instantaneous_weather(config: SiteConfig, weather: WeatherPoint, at: datetime, *,
+                          minimum_component_mean: float = 1.0) -> WeatherPoint | None:
     """Internal instant approximation; never publish it as an interval mean.
 
     The original NWP inputs remain means. A modeled clear-sky time shape maps
@@ -185,7 +186,7 @@ def instantaneous_weather(config: SiteConfig, weather: WeatherPoint, at: datetim
             return None
         if original == 0:
             value = 0.0
-        elif mean < 1.0:
+        elif mean < minimum_component_mean:
             return None
         else:
             value = original * instant / mean
@@ -235,8 +236,16 @@ def string_dc_power(config: SiteConfig, string: StringConfig, weather: WeatherPo
     if sun.elevation_deg <= horizon_elevation:
         direct *= transmission
     direct *= beam_shade_factor
-    irradiance = max(0.0, _finite_physics(direct + _finite_physics(poa["poa_diffuse"], "poa_diffuse"), "poa_total"))
-    module_temperature = _finite_physics(pvlib.temperature.faiman(irradiance, weather.temperature_c, weather.wind_m_s), "module_temperature")
+    diffuse = _finite_physics(poa["poa_diffuse"], "poa_diffuse")
+    incident_irradiance = max(0.0, _finite_physics(direct + diffuse, "poa_total"))
+    # Heat uses incident irradiance; IAM is an optical cell-effective correction.
+    if string.iam_ashrae_b0:
+        aoi = pvlib.irradiance.aoi(string.tilt_deg, string.azimuth_deg, sun.zenith_deg, sun.azimuth_deg)
+        direct *= _finite_physics(pvlib.iam.ashrae(aoi, b=string.iam_ashrae_b0), "iam")
+    irradiance = max(0.0, _finite_physics(direct + diffuse, "effective_poa"))
+    module_temperature = _finite_physics(pvlib.temperature.faiman(
+        incident_irradiance, weather.temperature_c, weather.wind_m_s * string.wind_speed_factor,
+        u0=string.faiman_u0, u1=string.faiman_u1), "module_temperature")
     power = float(pvlib.pvsystem.pvwatts_dc(irradiance, module_temperature,
         string.peak_kw * 1000, string.temperature_coefficient)) * (1 - string.loss_fraction)
     return max(0.0, _finite_physics(power * damping_factor(config, string, midpoint), "string_dc_power"))
@@ -275,3 +284,41 @@ def inverter_power(config: SiteConfig, weather: WeatherPoint, *, at: datetime | 
             power = dc[inverter.id] * (1 - inverter.dc_loss_fraction)
         outputs[inverter.id] = min(inverter.output_cap_w, _finite_physics(power, "output_power"))
     return outputs
+
+
+def interval_inverter_power(config: SiteConfig, weather: WeatherPoint, *,
+                            start: datetime | None = None, end: datetime | None = None,
+                            inverter_id: str | None = None, beam_shade_factor: float = 1.0) -> dict[str, float]:
+    """Candidate subhour UTC quadrature; original radiation means stay untouched.
+
+    A clear-sky component shape normalized over ORIGINAL weather support maps
+    means to each instant. Ambient source conditions remain constant. The sum
+    and shared output cap are evaluated at each node before averaging power.
+    at= instant APIs never call this integrator. One step preserves legacy
+    midpoint results exactly, including cropped output intervals.
+    """
+    start = weather.start if start is None else utc_time(start)
+    end = weather.end if end is None else utc_time(end)
+    if not weather.start <= start < end <= weather.end:
+        raise ValueError("integration interval must be inside original weather support")
+    if config.physics_substeps == 1:
+        return inverter_power(config, replace(weather, start=start, end=end),
+                              inverter_id=inverter_id, beam_shade_factor=beam_shade_factor)
+    count = config.physics_substeps
+    totals: dict[str, float] = {}
+    for index in range(count):
+        at = start + (end - start) * ((index + 0.5) / count)
+        if solar_position(config, at).elevation_deg <= 0:
+            proxy = weather
+        elif weather.ghi_w_m2 + weather.dni_w_m2 + weather.dhi_w_m2 == 0:
+            proxy = weather
+        else:
+            # Integration may legitimately resolve a tiny dawn component.
+            # The public instantaneous nowcast retains its 1 W/m² guard.
+            proxy = instantaneous_weather(config, weather, at, minimum_component_mean=1e-9)
+            if proxy is None:
+                raise PhysicsUnavailable("unavailable_subinterval_shape")
+        for stage, power in inverter_power(config, proxy, at=at, inverter_id=inverter_id,
+                                           beam_shade_factor=beam_shade_factor).items():
+            totals[stage] = totals.get(stage, 0.0) + power / count
+    return totals

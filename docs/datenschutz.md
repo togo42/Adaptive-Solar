@@ -1,6 +1,6 @@
 # Datenschutz und Datenflüsse von Adaptive Solar
 
-Stand: 27.10.2026; beschrieben ist der Code von Adaptive Solar 0.2.14, keine
+Stand: 27.10.2026; beschrieben ist das Referenzrelease 0.2.14 mit lokalem Implementierungsnachtrag, keine
 Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 
 ## 1. Externe Verbindungen
@@ -29,6 +29,11 @@ Webserverlogs mit Löschung nach 90 Tagen. Wetterdaten unterliegen CC BY 4.0;
 bei einer eigenen Weiterveröffentlichung die [Attribution](https://open-meteo.com/en/licence)
 beachten. Die GPL des Projektcodes ersetzt diese Bedingungen nicht.
 
+Der lokale Nachtrag kann nach Abruffehlern vorhandenes Wetter mit unverändertem
+ursprünglichem Empfang höchstens zwölf Stunden lang weiterverwenden. Dadurch
+entsteht keine zusätzliche externe Datenübertragung; fehlgeschlagene Abrufe
+können weiter wiederholt werden. [Cache- und Fehlerdiagnosen](forecast-resilience.md).
+
 ## 2. Lokale Daten
 
 Standort, Geometrie, numerische Modellparameter und optionale Entitybindungen
@@ -51,13 +56,33 @@ HA-Aktionsspuren/Recorder/Logs können eigene Datenkopien enthalten.
 [Provenienz und Import](forecast-repairs.md).
 
 Die Tabelle `beam_shade_v1` speichert je Stufe und Sonnenstandsfenster bis zu
-24 UTC-Viertelstunden mit Zeitstempel und Transmissionsfaktor. Sie unterliegt
-keiner kalendarischen Altersgrenze und zählt nicht gegen die genannten
-Forecast-/Istzeilengrenzen. Ohne neue Aufnahmen können Faktoren deshalb länger
-als 120 Tage bestehen bleiben. Physische Änderungen oder geänderte relevante
+24 zeitlich qualifizierte UTC-Viertelstunden mit echtem Mess-/Verfügbarkeitszeitpunkt
+und Transmissionsfaktor. Im lokalen Nachtrag enthält Schema 3 außerdem höchstens
+64 Freigabeänderungen je Fenster. Alte Schema-1/2-Proben bleiben separat als
+unqualifizierte Altdaten diagnostisch erhalten, ebenfalls höchstens 24 je Fenster;
+sie begründen keine aktive Freigabe. Gespeicherte
+Zeilen können länger bestehen bleiben, aber die Anwendung qualifiziert nur Belege
+innerhalb 45 Tagen sowie ausreichende Tageszahl und begrenzte Streuung. Die Tabelle
+zählt nicht gegen die genannten Forecast-/Istzeilengrenzen. Physische Änderungen oder geänderte relevante
 Sensor-/Wettermodellbindungen setzen sie zurück; ein reiner Wechsel der
 Prognosetage erhält sie. Es gibt keine externe Synchronisierung.
 [Persistenzvertrag](implementation-contract.md).
+
+Der optionale Leistungs-Nowcast-Verlauf ist flüchtig und auf 128 Originalberichte
+pro Stufe begrenzt; er wird nicht als eigener Store persistiert. Auch der
+[frühe Bias-Shadow](early-bias-shadow.md) speichert keine ausführbaren Modelle.
+Seine Diagnosen und getrennten Kandidatenpunkte dienen der lokalen Beobachtung.
+Das [Modellvergleichsarchiv](model-comparison-archive.md) liegt im separaten festen
+Store `adaptive_solar.<entry_id>.comparison_v1`, unabhängig vom Primary-Messstore. Es umfasst Wettermitglieder,
+operative Ausgabe/Baseline und freigegebene Bias-Shadowpunkte, mit höchstens 120 Tagen,
+250.000 Punktzeilen und 1024 ganzen Snapshots insgesamt; die Grenzen können den
+Zeitraum verkürzen. Die erste echte lokale Receipt je Arm und lokalem Tag ab 18 Uhr
+wird behalten. Große Vergleichsdaten werden nur nach echten Captures/Retentionänderungen
+oder für einen noch nicht bestätigten Schreibretry gespeichert; Zählermeldungen
+schreiben sie nicht mit.
+Es wird keinem externen Dienst zur Verfügung gestellt. Diagnosen enthalten nur
+Umfang, Arme, Zeiten und Status; vollständige private Exporte können selbst
+gewählte Stufenkennungen und Forecastfeatures enthalten und gehören unter `data/`.
 
 Recorder, HA-Protokolle und Sicherungen haben eigene Aufbewahrungsregeln, die durch
 diese Limits nicht geändert werden. Auch unaufgezeichnete große Forecastattribute
@@ -67,7 +92,8 @@ schließen eine Aufzeichnung anderer Zustände/Attribute nicht aus.
 
 Die integrierte Diagnoseausgabe lässt Standortkoordinaten, konfigurierte Entity-IDs
 und rohe Historienzeilen weg. Sie enthält unter anderem Wettermodelle, Fehlertypen,
-Zeitpunkte, Zähler, begrenzte Wetterkorrektur-Rohwertbeispiele und Lernstatus je selbst gewählter Stufenkennung. Solche Kennungen
+Zeitpunkte, Zähler, begrenzte Wetterkorrektur-Rohwertbeispiele, Ressourcen-/Fitdiagnosen
+und Bias-Shadow-/Lernstatus je selbst gewählter Stufenkennung. Solche Kennungen
 können persönliche Bezeichnungen enthalten; die Datei vor Weitergabe prüfen.
 
 Sensorattribute enthalten Forecastkurven, Eingangsqualität und Lerninformationen.
@@ -91,7 +117,8 @@ Eintragsentfernung und HACS-Deinstallation sind deshalb keine Zusage, dass alle
 Lern-/Recorder-/Sicherungsdaten gelöscht werden.
 
 Für vollständige Löschung zuerst Verbraucher und Sicherungsbedarf klären, dann den
-Eintrag entfernen und seine beiden exakten Storekeys sowie Recorder-/Backupkopien
+Eintrag entfernen und seine drei exakten Storekeys (Primary, Vergleichsarchiv und
+nur lesender Legacy-Key) sowie Recorder-/Backupkopien
 in einen getrennten administrativen Löschplan aufnehmen. Keine pauschale Löschung
 von `.storage` und keine direkten Änderungen laufender HA-internen Daten als
 Installationsanleitung verwenden. Es gibt derzeit keine eigene Schaltfläche für

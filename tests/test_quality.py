@@ -308,7 +308,7 @@ async def test_beam_shade_diagnostics_in_quality_and_entry_diagnostics(hass):
     entry.runtime_data = coordinator
     sun = solar_position(coordinator.site, NOW)
     for idx in range(5):
-        coordinator.shading.record("i0", sun.azimuth_deg, sun.elevation_deg, NOW - timedelta(minutes=15 * idx), 0.65)
+        coordinator.shading.record("i0", sun.azimuth_deg, sun.elevation_deg, NOW - timedelta(days=idx), 0.65, as_of=NOW)
     forecast = WeatherForecast("best_match", NOW, tuple(
         WeatherPoint(NOW + timedelta(hours=h), NOW + timedelta(hours=h + 1), 700, 700, 100, 20, 2, 10)
         for h in range(14)

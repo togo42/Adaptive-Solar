@@ -109,7 +109,7 @@ def test_nonfinite_pvlib_values_are_rejected_before_clipping(monkeypatch, target
                             lambda **kwargs: {"poa_direct": value if target == "direct" else 500,
                                               "poa_diffuse": value if target == "diffuse" else 100})
     elif target == "temperature":
-        monkeypatch.setattr(physics.pvlib.temperature, "faiman", lambda *args: value)
+        monkeypatch.setattr(physics.pvlib.temperature, "faiman", lambda *args, **kwargs: value)
     else:
         monkeypatch.setattr(physics.pvlib.pvsystem, "pvwatts_dc", lambda *args: value)
     with pytest.raises(physics.PhysicsUnavailable, match=f"nonfinite_{quantity}"):

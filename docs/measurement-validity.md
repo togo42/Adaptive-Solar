@@ -82,6 +82,14 @@ Ein zurückgehaltenes kurzes Zählerdelta wird bei ungültiger Messquelle oder
 Abregelung verworfen. Nach Wiederfreigabe ankert weiterhin erst ein echter
 neuer Originalbericht; der bisherige Abschnitt wird nicht nachträglich gültig.
 
+Der [aktuelle Implementierungsnachtrag](measurement-learning.md) ergänzt belegte
+Kontinuitätsphasen, streng begrenzte Zeitstempellücken ohne erfundene Messdauer
+und Lernfenster ab echten Zählerendpunkten. Ein kleiner Rundungsburst darf nun
+bis zum nächsten Originalbericht, höchstens 15 Minuten ab Anker, warten; die
+separate Energiegrenze bleibt auf ein 60-Sekunden-Quantum begrenzt. Ungültigkeit,
+Abregelung und Neustart bleiben harte Unterbrechungen. Alte Herkunft wird nicht
+nachträglich als sicher erklärt.
+
 ## Diagnose und Prognose
 
 `inputs.measurement_valid_<Stufe>` meldet `valid`, `invalid` oder `unknown` für

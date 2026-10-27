@@ -133,7 +133,7 @@ async def saved_history(hass):
     payload = {**evidence(instance), "learning_feature_contract": instance._stored()["learning_feature_contract"]}
     instance.archive, instance.intervals, instance.daily_snapshots = payload["archive"], payload["intervals"], payload["daily_snapshots"]
     for idx in range(5):
-        instance.shading.record("i", 180.0, 40.0, NOW - timedelta(hours=2, minutes=15 * idx), 0.6)
+        instance.shading.record("i", 180.0, 40.0, NOW - timedelta(days=idx, hours=2), 0.6, as_of=NOW)
     instance.async_commit_setup()
     await instance.async_close()
     return instance, entry, payload
@@ -163,7 +163,7 @@ async def test_observation_and_weather_changes_preserve_actuals_and_published_da
             assert second.shading.transmittance("i", 180.0, 40.0) == pytest.approx(0.6)
         else:
             assert second._shade_fingerprint != first._shade_fingerprint
-            assert second.shading.to_dict() == {"schema": 1, "inverters": {}}
+            assert second.shading.to_dict() == {"schema": 3, "inverters": {}, "released": {}}
         second.async_commit_setup()
         await second.async_close()
         third, _ = coordinator(hass, entry, second.site)
@@ -172,7 +172,7 @@ async def test_observation_and_weather_changes_preserve_actuals_and_published_da
         if change == "days":
             assert third.shading.transmittance("i", 180.0, 40.0) == pytest.approx(0.6)
         else:
-            assert third.shading.to_dict() == {"schema": 1, "inverters": {}}
+            assert third.shading.to_dict() == {"schema": 3, "inverters": {}, "released": {}}
         await third.async_close()
 
 
@@ -277,14 +277,14 @@ async def test_beam_shade_v1_persistence_contract_migration_and_corrupt_table_re
     instance, entry = coordinator(hass)
     table = BeamShadeTable()
     for idx in range(5):
-        table.record("i", 180.0, 40.0, NOW - timedelta(days=200, minutes=15 * idx), 0.6)
+        table.record("i", 180.0, 40.0, NOW - timedelta(days=idx, hours=2), 0.6, as_of=NOW)
     base = {**instance._stored(), **evidence(instance), "learning_feature_contract": LEARNING_FEATURE_CONTRACT}
     # 1. Missing beam_shade_v1 key loads empty table and keeps intervals/snapshots/archive.
     without_key = {k: v for k, v in base.items() if k != BEAM_SHADE_STORE_KEY}
     await instance._store.async_save(without_key)
     with freeze_time(NOW + timedelta(hours=2)):
         await instance.async_restore()
-        assert instance.shading.to_dict() == {"schema": 1, "inverters": {}}
+        assert instance.shading.to_dict() == {"schema": 3, "inverters": {}, "released": {}}
         assert instance.intervals == base["intervals"]
         assert instance.archive == base["archive"]
     await instance.async_close()
@@ -294,7 +294,7 @@ async def test_beam_shade_v1_persistence_contract_migration_and_corrupt_table_re
     await second._store.async_save(corrupt_shade)
     with freeze_time(NOW + timedelta(hours=2)):
         await second.async_restore()
-        assert second.shading.to_dict() == {"schema": 1, "inverters": {}}
+        assert second.shading.to_dict() == {"schema": 3, "inverters": {}, "released": {}}
         assert second.intervals == base["intervals"]
         assert second.archive == base["archive"]
         assert second.daily_snapshots == base["daily_snapshots"]
@@ -313,7 +313,7 @@ async def test_beam_shade_v1_persistence_contract_migration_and_corrupt_table_re
         assert third.intervals == base["intervals"]
         assert third.daily_snapshots == base["daily_snapshots"]
         assert third.shading.transmittance("i", 182.0, 42.0) == pytest.approx(0.6)
-        # Pruning at NOW+2h retains the 24-sample shade ring buffer independently of 120-day archive/interval cutoff.
+        # Pruning keeps the recent, time-qualified shade ring independently of archive coalescing.
         third._prune(NOW + timedelta(hours=2))
         assert third.shading.transmittance("i", 182.0, 42.0) == pytest.approx(0.6)
     await third.async_close()
@@ -322,7 +322,7 @@ async def test_beam_shade_v1_persistence_contract_migration_and_corrupt_table_re
         changed, _ = coordinator(hass, entry, replace(instance.site, latitude=53))
         await changed.async_restore()
         assert changed.archive == changed.intervals == []
-        assert changed.shading.to_dict() == {"schema": 1, "inverters": {}}
+        assert changed.shading.to_dict() == {"schema": 3, "inverters": {}, "released": {}}
         await changed.async_close()
 
 

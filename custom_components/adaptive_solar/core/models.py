@@ -93,6 +93,10 @@ class StringConfig:
     horizon: tuple[HorizonPoint, ...] = ()
     damping_morning: float = 0.0
     damping_evening: float = 0.0
+    iam_ashrae_b0: float = 0.0
+    faiman_u0: float = 25.0
+    faiman_u1: float = 6.84
+    wind_speed_factor: float = 1.0
 
     def __post_init__(self):
         _identifier(self.id)
@@ -100,7 +104,8 @@ class StringConfig:
         _number_fields(self, (("peak_kw", 0.000001, 1e6), ("tilt_deg", 0, 180),
             ("azimuth_deg", 0, 360), ("loss_fraction", 0, 1),
             ("temperature_coefficient", -0.02, 0), ("damping_morning", 0, 1),
-            ("damping_evening", 0, 1)))
+            ("damping_evening", 0, 1), ("iam_ashrae_b0", 0, 0.2),
+            ("faiman_u0", 5, 100), ("faiman_u1", 0, 30), ("wind_speed_factor", 0, 2)))
         object.__setattr__(self, "azimuth_deg", self.azimuth_deg % 360)
         horizon = tuple(self.horizon)
         if any(not isinstance(p, HorizonPoint) for p in horizon):
@@ -202,6 +207,8 @@ class SiteConfig:
     temperature_entity_id: str | None = None
     wind_entity_id: str | None = None
     irradiance_entity_id: str | None = None
+    physics_substeps: int = 1
+    power_nowcast_window_minutes: int = 0
 
     def __post_init__(self):
         _number_fields(self, (("latitude", -90, 90), ("longitude", -180, 180)))
@@ -235,6 +242,10 @@ class SiteConfig:
         object.__setattr__(self, "weather_models", models)
         if isinstance(self.forecast_days, bool) or not isinstance(self.forecast_days, int) or not 1 <= self.forecast_days <= MAX_FORECAST_DAYS:
             raise ValueError(f"forecast_days must be an integer from 1 to {MAX_FORECAST_DAYS}")
+        if type(self.physics_substeps) is not int or self.physics_substeps not in (1, 2, 4, 6, 12):
+            raise ValueError("physics_substeps must be one of 1, 2, 4, 6, 12")
+        if type(self.power_nowcast_window_minutes) is not int or not 0 <= self.power_nowcast_window_minutes <= 15:
+            raise ValueError("power_nowcast_window_minutes must be an integer from 0 to 15")
         _optional_entity(self.temperature_entity_id)
         _optional_entity(self.wind_entity_id)
         _optional_entity(self.irradiance_entity_id)
@@ -255,6 +266,13 @@ class SiteConfig:
             for key in ("damping_morning", "damping_evening"):
                 if string[key] == 0:
                     string.pop(key)
+        for string in result["strings"]:
+            for key, default in (("iam_ashrae_b0", 0), ("faiman_u0", 25), ("faiman_u1", 6.84), ("wind_speed_factor", 1)):
+                if string[key] == default:
+                    string.pop(key)
+        for key, default in (("physics_substeps", 1), ("power_nowcast_window_minutes", 0)):
+            if result[key] == default:
+                result.pop(key)
         result["inverters"] = [inverter.to_dict() for inverter in self.inverters]
         result["weather_models"] = list(result["weather_models"])
         return result
@@ -337,6 +355,7 @@ class TrainingSample:
     actual_w: float
     features: dict[str, float]
     curtailed: bool = False
+    measurement_support: tuple[tuple[datetime, datetime], ...] = ()
 
     def __post_init__(self):
         _interval(self)
@@ -347,6 +366,15 @@ class TrainingSample:
         object.__setattr__(self, "features", _features(self.features))
         if not isinstance(self.curtailed, bool):
             raise ValueError("curtailed must be boolean")
+        support = tuple((utc_time(a), utc_time(b)) for a, b in self.measurement_support)
+        previous = self.start
+        for a, b in support:
+            if a < previous or a >= b or a < self.start or b > self.end:
+                raise ValueError("invalid measured support")
+            previous = b
+        if support and (support[0][0] != self.start or support[-1][1] != self.end):
+            raise ValueError("measured support must retain its real endpoints")
+        object.__setattr__(self, "measurement_support", support)
 
 
 @dataclass(frozen=True)
@@ -379,6 +407,8 @@ class ForecastResult:
     issued_at: datetime
     points: tuple[ForecastPoint, ...]
     model_status: dict[str, str] = field(default_factory=dict)
+    member_points: dict[str, tuple[ForecastPoint, ...]] = field(default_factory=dict)
+    member_issued_at: dict[str, datetime] = field(default_factory=dict)
 
     def __post_init__(self):
         object.__setattr__(self, "issued_at", utc_time(self.issued_at, "issued_at"))
@@ -392,6 +422,17 @@ class ForecastResult:
                 raise ValueError("overlapping forecast intervals for inverter")
         object.__setattr__(self, "points", points)
         object.__setattr__(self, "model_status", dict(self.model_status))
+        members = {}
+        if set(self.member_points) != set(self.member_issued_at):
+            raise ValueError("member points and source issue models must match")
+        for model, rows in self.member_points.items():
+            _identifier(model, "weather model")
+            source_issue = utc_time(self.member_issued_at[model], "member_issued_at")
+            if source_issue > self.issued_at:
+                raise ValueError("member weather issue must not be in the future")
+            members[model] = ForecastResult(self.issued_at, tuple(rows)).points
+        object.__setattr__(self, "member_points", members)
+        object.__setattr__(self, "member_issued_at", {model: utc_time(value) for model, value in self.member_issued_at.items()})
 
     def energy_kwh(self, start: datetime, end: datetime, inverter_id: str | None = None) -> float | None:
         """Integrate only complete coverage; UTC durations preserve 23/25-hour days."""

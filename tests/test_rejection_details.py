@@ -245,7 +245,7 @@ def test_collection_changes_neither_fits_predictions_nor_validation_or_existing_
     assert details == {} and traced.status == {}
 
 
-async def test_coordinator_cache_freezes_the_common_snapshot_and_revision_refreshes_it(hass):
+async def test_coordinator_cache_freezes_same_inputs_and_refreshes_completed_targets(hass):
     instance, _ = coordinator(hass)
     payload = evidence(instance)
     instance.archive = payload["archive"]
@@ -256,10 +256,16 @@ async def test_coordinator_cache_freezes_the_common_snapshot_and_revision_refres
     first = deepcopy(instance.learner_status["i"]["training_quality"])
     assert first["alignment"]["pending_target_cells"] == 1
     assert first["rejection_details"]["targets"]["total"] == 0
-    with freeze_time(NOW + timedelta(hours=2)):
+    with freeze_time(NOW + timedelta(minutes=35)):
         await instance._async_update_data()
     assert instance.learner_status["i"]["training_quality"]["rejection_details"] == first["rejection_details"]
     assert instance.learner_status["i"]["training_quality"]["alignment"] == first["alignment"]
+    with freeze_time(NOW + timedelta(hours=2)):
+        await instance._async_update_data()
+    completed = instance.learner_status["i"]["training_quality"]
+    assert completed["alignment"]["pending_target_cells"] == 0
+    assert completed["rejection_details"]["evaluated_at"] == detail_time(NOW + timedelta(hours=2))
+    assert completed["rejection_details"]["targets"]["total"] == 1
     instance._append_interval(payload["intervals"][0])
     with freeze_time(NOW + timedelta(hours=2, minutes=5)):
         await instance._async_update_data()

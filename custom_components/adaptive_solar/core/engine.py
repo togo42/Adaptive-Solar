@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from .models import (ForecastPoint, ForecastResult, Observation, SiteConfig,
                      WeatherForecast, finite_number, midpoint_lead_hours, utc_time)
-from .physics import PhysicsUnavailable, clear_sky_ghi, clear_sky_ghi_mean, instantaneous_weather, inverter_power, solar_position
+from .physics import PhysicsUnavailable, clear_sky_ghi, clear_sky_ghi_mean, instantaneous_weather, interval_inverter_power, inverter_power, solar_position
 from .shading import (
      MAX_SHADE_PAIR_SECONDS,
      MIN_SHADE_CLEAR_SKY_W_M2,
@@ -75,15 +75,21 @@ def _without_uncertainty(status):
 
 
 def _physical_members(config, members, inverter_id, start, end, status, gains=None, weight=0.0,
-                      beam_shade_factor=1.0):
+                      beam_shade_factor=1.0, source_support=None):
     """Only this stage can lose a numerical member; never evaluate its peers."""
     result = []
     for model, point in members:
         adjusted, gain = (point, None) if gains is None else _scale_irradiance(point, 1 + (gains[model] - 1) * weight)
         try:
-            power = inverter_power(
-                config, adjusted, inverter_id=inverter_id, beam_shade_factor=beam_shade_factor
-            )[inverter_id]
+            source = None if source_support is None else source_support.get(model)
+            original = adjusted if source is None else replace(adjusted, start=source.start, end=source.end)
+            if config.physics_substeps == 1:
+                power = inverter_power(config, replace(adjusted, start=start, end=end),
+                    inverter_id=inverter_id, beam_shade_factor=beam_shade_factor)[inverter_id]
+            else:
+                power = interval_inverter_power(
+                    config, original, start=start, end=end, inverter_id=inverter_id, beam_shade_factor=beam_shade_factor
+                )[inverter_id]
         except PhysicsUnavailable as exc:
             status[f"physics:{model}:{inverter_id}:{start.isoformat()}/{end.isoformat()}"] = f"unavailable:{exc}"
             continue
@@ -156,7 +162,7 @@ def _instantaneous_reference(config, forecasts, models, observation, issued_at, 
     try:
         sun = solar_position(config, at)
         shade_factor = 1.0 if shading is None else shading.transmittance(
-            observation.inverter_id, sun.azimuth_deg, sun.elevation_deg
+            observation.inverter_id, sun.azimuth_deg, sun.elevation_deg, as_of=issued_at
         )
         member_powers = [
             inverter_power(
@@ -410,6 +416,58 @@ def _irradiance_weight(start, end, issued_at, observed_at):
     return GHI_DECAY_SECONDS * (exp(-a / GHI_DECAY_SECONDS) - exp(-b / GHI_DECAY_SECONDS)) / (end - start).total_seconds()
 
 
+def _smoothed_power_residual(config, latest, models, own, newest, issued_at, fresh,
+                             learner, ghi_regime, shading, latest_reference):
+    """Smooth bounded normalized residuals, never raw power across solar motion.
+
+    Each report gets its own instantaneous proxy and no newer environmental
+    observation. An unavailable member/learning/irradiance cohort is skipped.
+    Historical observations remain observations at their ORIGINAL timestamps.
+    """
+    window = timedelta(minutes=config.power_nowcast_window_minutes)
+    weak = max(10.0, next(inv.output_cap_w for inv in config.inverters if inv.id == newest.inverter_id) * .002)
+    candidates = {obs.time: obs for obs in own if obs.power_w is not None and not obs.curtailed
+                  and newest.time - window <= obs.time <= newest.time}
+    weighted = []
+    for at, obs in sorted(candidates.items()):
+        if any(latest[model].issued_at > at for model in models):
+            continue
+        if at == newest.time:
+            reference = latest_reference
+        else:
+            earlier = [item for item in fresh if item.time <= at]
+            ghi_observation, gains, _ = _irradiance_gains(config, latest, earlier, at)
+            if ghi_regime and (ghi_observation is None or not all(model in gains for model in models)):
+                continue
+            reference, _ = _instantaneous_reference(config, latest, models, obs, issued_at,
+                earlier, learner, ghi_observation if ghi_regime else None,
+                gains if ghi_regime else {}, shading)
+        if reference is None or reference.baseline_w <= weak:
+            continue
+        if _uses_residual(reference.learner_status) != _uses_residual(latest_reference.learner_status):
+            continue
+        if bool(reference.features["ghi_regime"]) != ghi_regime:
+            continue
+        if abs(reference.features["beam_shade_factor"] - latest_reference.features["beam_shade_factor"]) > 1e-6:
+            continue
+        ratio = max(-.35, min(.35, (obs.power_w - reference.power_w) / reference.baseline_w))
+        weight = exp(-(newest.time - at).total_seconds() / max(60.0, window.total_seconds() / 2))
+        weighted.append((at, ratio, weight))
+    if len(weighted) < 2:
+        return None
+    # Trapezoidal temporal support: many rapid reports cannot acquire more
+    # weight than the real time they cover. No report is extended before the
+    # oldest observation or after the newest observation.
+    numerator = denominator = 0.0
+    for index, (at, ratio, decay) in enumerate(weighted):
+        left = weighted[index - 1][0] if index else at
+        right = weighted[index + 1][0] if index + 1 < len(weighted) else at
+        weight = (right - left).total_seconds() / 2 * decay
+        numerator += ratio * weight
+        denominator += weight
+    return None if denominator <= 0 else numerator / denominator * latest_reference.baseline_w
+
+
 class ForecastEngine:
     def __init__(self, config: SiteConfig, shading: BeamShadeTable | None = None):
         self.config = config
@@ -461,6 +519,7 @@ class ForecastEngine:
         # A model with a gap contributes nothing; never fill that gap with zero.
         boundaries = sorted({t for _, p in weather for t in (max(p.start, issued_at), min(p.end, horizon_end))})
         rows = []
+        archived_members = {}
         row_models = {}
         row_learning = {}
         for start, end in zip(boundaries, boundaries[1:]):
@@ -497,11 +556,11 @@ class ForecastEngine:
                 # Determine this stage's valid cohort before choosing its
                 # atomic regime. Another stage may retain different members.
                 shade_factor = 1.0 if active_shading is None else active_shading.transmittance(
-                    inverter.id, sun.azimuth_deg, sun.elevation_deg
+                    inverter.id, sun.azimuth_deg, sun.elevation_deg, as_of=issued_at
                 )
                 evaluated = _physical_members(
                     config, prepared, inverter.id, start, end, status,
-                    beam_shade_factor=shade_factor,
+                    beam_shade_factor=shade_factor, source_support=dict(members),
                 )
                 if not evaluated:
                     continue
@@ -512,7 +571,7 @@ class ForecastEngine:
                     evaluated = _physical_members(
                         config, [(model, point) for model, point, _, _ in evaluated],
                         inverter.id, start, end, status, ghi_gains, weight,
-                        beam_shade_factor=shade_factor,
+                        beam_shade_factor=shade_factor, source_support=dict(members),
                     )
                 if not evaluated:
                     continue
@@ -535,6 +594,19 @@ class ForecastEngine:
                     "ghi_observation_age_seconds": (issued_at - ghi_observation.time).total_seconds() if applied_gains else 0.0,
                     "beam_shade_factor": float(shade_factor),
                     "output_cap_w": float(cap)}
+                # Standalone source-model physics arm: original NWP only,
+                # with neither observations, learned shade nor residual/nowcast.
+                # Gaps remain gaps and no unrequested weather model is invented.
+                pure_members = _physical_members(config, members, inverter.id, start, end, status)
+                for model, source, member_power, _ in pure_members:
+                    member_features = {**features, "baseline_w": member_power,
+                        "temperature_c": source.temperature_c, "wind_m_s": source.wind_m_s,
+                        "cloud_cover_pct": source.cloud_cover_pct, "ghi_regime": 0.0,
+                        "ghi_nowcast_gain": 1.0, "ghi_observation_age_seconds": 0.0,
+                        "beam_shade_factor": 1.0,
+                        "source_partial_at_issue": float(source.start < issued_at)}
+                    archived_members.setdefault(model, []).append(ForecastPoint(
+                        start, end, inverter.id, member_power, member_power, features=member_features))
                 if applied_gains:
                     features.update({"ghi_observation_w_m2": ghi_observation.ghi_w_m2,
                         "ghi_observation_age_seconds": (issued_at - ghi_observation.time).total_seconds(),
@@ -595,7 +667,14 @@ class ForecastEngine:
                     b = (stop - issued_at).total_seconds() / 3600
                     duration = (point.end - point.start).total_seconds() / 3600
                     weight = NOWCAST_DECAY_HOURS * (exp(-a / NOWCAST_DECAY_HOURS) - exp(-b / NOWCAST_DECAY_HOURS)) / duration
-                    residual = max(-cap * 0.35, min(cap * 0.35, observation.power_w - reference.power_w))
+                    raw_residual = observation.power_w - reference.power_w
+                    if config.power_nowcast_window_minutes:
+                        smoothed = _smoothed_power_residual(config, latest, models, own, observation,
+                            issued_at, fresh, learner, ghi_regime, active_shading, reference)
+                        if smoothed is not None:
+                            raw_residual = smoothed
+                            _add_status(status, f"power_nowcast:{point.inverter_id}", "candidate:normalized_history")
+                    residual = max(-cap * 0.35, min(cap * 0.35, raw_residual))
                     correction = 0.5 * exp(-age / NOWCAST_DECAY_HOURS) * residual * weight
                     power = max(0.0, min(cap, point.power_w + correction))
                     # The ML holdout did not calibrate this observation-driven
@@ -608,4 +687,6 @@ class ForecastEngine:
             # Aggregate only final point statuses. An untouched calibrated
             # neighbor may retain calibration; a changed point may not.
             _add_status(status, point.inverter_id, row_learning[point.start, point.end, point.inverter_id])
-        return ForecastResult(issued_at, tuple(corrected), status)
+        return ForecastResult(issued_at, tuple(corrected), status,
+                              {model: tuple(points) for model, points in archived_members.items()},
+                              {model: latest[model].issued_at for model in archived_members})

@@ -6,6 +6,12 @@ Der aktuelle [Prüf-/Reviewstand](entwicklungsstand.md) ist separat gebunden.
 Die Änderungen betreffen die Messaufbereitung und Lernlabelauswahl, nicht die
 Wetter-/PV-Baselines oder die Annahmekriterien des externen Prognosevergleichs.
 
+Dieser Text beschreibt den **historischen Vertrag von 0.2.13**. Der
+[aktuelle Implementierungsnachtrag](measurement-learning.md) erhält dessen
+Abdeckungs-/Randgrenzen und erweitert ihn um belegte Kontinuität mit begrenzten
+Zeitstempellücken, separate 15-Minuten-Wartezeit und echte Endpunktfenster.
+Insbesondere ist die unten beschriebene 60-Sekunden-Wartefrist historisch.
+
 ## 1. Abdeckungsregeln
 
 Ein ursprüngliches Prognoseziel muss mindestens 30 Minuten dauern. Daraus wird

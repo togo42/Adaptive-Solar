@@ -40,51 +40,37 @@ def test_shade_bin_azimuth_wrap_and_elevation_bounds():
 
 def test_quarter_hour_release_replacement_eviction_and_clipping():
     table = BeamShadeTable()
-    assert table.transmittance("i", 182.0, 42.0) == 1.0
-    # Four distinct UTC quarter-hours remain unreleased at factor 1.0.
-    for index, factor in enumerate((0.2, 0.4, 0.6, 0.8)):
-        assert table.record("i", 182.0, 42.0, T0 + timedelta(minutes=15 * index), factor)
-        assert table.transmittance("i", 182.0, 42.0) == 1.0
-    assert table.filled_bins("i") == 0
-    # Same UTC quarter-hour replaces the value without advancing the count.
-    assert table.record("i", 188.0, 44.0, T0 + timedelta(minutes=45, seconds=500), 0.7)
-    assert len(table.bin_samples("i", 182.0, 42.0)) == 4
-    assert table.transmittance("i", 182.0, 42.0) == 1.0
-    # Fifth distinct quarter-hour releases the median of stored values: (0.2, 0.4, 0.6, 0.7, 0.9) -> 0.6.
-    assert table.record("i", 185.0, 41.0, T0 + timedelta(minutes=60), 0.9)
-    assert table.filled_bins("i") == 1
-    assert table.transmittance("i", 182.0, 42.0) == pytest.approx(0.6)
-    # Out-of-bounds factors are clipped to [0, 1] before storage; non-finite rejected.
-    Ring = BeamShadeTable()
-    for index, raw in enumerate((-0.5, -0.1, 0.5, 1.2, 2.0)):
-        Ring.record("i", 100.0, 25.0, T0 + timedelta(minutes=15 * index), raw)
-    assert Ring.bin_samples("i", 100.0, 25.0) == (0.0, 0.0, 0.5, 1.0, 1.0)
-    assert Ring.transmittance("i", 100.0, 25.0) == pytest.approx(0.5)
+    for index in range(5):
+        stamp = T0 - timedelta(minutes=15 * index)
+        assert table.record("i", 182, 42, stamp, .4, as_of=T0)
+    assert table.transmittance("i", 182, 42, as_of=T0) == 1
+    assert table.status_for("i", 182, 42, as_of=T0)["release_reason"] == "insufficient_days"
+    assert table.record("i", 185, 41, T0 - timedelta(days=1), .4, as_of=T0)
+    assert table.filled_bins("i", as_of=T0) == 1
+    assert table.transmittance("i", 182, 42, as_of=T0) == pytest.approx(.4)
+    # Same quarter replaces without increasing sample count.
+    table.record("i", 188, 44, T0 - timedelta(days=1) + timedelta(seconds=1), .4, as_of=T0)
+    assert len(table.bin_samples("i", 182, 42, as_of=T0)) == 6
+    ring = BeamShadeTable()
+    for index, raw in enumerate((-.5, -.1, .5, 1.2, 2)):
+        ring.record("i", 100, 25, T0 - timedelta(minutes=15 * (4-index)), raw, as_of=T0)
+    assert ring.bin_samples("i", 100, 25, as_of=T0) == (0., 0., .5, 1., 1.)
     for bad in (float("nan"), float("inf"), -float("inf"), True):
         with pytest.raises(ValueError):
-            Ring.record("i", 100.0, 25.0, T0, bad)
-    # 25th distinct quarter-hour evicts the oldest quarter-hour.
+            ring.record("i", 100, 25, T0, bad, as_of=T0)
     evict = BeamShadeTable()
-    evict.record("i", 150.0, 30.0, T0, 0.0)
-    for index in range(1, 24):
-        evict.record("i", 150.0, 30.0, T0 + timedelta(minutes=15 * index), 0.2 if index < 12 else 0.8)
-    assert len(evict.bin_samples("i", 150.0, 30.0)) == 24
-    assert evict.bin_samples("i", 150.0, 30.0)[0] == 0.0
-    assert evict.transmittance("i", 150.0, 30.0) == pytest.approx(0.5)
-    evict.record("i", 150.0, 30.0, T0 + timedelta(minutes=15 * 24), 0.8)
-    samples = evict.bin_samples("i", 150.0, 30.0)
-    assert len(samples) == 24
-    assert 0.0 not in samples
-    assert evict.transmittance("i", 150.0, 30.0) == pytest.approx(0.8)
-    # Empty neighboring bins are never filled from neighbors.
-    assert evict.transmittance("i", 160.0, 30.0) == 1.0
-    assert evict.transmittance("i", 150.0, 35.0) == 1.0
+    for index in range(25):
+        evict.record("i", 150, 30, T0 - timedelta(minutes=15 * (24-index)), index / 24, as_of=T0)
+    samples = evict.bin_samples("i", 150, 30, as_of=T0)
+    assert len(samples) == 24 and 0 not in samples
+    assert evict.transmittance("i", 160, 30, as_of=T0) == 1
+    assert evict.transmittance("i", 150, 35, as_of=T0) == 1
 
 
 @pytest.mark.parametrize("corrupt", [
     None,
     "invalid",
-    {"schema": 2, "inverters": {}},
+    {"schema": 4, "inverters": {}},
     {"schema": True, "inverters": {}},
     {"schema": 1, "inverters": []},
     {"schema": 1, "inverters": {"i": {"bad_key": []}}},
@@ -98,13 +84,13 @@ def test_quarter_hour_release_replacement_eviction_and_clipping():
 def test_serialization_roundtrip_and_corrupt_payload_fallback(corrupt):
     table = BeamShadeTable()
     for index in range(5):
-        table.record("i", 184.0, 42.0, T0 + timedelta(minutes=15 * index), 0.4 + 0.05 * index)
+        table.record("i", 184.0, 42.0, T0 - timedelta(days=index), 0.5, as_of=T0)
     restored = BeamShadeTable.from_dict(table.to_dict(), inverter_ids={"i"})
     assert restored.to_dict() == table.to_dict()
-    assert restored.bin_samples("i", 184.0, 42.0) == table.bin_samples("i", 184.0, 42.0)
-    assert restored.transmittance("i", 184.0, 42.0) == pytest.approx(0.5)
+    assert restored.bin_samples("i", 184.0, 42.0, as_of=T0) == table.bin_samples("i", 184.0, 42.0, as_of=T0)
+    assert restored.transmittance("i", 184.0, 42.0, as_of=T0) == pytest.approx(0.5)
     empty = BeamShadeTable.from_dict(corrupt, inverter_ids={"i"})
-    assert empty.to_dict() == {"schema": 1, "inverters": {}}
+    assert empty.to_dict() == {"schema": 3, "inverters": {}, "released": {}}
     assert empty.transmittance("i", 184.0, 42.0) == 1.0
     # An empty/fallback table never raises in ForecastEngine.
     cfg = SiteConfig(52, 13, "Europe/Berlin", (StringConfig("s", "i", 5, 30, 180),), (InverterConfig("i", 5),))
@@ -131,9 +117,9 @@ def test_dst_transitions_preserve_utc_quarter_hour_and_solar_position():
         sun = solar_position(cfg, day)
         assert sun.elevation_deg > 15
         for idx in range(5):
-            stamp = day.astimezone(zone) + timedelta(days=idx)
-            table.record("i", sun.azimuth_deg, sun.elevation_deg, stamp, 0.55)
-        assert table.transmittance("i", sun.azimuth_deg, sun.elevation_deg) == pytest.approx(0.55)
+            stamp = day.astimezone(zone) - timedelta(days=idx)
+            table.record("i", sun.azimuth_deg, sun.elevation_deg, stamp, 0.55, as_of=day)
+        assert table.transmittance("i", sun.azimuth_deg, sun.elevation_deg, as_of=day) == pytest.approx(0.55)
 
 
 async def test_coordinator_recording_gates_and_overlapping_rejections(hass):
@@ -312,7 +298,7 @@ def test_beam_shade_activation_prevents_residual_double_subtraction_without_muta
     # Now BeamShadeTable releases factor 0.5 for this solar bin.
     active_table = BeamShadeTable()
     for idx in range(5):
-        active_table.record("i", sun.azimuth_deg, sun.elevation_deg, T0 + timedelta(minutes=15 * idx), 0.5)
+        active_table.record("i", sun.azimuth_deg, sun.elevation_deg, as_of - timedelta(days=idx), 0.5, as_of=as_of)
     # 1. Even before refitting, passing a shaded point (beam_shade_factor=0.5, baseline=1000W) to the old learner
     # must NOT subtract another ~1000W; it falls back to the shaded physical baseline.
     shaded_features = {**archive[-1]["features"], "baseline_w": 1000.0, "beam_shade_factor": 0.5}
@@ -490,9 +476,10 @@ def test_noisy_partial_shading_across_train_and_holdout_blocks_activates_without
                 "observed_at": (end + timedelta(minutes=1)).isoformat(),
                 "energy_kwh": actual / 1000.0,
             })
+    as_of = epoch + timedelta(days=56)
     active_table = BeamShadeTable()
     for idx, sample_factor in enumerate(jitter):
-        active_table.record("i", sun.azimuth_deg, sun.elevation_deg, T0 + timedelta(minutes=15 * idx), sample_factor)
+        active_table.record("i", sun.azimuth_deg, sun.elevation_deg, as_of - timedelta(days=idx), sample_factor, as_of=as_of)
     as_of = epoch + timedelta(days=56)
     diag = {}
     samples = join_training(archive, intervals, diagnostics=diag, as_of=as_of, shading=active_table)
