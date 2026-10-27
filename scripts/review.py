@@ -28,7 +28,7 @@ REVIEWER_LABELS = {"grok": "Grok", "codex": "Codex"}
 CODEX_DISABLED_FEATURES = ("shell_tool", "unified_exec", "multi_agent", "memories", "plugins", "apps")
 MAX_SINGLE_PAYLOAD_BYTES = 1250000
 REVIEW_CONTEXT_WINDOW_TOKENS = 500000
-SUFFIXES = {".py", ".js", ".mjs", ".json", ".md", ".toml", ".txt", ".yml", ".yaml", ".sh"}
+SUFFIXES = {".py", ".json", ".md", ".toml", ".txt", ".yml", ".yaml", ".sh"}
 RESEARCH_FILES = frozenset({
     "solar-prognose-ml-recherche.md", "solar-prognosemodelle-zusammenfassung.md",
     "solar_ml_research.md", "ensemble_hybrid_solar_forecasting.md",
