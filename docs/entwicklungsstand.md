@@ -1,6 +1,6 @@
 # Entwicklungsstand und offene Nachweise
 
-## Lokaler Entwicklungsstand nach 0.2.14
+## Freigabekandidat 0.2.15
 
 Basis ist `6193efc39b4da87a5fad3252b991493c8b9fcda4` auf dem Entwicklungszweig
 `feat/forecast-quality-20261027`. Drei Subagenten mit GPT-6.1-Sol und Reasoning
@@ -54,13 +54,17 @@ aktiv. [Abschlussnachweis und Hashes](review-findings.md#abgeschlossener-vollrev
 
 Diese nachträgliche Statusdokumentation liegt außerhalb des eingefrorenen
 Reviewtexts; Implementierungs-, Test- und übrige geprüfte Dateibytes bleiben
-unverändert. Paketversion und veröffentlichter Stand bleiben 0.2.14.
-Produktive Einstellungen, HACS und HA wurden in diesem Arbeitsauftrag nicht
-geändert. Die lokale Prüfung belegt weder bessere reale Prognosen noch
+unverändert. Der anschließende Releaseauftrag hebt ausschließlich die Versionsmetadaten
+auf 0.2.15 und ergänzt die [Release-/Upgradebeschreibung](release-0.2.15.md).
+Veröffentlichung, Paketbau, abgeschlossene Remote-CI und produktive Übernahme werden
+nach Ausführung hier separat nachgetragen. Bis dahin bleibt 0.2.14 der installierte
+Referenzstand. Die lokale Prüfung belegt weder bessere reale Prognosen noch
 produktive HA-Stabilität. Eine bessere reale Prognose und eine Freigabe des
 frühen Bias-Kandidaten brauchen die getrennte prospektive Auswertung.
 
 ## Veröffentlichter und installierter Stand 0.2.14
+
+Historischer Nachweis der Vorgängerversion.
 
 Stand: 27.10.2026. [Nachtstrahlung und historische Tagesstartwerte](forecast-repairs.md)
 sind implementiert und vollständig geprüft. [Releasebeschreibung](release-0.2.14.md).

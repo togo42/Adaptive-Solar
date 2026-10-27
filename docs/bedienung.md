@@ -1,6 +1,6 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 27.10.2026, veröffentlichtes Referenzrelease 0.2.14 mit lokalem Implementierungsnachtrag. Die neuen Funktionen sind noch nicht als produktiv installiert nachgewiesen. [Installation](installation.md),
+Stand: 27.10.2026, Funktionsumfang 0.2.15. Veröffentlichung und produktive Prüfung werden im [Entwicklungsstand](entwicklungsstand.md) nachgewiesen. [Installation](installation.md),
 [Datenverträge](implementation-contract.md), [Datenschutz](datenschutz.md).
 
 ## 1. Anlagenaufteilung vorbereiten

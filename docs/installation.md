@@ -1,6 +1,7 @@
 # Adaptive Solar installieren und aktualisieren
 
-Stand: 27.10.2026; veröffentlichtes Referenzrelease 0.2.14 mit ausdrücklich getrenntem lokalem Implementierungsnachtrag. Die hier beschriebenen Schritte
+Stand: 27.10.2026; Releaseanleitung für 0.2.15. Den abgeschlossenen Veröffentlichungs-
+und Installationsnachweis nennt der [Entwicklungsstand](entwicklungsstand.md). Die hier beschriebenen Schritte
 werden vom Betreiber auf der eigenen Installation ausgeführt. Projektprüfungen und
 ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 
@@ -99,8 +100,7 @@ Originalprovenienz und begrenzen kleine negative Nachtstrahlung. Bereits verlore
 Tageswerte brauchen einen expliziten Originalimport. Nach HACS-Download einmal
 Core neu starten; kein Core-/OS-Upgrade.
 
-Der lokale Nachtrag nach 0.2.14 ist noch kein Installations- oder Releasebeleg.
-Er ergänzt [Messkontinuität/Endpunktfenster](measurement-learning.md),
+[Version 0.2.15](release-0.2.15.md) ergänzt [Messkontinuität/Endpunktfenster](measurement-learning.md),
 [Fit-/Wetterfallback und Diagnosen](forecast-resilience.md), einen ausschließlich
 beobachteten [frühen Bias-Kandidaten](early-bias-shadow.md) und das
 [Modellvergleichsarchiv](model-comparison-archive.md). Die optionalen
