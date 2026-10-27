@@ -1,21 +1,68 @@
 # Entwicklungsstand und offene Nachweise
 
-## Releasevorbereitung 0.2.13
+## Veröffentlichter und installierter Stand 0.2.13
 
-Die [Releasebeschreibung](release-0.2.13.md) bündelt die nachfolgenden lokalen
-Messdaten-/Diagnoseänderungen. Geprüfte Implementierung: `9259903`, 1057 Tests
-ohne Skips und akzeptierter Grok-4.7/high-Nachreview. Die Vorbereitung ändert
-an Integrationsdateien nur das Manifest-Versionsfeld. Kein Featurevertragswechsel,
-keine neuen Runtimepins oder HA-Optionen. Veröffentlichung und HA-Update sind
-ausdrücklich beauftragt; Paket-, CI- und Installationsbelege folgen getrennt.
+Stand: 27.10.2026. [v0.2.13](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.13)
+aus Commit `79794cad9a4e54d9c21f52b204c3d71d02d7287e` veröffentlicht und über
+HACS auf Core **2026.10.4** installiert. [Releaseinhalt](release-0.2.13.md):
+92 % Mindestabdeckung, feste 180 Sekunden Randlücke, begrenzte Behandlung
+kurzer Zählerbursts, längster gültiger Messblock und Ablehnungsdetails mit
+Originalzeiten. Geprüfte Implementierung: `9259903`; außer der Manifestversion
+bleiben die Integrationsbytes gleich zum akzeptierten Grok-4.7/high-Nachreview.
 
-Wheel, Sdist und Integrations-ZIP lokal gebaut. **25 Integrationsdateien**,
-beide GPL-Lizenzkopien und Metadaten geprüft; reguläres Wheel separat installiert
-und elf Module mit HA Core importiert. Alle Integrationsbytes außer der
-Manifestversion stimmen mit dem akzeptierten Review überein. Paket-/Hashbelege:
-`artifacts/release-0.2.13/`. Remote-CI und produktive Installation stehen noch aus.
+**1057 lokale Tests ohne Skips**, Ruff und Dependencycheck erfolgreich.
+Gültiger Volltextreview über 106 öffentliche Originaldateien, 1.446.687
+Payloadbytes und 26 erfolgreiche Turns; native Kontext-/Hashprüfung unabhängig
+wiederholt, keine Compaction, Tools oder aktiven Hintergrundaufgaben.
+Die dauerhafte Freigabe für Grok-Reviews öffentlicher Repositoryquellen steht
+in AGENTS.md. Private Installationsdaten und Zugangsdaten bleiben ausgeschlossen.
 
-## Lokale Ablehnungsdiagnose vom 27.10.2026
+Wheel, Sdist, Integrations-ZIP und SHA256-Liste veröffentlicht und nach Download
+bytegleich geprüft. **25 Integrationsdateien**, beide GPL-Lizenzkopien und
+Paketmetadaten kontrolliert; reguläres Wheel separat installiert und elf Module
+mit HA Core importiert. [Branch-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40522629895)
+und [Tag-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40522628968)
+vor HACS-Download erfolgreich, jeweils 1057 Tests ohne Skips.
+Lokale Paket-/Reviewbelege: `artifacts/release-0.2.13/` und
+`artifacts/rejection-details-20261027/`.
+
+Neue geschützte native Sicherung von HA-Konfiguration und Apps ohne Recorder-DB
+angelegt. Der Create-Aufruf meldete Timeout; Abschluss über native Liste bestätigt,
+Archivmetadaten und voller äußerer SHA geprüft. Entschlüsselung/Wiederherstellung
+nicht getestet. Zusätzlich bisherige Komponente und vier Lernstores lokal für
+einen gezielten Rückweg gesichert. Nach HACS-Download alle 25 Dateien geprüft,
+genau ein Core-Neustart; Core selbst und die Runtimepins bleiben unverändert.
+
+Vier geladene Einträge melden nativ **0.2.13** und erfolgreiche Updates. **80
+Entity-/Unique-IDs samt Benutzeranpassungen, vier Geräte, sämtliche Optionen und
+Energy-Einstellungen unverändert.** Physische/volle Fingerprints,
+`beam-shade-table-v1`, zuvor abgeschlossene Messintervalle und echte vergangene/
+heutige Tagesbeginn-Snapshots erhalten. Kein pauschaler Historienreset.
+
+Alle vier neuen Ablehnungsdiagnosen liefern Schema 1, echte Fit-Cutoffs,
+vollständige passende Ziel-/Zeilenzähler und höchstens 50 eindeutige Einträge
+je Gruppe. Die live sichtbare Policy ist 0,92 / 180 Sekunden / 60 Sekunden
+Plausibilitätsfenster. Nach echten Quellenberichten nur die vier eigenen
+Prognosestatusanzeigen aktualisiert; Originalmessquellen nicht gepollt.
+Alle vier anschließend **Physik/kalt**, gültige Umweltwerte, keine Wetterfehler.
+Konfiguration gültig, keine aktiven Repairs, keine aktuellen Einträge im
+Systemlogfilter `adaptive_solar`. HACS: installiert/angeboten v0.2.13, kein Update offen.
+
+**Laufzeitgrenze:** Zwei vollständige lokale Folgetage je Stufe geprüft.
+Am dritten Folgetag fehlt in allen vier nativen Prognosekurven am 30.10.2026
+19–20 Uhr UTC eine Stunde; direkt im HA-Zustand zusätzlich bestätigt.
+Die Lücke bleibt fehlend. Ursache und Prognosegüte sind damit nicht geklärt;
+der Nachweis behauptet ausdrücklich keine drei vollständigen Folgetage.
+Verfügbare Intervalle halten nominelle Grenzen, Einheiten und Energiebezug ein.
+
+Private Rohbelege: `data/release-0.2.13-20261027/`;
+Laufzeitaudit-SHA256: `1b1854520cb9e586f31330675fa41c46dc7ec51cfb9fe3e86a06c07d077549b0`.
+Diese nachträgliche Statusdokumentation ist außerhalb von Tag/Reviewtext;
+ausgelieferter Code und Tag bleiben unverändert. Dashboardressourcen und HA-Config
+wurden nicht geändert. Qualifiziertes produktives ML und ein realer Vorteil
+genüber Referenzintegrationen bleiben offen.
+
+## Ursprünglicher lokaler Diagnose-Nachtrag vom 27.10.2026
 
 Die [Diagnoseschnittstelle](ablehnungsdiagnose.md) ergänzt Originalzeiten und
 Gründe für eindeutige abgelehnte Ziele und die schon gezählten Learner-Zeilen.
@@ -24,7 +71,9 @@ keine erfundenen Zeitwerte. Zwei mit dem Auftraggeber abgestimmte
 Präzisierungen: Der bereits gezählte Schattenfilter wird erklärt; Alignment
 und beide Detailgruppen bleiben als gemeinsamer Fit-Snapshot einschließlich
 seines Cutoffs erhalten. Trainingsauswahl, Fits, Prognosen und Gates bleiben
-unverändert. Keine Änderungen an HA-Config, kein Deploy, Push oder Release.
+unverändert. Bei diesem ursprünglichen lokalen Arbeitsabschluss gab es noch
+keinen Deploy, Push oder Release; der spätere Rollout steht oben. HA-Config
+bleibt unverändert.
 
 **1057 Tests ohne Fehler oder Skips** unter Core 2026.10.4 bestanden, darunter
 40 neue Diagnose-Regressionen. Ruff, Dependencycheck und Markdownziele geprüft.
@@ -59,13 +108,14 @@ Dependencycheck erfolgreich. Lokale Nachweise:
 
 Zum Abschluss dieses Messdaten-Nachtrags in `1634e08` lag noch kein neuer
 externer Review vor; der spätere Diagnosereview ist oben separat gebunden.
-Weiterhin kein neues Release, Push oder produktiver HA-Rollout.
+Der damalige Nachweis enthielt keinen neuen Release, Push oder produktiven
+HA-Rollout; der spätere Stand 0.2.13 ist oben separat dokumentiert.
 Bestehende Release-/Reviewbelege gelten dem jeweils eingefrorenen Stand;
 sie werden nicht auf diesen Nachtrag erweitert. Die Lernhistorie wird nicht
 pauschal zurückgesetzt; früher verworfene Energie wird nicht rekonstruiert.
 Mehr angenommene Lernlabels sind kein Nachweis besserer Prognosegüte.
 
-## Veröffentlichter und installierter Stand 0.2.12
+## Historischer Veröffentlichungs- und Installationsstand 0.2.12
 
 Stand: 27.10.2026. [v0.2.12](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.12)
 ist aus Commit `7c2b4be3315ebc062b5b09a8237f94649cf7d034` veröffentlicht und nativ

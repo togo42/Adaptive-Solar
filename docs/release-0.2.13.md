@@ -64,3 +64,22 @@ geprüften Stand. Pakete, abgeschlossene CI und tatsächliche HACS-Installation
 werden separat im [Entwicklungsstand](entwicklungsstand.md) nachgewiesen.
 Mehr akzeptierte Labels, bestandene Tests und ein Review belegen keinen
 Prognosevorsprung oder bereits qualifiziertes produktives ML.
+
+## Veröffentlichung und Installation
+
+Am 27.10.2026 aus Commit `79794ca` als v0.2.13 veröffentlicht und über HACS
+installiert. Vier veröffentlichte Assets nach Download bytegleich; Branch-
+und Tag-CI erfolgreich, je 1057 Tests ohne Skips. Nach verifizierter nativer
+Sicherung und gezieltem Komponenten-/Historienrückweg genau ein Core-Neustart.
+25 Dateien und vier geladene Einträge mit Version 0.2.13 bestätigt. 80
+Entity-/Unique-IDs, vier Geräte, Optionen, Energy und zuvor abgeschlossene
+Historie/Tagesbeginn-Snapshots erhalten; Featurevertrag unverändert.
+
+Die neue Diagnose ist live verfügbar, Konfiguration gültig, keine aktiven
+Repairs oder aktuellen Systemlogeinträge im Filter `adaptive_solar`.
+Zwei vollständige Folgetage je Stufe geprüft. Am dritten fehlt am 30.10.2026
+19–20 Uhr UTC in den nativen Kurven eine Stunde; sie bleibt als Lücke erhalten.
+Ein vollständiger Drei-Tage-Nachweis und die Ursache dieser Lücke bleiben offen.
+[Gebundener Laufzeitstand](entwicklungsstand.md#veröffentlichter-und-installierter-stand-0213).
+Dieser nachträgliche Abschnitt ist außerhalb von Release-Tag und Reviewtext;
+ausgelieferte Implementierungsbytes und Tag bleiben unverändert.

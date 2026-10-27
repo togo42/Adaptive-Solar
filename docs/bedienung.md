@@ -1,6 +1,6 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 27.10.2026, Codebasis 0.2.13 in Releasevorbereitung einschließlich des [Messdaten-Nachtrags](messintervalle-92-prozent.md). [Installation](installation.md),
+Stand: 27.10.2026, Codebasis 0.2.13 einschließlich des [Messdaten-Nachtrags](messintervalle-92-prozent.md). [Installation](installation.md),
 [Datenverträge](implementation-contract.md), [Datenschutz](datenschutz.md).
 
 ## 1. Anlagenaufteilung vorbereiten
@@ -182,7 +182,7 @@ Ungültige Originalzeiten sind `null`, nicht die aktuelle Uhrzeit.
 `evaluated_at`, Zielzähler und Detailgruppen bleiben bei Cachehits gemeinsam auf
 dem letzten tatsächlich ausgeführten Fit. Aktueller Forecastzeitpunkt und
 aktuelle Eingangsanzeigen bedeuten daher keine erneute Historienauswertung.
-Die Erweiterung ist noch nicht produktiv installiert.
+Die Erweiterung ist mit 0.2.13 produktiv installiert; gebundene Nachweise stehen im Prüfstand.
 
 Standardmäßig sind für den Residuallerner mindestens 28 qualifizierte Zieltage und 240 Stunden eindeutiger
 Messdauer nötig; getrennte chronologische Train-/Prüf-/Kalibrierblöcke und Lead-Gates

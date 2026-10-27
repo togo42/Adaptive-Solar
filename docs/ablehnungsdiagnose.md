@@ -1,7 +1,7 @@
 # Zeitlich zuordenbare Ablehnungsdiagnose
 
-Stand: 27.10.2026. Für Version 0.2.13 vorbereitet; Veröffentlichung und
-HA-Rollout werden im [Prüfstand](entwicklungsstand.md) separat nachgewiesen.
+Stand: 27.10.2026. Seit Version 0.2.13 verfügbar; Veröffentlichung und
+HA-Rollout sind im [Prüfstand](entwicklungsstand.md) separat nachgewiesen.
 Die Diagnose beschreibt vorhandene Entscheidungen; Prognosen, Messlabels, Schwellenwerte und ML-Freigabe ändern
 sich dadurch nicht. Die separat vorbereitete Anzeige gehört zum Repository
 HA-Config und wird hier nicht verändert.

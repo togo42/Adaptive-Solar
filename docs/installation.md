@@ -1,6 +1,6 @@
 # Adaptive Solar installieren und aktualisieren
 
-Stand: 27.10.2026; Codebasis 0.2.13 in Releasevorbereitung; bisheriges Referenzrelease 0.2.12. Die hier beschriebenen Schritte
+Stand: 27.10.2026; Codebasis und veröffentlichtes Referenzrelease 0.2.13. Die hier beschriebenen Schritte
 werden vom Betreiber auf der eigenen Installation ausgeführt. Projektprüfungen und
 ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 

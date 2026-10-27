@@ -1,6 +1,6 @@
 # Analyse der Adaptive-Solar-Erweiterung: Ensemble und ML-Learning
 
-Stand: 27.10.2026. Gegen Codebasis 0.2.13 in Releasevorbereitung einschließlich des [Messdaten-Nachtrags](messintervalle-92-prozent.md) abgeglichen. Abschnitte 1–3 beschreiben den Code; Abschnitte 4–5 sind mögliche Prüfaufträge, keine belegten Optimierungen oder automatisch beauftragten Modelländerungen. [Vertrag](implementation-contract.md), [Anwenderhandbuch](bedienung.md).
+Stand: 27.10.2026. Gegen Codebasis 0.2.13 einschließlich des [Messdaten-Nachtrags](messintervalle-92-prozent.md) abgeglichen. Abschnitte 1–3 beschreiben den Code; Abschnitte 4–5 sind mögliche Prüfaufträge, keine belegten Optimierungen oder automatisch beauftragten Modelländerungen. [Vertrag](implementation-contract.md), [Anwenderhandbuch](bedienung.md).
 
 Die [Bewertung mit Vorschlägen für Arbeitspakete](adaptive-solar-bewertung.md) konkretisiert Nutzen, Voraussetzungen, Abhängigkeiten und Abnahmekriterien dieser Prüfaufträge.
 

@@ -1,6 +1,6 @@
 # Implementierungsvertrag für Adaptive Solar
 
-Stand: 27.10.2026; Codebasis 0.2.13 in Releasevorbereitung einschließlich des [Messdaten-Nachtrags](messintervalle-92-prozent.md). Anwenderfelder und Abläufe: [Bedienung](bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen. Thematisch konsolidiert aus dem lokal archivierten Vorgänger `artifacts/releases/0.2.5-context-window-invalid/source/docs/implementation-contract.md`; das Archiv wird nicht veröffentlicht.
+Stand: 27.10.2026; Codebasis 0.2.13 einschließlich des [Messdaten-Nachtrags](messintervalle-92-prozent.md). Anwenderfelder und Abläufe: [Bedienung](bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen. Thematisch konsolidiert aus dem lokal archivierten Vorgänger `artifacts/releases/0.2.5-context-window-invalid/source/docs/implementation-contract.md`; das Archiv wird nicht veröffentlicht.
 
 Die [Ablehnungsdiagnose](ablehnungsdiagnose.md) erweitert diesen
 Stand um `training_quality.rejection_details` (Schema 1). Join-Ziele stammen aus
