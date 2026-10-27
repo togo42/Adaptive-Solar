@@ -8,89 +8,57 @@ Basis ist `6193efc39b4da87a5fad3252b991493c8b9fcda4` auf dem Entwicklungszweig
 
 - [Messkontinuität](measurement-learning.md): begrenzte Zeitstempeltoleranz,
   unveränderte echte Energie, längeres Warten auf Zählerberichte und zusätzliche
-  Lernfenster an erhaltenen Messendpunkten.
+  Lernfenster an erhaltenen Messendpunkten. Gemeinsame ursprüngliche Forecast-
+  Ausgaben bleiben bei der Archivverdichtung erhalten.
 - [Fehlerbehandlung](forecast-resilience.md): Physikfallback bei gescheitertem
-  Fit, begrenzter alter Wettercache bei Abruffehlern und Laufzeitdiagnosen.
+  Fit, begrenzter alter Wettercache bei Abruffehlern, geschützte defekte
+  Historienspeicher und Laufzeitdiagnosen.
 - [Früher Bias-Kandidat](early-bias-shadow.md) und
   [Vergleichsarchiv](model-comparison-archive.md): ausschließlich prospektive
   Prüfung, keine automatische Änderung der Modellgewichte oder Aktivierung.
 - [Physik und Schatten](physics-learning-options.md): optionale Parameter und
   Teilintervallintegration, zeitlich qualifizierte Schattentabelle und optionale
   Glättung normalisierter Leistungsabweichungen.
+- [Istwertrevisionen](benchmark-aufnahme.md#5-istwerte-lesend-archivieren) und
+  [Archivverfügbarkeit](forecast-repairs.md#2-tagesstartwerte-getrennt-von-lernhistorie-erhalten):
+  spätere negative Qualitäts-/Rohrevisionen sperren widersprüchliche Labels;
+  erst nach dem Cutoff fertige Berechnungen erzeugen keine rückdatierten
+  Tagesstartwerte oder Trainingszellen.
 
-Der gegenseitige Review führte unter anderem zu Regressionstests für den Verlust
-echter Messendpunkte beim Zusammenfassen, zeitlich rückwirkende Schattenberichte,
-unbeabsichtigt verfallende Schattenfreigaben und beschädigte Historien. Alte
-Schattenproben ohne belegte Beobachtungs-/Empfangszeit bleiben als zeitlich
-unqualifizierte Altdaten erhalten und beeinflussen die neue Schattentabelle nicht.
-Gültige bisherige Messhistorie und ausgegebene Tagesstartprognosen bleiben nach
-ihren bisherigen Bindungsprüfungen erhalten.
+Alte gültige Schattenproben ohne belegte Beobachtungs-/Empfangszeit bleiben als
+zeitlich unqualifizierte Altdaten erhalten und beeinflussen die neue
+Schattentabelle nicht. Gültige bisherige Messhistorie und ausgegebene
+Tagesstartprognosen bleiben nach ihren bisherigen Bindungsprüfungen erhalten.
+Früher verworfene Messenergie oder nie archivierte Forecasts werden nicht
+rekonstruiert. Historische/importierte Originale erhalten keinen rückwirkenden
+Verfügbarkeitsnachweis. Die [Reviewbearbeitung](review-findings.md#entwicklungsnachtrag-nach-0214)
+dokumentiert die gefundenen Fehler, Korrekturen und ihre gezielten Gegenprüfungen.
 
 Lokale Abschlussprüfung mit Python 3.14.4 und HA Core 2026.10.4:
 **1364 Tests bestanden, keine Skips**, Ruff und Dependencycheck sauber.
-Die kombinierte Zeilen-/Zweigabdeckung beträgt **92,57 %**; das neue CI-Gate
-verlangt mindestens 90 % über den gesamten Komponentenquelltext. Ein reguläres
-Wheel wurde isoliert installiert: alle 30 Integrationsdateien sind bytegleich
-zum Arbeitsstand, zwölf HA-/Kernmodule importieren aus dieser Installation.
-Private Prüfartefakte liegen unter `artifacts/forecast-quality-*`. Der gebundene
-externe Fachreview ist ein separater Nachweis; die Tests beweisen keinen
-Genauigkeitsvorsprung und keine produktive HA-Stabilität.
+Zeilenabdeckung **94,61 %**, Zweigabdeckung **87,63 %**, kombinierte
+Komponentenabdeckung **92,57 %**; das neue CI-Gate verlangt mindestens 90 %
+kombinierte Abdeckung über den Komponentenquelltext. Ein reguläres Wheel wurde
+isoliert installiert: alle 30 Integrationsdateien sind bytegleich zum geprüften
+Quellstand, zwölf HA-/Kernmodule importieren aus dieser Installation.
+Private Prüfartefakte liegen unter `artifacts/forecast-quality-*`.
 
-Der erste gültige Codex-Review von `d73fc4c` fand drei behebungsbedürftige Punkte:
-vollständige Tage bei mehreren Vergleichs-Origins, ursprüngliche Wetterstützen
-der Schattenreferenz und die Beschreibung fehlgeschlagener Tagescaptures. Die
-Korrekturen und ein zusätzlicher Ende-zu-Ende-Befund zur gemeinsamen Aufbewahrung
-benachbarter Forecast-Origins sind in den Tests enthalten. Der zweite Nachreview
-von `9e85391` fand einen weiteren Randfall mit überlappenden Messstücken jenseits
-der ursprünglichen Zielgrenzen. Ein gemeinsamer zeitlich gefilterter
-Konfliktindex schützt nun ursprüngliche und verschobene Lernfenster, ohne
-unabhängige saubere Zeitbereiche zu sperren. 15 zusätzliche Regressionen und
-ein unabhängiger Vergleich von 63.000 Intervallabfragen mit einer einfachen
-Referenzberechnung prüfen diese Korrektur.
-[Reviewbearbeitung](review-findings.md#entwicklungsnachtrag-nach-0214).
+Vollständiger unabhängiger **Codex GPT-6.1-Sol/high**-Review von
+`d1991da6a621c736abbc402bc2ebd7d5a715f707`: **mergeable, keine Findings**.
+135 öffentliche Originaltextdateien, 1.842.921 Payloadbytes und 32 erfolgreich
+abgeschlossene Turns. Der erneute unabhängige Nachaudit bestätigt exakte
+Quell-/Prompt-/Antwortbytes, CLI-/Modell-/Effortbindung und null Compaction,
+Tools oder Hintergrundaufgaben. Der größere Codex-Reviewkontext ändert keine
+Prognosebytes oder globale Konfiguration; die vollständigen Prüfgates bleiben
+aktiv. [Abschlussnachweis und Hashes](review-findings.md#abgeschlossener-vollreview-des-entwicklungsstands).
 
-Der dritte Nachreview von `18dbbd2` ergänzte einen Befund zum nativen
-HA-Dateilader: beschädigtes JSON konnte als fehlender Hauptspeicher erscheinen
-und eine alte Legacy-Historie aktivieren. Der direkte Leser prüft die
-vorhandenen Originalbytes und ihre Storehülle ohne Umbenennung oder automatische
-Migration. Nur ein tatsächlich fehlender Hauptspeicher erlaubt den Legacy-Pfad;
-ein beschädigter Hauptspeicher bleibt unverändert und schreibgeschützt. Die
-Physikprognose kann mit neutraler Lernhistorie weiterlaufen. 23 neue native
-Speicherfälle und die auf reale Dateien umgestellten Restoretests prüfen die
-Fehler- und Migrationspfade einschließlich eines verzögerten Saves. Der
-unabhängige Gegencheck fand in diesem korrigierten Bereich keinen weiteren Befund.
-
-Der vierte Nachreview von `1beb9da` fand eine unberücksichtigte negative
-Teilmaskenrevision im Ist-Capturewerkzeug. Die Korrektur berücksichtigt verfügbare
-negative Qualität auch außerhalb des aktuellen Abruffensters sowie explizit
-ungültige oder widersprechende Recorder-Vorlaufrevisionen. Fehlende oder
-identische Vorlaufwerte erhalten keine neue Freigabe. Der CLI erlaubt direkte
-Istwerte alternativ zum Capturearchiv, damit keine ungeprüfte Mischung die
-Revisionsprüfung umgeht. 53 neue Revisionstests, vier neue CLI-Fälle und
-unabhängige Ablauf-/Indexvergleiche decken die bestätigten Fehlerpfade ab.
-[Aufnahme- und Revisionsvertrag](benchmark-aufnahme.md#5-istwerte-lesend-archivieren).
-
-Der fünfte Nachreview von `44aec9d` ergänzte zwei Randfälle: Ergebnisse aus
-einer erst nach Mitternacht abgeschlossenen Berechnung dürfen keine
-Tagesstartwerte erzeugen; die gleiche Verfügbarkeitsgrenze schützt begonnene
-Trainingszellen. Vorhandene Originale und Administratorimporte bleiben erhalten.
-Außerdem erkennt auch der Vergleichsloader einen vorhandenen defekten Symlink
-als unlesbaren Eintrag, der nicht durch einen neuen Store ersetzt werden darf.
-Neue Regressionen verwenden den tatsächlichen HA-Executor, beide
-Zeitumstellungstage sowie echte Dateisystemeinträge.
-
-Der sechste Codex-Lauf wurde wegen nativer Kontextkomprimierung verworfen.
-Der Reviewhelfer fordert für Codex nun 800.000 Kontexttokens an; Grok bleibt
-unverändert bei 500.000. Ein einzelner echter Konfigurationsprobelauf bestätigt
-760.000 effektive Tokens mit derselben gepinnten CLI, ohne Compaction/Tools.
-Dieser Probelauf ist kein Fachreview. Die vollständige Quellprüfung und ihre
-strikten Hash-/Kontextgates bleiben erforderlich; die Anpassung ändert keine
-Prognosebytes oder globale CLI-Konfiguration. [Reviewvertrag](validierung.md).
-
-Dies ist ein lokaler Implementierungsstand; Paketversion und veröffentlichter
-Stand bleiben 0.2.14. Produktive Einstellungen, HACS und HA wurden in diesem
-Arbeitsauftrag nicht geändert. Eine bessere reale Prognose und eine Freigabe
-des frühen Bias-Kandidaten brauchen die getrennte prospektive Auswertung.
+Diese nachträgliche Statusdokumentation liegt außerhalb des eingefrorenen
+Reviewtexts; Implementierungs-, Test- und übrige geprüfte Dateibytes bleiben
+unverändert. Paketversion und veröffentlichter Stand bleiben 0.2.14.
+Produktive Einstellungen, HACS und HA wurden in diesem Arbeitsauftrag nicht
+geändert. Die lokale Prüfung belegt weder bessere reale Prognosen noch
+produktive HA-Stabilität. Eine bessere reale Prognose und eine Freigabe des
+frühen Bias-Kandidaten brauchen die getrennte prospektive Auswertung.
 
 ## Veröffentlichter und installierter Stand 0.2.14
 
