@@ -1,8 +1,10 @@
 # Entwicklungsstand und offene Nachweise
 
-## Releasevorbereitung 0.2.12
+## Veröffentlichter und installierter Stand 0.2.12
 
-Stand: 27.10.2026. [0.2.12](release-0.2.12.md) basiert auf der mit Grok 4.7/high
+Stand: 27.10.2026. [v0.2.12](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.12)
+ist aus Commit `7c2b4be3315ebc062b5b09a8237f94649cf7d034` veröffentlicht und nativ
+über HACS installiert. [Releaseinhalt](release-0.2.12.md) basiert auf der mit Grok 4.7/high
 erneut vollständig geprüften Implementierung `507ab4e`: 100 Originaltextdateien,
 keine Findings, nativer Kontext-/Hashaudit unabhängig wiederholt. Die
 Releasevorbereitung ändert nur Versionsmetadaten und öffentliche Release-/Statushinweise.
@@ -15,11 +17,46 @@ Das Wheel wurde separat regulär installiert; zehn Module aus diesem Paket wurde
 mit echtem HA Core importiert. Bestehende Runtimepins und Musl-Binärbasis bleiben.
 Lokale Paket-/Testnachweise: `artifacts/release-0.2.12/`.
 
-GitHub-Veröffentlichung, abgeschlossene CI und produktive HACS-Rücklese sind
-separate folgende Schritte. Bisheriger Live-Abgleich: vier geladene Einträge,
-Core 2026.10.4, HACS 0.2.11, keine aktiven Repairs. Der Featurevertrag wechselt
-beim Update; passende Messintervalle und ausgegebene Tagesbeginn-Snapshots bleiben.
-Qualifiziertes produktives Lernen und realer Prognosevorsprung bleiben offen.
+Die drei Pakete und `SHA256SUMS` sind als Releaseassets veröffentlicht und nach
+Download bytegleich zu den geprüften lokalen Artefakten. Wheel-SHA256:
+`98a00ee83a7e322c81f3cdded765dc5f379b36e320a89aa3d46da56d094153e3`.
+Vor Installation vollständig erfolgreiche CI für
+[main](https://github.com/togo42/Adaptive-Solar/actions/runs/40470798170) und
+[Tag](https://github.com/togo42/Adaptive-Solar/actions/runs/40470797964).
+Der bestehende Tag 0.2.11 und der neue Tag 0.2.12 bleiben unverändert.
+
+Frische geschützte native HA-Sicherung einschließlich Konfiguration/Apps und ohne
+Recorderdatenbank; ihr Abschluss wurde nach einem Create-Timeout über die native
+Liste bestätigt. Archivmetadaten und vollständiger äußerer SHA geprüft;
+Entschlüsselung/Wiederherstellung nicht getestet. Zusätzlich wurden bisherige
+Komponente und vier ausgewählte Lernstores unter ignoriertem `data/` gesichert.
+
+Nach HACS-Download alle **24 Komponentendateien** gegen Release geprüft; genau
+ein Core-Neustart. Vier geladene Einträge und native Diagnosen bestätigen
+**0.2.12**, Core bleibt **2026.10.4**. HACS meldet installierte/angebotene Version
+0.2.12 ohne weiteres Update. **80 Entity-/Unique-IDs und Benutzeranpassungen,
+vier Geräte, sämtliche Optionen und Energy-Einstellungen unverändert.**
+
+Alle vier Historienstores tragen nun `beam-shade-table-v1`; vollständiger und
+physikalischer Konfigurationsfingerprint, zuvor abgeschlossene Messintervalle
+sowie tatsächlich ausgegebene vergangene/heutige Tagesbeginn-Snapshots sind
+erhalten. Alte Forecastfeatures wurden erwartungsgemäß verworfen, neue prospektive
+Features werden archiviert. Die Schattentabellen beginnen neutral und noch ohne
+freigegebenes Fenster. Ausreichende qualifizierte Lernhistorie liegt noch nicht vor.
+
+Drei vollständige lokale Folgetage je Anlage, nominelle Ausgangsgrenzen, Energie
+und Einheiten geprüft. Nach echten Quellenberichten nur die vier eigenen
+Prognosequalitätsanzeigen aktualisiert; keine Originalmessquelle erzwungen.
+Alle vier melden gültige Eingänge und **Physik/kalt**. Konfiguration gültig,
+keine aktiven Repairs und keine Einträge im aktuellen Systemlogfilter
+`adaptive_solar`. Das ist eine gebundene Betriebsprüfung, keine Garantie
+langfristiger Warnungsfreiheit oder physikalische Quellenzertifizierung.
+
+Private Rohbelege: `data/release-0.2.12-20261027/`; Laufzeitaudit-SHA256:
+`53c5c2cbb398e8706d809a48a9a5d533eccc992b0658b1f3893d7edb5220e72a`.
+Die nachgetragene Statusdokumentation ist außerhalb des eingefrorenen Reviews
+und Tags; die Implementierungsdateien bleiben unverändert. Qualifiziertes
+produktives Lernen und realer Prognosevorsprung bleiben offen.
 
 ## Veröffentlichter und installierter Stand 0.2.11
 

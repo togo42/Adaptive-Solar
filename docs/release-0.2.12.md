@@ -67,3 +67,17 @@ separat geprüft und im [Entwicklungsstand](entwicklungsstand.md) dokumentiert.
 Tests, Review und Installation belegen keinen realen Prognosevorsprung gegenüber
 Helios oder Open-Meteo Solar. Qualifiziertes produktives Lernen und der prospektive
 Vergleich bleiben eigenständige Nachweise.
+
+## Veröffentlichung und Installation
+
+Am 27.10.2026 aus Commit `7c2b4be` als `v0.2.12` veröffentlicht. Wheel, Quellpaket,
+Integrations-ZIP und SHA256-Liste sind im GitHub-Release verfügbar; nach Download
+bytegleich geprüft. Branch- und Tag-CI vor HACS-Download vollständig erfolgreich.
+Nach verifizierter nativer Sicherung und genau einem Core-Neustart vier Einträge
+mit Version 0.2.12 nativ bestätigt. 24 Dateien, 80 Entity-/Unique-IDs, vier Geräte,
+Optionen, Energy-Zuordnungen, abgeschlossene Messintervalle und echte Tagesbeginn-
+Snapshots zurückgelesen; Featuremigration erfolgreich, neue Schattentabellen neutral.
+Alle vier Qualitätsanzeigen nach echten Quellenberichten bei Physik/kalt,
+Konfiguration gültig und keine aktiven Repairs. [Nachweise](entwicklungsstand.md).
+Dieser nachgetragene Abschnitt gehört nicht zum eingefrorenen Release-Tag oder
+Reviewtext; ausgelieferte Implementierungsbytes und Tag bleiben unverändert.
