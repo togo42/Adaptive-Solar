@@ -1,6 +1,6 @@
 # Adaptive Solar installieren und aktualisieren
 
-Stand: 27.10.2026; Codebasis und veröffentlichtes Referenzrelease 0.2.13. Die hier beschriebenen Schritte
+Stand: 27.10.2026; Codebasis 0.2.14; zuletzt veröffentlichtes Referenzrelease 0.2.13. Die hier beschriebenen Schritte
 werden vom Betreiber auf der eigenen Installation ausgeführt. Projektprüfungen und
 ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 
@@ -93,7 +93,13 @@ nachträglich technisch bestätigt. Für 0.2.12 beschreibt die
 passende Messintervalle und tatsächlich ausgegebene Tagesbeginn-Snapshots bleiben
 erhalten. Die neue Schattentabelle beginnt leer und neutral. Komponentenstand und
 Lernstores vorab sichern, falls für einen Rückweg das alte Lernarchiv benötigt wird.
-Für 0.2.13 bleiben Featurevertrag, passende Forecast-/Messhistorie,
+Für 0.2.14 bleiben Runtimepins und Lernfeaturevertrag unverändert. Die
+[Reparaturen](forecast-repairs.md) erhalten historische Tagesstartwerte mit
+Originalprovenienz und begrenzen kleine negative Nachtstrahlung. Bereits verlorene
+Tageswerte brauchen einen expliziten Originalimport. Nach HACS-Download einmal
+Core neu starten; kein Core-/OS-Upgrade.
+
+Historisch für 0.2.13: Featurevertrag, passende Forecast-/Messhistorie,
 Schattentabellen und echte Tagesbeginn-Snapshots erhalten. Die
 [Releasebeschreibung](release-0.2.13.md) erklärt die neuen Messabdeckungsregeln
 und die additive Ablehnungsdiagnose. Ein vorhandener passender Musl-Payload

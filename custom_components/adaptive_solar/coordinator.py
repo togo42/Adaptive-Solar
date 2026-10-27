@@ -5,7 +5,6 @@ from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 from bisect import bisect_left
 from collections import Counter, defaultdict
-import hashlib
 import json
 import logging
 import math
@@ -34,6 +33,7 @@ from .core.shading import (
     shade_factors_compatible,
 )
 from .weather import WeatherError
+from .snapshots import config_fingerprints, provenance, validate_snapshot
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -400,6 +400,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self.archive: list[dict] = []
         self.intervals: list[dict] = []
         self.daily_snapshots: dict[str, dict] = {}
+        self.daily_snapshot_provenance: dict[str, dict] = {}
         self._interval_latest: dict[tuple[str, datetime], tuple[int, dict]] = {}
         self._history_revision = 0
         self.learner_status: dict = {}
@@ -422,25 +423,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self._persistence_active = False
         self._store_writable = False
         # Old geometry/bindings must never train a newly configured system.
-        fingerprint_data = config.to_dict()
-        if fingerprint_data.get("irradiance_entity_id") is None:
-            # Adding this optional field must not invalidate old history when
-            # it remains unset; active new sensor bindings change the digest.
-            fingerprint_data.pop("irradiance_entity_id", None)
-        fingerprint = hashlib.sha256(json.dumps(fingerprint_data, sort_keys=True).encode()).hexdigest()[:16]
-        self._fingerprint = fingerprint
-        shade_data = dict(fingerprint_data)
-        shade_data.pop("forecast_days", None)
-        self._shade_fingerprint = hashlib.sha256(json.dumps(shade_data, sort_keys=True).encode()).hexdigest()
-        # Observations/weather change forecast features, not measured output
-        # lineage or already issued day-start forecasts. Physical/source and
-        # civil-day provenance remain strict, including energy/curtailment IDs.
-        history = config.to_dict()
-        for key in ("weather_models", "forecast_days", "temperature_entity_id", "wind_entity_id", "irradiance_entity_id"):
-            history.pop(key, None)
-        for inverter in history["inverters"]:
-            inverter.pop("power_entity_id", None)
-        self._history_fingerprint = hashlib.sha256(json.dumps(history, sort_keys=True).encode()).hexdigest()
+        self._fingerprint, self._history_fingerprint, self._shade_fingerprint = config_fingerprints(config)
         self._store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.history_v2")
         self._legacy_store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}")
 
@@ -469,6 +452,15 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 # after successful setup; failed reloads preserve the old file.
                 self.shading = BeamShadeTable()
                 self.engine.shading = self.shading
+                # Already issued past/today forecasts are historical records,
+                # not training data for the newly configured model. Only the
+                # new self-describing provenance can cross this boundary.
+                try:
+                    self._restore_snapshots(stored, same_history=False)
+                except (KeyError, TypeError, ValueError, OverflowError):
+                    self.daily_snapshots, self.daily_snapshot_provenance = {}, {}
+                    self._store_writable = False
+                    _LOGGER.warning("Retaining invalid Adaptive Solar day-start provenance")
                 return
         compatible_features = (stored.get("fingerprint") == self._fingerprint
                                and stored.get("learning_feature_contract") == LEARNING_FEATURE_CONTRACT)
@@ -505,23 +497,12 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 if not 0 < (end - start).total_seconds() <= 3600 or observed < end or isinstance(energy, bool) or not isinstance(energy, (float, int)) or not math.isfinite(energy) or energy < 0 or row["inverter_id"] not in caps or energy > caps[row["inverter_id"]] * (end - start).total_seconds() / 3600 * 1.1:
                     raise ValueError("invalid measured history")
             join_training(archive, intervals)
-            snapshots = stored.get("daily_snapshots", {})
-            if isinstance(snapshots, dict):
-                for day, snapshot in snapshots.items():
-                    if not isinstance(snapshot, dict) or not isinstance(snapshot.get("energies"), dict):
-                        raise ValueError("invalid snapshot structure")
-                    cutoff = datetime.combine(datetime.fromisoformat(day).date(), time.min, ZoneInfo(self.site.timezone)).astimezone(UTC)
-                    next_midnight = datetime.combine(datetime.fromisoformat(day).date() + timedelta(days=1), time.min, ZoneInfo(self.site.timezone)).astimezone(UTC)
-                    hours = (next_midnight - cutoff).total_seconds() / 3600
-                    if utc_time(datetime.fromisoformat(snapshot["issued_at"])) > cutoff or set(snapshot["energies"]) != set(caps) or any(isinstance(value, bool) or not isinstance(value, (float, int)) or not math.isfinite(value) or value < 0 or value > caps[key] * hours * 1.1 for key, value in snapshot["energies"].items()):
-                        raise ValueError("invalid day-start snapshot")
-            else:
-                raise ValueError("invalid snapshots")
+            self._restore_snapshots(stored, same_history=True)
             shade_compatible = (
                 stored.get("shade_fingerprint") == self._shade_fingerprint
                 or ("shade_fingerprint" not in stored and stored.get("fingerprint") == self._fingerprint)
             )
-            self.archive, self.intervals, self.daily_snapshots = archive, intervals, snapshots
+            self.archive, self.intervals = archive, intervals
             self.shading = (
                 BeamShadeTable.from_dict(stored.get(BEAM_SHADE_STORE_KEY), inverter_ids=set(caps))
                 if shade_compatible
@@ -531,10 +512,62 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             self._prune(datetime.now(UTC))
         except (KeyError, TypeError, ValueError, OverflowError):
             self.archive, self.intervals, self.daily_snapshots, self._interval_latest = [], [], {}, {}
+            self.daily_snapshot_provenance = {}
             self.shading = BeamShadeTable()
             self.engine.shading = self.shading
             self._store_writable = legacy  # Preserve corrupt existing primary.
             _LOGGER.warning("Ignoring invalid Adaptive Solar history")
+
+    def _restore_snapshots(self, stored, *, same_history):
+        snapshots, metadata = stored.get("daily_snapshots", {}), stored.get("daily_snapshot_provenance", {})
+        if not isinstance(snapshots, dict) or not isinstance(metadata, dict) or len(snapshots) > 32:
+            raise ValueError("invalid snapshots")
+        now = datetime.now(UTC)
+        today = now.astimezone(ZoneInfo(self.site.timezone)).date()
+        current = provenance(self.site)
+        restored, origins = {}, {}
+        for day, snapshot in snapshots.items():
+            origin = metadata.get(day)
+            if origin is None:
+                if not same_history:
+                    continue  # Opaque old configurations cannot be guessed.
+                # Matching physical provenance proves caps/identity, but a
+                # weather/observation change may have changed the full hash.
+                origin = {**current, "config_fingerprint": stored.get("fingerprint")}
+            elif not isinstance(origin, dict):
+                raise ValueError("invalid snapshot provenance")
+            elif origin.get("site_identity") != current["site_identity"]:
+                continue  # Different location/timezone/stage boundary.
+            snapshot, origin = validate_snapshot(day, snapshot, origin, self.site)
+            target = datetime.fromisoformat(day).date()
+            if target < today - timedelta(days=7) or (not same_history and target > today):
+                continue
+            if target > today and origin["history_fingerprint"] != self._history_fingerprint:
+                continue
+            restored[day], origins[day] = snapshot, origin
+        self.daily_snapshots, self.daily_snapshot_provenance = restored, origins
+
+    async def async_restore_day_start(self, day, snapshot, source_site):
+        """Explicit operator import of one missing historical issued forecast."""
+        if not self._persistence_active or self._closing:
+            raise ValueError("entry persistence is not writable")
+        now = datetime.now(UTC)
+        today = now.astimezone(ZoneInfo(self.site.timezone)).date()
+        target = datetime.fromisoformat(day).date()
+        if not today - timedelta(days=7) <= target <= today or day in self.daily_snapshots:
+            raise ValueError("only a missing retained historical day may be restored")
+        snapshot, origin = validate_snapshot(day, snapshot, provenance(source_site, source="operator_restore"), self.site)
+        # Insert before yielding so a second import cannot race this one and
+        # concurrent scheduled saves include the restored original. Publish
+        # listeners only after saving; roll back this one day on write failure.
+        self.daily_snapshots[day], self.daily_snapshot_provenance[day] = snapshot, origin
+        try:
+            await self._store.async_save(self._stored())
+        except BaseException:
+            self.daily_snapshots.pop(day, None)
+            self.daily_snapshot_provenance.pop(day, None)
+            raise
+        self.async_update_listeners()
 
     @callback
     def async_commit_setup(self) -> None:
@@ -1086,6 +1119,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             energies = {inv.id: result.energy_kwh(start, end, inv.id) for inv in self.site.inverters}
             if all(value is not None for value in energies.values()):
                 self.daily_snapshots[day.isoformat()] = {"issued_at": result.issued_at.isoformat(), "energies": energies}
+                self.daily_snapshot_provenance[day.isoformat()] = provenance(self.site)
 
     def _prune(self, now: datetime) -> None:
         previous_size = len(self.archive), len(self.intervals)
@@ -1095,6 +1129,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self._interval_latest = {(row["inverter_id"], datetime.fromisoformat(row["start"]).replace(minute=0, second=0, microsecond=0)): (index, row) for index, row in enumerate(self.intervals)}
         oldest_day = (now.astimezone(ZoneInfo(self.site.timezone)).date() - timedelta(days=7)).isoformat()
         self.daily_snapshots = {key: value for key, value in self.daily_snapshots.items() if key >= oldest_day}
+        self.daily_snapshot_provenance = {key: value for key, value in self.daily_snapshot_provenance.items()
+                                          if key in self.daily_snapshots}
         if previous_size != (len(self.archive), len(self.intervals)):
             self._history_revision += 1
 
@@ -1115,7 +1151,10 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 "shade_fingerprint": self._shade_fingerprint,
                 "learning_feature_contract": LEARNING_FEATURE_CONTRACT,
                 BEAM_SHADE_STORE_KEY: self.shading.to_dict(),
-                "archive": list(self.archive), "intervals": [dict(row) for row in self.intervals], "daily_snapshots": dict(self.daily_snapshots)}
+                "archive": list(self.archive), "intervals": [dict(row) for row in self.intervals],
+                "daily_snapshots": dict(self.daily_snapshots),
+                "daily_snapshot_provenance": {day: self.daily_snapshot_provenance.get(day, provenance(self.site))
+                                               for day in self.daily_snapshots}}
 
     async def async_close(self) -> None:
         self._closing = True

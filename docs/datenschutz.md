@@ -1,6 +1,6 @@
 # Datenschutz und Datenflüsse von Adaptive Solar
 
-Stand: 27.10.2026; beschrieben ist der Code von Adaptive Solar 0.2.12, keine
+Stand: 27.10.2026; beschrieben ist der Code von Adaptive Solar 0.2.14, keine
 Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 
 ## 1. Externe Verbindungen
@@ -42,7 +42,13 @@ Je Eintrag gibt es einen aktuellen Store `adaptive_solar.<entry_id>.history_v2` 
 einen nur lesend berücksichtigten Legacy-Key. Forecast- und Istintervalle sind auf
 höchstens 120 Tage, 60.000 Forecastzeilen und 30.000 Istzeilen begrenzt;
 Zeilengrenzen können den Zeitraum verkürzen. Tagesbeginn-Snapshots werden separat
-ab sieben lokalen Tagen vor dem aktuellen Tag aufbewahrt.
+ab sieben lokalen Tagen vor dem aktuellen Tag aufbewahrt. Seit 0.2.14 haben sie
+eigene ursprüngliche Konfigurationshashes, einen Anlagenidentitätshash, Zeitzone,
+Stufenkennungen und ursprüngliche Leistungsgrenzen. Die Administratoraktion zum
+Originalimport verarbeitet eine private Originalkonfiguration nur lokal und
+persistiert davon diese Metadaten, nicht das vollständige Originalobjekt.
+HA-Aktionsspuren/Recorder/Logs können eigene Datenkopien enthalten.
+[Provenienz und Import](forecast-repairs.md).
 
 Die Tabelle `beam_shade_v1` speichert je Stufe und Sonnenstandsfenster bis zu
 24 UTC-Viertelstunden mit Zeitstempel und Transmissionsfaktor. Sie unterliegt
@@ -61,7 +67,7 @@ schließen eine Aufzeichnung anderer Zustände/Attribute nicht aus.
 
 Die integrierte Diagnoseausgabe lässt Standortkoordinaten, konfigurierte Entity-IDs
 und rohe Historienzeilen weg. Sie enthält unter anderem Wettermodelle, Fehlertypen,
-Zeitpunkte, Zähler und Lernstatus je selbst gewählter Stufenkennung. Solche Kennungen
+Zeitpunkte, Zähler, begrenzte Wetterkorrektur-Rohwertbeispiele und Lernstatus je selbst gewählter Stufenkennung. Solche Kennungen
 können persönliche Bezeichnungen enthalten; die Datei vor Weitergabe prüfen.
 
 Sensorattribute enthalten Forecastkurven, Eingangsqualität und Lerninformationen.

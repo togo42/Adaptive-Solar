@@ -1,6 +1,6 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 27.10.2026, Codebasis 0.2.13 einschließlich des [Messdaten-Nachtrags](messintervalle-92-prozent.md). [Installation](installation.md),
+Stand: 27.10.2026, Codebasis 0.2.14 einschließlich des [Messdaten-Nachtrags](messintervalle-92-prozent.md). [Installation](installation.md),
 [Datenverträge](implementation-contract.md), [Datenschutz](datenschutz.md).
 
 ## 1. Anlagenaufteilung vorbereiten
@@ -116,8 +116,12 @@ nacheinander bearbeitet. Der letzte abgeschlossene Stringdialog speichert und l�
 den Eintrag neu. Den Flow bei einer bloßen Inspektion abbrechen. Physische Änderungen
 (wie geänderte kWp, Ausrichtung, Neigung, Horizont, Dämpfung oder ein zusätzlicher
 String) ändern den `history_fingerprint` und setzen den Primary-Store einschließlich
-der gelernten Direktstrahl-Tabelle `beam_shade_v1` nach erfolgreichem Setup zurück;
-reine Wetter-/Beobachtungs- oder Featurevertragswechsel erhalten unabhängig gültige
+der gelernten Direktstrahl-Tabelle `beam_shade_v1` nach erfolgreichem Setup zurück.
+Seit 0.2.14 bleiben bereits ausgegebene vergangene/heutige Tagesstartprognosen
+bei gleicher Anlagenidentität mit ursprünglicher Konfigurationsprovenienz erhalten;
+zukünftige Altstände und inkompatible Lernmessungen werden nicht übernommen.
+[Grenzen und gezielter Originalimport](forecast-repairs.md).
+Reine Wetter-/Beobachtungs- oder Featurevertragswechsel erhalten unabhängig gültige
 Istintervalle und Tages-Snapshots. Für die Schattentabelle gilt zusätzlich der
 `shade_fingerprint`: Ein Wechsel der Wettermodelle oder der Leistungs-, GHI-,
 Temperatur- oder Windbindung setzt sie zurück. Ein reiner Wechsel von
@@ -217,7 +221,7 @@ Einrichtungsaktion; Beispiele stehen im [Aufnahmeleitfaden](benchmark-aufnahme.m
 | Integration fehlt nach Installation | Richtiger Komponentenordner, vollständige Dateien, Neustart und Protokoll; keine alte zweite Komponentenkopie im Loaderpfad |
 | Fehler beim Installieren/Importieren von `sklearn` | Core-ABI, Architektur, Musl/glibc und vollständige `.libs`/`.dist-info` mit [HAOS-Anleitung](haos-installation.md) vergleichen |
 | Setup wiederholt sich / kein Wetter | Internet/DNS, Providerfehler, gültige Modellkennung und API-Bedingungen prüfen; keine Nullkurven erfinden |
-| Tag 0 fehlt | Ohne vor Mitternacht ausgegebenen vollständigen Snapshot erwartbar; Resttag und Folgetage getrennt prüfen |
+| Tag 0 fehlt | Ohne vor Mitternacht ausgegebenen vollständigen Snapshot erwartbar; bereits verlorene Originalwerte können Administratoren mit Originalkonfiguration gezielt [wiederherstellen](forecast-repairs.md#3-bereits-verlorenen-originalwert-gezielt-wiederherstellen) |
 | Ferne Tage fehlen | Eingestellter Horizont und tatsächliche Providerabdeckung; zusätzliche Modelle verlängern fehlende Daten nicht automatisch |
 | `physics` bleibt bestehen | `learning` und `training_quality` lesen: fehlende Energiebinding, kalte Historie, zu kurze/teilweise Ziele oder nicht bestandene Validierung unterscheiden |
 | `degraded` | `inputs` prüfen: Einheit, echte Berichtzeit, `restored`, GHI-Frische, Messgültigkeit und Abregelung |

@@ -1,5 +1,12 @@
 # Entwicklungsstand und offene Nachweise
 
+## Korrekturkandidat 0.2.14
+
+Stand: 27.10.2026. [Nachtstrahlung und historische Tagesstartwerte](forecast-repairs.md)
+sind lokal implementiert. [Releasebeschreibung](release-0.2.14.md). Tests, gebundener
+Grok-Review, Veröffentlichung/CI und produktive Übernahme werden vor Abschluss
+getrennt nachgewiesen. Die nachfolgenden 0.2.13-Belege sind historisch.
+
 ## Veröffentlichter und installierter Stand 0.2.13
 
 Stand: 27.10.2026. [v0.2.13](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.13)

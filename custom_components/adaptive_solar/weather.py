@@ -39,7 +39,8 @@ class WeatherError(Exception):
     """The provider did not deliver usable weather."""
 
 
-def parse_forecast(payload: dict[str, Any], model: str, issued_at: datetime) -> WeatherForecast:
+def parse_forecast(payload: dict[str, Any], model: str, issued_at: datetime,
+                   site: SiteConfig | None = None, diagnostics: dict | None = None) -> WeatherForecast:
     """Align source means with linear midpoint proxies from adjacent endpoints.
 
     Each ambient endpoint is validated before averaging. A missing or invalid
@@ -60,6 +61,7 @@ def parse_forecast(payload: dict[str, Any], model: str, issued_at: datetime) -> 
     ):
         raise WeatherError("Malformed Open-Meteo hourly arrays")
     samples = {}
+    normalized, rejected = [], []
     for index, stamp in enumerate(times):
         try:
             if isinstance(stamp, bool) or not isinstance(stamp, (int, float)) or not math.isfinite(stamp):
@@ -67,7 +69,15 @@ def parse_forecast(payload: dict[str, Any], model: str, issued_at: datetime) -> 
             end = datetime.fromtimestamp(stamp, UTC)
             if end in samples:
                 raise WeatherError("Duplicate Open-Meteo timestamp")
+            values = tuple(hourly[key][index] for key in RADIATION_FIELDS)
             radiation = _bounded_values(hourly, index, RADIATION_FIELDS, ((0, 1600),) * 3)
+            if radiation is None and _small_negative_night(values, site, end):
+                radiation = (0.0, 0.0, 0.0)
+                normalized.append({"start": (end - timedelta(hours=1)).isoformat(), "end": end.isoformat(),
+                                   "raw_w_m2": dict(zip(RADIATION_FIELDS, values, strict=True)),
+                                   "normalized_w_m2": 0.0})
+            elif radiation is None:
+                rejected.append(end.isoformat())
             ambient = _bounded_values(hourly, index, AMBIENT_FIELDS, ((-100, 70), (0, 150), (0, 100)))
             samples[end] = radiation, ambient
         except (OverflowError, OSError, ValueError):
@@ -87,7 +97,33 @@ def parse_forecast(payload: dict[str, Any], model: str, issued_at: datetime) -> 
                                    dhi_w_m2=dhi, temperature_c=temp, wind_m_s=wind, cloud_cover_pct=cloud))
     if not points:
         raise WeatherError("Open-Meteo returned no usable intervals")
+    if diagnostics is not None:
+        diagnostics.update({"policy": "small-negative-dark-hour-v1", "received_at": issued_at.isoformat(),
+                            "normalized_count": len(normalized),
+                            "normalized_examples": normalized[:8], "rejected_radiation_count": len(rejected),
+                            "rejected_end_examples": rejected[:8]})
     return WeatherForecast(model=model, issued_at=issued_at.astimezone(UTC), points=tuple(sorted(points, key=lambda point: point.start)))
+
+
+def _small_negative_night(values, site, end):
+    """Normalize at most 1 W/m² numerical undershoot only in deep darkness.
+
+    All three radiation fields must be finite numbers in [-1,0], with at least
+    one negative value. A five-minute SPA grid over the entire preceding hour
+    must stay below -6 degrees. Missing values, positive radiation, twilight,
+    daylight, unknown location and larger negatives remain unsupported.
+    """
+    if (site is None or any(isinstance(v, bool) or not isinstance(v, (int, float))
+                           or not math.isfinite(v) or not -1 <= v <= 0 for v in values)
+            or not any(v < 0 for v in values)):
+        return False
+    from .core.physics import PhysicsUnavailable, solar_position
+
+    try:
+        return all(solar_position(site, end - timedelta(minutes=5 * step)).elevation_deg <= -6
+                   for step in range(13))
+    except PhysicsUnavailable:
+        return False
 
 
 def _bounded_values(hourly, index, fields, bounds):
@@ -106,6 +142,7 @@ class OpenMeteoClient:
         self.config = config
         self._cache: dict[str, WeatherForecast] = {}
         self.errors: dict[str, str] = {}
+        self.diagnostics: dict[str, dict] = {}
 
     async def async_forecasts(self, now: datetime) -> tuple[WeatherForecast, ...]:
         """Fetch independent model arms, retaining only a fresh successful cache."""
@@ -138,8 +175,11 @@ class OpenMeteoClient:
                     response.raise_for_status()
                     payload = await response.json()
             # Receipt time, not request start or an invented NWP model run time.
-            forecast = parse_forecast(payload, model, datetime.now(UTC))
+            received = datetime.now(UTC)
+            diagnostics = {}
+            forecast = await asyncio.to_thread(parse_forecast, payload, model, received, self.config, diagnostics)
         except (aiohttp.ClientError, TimeoutError, ValueError, TypeError) as err:
             raise WeatherError("Open-Meteo fetch failed") from err
         self._cache[model] = forecast
+        self.diagnostics[model] = diagnostics
         return forecast

@@ -188,7 +188,12 @@ async def test_known_physical_or_label_source_change_never_reuses_history(hass, 
             options["inverters"] = (InverterConfig("i", output_type="dc", max_output_kw=5),)
         changed, _ = coordinator(hass, entry, replace(first.site, **options))
         await changed.async_restore()
-        assert changed.archive == changed.intervals == [] and changed.daily_snapshots == {}
+        assert changed.archive == changed.intervals == []
+        if change in {"energy", "curtailment"}:
+            assert changed.daily_snapshots == first.daily_snapshots
+            assert changed.daily_snapshot_provenance["2026-06-01"]["history_fingerprint"] == first._history_fingerprint
+        else:
+            assert changed.daily_snapshots == {}
         assert changed._store.key == first._store.key  # One bounded new primary, no per-config files.
         await changed.async_close()  # Uncommitted/failed setup cannot replace it.
         original, _ = coordinator(hass, entry, first.site)

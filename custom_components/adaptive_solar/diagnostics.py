@@ -5,6 +5,7 @@ from .core.models import MEASUREMENT_BOUNDARIES
 
 async def async_get_config_entry_diagnostics(hass, entry):
     coordinator = entry.runtime_data
+    weather_diagnostics = getattr(coordinator.client, "diagnostics", {})
     output_types = {inv.output_type for inv in coordinator.site.inverters}
     return {
         "forecast_issued_at": coordinator.data.issued_at.isoformat() if coordinator.data else None,
@@ -16,6 +17,7 @@ async def async_get_config_entry_diagnostics(hass, entry):
         "native_energy_eligible": len(output_types) == 1,
         "weather_models": list(coordinator.site.weather_models),
         "weather_errors": dict(coordinator.client.errors),
+        "weather_diagnostics": weather_diagnostics if isinstance(weather_diagnostics, dict) else {},
         "learning": coordinator.learner_status,
         "archived_forecast_points": len(coordinator.archive),
         "measured_energy_intervals": len(coordinator.intervals),

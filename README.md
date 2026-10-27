@@ -8,7 +8,7 @@
 
 Wetterprognosen, PV-Physik und lokale Residualmodelle für bis zu sieben lokale Kalendertage einschließlich heute: Resttag und bis zu sechs Folgetage, abhängig von der Wetterabdeckung. Unterschiedliche Stringausrichtungen, gemeinsame AC-/DC-Ausgabestufen und wiederkehrende Verschattung werden berücksichtigt. Frische HA-Temperatur/Windwerte, optionale horizontale Globalstrahlung und geeignete PV-Leistung unterstützen den kurzfristigen Nowcast.
 
-**Stand, 27.10.2026:** **0.2.13 veröffentlicht und über HACS auf HA Core 2026.10.4 installiert.** 92 % Messabdeckung, drei Minuten Randlücke, begrenzte Zählerburstbehandlung und zeitlich zuordenbare Ablehnungsdetails. **1057 Tests ohne Skips**, Grok-4.7/high-Nachreview ohne Findings, Pakete und Release-CI geprüft. Vier geladene Einträge, 80 Entity-/Unique-IDs, vier Geräte, Optionen, Energy-Zuordnungen und passende abgeschlossene Messhistorie nach dem Update bestätigt; Featurevertrag und Runtimepins erhalten. Zwei vollständige Folgetage; am dritten besteht eine dokumentierte einstündige Forecastlücke. Qualifiziertes produktives Lernen und Überlegenheit gegenüber Referenzen bleiben offen. [Release](docs/release-0.2.13.md), [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
+**Stand, 27.10.2026:** **0.2.14 lokal implementiert; Review, Veröffentlichung und HA-Übernahme werden noch geprüft.** Begrenzt kleine negative Nachtstrahlung und erhält historische Tagesstartprognosen mit ursprünglicher Konfigurationsprovenienz. Verlorene Originalwerte lassen sich gezielt administrativ importieren. Aktuell installierter Referenzstand: 0.2.13. [Neue Regeln](docs/forecast-repairs.md), [Release](docs/release-0.2.14.md), [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
 
 **Messdatenänderungen in 0.2.13:** Die [Messaufbereitung](docs/messintervalle-92-prozent.md) behandelt kurze Rundungsbursts, wählt den längsten gültigen Messblock und verlangt nun 92 % Abdeckung mit höchstens drei Minuten Lücke je Rand. Veröffentlichung und Installation sind gegenüber dem bisherigen 0.2.12-Stand getrennt nachgewiesen.
 
@@ -35,7 +35,7 @@ Herstellerunabhängige String-/Stufenkonfiguration, optionale HA-Sensoren: keine
 
 HACS-Mindestversion ist **Core 2026.10.2**. Geprüft sind **2026.10.2/.3/.4** mit Python 3.14; neuere Versionen sind damit nicht automatisch geprüft. **HAOS ist bislang nur auf amd64 mit passender CPython-3.14-Musl-Binärbasis belegt.** ARM/Raspberry Pi und andere Python-ABIs sind nicht qualifiziert. Der HA-unabhängige Modellkern unterstützt Python ab 3.13.
 
-Über HACS: **Benutzerdefinierte Repositories** öffnen, `https://github.com/togo42/Adaptive-Solar` als **Integration** hinzufügen und die gewünschte veröffentlichte Version herunterladen. Danach Home Assistant neu starten und **Adaptive Solar** unter **Einstellungen → Geräte & Dienste** hinzufügen beziehungsweise bestehende Einträge weiterverwenden. [Änderungen und Upgrade in 0.2.13](docs/release-0.2.13.md). Die benötigte HAOS-Binärbasis ist unten separat beschrieben; HACS ersetzt diese Abhängigkeit nicht.
+Über HACS: **Benutzerdefinierte Repositories** öffnen, `https://github.com/togo42/Adaptive-Solar` als **Integration** hinzufügen und die gewünschte veröffentlichte Version herunterladen. Danach Home Assistant neu starten und **Adaptive Solar** unter **Einstellungen → Geräte & Dienste** hinzufügen beziehungsweise bestehende Einträge weiterverwenden. [Änderungen und Upgrade in 0.2.14](docs/release-0.2.14.md). Die benötigte HAOS-Binärbasis ist unten separat beschrieben; HACS ersetzt diese Abhängigkeit nicht.
 
 Alternativ den vollständigen Ordner `custom_components/adaptive_solar` in das gleichnamige Verzeichnis der HA-Konfiguration kopieren; Details und Abhängigkeitsprüfung stehen in der Installationsanleitung.
 
@@ -51,7 +51,7 @@ Optional kann je Stufe ein [Messgültigkeitssignal](docs/measurement-validity.md
 
 Optionales GHI verlangt echte horizontale W/m², Frische und geeigneten Sonnenstand. Lücken bleiben fehlend; Modelle entstehen aus lokalen Zeilen, nicht ausführbaren Dateien.
 
-Resttag enthält die verbleibende Teilstunde; native Energy nur volle UTC-Stunden homogener Entries. Tagesbeginnprognose braucht einen vor Mitternacht eingefrorenen Snapshot.
+Resttag enthält die verbleibende Teilstunde; native Energy nur volle UTC-Stunden homogener Entries. Tagesbeginnprognose braucht einen vor Mitternacht eingefrorenen Snapshot. Historische Werte bleiben seit 0.2.14 mit Originalkonfiguration gekennzeichnet erhalten; [Wiederherstellung verlorener Originalwerte](docs/forecast-repairs.md#3-bereits-verlorenen-originalwert-gezielt-wiederherstellen).
 
 ## Entwicklung
 

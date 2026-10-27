@@ -105,7 +105,7 @@ class AdaptiveSolarSensor(CoordinatorEntity, SensorEntity):
 
     _attr_has_entity_name = True
     _attr_should_poll = False
-    _unrecorded_attributes = frozenset({"forecast", "learning", "learning_horizon", "inputs", "model_status", "weather_errors", "training_intervals", "archive_points", "issued_at", "coverage_start", "coverage_end"})
+    _unrecorded_attributes = frozenset({"forecast", "learning", "learning_horizon", "inputs", "model_status", "weather_errors", "weather_diagnostics", "training_intervals", "archive_points", "issued_at", "coverage_start", "coverage_end"})
 
     def __init__(self, coordinator, entry, inverter_id, kind, day=0):
         super().__init__(coordinator)
@@ -321,8 +321,14 @@ class AdaptiveSolarSensor(CoordinatorEntity, SensorEntity):
             day = start.astimezone(ZoneInfo(self.coordinator.site.timezone)).date().isoformat()
             snapshot = self.coordinator.daily_snapshots.get(day)
             attrs["issued_at"] = snapshot["issued_at"] if snapshot else None
+            metadata = getattr(self.coordinator, "daily_snapshot_provenance", {})
+            origin = metadata.get(day) if isinstance(metadata, dict) else None
+            if origin is not None:
+                attrs["forecast_provenance"] = origin
+                attrs["forecast_configuration_changed"] = origin["config_fingerprint"] != self.coordinator._fingerprint
         if self.kind == "quality":
             now = datetime.now(UTC)
+            weather_diagnostics = getattr(self.coordinator.client, "diagnostics", {})
             _, end = day_bounds(now, self.coordinator.site.timezone, 0)
             attrs.update({"coverage": self._quality(now)[1],
                           "coverage_scope": "remaining_local_day", "coverage_start": now.isoformat(),
@@ -332,6 +338,7 @@ class AdaptiveSolarSensor(CoordinatorEntity, SensorEntity):
                           "weather_errors_scope": "latest_provider_fetches_diagnostic_only",
                           "learning": self.coordinator.learner_status, "inputs": self.coordinator.input_quality,
                           "model_status": result.model_status, "weather_errors": self.coordinator.client.errors,
+                          "weather_diagnostics": weather_diagnostics if isinstance(weather_diagnostics, dict) else {},
                           "training_intervals": len(self.coordinator.intervals), "archive_points": len(self.coordinator.archive)})
             curve = []
             groups = {}

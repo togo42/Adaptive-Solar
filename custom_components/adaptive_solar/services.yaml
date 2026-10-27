@@ -8,3 +8,29 @@ get_reference_forecasts:
       required: true
       selector:
         object: {}
+restore_day_start_forecast:
+  name: Restore an original day-start forecast
+  description: Administrator action to restore one missing historical forecast from a verified original archive and its original site configuration. Never restores training data or replaces an existing day.
+  fields:
+    config_entry_id:
+      name: Adaptive Solar entry
+      required: true
+      selector:
+        config_entry:
+          integration: adaptive_solar
+    day:
+      name: Original target day
+      required: true
+      selector:
+        date: {}
+    snapshot:
+      name: Original issued_at and energies in kWh
+      required: true
+      selector:
+        object: {}
+    source_site:
+      name: Original site configuration
+      description: Private original site object used to validate location, stages, timezone and original energy bounds. Never publish it.
+      required: true
+      selector:
+        object: {}
