@@ -33,7 +33,7 @@ edits need no dependency installation. For implementation work use a local venv:
 - `.venv/bin/python scripts/evaluate.py --help`: paired archived forecast evaluation.
 - `.venv/bin/python scripts/capture_ha.py --help`: explicit read-only HA capture using private mappings.
 - `.venv/bin/python scripts/capture_actuals.py --help`: Recorder change-energy capture with separate quality evidence.
-- `.venv/bin/python scripts/review.py --prepare-only`: freeze a local review package (default Grok 4.7; pass `--reviewer codex` for Codex GPT-6.1-Sol).
+- `.venv/bin/python scripts/review.py --transport chunks --prepare-only`: freeze a local review package for the current full source scope (default Grok 4.7; pass `--reviewer codex` for Codex GPT-6.1-Sol). The default `single` transport rejects payloads above 1,250,000 bytes; see `docs/validierung.md` for scope and context-audit requirements.
 
 - `rg --files -g '*.md'`: list Markdown documents.
 - `rg -n '^#{1,3} ' *.md`: inspect document headings.
@@ -46,6 +46,21 @@ Preview edited documents in a Markdown viewer to check tables, equations, code b
 Write research content in German and retain established technical terms. Use one descriptive H1, hierarchical headings, short paragraphs, and comparison tables where helpful. Follow each document's existing section numbering and update its table of contents when headings change.
 
 Use descriptive lowercase `.md` filenames; existing names mix hyphens and underscores, so avoid cosmetic renames. Keep fenced code blocks language-tagged and use four-space indentation for Python examples. Ruff is configured for Python checks; no automatic Markdown formatter is configured.
+
+## Documentation Required for Every Change
+
+Bei jeder Änderung müssen die betroffenen Dokumentationsstellen geprüft und im
+selben Arbeitsauftrag auf den resultierenden Stand gebracht werden. Das gilt für
+Code, Konfiguration, Abhängigkeiten, CLI-Befehle und Entwicklungs-/Reviewabläufe.
+Insbesondere README, Anwender- und Installationsanleitungen, Datenverträge und
+aktuelle Statusangaben müssen mit der Implementierung übereinstimmen; historische
+Nachweise bleiben ausdrücklich als historisch gekennzeichnet.
+
+Eine Änderung ist erst abgeschlossen, wenn die erforderlichen Dokuaktualisierungen
+mitgeprüft und zusammen mit der Änderung oder in einem unmittelbar zugehörigen
+Dokumentationscommit eingecheckt sind. Falls keine veröffentlichte Beschreibung
+betroffen ist, im Commit- oder PR-Text kurz begründen, warum keine Textanpassung
+nötig war. Keine rein kosmetische Dokuänderung als Ersatz für diesen Abgleich.
 
 ## Validation Guidelines
 

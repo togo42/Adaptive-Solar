@@ -1,6 +1,6 @@
 # Datenschutz und Datenflüsse von Adaptive Solar
 
-Stand: 26.10.2026; beschrieben ist der Code von Adaptive Solar 0.2.11, keine
+Stand: 27.10.2026; beschrieben ist der Code von Adaptive Solar 0.2.12, keine
 Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 
 ## 1. Externe Verbindungen
@@ -34,15 +34,24 @@ beachten. Die GPL des Projektcodes ersetzt diese Bedingungen nicht.
 Standort, Geometrie, numerische Modellparameter und optionale Entitybindungen
 liegen im nativen HA-Konfigurationseintrag beziehungsweise dessen Optionen.
 Laufzeitdaten umfassen archivierte Forecastfeatures, später gemessene Energieintervalle,
-Lern-/Qualitätsdiagnosen und ausgegebene Tagesbeginn-Snapshots. In den Historienstores
+Lern-/Qualitätsdiagnosen, ausgegebene Tagesbeginn-Snapshots und die gelernte
+Direktstrahl-Schattentabelle. In den Historienstores
 werden keine ausführbaren Modell-Pickles gespeichert; Modelle entstehen lokal aus Zeilen.
 
 Je Eintrag gibt es einen aktuellen Store `adaptive_solar.<entry_id>.history_v2` und
-einen nur lesend berücksichtigten Legacy-Key. Der aktive Verlauf ist auf höchstens
-120 Tage, 60.000 Forecastzeilen und 30.000 Istzeilen begrenzt; Zeilengrenzen können
-den Zeitraum verkürzen. Tagesbeginn-Snapshots werden separat auf einen kurzen Verlauf
-beschnitten. Geometrie-/Messbindungen beeinflussen die Wiederverwendbarkeit, keine
-externe Synchronisierung. [Persistenzvertrag](implementation-contract.md).
+einen nur lesend berücksichtigten Legacy-Key. Forecast- und Istintervalle sind auf
+höchstens 120 Tage, 60.000 Forecastzeilen und 30.000 Istzeilen begrenzt;
+Zeilengrenzen können den Zeitraum verkürzen. Tagesbeginn-Snapshots werden separat
+ab sieben lokalen Tagen vor dem aktuellen Tag aufbewahrt.
+
+Die Tabelle `beam_shade_v1` speichert je Stufe und Sonnenstandsfenster bis zu
+24 UTC-Viertelstunden mit Zeitstempel und Transmissionsfaktor. Sie unterliegt
+keiner kalendarischen Altersgrenze und zählt nicht gegen die genannten
+Forecast-/Istzeilengrenzen. Ohne neue Aufnahmen können Faktoren deshalb länger
+als 120 Tage bestehen bleiben. Physische Änderungen oder geänderte relevante
+Sensor-/Wettermodellbindungen setzen sie zurück; ein reiner Wechsel der
+Prognosetage erhält sie. Es gibt keine externe Synchronisierung.
+[Persistenzvertrag](implementation-contract.md).
 
 Recorder, HA-Protokolle und Sicherungen haben eigene Aufbewahrungsregeln, die durch
 diese Limits nicht geändert werden. Auch unaufgezeichnete große Forecastattribute

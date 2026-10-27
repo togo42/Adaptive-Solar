@@ -1,6 +1,6 @@
 # Adaptive Solar installieren und aktualisieren
 
-Stand: 26.10.2026; Codebasis 0.2.11; veröffentlichtes Referenzrelease 0.2.11. Die hier beschriebenen Schritte
+Stand: 27.10.2026; Codebasis 0.2.12; veröffentlichtes Referenzrelease 0.2.12. Die hier beschriebenen Schritte
 werden vom Betreiber auf der eigenen Installation ausgeführt. Projektprüfungen und
 ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 
@@ -87,7 +87,13 @@ notieren. Für 0.2.10 erklärt [die Releasebeschreibung](release-0.2.10.md) die
 Anzeige-Migration und den Featurevertragswechsel. Für 0.2.11 sind zusätzlich
 die [Schutzprüfung und Althistorienqualifikation](release-0.2.11.md#upgrade-von-0210)
 zu beachten: Historie bleibt erhalten, frühere Abregelungsfreiheit wird nicht
-nachträglich technisch bestätigt. HACS aktualisiert den Code;
+nachträglich technisch bestätigt. Für 0.2.12 beschreibt die
+[Releasebeschreibung](release-0.2.12.md#upgrade-von-0211) den Wechsel auf
+`beam-shade-table-v1`: Alte Forecastfeatures und abgeleitete Lerner starten neu;
+passende Messintervalle und tatsächlich ausgegebene Tagesbeginn-Snapshots bleiben
+erhalten. Die neue Schattentabelle beginnt leer und neutral. Komponentenstand und
+Lernstores vorab sichern, falls für einen Rückweg das alte Lernarchiv benötigt wird.
+HACS aktualisiert den Code;
 anschließend Core neu starten und obige Prüfung wiederholen. Änderungen an Physik
 oder Messbindungen können neue Lernhistorie erfordern. Das Optionsformular lädt
 den Eintrag nach Abschluss neu.

@@ -1,6 +1,6 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 26.10.2026, Codebasis 0.2.11. [Installation](installation.md),
+Stand: 27.10.2026, Codebasis 0.2.12. [Installation](installation.md),
 [Datenverträge](implementation-contract.md), [Datenschutz](datenschutz.md).
 
 ## 1. Anlagenaufteilung vorbereiten
@@ -117,9 +117,13 @@ den Eintrag neu. Den Flow bei einer bloßen Inspektion abbrechen. Physische Änd
 (wie geänderte kWp, Ausrichtung, Neigung, Horizont, Dämpfung oder ein zusätzlicher
 String) ändern den `history_fingerprint` und setzen den Primary-Store einschließlich
 der gelernten Direktstrahl-Tabelle `beam_shade_v1` nach erfolgreichem Setup zurück;
-reine Wetter-/Beobachtungs- oder Featurevertragswechsel (`beam-shade-table-v1`)
-erhalten unabhängig gültige Istintervalle, Tages-Snapshots und eine gültige
-Schattentabelle nach dem Persistenzvertrag.
+reine Wetter-/Beobachtungs- oder Featurevertragswechsel erhalten unabhängig gültige
+Istintervalle und Tages-Snapshots. Für die Schattentabelle gilt zusätzlich der
+`shade_fingerprint`: Ein Wechsel der Wettermodelle oder der Leistungs-, GHI-,
+Temperatur- oder Windbindung setzt sie zurück. Ein reiner Wechsel von
+`forecast_days` erhält sie. Der Featurevertragswechsel auf `beam-shade-table-v1`
+verwirft alte Forecastfeatures, erhält aber eine separat kompatible Schattentabelle.
+Details stehen im [Persistenzvertrag](implementation-contract.md).
 
 ## 5. Sensoren und Lernstatus
 

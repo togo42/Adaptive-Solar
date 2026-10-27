@@ -1,9 +1,12 @@
 # Adaptive Solar Bewertung und Grundlage für Arbeitspakete
 
-Stand: 26.10.2026. Bewertete Codebasis: **0.2.11**, Commit
-`32d1d0e57e0a2be2c823e4f078c9c48a8fa4f320`. Vergleichsbasis der ersten Bewertung:
-0.2.8, Commit `0285445`. Gegenstand ist die überarbeitete
-[Analyse](adaptive-solar-analyse.md) vom 26.10.2026.
+Stand: 27.10.2026. Codeabgleich gegen **0.2.12**, Releasecommit
+`7c2b4be3315ebc062b5b09a8237f94649cf7d034`. Die Bewertung vom 26.10.2026
+bezog sich auf 0.2.11, Commit `32d1d0e57e0a2be2c823e4f078c9c48a8fa4f320`;
+Vergleichsbasis der ersten Bewertung war 0.2.8, Commit `0285445`.
+Die [Analyse](adaptive-solar-analyse.md) beschreibt nun auch die Schattentabelle
+und die erweiterten Refit-Auslöser von 0.2.12. Die Prioritäten bleiben
+Planungshypothesen ohne neuen Güte- oder Ressourcenmessnachweis.
 
 **Ergebnis:** Die überarbeitete Analyse ist fachlich deutlich belastbarer. Sie
 berücksichtigt die wesentlichen Einwände der ersten Bewertung. Vorrang haben eine
@@ -15,8 +18,8 @@ folgen bei ausreichender Datenbasis.
 
 Die unten beschriebenen Pakete sind **Planungsvorschläge**. Ihr Status ist jeweils
 offen; weder Umsetzung noch Benchmarkbetrieb sind damit begonnen. Der
-[Entwicklungsstand](entwicklungsstand.md) dokumentiert 0.2.10 als zuletzt
-installierte Version und 0.2.11 als vorbereiteten Prüfstand. Das ist eine
+[Entwicklungsstand](entwicklungsstand.md) dokumentiert 0.2.12 als veröffentlicht
+und installiert. Das ist eine
 Repositoryangabe, keine neue Live-Prüfung. Ein qualifizierter produktiver ML-Fit
 und ein Vorsprung gegen beide Referenzintegrationen bleiben dort offen.
 
@@ -27,10 +30,11 @@ und ein Vorsprung gegen beide Referenzintegrationen bleiben dort offen.
 | Analyse | Unbelegte Gewinnversprechen, die pauschale Nowcast-Verschlechterung und das einfache Quorum wurden durch Prüfaufträge ersetzt. | Die frühere Top-3-Liste ist überholt; die neue Reihenfolge ist als Hypothese geeignet. |
 | Messgültigkeit | Optionales `measurement_valid_entity_id`; ungültige Phasen sperren neue Energie- und Powerbeobachtungen. Wiederanlauf benötigt echte neuere Originalberichte. | Bestehende Schutzmechanismen verwenden und erhalten; kein neuer paralleler Qualitätsmechanismus nötig. |
 | Eingangsqualität | Restaurierte numerische Werte werden für alle Eingangsklassen verworfen. Join-Diagnosen trennen zu kurze, nicht prospektive und bei Ausgabe angeschnittene Ziele. | Vor einer Modelländerung die konkreten Ablehnungsgründe auswerten. |
-| Lernhistorie | Featurevertrag `atomic-ghi-cohort-centered-weather-v2`; separat gebundene Messhistorie und Tagesbeginn-Snapshots. | Neue Features brauchen eine explizite Vertragsänderung; physische Provenienz bleibt unabhängig streng. |
+| Lernhistorie | Featurevertrag `beam-shade-table-v1`; separat gebundene Messhistorie, Tagesbeginn-Snapshots und Schattentabelle. | Neue Features brauchen eine explizite Vertragsänderung; physische und Schattenprovenienz bleiben unabhängig streng. |
 | Physik | Morgen-/Abenddämpfung je String, nach Temperatur-/Stringverlustrechnung und vor gemeinsamem AC-/DC-Clip. | Physik und Konfiguration vor Vergleichen einfrieren; alte und neue Dämpfungsstände nicht unbemerkt zusammenlegen. |
 | Anzeige | AS-UI-001 ist seit 0.2.10 umgesetzt, einschließlich Kompatibilitätsanzeigen bestehender Gesamt-Sensoren. | Kein neues offenes Optimierungspaket daraus ableiten. |
-| Ensemble und ML | `core/engine.py` und `core/learning.py` sind gegenüber der ersten Bewertungsbasis bytegleich. | Mittelwert, Kohortenregeln, 13 Features, Regimetrennung und Aktivierungsgates bestehen fort. |
+| Ensemble und ML | `core/engine.py` und `core/learning.py` berücksichtigen nun die gelernte Direktstrahl-Baseline und deren Stützung in Training, Holdouts und Vorhersage. | Mittelwert, Kohortenregeln, 13 Baumfeatures, Regimetrennung und Aktivierungsschwellen bestehen fort; Schattenphasen zusätzlich einfrieren und qualifizieren. |
+| Refit | Die Fit-Signatur enthält neben Historienrevision und lokalem Tag die vollständig serialisierte Schattentabelle. | AS-OPT-02 muss auch neue/ersetzte Schattenaufnahmen bei unverändertem Median als mögliche Refit-Auslöser erfassen. |
 
 Codebelege: [Coordinator](../custom_components/adaptive_solar/coordinator.py),
 [Physik](../custom_components/adaptive_solar/core/physics.py),
@@ -183,6 +187,7 @@ Zeitmessungen gezielt ergänzen.
 **Abnahme:**
 
 - Kalter und aktivierter Lerner, unterschiedliche Stufenzahlen und Historiengrößen bis zu den Zeilenlimits sind mit Umgebung, Wiederholungszahl, Median/p95 der Laufzeiten und Speichermaß beschrieben.
+- Refit-Auslöser durch Isthistorie, Tageswechsel und Änderungen der serialisierten Schattentabelle sind getrennt erfasst, einschließlich neuer Aufnahmen bei unverändertem freigegebenem Median.
 - Akzeptierte eindeutige Trainingsstunden, effektive Historienlänge und Nowcast-Ausschlüsse werden je Stufe/Horizont ausgewiesen. Der Nenner für Nowcast-Quoten umfasst geeignete Tageslichtziele; Gründe dürfen überlappen und werden nicht als disjunkte Fallzahlen addiert.
 - Ungültige Messquelle, schwache Strahlung, unvollständige GHI-Kohorte, fehlende Momentanabdeckung und nicht vergleichbare Lernunterstützung bleiben unterscheidbar.
 - Eine begründete Entscheidung nennt den tatsächlichen Engpass oder verwirft eine Performanceänderung. Ein zulässiges Aktualitätsbudget wird vor AS-OPT-04 festgelegt. Diagnoseänderungen lassen Prognosewerte unverändert.

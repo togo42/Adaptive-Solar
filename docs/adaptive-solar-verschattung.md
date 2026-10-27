@@ -1,6 +1,6 @@
 # Direktstrahl-Verschattung aus Globalstrahlung und Stufenleistung
 
-Stand: 26.10.2026. Spezifikation und Umsetzungsstand gegen Codebasis **0.2.11**.
+Stand: 27.10.2026. Spezifikation und Umsetzungsstand gegen Codebasis **0.2.12**.
 Die Arbeitspakete `VS-01` bis `VS-06` sind im Code und in der Testsuite umgesetzt;
 `VS-00` bleibt die anlagenseitige Konfigurationsvorgabe ohne Codeänderung. Ein
 prospektiver Gütevergleich ist damit noch nicht durchgeführt. Eine gefüllte
@@ -285,7 +285,7 @@ Momentanreferenz liest den Faktor zum Leistungszeitpunkt. Eine leere Tabelle
 - Alle Mitglieder einer Kohorte verwenden denselben Faktor. Ein fehlendes Mitglied ändert den Faktor der übrigen nicht.
 - Die Nowcast-Referenz einer stabilen Teilverschattung liegt bei der verschatteten Physik. Der zusätzliche Leistungsrest entsteht nicht aus dem schon angewendeten Faktor.
 - Teilintervalle am Ausgabezeitpunkt verwenden den Sonnenstand ihres eigenen Mittelpunkts.
-- Nacht und fehlende Kohorte bleiben Lücken. Der Faktor füllt sie nicht.
+- Abgedeckte Nachtintervalle bleiben bei 0 W; fehlende Wetterkohorten bleiben Lücken. Der Faktor füllt sie nicht.
 
 **Betroffene Stellen:** `core/engine.py`, `tests/test_engine.py`,
 `tests/test_nowcast_reference.py`, `tests/test_irradiance.py`.

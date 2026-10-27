@@ -1,6 +1,6 @@
 # Analyse der Adaptive-Solar-Erweiterung: Ensemble und ML-Learning
 
-Stand: 26.10.2026. Gegen Codebasis 0.2.11 abgeglichen. Abschnitte 1–3 beschreiben den Code; Abschnitte 4–5 sind mögliche Prüfaufträge, keine belegten Optimierungen oder automatisch beauftragten Modelländerungen. [Vertrag](implementation-contract.md), [Anwenderhandbuch](bedienung.md).
+Stand: 27.10.2026. Gegen Codebasis 0.2.12 abgeglichen. Abschnitte 1–3 beschreiben den Code; Abschnitte 4–5 sind mögliche Prüfaufträge, keine belegten Optimierungen oder automatisch beauftragten Modelländerungen. [Vertrag](implementation-contract.md), [Anwenderhandbuch](bedienung.md).
 
 Die [Bewertung mit Vorschlägen für Arbeitspakete](adaptive-solar-bewertung.md) konkretisiert Nutzen, Voraussetzungen, Abhängigkeiten und Abnahmekriterien dieser Prüfaufträge.
 
@@ -8,6 +8,7 @@ Die [Bewertung mit Vorschlägen für Arbeitspakete](adaptive-solar-bewertung.md)
 
 - **Wetter-Ensemble:** Ja. Mehrere Open-Meteo-Modelle können konfiguriert werden; die Baseline ist das arithmetische Mittel der verfügbaren Mitglieder, mit strenger Kohorten-Integrität (kein Auffüllen von Lücken mit 0).
 - **ML-Learning:** Konservativ gegatetes Gradient-Boosting auf Residuen (actual − baseline), pro Inverter und Regime (`nwp`/`ghi`), mit chronologischer Train/Validation/Calibration-Aufteilung und empirischen Bounds.
+- **Direktstrahl-Verschattung:** Seit 0.2.12 skaliert eine lokal gelernte Tabelle den Direktanteil der physikalischen Baseline je Stufe und Sonnenstandsfenster. Ohne freigegebenes Fenster gilt Faktor 1; Diffuslicht bleibt erhalten.
 - **Nowcast:** Kurzfristkorrektur (≤3 h) aus realen Leistungs-/GHI-Messungen mit exponentiellem Decay, ohne ML-Kalibrierung der Bounds.
 
 ---
@@ -25,7 +26,7 @@ Die [Bewertung mit Vorschlägen für Arbeitspakete](adaptive-solar-bewertung.md)
 Für jedes Ausgabe-Intervall `[start, end)`:
 
 1. **Kohortenbildung:** Nur Modelle mit Original-Quellabdeckung (`p.start <= start and p.end >= end`) werden Mitglieder. Ein Modell mit Lücke trägt nichts bei – keine Interpolation, kein Zero-Fill.
-2. **Physik pro Mitglied und Stufe:** Nur numerisch gültige Stufen-/Modellzellen bleiben in der jeweiligen Kohorte; ein Fehler einer Stufe verwirft nicht automatisch andere Stufen.
+2. **Physik pro Mitglied und Stufe:** Nur numerisch gültige Stufen-/Modellzellen bleiben in der jeweiligen Kohorte; ein Fehler einer Stufe verwirft nicht automatisch andere Stufen. Alle Mitglieder einer Stufe verwenden denselben freigegebenen Direktstrahl-Faktor am Sonnenstand des Intervallmittelpunkts.
 3. **Baseline:** Arithmetisches Mittel (`fmean`) der Mitglieder-Leistungen.
 4. **GHI-Nowcast:** Pro Modell individueller Gain (Haurwitz-normalisiert gegen gemessene Einstrahlung), aber nur angewendet, wenn **alle** Mitglieder der Kohorte Gains haben (`use_ghi`). Gains werden mit Alter exponentiell gedämpft (90-Min-Fenster).
 
@@ -41,6 +42,13 @@ Für jedes Ausgabe-Intervall `[start, end)`:
 - **Pro Inverter und pro Regime** (`nwp` vs. `ghi`) ein eigenes Modell.
 - Zielgröße: Residual `actual_w − baseline_w`.
 - 13 Features: `baseline_w`, Sonnenhöhe/Azimuth (sin/cos), Tag-des-Jahres (sin/cos), Temperatur, Wind, Bewölkung, `lead_hours`, GHI-Nowcast-Felder.
+
+Der archivierte `beam_shade_factor` ist kein zusätzliches Baumfeature. Er bindet
+die Baseline an ihre Schattenphase: Inkompatible alte Baselines werden
+ausgeschlossen. Eine verschattete Baseline benötigt passende Trainings- und
+Validierungsstützung im Sonnenstandsfenster und Lead-Bin; andernfalls bleibt
+`physics_unvalidated_shade_baseline`. Holdouts und Kalibrierung verwenden dieselbe
+Rückfallregel. [Details](adaptive-solar-verschattung.md).
 
 ### Datenbasis
 
@@ -78,9 +86,10 @@ Für jedes Ausgabe-Intervall `[start, end)`:
 ### Persistenz
 
 - Archive/Intervalle im HA-Store (`history_v2`), Fingerprints für Physik- und Feature-Änderungen.
-- Featurevertrag v2 verwirft unverifizierbare alte Forecastfeatures/Modelle. Messintervalle und Tagesbeginn-Snapshots bleiben nur bei passender separat geprüfter physischer Provenienz. Physische Änderungen können auch Messhistorie unbrauchbar machen.
+- Featurevertrag `beam-shade-table-v1` ersetzt `atomic-ghi-cohort-centered-weather-v2` und verwirft inkompatible alte Forecastfeatures/Modelle. Messintervalle und Tagesbeginn-Snapshots bleiben nur bei passender separat geprüfter physischer Provenienz. Physische Änderungen können auch Messhistorie unbrauchbar machen.
+- Die Schattentabelle `beam_shade_v1` speichert höchstens 24 Aufnahmen je Stufe/Sonnenstandsfenster ohne kalendarische Altersgrenze. Physische Änderungen und relevante Sensor-/Wettermodellwechsel setzen sie zurück; `forecast_days` allein erhält sie.
 - Optionale Messgültigkeit sperrt Energie-/Powerbeobachtungen; restaurierte numerische Eingangswerte werden verworfen. Morgen-/Abenddämpfung ist seit 0.2.10 ein physikalischer Stringparameter vor dem gemeinsamen Ausgangsclip.
-- Refit bei jeder Coordinator-Aktualisierung (alle 5 min), wenn History-Revision oder Tag sich ändert.
+- Refit-Prüfung bei jeder Coordinator-Aktualisierung (regulär alle 5 min): Ein fehlender Lerner oder eine geänderte Signatur aus History-Revision, lokalem Tag und vollständig serialisierter Schattentabelle löst die Rekonstruktion aus.
 
 ---
 
@@ -134,9 +143,12 @@ macht ein ungeeignetes Label nicht zu einer validierten Messung.
 
 ### E. Refit und Ressourcen
 
-Der Coordinator prüft alle fünf Minuten die Fit-Signatur aus Historienrevision und
-lokalem Tag. Neue Messintervalle verändern die Revision. Erst CPU-/Laufzeit-/Speicher-
-Messungen können zeigen, ob Rekonstruktion den Betrieb relevant belastet.
+Der Coordinator prüft regulär alle fünf Minuten die Fit-Signatur aus
+Historienrevision, lokalem Tag und vollständig serialisierter Schattentabelle.
+Neue Messintervalle verändern die Revision. Auch neue oder ersetzte
+Tabellenaufnahmen können einen Refit auslösen, selbst wenn der freigegebene Median
+gleich bleibt. CPU-/Laufzeit-/Speichermessungen müssen diese Auslöser getrennt
+erfassen, um die Belastung durch Rekonstruktion zu bewerten.
 
 Ein Refit-Throttle oder Featurecache könnte Aufwand sparen, kann aber Modellaktualität
 und Reaktionen nach Qualitätswechseln beeinflussen. Deshalb Ergebnisalter und

@@ -1,6 +1,6 @@
 # Adaptive Solar entwickeln und prüfen
 
-Stand: 26.10.2026. [Repositoryregeln](../AGENTS.md), [Verträge](implementation-contract.md)
+Stand: 27.10.2026. [Repositoryregeln](../AGENTS.md), [Verträge](implementation-contract.md)
 und [Validierungsgrenzen](validierung.md) ergänzen diesen Einstieg.
 
 ## 1. Prüfumgebung reproduzieren
@@ -65,7 +65,10 @@ Der [Reviewablauf](validierung.md#4-lokale-prüfung-und-review) in `scripts/revi
 (`--reviewer grok`, Standard) sowie alternativ Codex mit
 GPT-6.1-Sol und Effort `high` (`--reviewer codex`) und
 benötigt eine gesonderte Freigabe für externe Übertragung. `--prepare-only` prüft lokal den
-Exportumfang; geänderte Forschung kann nicht über alte Forschungs-SHAs geerbt werden.
+Exportumfang. Der aktuelle vollständige Scope benötigt dabei ausdrücklich
+`--transport chunks`, da er die unveränderte Single-Bytegrenze überschreitet;
+die Vorbereitung ist kein Kontext- oder Reviewnachweis. Geänderte Forschung kann
+nicht über alte Forschungs-SHAs geerbt werden.
 
 Vor Veröffentlichung versionierte Dateien auf private Daten prüfen, Paketinhalt und
 Lizenzmitlieferung kontrollieren und abgeschlossene CI abwarten. Rohbelege können

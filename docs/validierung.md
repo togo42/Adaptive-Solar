@@ -1,6 +1,6 @@
 # Validierung und Genauigkeitsnachweis
 
-Stand: 26.10.2026. Überlegenheit gegenüber Helios Forecast/Open-Meteo Solar bleibt offen. Konsolidiert aus dem lokal archivierten Vorgänger `artifacts/releases/0.2.5-blocked/source/docs/validierung.md`; das Archiv wird nicht veröffentlicht.
+Stand: 27.10.2026. Überlegenheit gegenüber Helios Forecast/Open-Meteo Solar bleibt offen. Konsolidiert aus dem lokal archivierten Vorgänger `artifacts/releases/0.2.5-blocked/source/docs/validierung.md`; das Archiv wird nicht veröffentlicht.
 
 ## 1. Nachweisgrenzen
 
@@ -36,12 +36,19 @@ Diese Approximation setzt austauschbare, repräsentative Tagesblöcke voraus, mo
 
 ## 4. Lokale Prüfung und Review
 
-Normale Paketinstallation/Testbefehle: [README](../README.md#entwicklung). PEP660-Editable kann HAs Namespace-Loader abbrechen; `pythonpath=["."]` nutzt Repositoryquellen, Paketbytes separat prüfen. Lokale Exportvorprüfung (Grok 4.7 als Standard oder alternativ Codex mit GPT-6.1-Sol):
+Normale Paketinstallation/Testbefehle: [README](../README.md#entwicklung). PEP660-Editable kann HAs Namespace-Loader abbrechen; `pythonpath=["."]` nutzt Repositoryquellen, Paketbytes separat prüfen. Der vollständige öffentliche Quellumfang von 0.2.12 überschreitet die Single-Grenze von 1.250.000 Bytes. Für die lokale Exportvorprüfung daher den vorhandenen Chunktransport ausdrücklich auswählen (Grok 4.7 als Standard oder alternativ Codex mit GPT-6.1-Sol):
 
 ```bash
-.venv/bin/python scripts/review.py --prepare-only
-.venv/bin/python scripts/review.py --reviewer codex --prepare-only
+.venv/bin/python scripts/review.py --transport chunks --prepare-only
+.venv/bin/python scripts/review.py --reviewer codex --transport chunks --prepare-only
 ```
+
+`--prepare-only` friert den lokalen Payload samt Receipt ein und prüft gegebenenfalls
+die CLI-Version; es überträgt keine Quelltexte und führt keinen Review aus. Die
+Transportwahl `chunks` muss bei einem später gesondert freigegebenen Review erneut
+angegeben werden. Sie erlaubt keine Compaction: Auch dann müssen alle Originalbytes
+im nativen Kontext erhalten und der Abschlussturn unabhängig geprüft sein. Die
+Vorbereitung selbst beweist weder Kontextkapazität noch einen gültigen Review.
 
 Ohne Prepare startet der angeforderte Review nach internem Pre-Review; z.B. `--timeout 3600` (Standard1800 s, Obergrenze3600 s). Deadline ist kein Review; denselben laufenden Prozess bis Ende beobachten. ESS-Grundlage: `AGENTS.md`/`scripts/ai_review.sh`, gelesen24.10.2026. Unterstützt sind zwei alternative Reviewer in [review.py](../scripts/review.py) mit identischem Payload-, Hash- und Kontextaudit-Vertrag:
 
