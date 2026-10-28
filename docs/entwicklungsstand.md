@@ -1,6 +1,6 @@
 # Entwicklungsstand und offene Nachweise
 
-## Releasevorbereitung 0.2.17 vom 28.10.2026
+## Veröffentlichter und installierter Stand 0.2.17
 
 Der reale 0.2.16-Replaybefund wurde auf kleinste Unterschiede berechneter
 Gleitkommawerte eingegrenzt: gleiche Intervallunterstützung, Originaldaten und
@@ -34,9 +34,80 @@ regulären Wheelinstallation.
 
 Private Test-/Reviewnachweise liegen unter `artifacts/release-0.2.17/`.
 Die 23 bekannten SQLite-ResourceWarnings aus Tests bleiben getrennt von der
-Laufzeitbewertung. Veröffentlichung und neue, zur Quellversion passende
-Liveaufnahmen werden separat nachgetragen. Der folgende 0.2.16-Nachweis bleibt
-historisch und beschreibt auch dessen fehlgeschlagene Replayabnahme.
+Laufzeitbewertung.
+
+[v0.2.17](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.17) ist aus
+Commit `ed901b337da64d41022562ed8a5ba55769cd273a` veröffentlicht und auf `main`
+übernommen. Alle vier Releaseartefakte sind nach Download bytegleich geprüft.
+[Main-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40729208333) und
+[Tag-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40729209044) sind
+abgeschlossen erfolgreich; beide heruntergeladenen JUnit-/Coverageartefakte
+bestätigen 1.634 Tests ohne Skips und 90,84 % kombinierte Abdeckung.
+
+Nach frischer 0.2.16-Baseline und gezielter Sicherung von Komponente sowie acht
+Lern-/Vergleichsstores erfolgten HACS-Download, Prüfung aller 38 Dateien und ein
+weiterer Core-Neustart für 0.2.17. Damit gab es in diesem gesamten Auftrag zwei
+Core-Neustarts: den ersten für 0.2.16, den zweiten für die Replaykorrektur.
+Kein Core-/OS-Upgrade und keine Änderung bestehender Physik-/Lernoptionen.
+
+Vier Einträge sind mit 0.2.17 geladen. **80 Entity-/Unique-IDs, vier Geräte,
+Standort-/String-/Messoptionen, Energy, Dashboard, Fingerprints, abgeschlossene
+Messintervalle und historische Tagesstartwerte** sind erhalten. Alle vier
+Exportoptionen blieben eingeschaltet; vier Journalgenerationen und sämtliche
+1.990 vor dem Update gesicherten Ereignishashes sind unverändert vorhanden.
+Neue Originalausgaben tragen exakt die Pythonquellprovenienz des 0.2.17-Tags.
+Konfiguration gültig, keine aktiven Repairs, keine neuen Adaptive-Solar-Fehler
+oder Blocking-Startmeldungen; gültige Eingänge und drei vollständige lokale
+Folgetage pro Anlage geprüft. Nach echten neuen Umweltberichten wurden nur die
+vier eigenen Prognosestatusentitäten einmal aktualisiert, keine Messquelle.
+
+Der Archivhost verwendet ebenfalls den unveränderlichen 0.2.17-Commit. Alle
+183 öffentlichen Quelldateien und 38 regulär installierten Komponentendateien
+sind bytegleich geprüft. Die eigene Umgebung wurde unabhängig von 0.2.16
+kopiert; `pip check` und Imports sind erfolgreich. Beim Umschalten blieben die
+sieben Quellen/Cursor erhalten, die vier Timer sind wieder aktiv. Die fünf
+archivierten Bibliotheksversionen passen zu HA; vollständige Gleichheit aller
+transitiven Bibliotheken, Pythonpatches und ABI wird weiterhin nicht behauptet.
+
+Die neue eingefrorene Abnahme `release-0.2.17-e2e-20261028-r2` enthält alle
+sieben Quellen. **Vier Originalreplays mit je 151 Punkten sind akzeptiert**,
+Quellhash und die fünf archivierten Bibliotheksversionen stimmen überein.
+Maximale Leistungsabweichung: **1,3643e-12 W**, unter der unveränderten Grenze
+von `1e-6 W`. **Acht Schatten-CLI-Replays** (je vier mit übernommenem und leerem
+Anfangszustand) sind erfolgreich, jeweils mit zwei zusammenhängenden Schritten
+der ausdrücklich gewählten neuen Sitzung. Entscheidungen und fortgeführte
+Zustände erfüllen die dokumentierten Vergleichsregeln. Alle acht Abfragen vor
+der tatsächlichen Verfügbarkeit der ausgewählten Ausgaben wurden abgelehnt.
+
+Die eingefrorene Kopie wurde auf einen getrennten Arbeitsrechner übertragen;
+**76 Originaldateien, 3.019 Ereignisidentitäten, Pin und sämtliche Originalbytes**
+sind nach unabhängigem Indexwiederaufbau unverändert geprüft. Alle acht
+Schatten-JSONL-Ergebnisse und ihre Hashes sind ebenfalls getrennt gesichert.
+Der frühere 0.2.16-Pin samt fehlgeschlagener strenger Abnahme bleibt erhalten.
+
+Die Wetterensembleprüfung auf den zuvor archivierten Originalantworten ergab
+für das geprüfte 24-Stunden-Fenster vollständige 20/51/51-Mitgliederkohorten.
+Für 48 Stunden war ICON-D2 unvollständig; IFS blieb vollständig und wurde
+entsprechend der deklarierten Reihenfolge gewählt, ohne ICON-Mitglieder zu
+verlängern. Dieser Nachweis bleibt ausdrücklich dem 0.2.16-Werkzeugstand mit
+NumPy 2.3.2 zugeordnet; die sechs beteiligten Physik-/Wetter-/Ensemblemodule sind
+gegenüber 0.2.17 bytegleich. Es wurden keine zusätzlichen Wetterabrufe für den
+Replay vorgenommen.
+
+Diese kurze Abnahme bestätigt Aufnahme, Wiederherstellung und numerische
+Reproduktion, keine mehrmonatige Lerngüte oder lokale Wahrscheinlichkeitskalibrierung.
+Die fünf erfassten Bibliotheksversionen ersetzen keinen vollständigen Laufzeitlock.
+Der Host hat zuletzt rund **6,8 GiB freien Platz**; die 24-Monats-Retention ist
+konfiguriert, ausreichende Kapazität für zwei Jahre jedoch nicht nachgewiesen.
+Platzschutz und regelmäßige Größenbelege sind aktiv; bereits nach vollständigen
+Beobachtungstagen nachmessen und die Drei-/Sechsmonatsprüfungen beibehalten.
+Eine dauerhaft betriebene zweite Archivsicherung ist damit nicht nachgewiesen.
+
+Private Betriebsbelege: `data/release-0.2.17-20261028/`.
+Abnahmereceipt `acceptance/acceptance-receipt.json`, SHA256
+`52a78045c6d2ce2bdebd797587db0d1ba27a2c16b22bd4f54bbb720dad88a4c5`. Die folgenden
+0.2.16-Nachweise bleiben historisch und beschreiben auch dessen fehlgeschlagene
+Replayabnahme. Die ergänzten Betriebsnachweise ändern keine Bytes des Tags.
 
 
 ## Historischer Veröffentlichungs- und Installationsnachweis 0.2.16

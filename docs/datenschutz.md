@@ -1,6 +1,6 @@
 # Datenschutz und Datenflüsse von Adaptive Solar
 
-Stand: 28.10.2026; beschrieben ist Version 0.2.16, keine
+Stand: 28.10.2026; beschrieben ist Version 0.2.17, keine
 Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 
 ## 1. Externe Verbindungen
