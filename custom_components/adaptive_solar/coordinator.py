@@ -1,6 +1,7 @@
 """HA coordination, prospective feature archive and measured energy intervals."""
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 from bisect import bisect_left
@@ -33,6 +34,7 @@ from .core.shading import (
     MIN_SHADE_SAMPLES, compute_beam_shade_factor, feature_solar_angles, shade_bin,
     shade_factors_compatible,
 )
+from .archive_export import ArchiveExport, CONF_ARCHIVE_EXPORT, json_value, replay_events, software_provenance
 from .weather import WeatherError
 from .snapshots import config_fingerprints, provenance, validate_snapshot
 
@@ -393,6 +395,12 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
 
     def __init__(self, hass, entry, config: SiteConfig, client) -> None:
         super().__init__(hass, _LOGGER, config_entry=entry, name=DOMAIN, update_interval=timedelta(seconds=UPDATE_SECONDS))
+        self.export = ArchiveExport(hass, entry.entry_id, enabled=entry.options.get(CONF_ARCHIVE_EXPORT, entry.data.get(CONF_ARCHIVE_EXPORT, False)) is True)
+        if self.export.enabled:
+            client.archive_sink = self.export.record
+        self._export_fit_samples = []
+        self._export_fit_as_of = None
+        self._export_software = None
         self.site = config
         self.client = client
         self.shading = BeamShadeTable()
@@ -579,6 +587,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
     @callback
     def async_commit_setup(self) -> None:
         """Enable writes only after first refresh and platform setup succeeded."""
+        self.export.activate()
         if self._store_writable and not self._closing:
             self._persistence_active = True
             self._schedule_save()
@@ -616,6 +625,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             return
         entity = event.data["entity_id"]
         now = event.time_fired.astimezone(UTC)
+        self._export_source_report(event, now)
         for inv in self.site.inverters:
             if entity == inv.measurement_valid_entity_id:
                 self._measurement_flag_report(inv, event.data.get("new_state"), now)
@@ -639,6 +649,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             return
         entity = event.data["entity_id"]
         now = event.time_fired.astimezone(UTC)
+        self._export_source_report(event, now)
         # HA may mutate new_state.last_reported before this callback runs.
         # The timestamp captured in this event is the actual report boundary.
         stamp = event.data["last_reported"]
@@ -650,6 +661,20 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             if entity == inv.energy_entity_id:
                 self._record_energy(inv, event.data["new_state"], now, reported_at=stamp)
         self._schedule_save()
+
+    def _export_source_report(self, event, received):
+        if not self.export.enabled:
+            return
+        state = event.data.get("new_state")
+        payload = {"entity_id": event.data["entity_id"], "event_type": event.event_type,
+                   "state": state.state if state is not None else None,
+                   "last_changed": state.last_changed if state is not None else None,
+                   "last_updated": state.last_updated if state is not None else None,
+                   "last_reported": event.data.get("last_reported") or (getattr(state, "last_reported", None)),
+                   "attributes": {key: state.attributes[key] for key in
+                                  ("unit_of_measurement", "state_class", "restored")
+                                  if state is not None and key in state.attributes}}
+        self.export.record("source_report", json_value(payload), received)
 
     @staticmethod
     def _measurement_flag_valid(state) -> bool:
@@ -760,6 +785,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         if interval is not None:
             if inv.curtailed_entity_id:
                 interval["curtailment_measurement_contract"] = CURTAILMENT_MEASUREMENT_CONTRACT
+            self.export.record("qualified_interval", dict(interval), now)
             self._append_interval(interval)
 
     def _append_interval(self, interval: dict) -> None:
@@ -970,10 +996,14 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self._prune(now)
         observations = self._observations(now)
         # Copy event-loop-owned mutable rows before passing them to a worker.
-        archive, intervals = list(self.archive), [dict(row) for row in self.intervals]
+        archive, intervals = deepcopy(self.archive), deepcopy(self.intervals)
         shading = self.shading.copy()
         shade_inputs = {inv_id: dict(values) for inv_id, values in self._shade_inputs.items()}
         history_revision = self._history_revision
+        receipt_ids = getattr(self.client, "receipt_ids", {})
+        weather_receipt_ids = dict(receipt_ids) if isinstance(receipt_ids, dict) else {}
+        weather_errors = dict(self.client.errors) if self.export.enabled else {}
+        input_quality = dict(self.input_quality)
         meter_quality = {}
         for inv in self.site.inverters:
             state = self.hass.states.get(inv.energy_entity_id) if inv.energy_entity_id else None
@@ -1027,6 +1057,9 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 self._learner = ResidualLearner(timezone_name=self.site.timezone, output_caps=output_caps)
                 rows = {}
                 self._learner.fit(samples, now, diagnostics=rows)
+                if self.export.enabled:
+                    self._export_fit_samples = json_value(samples)
+                    self._export_fit_as_of = now.isoformat()
                 self._fit_signature = signature
                 self._training_snapshot = {"evaluated_at": detail_time(now), "alignment": alignment,
                                            "targets": targets, "rows": rows}
@@ -1058,11 +1091,34 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                                    "max_counter_delta_seconds": MAX_ENERGY_GAP_SECONDS,
                                    "counter_plausibility_window_seconds": COUNTER_PLAUSIBILITY_WINDOW_SECONDS,
                                    "whole_measurements_only": True}}}
-            return self.engine.forecast(
+            result = self.engine.forecast(
                 forecasts, now, observations=observations, learner=self._learner, shading=shading
-            ), status, shading
+            )
+            events = []
+            if self.export.enabled:
+                try:
+                    if self._export_software is None:
+                        self._export_software = software_provenance()
+                    computed_at = datetime.now(UTC)
+                    events = replay_events({
+                        "site": self.site.to_dict(), "software": self._export_software,
+                        "learning_feature_contract": LEARNING_FEATURE_CONTRACT,
+                        "issued_at": now.isoformat(), "computed_at": computed_at.isoformat(),
+                        "weather": json_value(forecasts),
+                        "weather_receipt_ids": weather_receipt_ids, "weather_errors": weather_errors,
+                        "observations": json_value(observations), "input_quality": input_quality,
+                        "result": json_value(result),
+                        "individual_model_physics": {weather.model: json_value(self.engine.forecast(
+                            (weather,), now, observations=(), learner=None, shading=shading)) for weather in forecasts},
+                    }, {"history_revision": history_revision, "fit_as_of": self._export_fit_as_of,
+                        "fit_samples": self._export_fit_samples, "shading": shading.to_dict(),
+                        "training_snapshot": self._training_snapshot}, computed_at)
+                except Exception as err:
+                    events = [("export_failure", json.dumps({"error_type": type(err).__name__}), now, None)]
+            return result, status, shading, events
 
-        result, status, shading = await self.hass.async_add_executor_job(calculate)
+        result, status, shading, export_events = await self.hass.async_add_executor_job(calculate)
+        self.export.submit(export_events)
         if self._closing:
             raise UpdateFailed("Coordinator is closed")
         self.shading = shading
@@ -1174,6 +1230,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             self._unsub_reports()
             self._unsub_reports = None
         await self.async_shutdown()
+        await self.export.close()
         if self._persistence_active:
             self._persistence_active = False
             await self._store.async_save(self._stored())

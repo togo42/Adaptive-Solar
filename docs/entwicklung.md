@@ -58,6 +58,14 @@ Lizenzen erhalten; Projektlizenz ist [GPL-3.0-only](../LICENSE).
 
 ## 3. Veröffentlichung und Nachweise
 
+Der unveröffentlichte Archivstand vom 28.10.2026 ergänzt
+[`archive.py`, Wetter-/Messaufnahme und Replay](archivbetrieb.md).
+Für Änderungen daran sind Roundtrips, Abbruch-/Wiederanlauf, vollständige
+Referenzen, Pin-/Retentionsregeln, native HA-Autorisierung, beide DST-Wechsel
+und kausale Ensembleauswertung relevant. Die vollständige Suite enthält diese
+Verhaltenstests; Live-Providerstichproben sind zusätzliche Schnittstellenproben
+und keine Prognosegüteprüfung.
+
 Paketbau, Installation, nativer Core-Import, qualifizierter ML-Fit und reale
 Prognosegüte sind unterschiedliche Nachweise. Neue Tests oder Dokuänderungen
 verlängern einen früheren Grok- oder Codex-Receipt nicht automatisch auf den neuen Quellstand.

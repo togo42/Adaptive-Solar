@@ -1,10 +1,10 @@
 # Physikvergleich und reproduzierbare Prognosearchivierung
 
-Stand: 28.10.2026. Geprüfte Codebasis: Adaptive Solar 0.2.14, Commit
-6193efc. Dieses Dokument fasst die Analyse vom 27.10.2026 und den
-Umsetzungsvorschlag zusammen. **Status: Planung; die neuen Physikvarianten,
-der Originaldatenexport und das externe Langzeitarchiv sind nicht umgesetzt.**
-Der produktive HA- und Hostzustand wurde für dieses Dokument nicht erneut geprüft.
+Stand: 28.10.2026. Die Physikanalyse bezieht sich auf Adaptive Solar 0.2.14,
+Commit 6193efc. **Originaldatenexport, externes Langzeitarchiv und Offline-Replay
+sind im Entwicklungsbranch implementiert; die neuen Physikvarianten bleiben
+geplant.** Betrieb und Aktivierung auf HA/Archivhost sind noch nicht erfolgt.
+[Implementierter Ablauf](archivbetrieb.md), [Speichervertrag](archive-storage-contract.md).
 
 ## Inhalt
 
@@ -40,7 +40,7 @@ Echte Wetterensembles sind ab Aufnahmestart vorgesehen: vollständige Mitglieder
 von ICON-D2-EPS und IFS-ENS bilden die Grundlage für später geprüfte
 Ertragswahrscheinlichkeiten; ein Mittelwert allein genügt dafür nicht.
 
-**Architekturvorschlag:** HA sichert die tatsächlich verwendeten Eingaben mit
+**Implementierte Architektur:** HA sichert nach ausdrücklichem Einschalten die tatsächlich verwendeten Eingaben mit
 einem begrenzten, dauerhaften Exportpuffer. Ein externer Archivhost übernimmt
 Langzeitspeicherung und Auswertung. Konkrete Hostnamen, Zielpfade,
 Sensorzuordnungen und Messdaten bleiben in der privaten Betriebsdokumentation.
@@ -233,7 +233,7 @@ vollständig nachvollziehbare chronologische Rekonstruktion.
 
 ### 6.2 Übertragung und Ausfallsicherheit
 
-Vorgeschlagen wird eine authentifizierte Export-Leseschnittstelle mit
+Implementiert ist eine authentifizierte Export-Leseschnittstelle mit
 fortlaufendem Cursor und begrenzten Seiten. Der Collector holt alle neuen
 Datensätze ab und bestätigt den Cursor erst nach dauerhaftem Speichern.
 Nach einem Abbruch darf derselbe Datensatz erneut ankommen; eindeutige IDs
@@ -241,12 +241,12 @@ verhindern doppelte fachliche Aufnahmen. Cursor und Archivgeneration bleiben
 über Neustarts erhalten; eine Neuinitialisierung erhält eine neue Generation,
 damit alte und neue Sequenznummern nicht verwechselt werden.
 
-Der HA-Puffer wird getrennt vom bestehenden Lernstore geführt. Als zunächst
-zu messende Planungswerte gelten:
+Der HA-Puffer wird getrennt vom bestehenden Lernstore geführt. Die implementierten
+Grenzen und der noch zu erprobende Betriebsrhythmus sind:
 
-| Parameter | Startvorschlag |
+| Parameter | Implementierung / Betriebsplan |
 | --- | --- |
-| Dauer des HA-Puffers | Bis zu 72 Stunden, zusätzlich harte Byte-/Zeilengrenze |
+| Dauer des HA-Puffers | Bis zu 72 Stunden, höchstens 64 MiB Ereignisinhalt und 10.000 Ereignisse; die zuerst erreichte Grenze gilt |
 | Abruf durch den Archivhost | Alle fünf Minuten, ohne neue Wetterabrufe auszulösen |
 | Langzeitaufbewahrung | 24 Monate; Nutzerentscheidung vom 28.10.2026 |
 | Speicherprüfung | Kurzer Pilot; erneute Bewertung nach einigen Monaten, vorgeschlagen nach drei und sechs Monaten ab Aufnahmestart |
@@ -268,10 +268,11 @@ Wiederanlauf und tatsächliches Lesen der geschriebenen Daten sind zu prüfen.
 
 ### 6.3 Ablage und Messqualität
 
-Als einfache Ablage eignen sich komprimierte Originaldateien mit einem
-SQLite-Index für IDs, Zeiten, Prüfsummen und Beziehungen. Originaldateien bleiben
-maßgeblich; der Index soll daraus wiederherstellbar sein. Ein Versionsmanifest
-bindet Replayeingaben und Auswertungssoftware.
+Die Ablage verwendet komprimierte Originaldateien mit einem SQLite-Index für
+IDs, Zeiten und Prüfsummen. Originaldateien bleiben maßgeblich; der Index lässt
+sich daraus wiederherstellen. Replay bindet Eingaben, Konfiguration, verwendete
+Lern-/Schattenzustände und Softwarehashes. Ein Pin bewahrt vorhandene Originale;
+fehlende Referenzen bleiben ein Ablehnungsgrund beim Replay.
 
 Istenergie wird nach Stundenabschluss über die vorhandenen Recorder-Collector
 gelesen. Abregelung, Quellenausfälle und Resets müssen mit ihrer zeitlichen
@@ -289,9 +290,12 @@ Private Konfigurationen und Archivdaten bleiben außerhalb Git und Reviewpaketen
 
 ## 7. Arbeitspakete und Abnahme
 
-Die Vorschläge konkretisieren
+Die Pakete konkretisieren
 [AS-OPT-03](adaptive-solar-bewertung.md#as-opt-03-einzelmodelle-und-vergleichseingaben-archivieren).
-Sie sind weder begonnene Implementierung noch freigegebener Remote-Betrieb.
+Die technischen Grundlagen aus 1–4 sowie Baseline- und Ensemble-Replay aus 5/7
+sind implementiert. Pilotbetrieb, Speicherbedarf über mehrere Monate, lokale
+Prognosegüte und unabhängige Kalibrierungsprüfung stehen aus. Paket 6 ist geplant.
+Der konkrete Implementierungs- und Prüfstand steht in [Archivbetrieb](archivbetrieb.md).
 
 | Paket | Abhängigkeit und Ergebnis | Wesentliche Abnahme |
 | --- | --- | --- |

@@ -34,3 +34,32 @@ restore_day_start_forecast:
       required: true
       selector:
         object: {}
+export_archive:
+  name: Read original-input archive
+  description: Administrator-only paginated read of the explicitly enabled private export buffer. Does not refresh forecasts or acknowledge/delete data.
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: adaptive_solar
+    cursor:
+      selector:
+        text: {}
+    generation:
+      selector:
+        text: {}
+    limit:
+      default: 100
+      selector:
+        number:
+          min: 1
+          max: 1000
+          mode: box
+    max_bytes:
+      default: 2097152
+      selector:
+        number:
+          min: 1024
+          max: 4194304
+          mode: box

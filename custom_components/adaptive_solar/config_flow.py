@@ -12,6 +12,7 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .const import CONF_SITE, DOMAIN, NAME
+from .archive_export import CONF_ARCHIVE_EXPORT
 from .core.models import MAX_FORECAST_DAYS, HorizonPoint, InverterConfig, SiteConfig, StringConfig
 
 MODELS = ["best_match", "icon_seamless", "icon_global", "icon_eu", "icon_d2", "ecmwf_ifs025", "gfs_seamless"]
@@ -65,12 +66,15 @@ class _Editor:
                 self._site.pop("temperature_entity_id", None)
                 self._site.pop("wind_entity_id", None)
                 self._site.pop("irradiance_entity_id", None)
+                user_input = dict(user_input)
+                self._archive_export = user_input.pop(CONF_ARCHIVE_EXPORT, getattr(self, "_archive_export", False))
                 self._site.update(user_input)
                 self._site["forecast_days"] = int(user_input["forecast_days"])
                 return await self.async_step_inverter()
             except (ZoneInfoNotFoundError, ValueError):
                 errors["timezone"] = "invalid_timezone"
         schema = {}
+        field(schema, CONF_ARCHIVE_EXPORT, getattr(self, "_archive_export", False), selector.BooleanSelector())
         defaults = self._site
         field(schema, "latitude", defaults.get("latitude", self.hass.config.latitude), number(-90, 90, 0.000001, "°"))
         field(schema, "longitude", defaults.get("longitude", self.hass.config.longitude), number(-180, 180, 0.000001, "°"))
@@ -236,7 +240,10 @@ class AdaptiveSolarConfigFlow(_Editor, config_entries.ConfigFlow, domain=DOMAIN)
 
     def _finish(self):
         site = SiteConfig.from_dict(self._site)
-        return self.async_create_entry(title=NAME, data={CONF_SITE: site.to_dict()})
+        data = {CONF_SITE: site.to_dict()}
+        if getattr(self, "_archive_export", False):
+            data[CONF_ARCHIVE_EXPORT] = True
+        return self.async_create_entry(title=NAME, data=data)
 
     @staticmethod
     @callback
@@ -248,9 +255,13 @@ class AdaptiveSolarOptionsFlow(_Editor, config_entries.OptionsFlow):
     """Revisit existing equipment and add or remove it during the same flow."""
 
     async def async_step_init(self, user_input=None):
+        self._archive_export = self.config_entry.options.get(CONF_ARCHIVE_EXPORT, self.config_entry.data.get(CONF_ARCHIVE_EXPORT, False)) is True
         self._initialize(self.config_entry.options.get(CONF_SITE, self.config_entry.data[CONF_SITE]))
         return await self.async_step_site(user_input)
 
     def _finish(self):
         site = SiteConfig.from_dict(self._site)
-        return self.async_create_entry(title="", data={CONF_SITE: site.to_dict()})
+        data = {CONF_SITE: site.to_dict()}
+        if getattr(self, "_archive_export", False) or self.config_entry.data.get(CONF_ARCHIVE_EXPORT):
+            data[CONF_ARCHIVE_EXPORT] = getattr(self, "_archive_export", False)
+        return self.async_create_entry(title="", data=data)

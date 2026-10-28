@@ -12,7 +12,8 @@
           "forecast_days": "Forecast days",
           "temperature_entity_id": "Outdoor temperature sensor (optional)",
           "wind_entity_id": "Outdoor wind speed sensor (optional)",
-          "irradiance_entity_id": "Outdoor horizontal global irradiance (optional, unshaded)"
+          "irradiance_entity_id": "Outdoor horizontal global irradiance (optional, unshaded)",
+          "archive_export": "Archive original inputs (private export buffer)"
         },
         "description": "Free Open-Meteo API for private noncommercial use. Existing inverters and strings are shown sequentially when editing."
       },
@@ -85,7 +86,8 @@
           "forecast_days": "Forecast days",
           "temperature_entity_id": "Outdoor temperature sensor (optional)",
           "wind_entity_id": "Outdoor wind speed sensor (optional)",
-          "irradiance_entity_id": "Outdoor horizontal global irradiance (optional, unshaded)"
+          "irradiance_entity_id": "Outdoor horizontal global irradiance (optional, unshaded)",
+          "archive_export": "Archive original inputs (private export buffer)"
         },
         "description": "Free Open-Meteo API for private noncommercial use. Existing inverters and strings are shown sequentially when editing."
       },

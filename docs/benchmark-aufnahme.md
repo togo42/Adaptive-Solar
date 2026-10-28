@@ -2,10 +2,13 @@
 
 Stand: 25.10.2026. Collector lokal mit simulierten HA-Antworten getestet; native Adapter/Statistikquellen lesend geprüft. Kein produktiver Vergleich gestartet und keine HA-Einstellung verändert. Diese Anleitung konsolidiert den lokal archivierten Vorgänger `artifacts/releases/0.2.5-blocked/source/docs/benchmark-aufnahme.md`; das Archiv wird nicht veröffentlicht. Annahmekriterien: [Validierungsplan](validierung.md).
 
-Die vorhandenen Collector sichern Prognoseergebnisse und Istwerte, kein vollständiges
-Originalwetterarchiv für geänderte Physik. Der ergänzende
-[Archivierungs- und Physikvergleichsvorschlag](physikvergleich-und-archivierung.md)
-beschreibt diesen noch nicht implementierten Ausbau.
+Die ursprünglichen Collector sichern Prognoseergebnisse und Istwerte. Der
+unveröffentlichte Entwicklungsstand vom 28.10.2026 ergänzt
+[Originalwetterexport, Langzeitarchiv und Replay](archivbetrieb.md).
+`archive_observations.py` legt die hier beschriebenen Recorder-/Referenzaufnahmen
+verlustfrei im gemeinsamen Archiv ab; `archive.py export-observations` erzeugt
+wieder die Capture-JSONL für vorhandene Auswerter. Bestehende Qualitäts- und
+Verfügbarkeitsregeln gelten weiter.
 
 ## 1. Vergleichbare Messgrenze wählen
 

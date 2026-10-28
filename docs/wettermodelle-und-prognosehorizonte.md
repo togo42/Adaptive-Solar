@@ -1,8 +1,9 @@
 # Wettermodelle für PV-Prognosen und Speicherentscheidungen
 
 Recherche: 28.10.2026. Codeabgleich: Adaptive Solar 0.2.14, Repositorystand
-`b99d86c`. **Status: Auswahl- und Archivierungsplan; keine Änderung der
-produktiven Modelle, Gewichtung oder Speichersteuerung.** Die Empfehlung gilt
+`b99d86c`. **Ergänzter Entwicklungsstand: Originalarchiv, Modell-/Ensembleaufnahme
+und Offline-Replay implementiert; noch nicht produktiv aktiviert.** Neue
+produktive Gewichtung und Speichersteuerung stehen aus. Die Empfehlung gilt
 für Deutschland/Mitteleuropa; regionale Modellgebiete sind am tatsächlichen
 Standort gesondert zu prüfen. Es liegt kein lokaler Genauigkeitsvergleich vor.
 
@@ -152,10 +153,10 @@ regionale Bevorzugung und aus älteren Daten gelernte Gewichte werden separat
 gegen sie geprüft. Mitgliederausfälle, Gewichtsnormalisierung, Änderungen an
 Modellgrenzen und passende Momentanreferenzen müssen reproduzierbar sein.
 
-### 3.1 Konkrete Begrenzung des heutigen Wetterabrufs
+### 3.1 Begrenzung des bisherigen Wetterabrufs und Korrektur
 
-In [weather.py](../custom_components/adaptive_solar/weather.py) begrenzt
-`MODEL_DAYS` ICON-D2 und AROME France auf `forecast_days=2`.
+Im veröffentlichten Stand 0.2.14 begrenzte `MODEL_DAYS` in
+[weather.py](../custom_components/adaptive_solar/weather.py) ICON-D2 und AROME France auf `forecast_days=2`.
 Open-Meteo zählt diese Tage ab Tagesbeginn. Zwei Kalendertage sind daher keine
 48 Stunden ab dem Abruf. Stundenbezogene Fenster sind über `forecast_hours`
 und `past_hours` möglich.
@@ -174,13 +175,13 @@ Daten der zweiten Antwort. Dies ist eine datierte Schnittstellenbeobachtung,
 kein dauerhaft garantierter Horizont oder Genauigkeitsnachweis. Strahlung bei
 Zeitstempel `t` beschreibt die vorangegangene Stunde.
 
-Der künftige Abruf muss das gewünschte Zielende einschließlich nötiger
-Randstützstellen anfordern und danach echte Abdeckung prüfen. Mindestens ein
-vorheriger Umgebungspunkt ist für den jetzigen Parser nötig; `forecast_hours`
-ohne passenden Rückblick wäre kein vollständiger Ersatz. Morgen/übermorgen als
-lokale Kalendertage und rollierende 24/48 Stunden bleiben verschiedene Aufgaben.
-Beide Zeitumstellungen sind zu testen. Die Korrektur ist hier geplant, nicht
-implementiert.
+Der Entwicklungsstand fordert `forecast_hours=(forecast_days+1)*24+1` und
+`past_hours=1` an. Das berücksichtigt Randstützstellen und Zeitzonenreserve;
+der Parser erhält fehlende Werte und die Ausgabe bleibt auf die konfigurierten
+lokalen Kalendertage beschränkt. Beide Zeitumstellungen sind getestet.
+Morgen/übermorgen als lokale Kalendertage und rollierende 24/48 Stunden bleiben
+verschiedene Aufgaben. Der separate Host-Collector fordert standardmäßig 193
+Stunden an, ohne kurze Modelle auf zwei Kalendertage abzuschneiden.
 
 Bei denselben öffentlichen Stichproben lieferten IFS HRES, GFS, ICON-EU,
 AROME France und KNMI Europe die angefragten Variablen mit unterschiedlichen
@@ -345,9 +346,12 @@ privaten Erweiterung; der PV-Kern bleibt hardwareunabhängig.
    Anschließend gegebenenfalls eine eigenständige
    Entscheidungssimulation mit vorab fixierten Randbedingungen durchführen.
 
-README und Bedienung beschreiben weiterhin den implementierten gleichgewichteten
-Pfad. Die Aufnahme zusätzlicher Modelle, der Archivbetrieb, neue Gewichtung und
-eine produktive Akkuaktion sind eigenständige Umsetzungsschritte. Details zu
+Der Entwicklungsstand implementiert die Aufnahme zusätzlicher Modelle und echter
+Ensembles, Originalarchiv und Offline-Replay. [Archivbetrieb](archivbetrieb.md)
+beschreibt Vollständigkeitsregeln, Familiengewichtung, Quantile und die begrenzte
+Median-Biaskorrektur. Lokale Streuungskalibrierung, gelernte produktive Gewichte
+und Akkuaktionen stehen aus. Die produktive Integration behält die bestehende
+Gleichgewichtung der verfügbaren deterministischen Modelle. Details zu
 chronologischen Vergleichen und Mindestumfang stehen im
 [Validierungsplan](validierung.md) und in
 [AS-OPT-07](adaptive-solar-bewertung.md#as-opt-07-gewichte-und-auswahl-der-wettermodelle).

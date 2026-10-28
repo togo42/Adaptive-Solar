@@ -23,6 +23,22 @@ from .const import DOMAIN
 
 SERVICE = "get_reference_forecasts"
 RESTORE_SERVICE = "restore_day_start_forecast"
+EXPORT_SERVICE = "export_archive"
+
+
+def _strict_int(value):
+    if type(value) is not int:
+        raise vol.Invalid("Expected an integer")
+    return value
+
+
+_EXPORT_SCHEMA = vol.Schema({
+    vol.Required("config_entry_id"): cv.string,
+    vol.Optional("cursor"): vol.Any(None, cv.string),
+    vol.Optional("generation"): cv.string,
+    vol.Optional("limit", default=100): vol.All(_strict_int, vol.Range(min=1, max=1000)),
+    vol.Optional("max_bytes", default=2 * 1024 * 1024): vol.All(_strict_int, vol.Range(min=1024, max=4 * 1024 * 1024)),
+})
 _ALLOWED = {"helios_forecast", "open_meteo_solar_forecast"}
 _OWNERS = f"{DOMAIN}_reference_service_owners"
 PROVIDER_TIMEOUT = 5.0
@@ -103,6 +119,25 @@ def async_register_reference_service(hass, owner_entry_id):
     """Register once; count only entries whose setup completed successfully."""
     owners = hass.data.setdefault(_OWNERS, set())
     owners.add(owner_entry_id)
+    if not hass.services.has_service(DOMAIN, EXPORT_SERVICE):
+        async def export_handler(call):
+            entry = hass.config_entries.async_get_entry(call.data["config_entry_id"])
+            if entry is None or entry.domain != DOMAIN or entry.state is not ConfigEntryState.LOADED:
+                raise ServiceValidationError("Select a loaded Adaptive Solar entry")
+            cursor = call.data.get("cursor")
+            generation = call.data.get("generation")
+            if generation is not None:
+                if cursor is None:
+                    cursor = f"{generation}:0"
+                elif not cursor.startswith(f"{generation}:"):
+                    raise ServiceValidationError("Cursor and generation disagree")
+            try:
+                return await entry.runtime_data.export.page(cursor, call.data["limit"], call.data["max_bytes"])
+            except ValueError as err:
+                raise ServiceValidationError("Invalid archive export cursor or page request") from err
+
+        async_register_admin_service(hass, DOMAIN, EXPORT_SERVICE, export_handler,
+                                     schema=_EXPORT_SCHEMA, supports_response=SupportsResponse.ONLY)
     if not hass.services.has_service(DOMAIN, RESTORE_SERVICE):
         async def restore_handler(call):
             from .core.models import SiteConfig
@@ -135,4 +170,5 @@ def async_unregister_reference_service(hass, owner_entry_id):
         return
     hass.services.async_remove(DOMAIN, SERVICE)
     hass.services.async_remove(DOMAIN, RESTORE_SERVICE)
+    hass.services.async_remove(DOMAIN, EXPORT_SERVICE)
     hass.data.pop(_OWNERS, None)

@@ -105,7 +105,7 @@ class AdaptiveSolarSensor(CoordinatorEntity, SensorEntity):
 
     _attr_has_entity_name = True
     _attr_should_poll = False
-    _unrecorded_attributes = frozenset({"forecast", "learning", "learning_horizon", "inputs", "model_status", "weather_errors", "weather_diagnostics", "training_intervals", "archive_points", "issued_at", "coverage_start", "coverage_end"})
+    _unrecorded_attributes = frozenset({"forecast", "learning", "learning_horizon", "inputs", "model_status", "weather_errors", "weather_diagnostics", "archive_export", "training_intervals", "archive_points", "issued_at", "coverage_start", "coverage_end"})
 
     def __init__(self, coordinator, entry, inverter_id, kind, day=0):
         super().__init__(coordinator)
@@ -335,6 +335,7 @@ class AdaptiveSolarSensor(CoordinatorEntity, SensorEntity):
                           "coverage_end": end.isoformat(), "learning_horizon": self._learning_horizon(),
                           "input_quality_scope": "current_issue_observations_and_controls",
                           "model_status_scope": "published_forecast_horizon",
+                          "archive_export": self.coordinator.export.status,
                           "weather_errors_scope": "latest_provider_fetches_diagnostic_only",
                           "learning": self.coordinator.learner_status, "inputs": self.coordinator.input_quality,
                           "model_status": result.model_status, "weather_errors": self.coordinator.client.errors,

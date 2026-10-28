@@ -75,9 +75,9 @@ Synthetische Offline-Demo; für DC `--config examples/site-dc.json` einsetzen:
 
 `--live` ruft Open-Meteo auf und ist nicht rückdatierbar. Reale Prognosen/Recorder-Istwerte archivieren und vergleichen: [Aufnahmeleitfaden](docs/benchmark-aufnahme.md). Private Zuordnungen unter ignoriertem `data/`; Standorte, Entity-IDs und Zugangsdaten weder in Git noch Reviews.
 
-Die [Analyse zu Stundenintegration, Reflexionsverlusten und Archivierung](docs/physikvergleich-und-archivierung.md) beschreibt einen geplanten Vierarmvergleich und die Aufteilung zwischen HA-Exportpuffer und externem Langzeitarchiv. Originalwetterexport, neue Physikvarianten und Archivbetrieb sind damit nicht implementiert.
+**Entwicklungsstand vom 28.10.2026, noch nicht veröffentlicht:** Der optionale HA-Originaldatenexport, ein externes Archiv mit 24 Monaten Aufbewahrung, zusätzliche Wetter-/Ensembleaufnahmen und Offline-Replay sind implementiert. Die [Betriebsanleitung](docs/archivbetrieb.md) beschreibt Einrichtung, Aufnahme, eingefrorene Datensätze und Grenzen. Die Aktivierung auf HA und dem Archivhost steht aus; der oben dokumentierte Release bleibt davon getrennt.
 
-Die [Wettermodellrecherche für die nächsten 24/48 Stunden](docs/wettermodelle-und-prognosehorizonte.md) ergänzt den Plan um regionale Kurzfristmodelle, länger verfügbare Vergleichsmodelle und echte Wetterensembles für Ertragswahrscheinlichkeiten und spätere Speicherentscheidungen. Vorgesehen sind 24 Monate Archivaufbewahrung mit erneuter Speicherbewertung nach einigen Monaten; Ensembleverarbeitung, neue Modellgewichte oder Akkuaktionen sind damit nicht umgesetzt.
+Die [Wettermodellrecherche für die nächsten 24/48 Stunden](docs/wettermodelle-und-prognosehorizonte.md) begründet regionale Kurzfristmodelle, länger verfügbare Vergleichsmodelle und echte Wetterensembles. Der Offline-Pfad berechnet Energiequantile und Schwellenanteile aus vollständigen Mitgliedsverläufen; ihre lokale Zuverlässigkeit ist noch nicht gemessen. Speicherbewertungen sind nach drei und sechs Monaten vorgesehen. Neue produktive Modellgewichte, Akkuaktionen sowie die [geplanten Physikvarianten mit Zeitintegration und IAM](docs/physikvergleich-und-archivierung.md) stehen weiterhin aus.
 
 ## Recherche und Quellen
 

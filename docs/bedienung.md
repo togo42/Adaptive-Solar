@@ -1,6 +1,9 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 27.10.2026, Codebasis 0.2.14 einschließlich des [Messdaten-Nachtrags](messintervalle-92-prozent.md). [Installation](installation.md),
+Stand: 28.10.2026. Veröffentlichtes Referenzrelease: 0.2.14 einschließlich des
+[Messdaten-Nachtrags](messintervalle-92-prozent.md). Der unten beschriebene
+Originaldatenexport gehört zum unveröffentlichten Entwicklungszweig vom 28.10.2026;
+eine produktive Aktivierung wird damit nicht behauptet. [Installation](installation.md),
 [Datenverträge](implementation-contract.md), [Datenschutz](datenschutz.md).
 
 ## 1. Anlagenaufteilung vorbereiten
@@ -24,6 +27,7 @@ kurzfristige Korrekturen, kumulative Energie ermöglicht spätere Lernlabels.
 | Längengrad / `longitude` | −180 bis 180°, Vorgabe aus HA; Koordinaten gehen an Open-Meteo |
 | IANA-Zeitzone / `timezone` | Etwa `Europe/Berlin`, Vorgabe aus HA; keine feste UTC-Verschiebung |
 | Open-Meteo-Modelle / `weather_models` | Standard `best_match`; mindestens eines. Die UI bietet zusätzlich ICON seamless/global/EU/D2, ECMWF IFS025 und GFS seamless; eigene Kennungen müssen vom Provider unterstützt sein |
+| Originaleingaben archivieren / `archive_export` | Standard aus. Separate Eintragsoption für den privaten Originaldatenpuffer; kein Feld der Anlagenphysik. Einzelheiten in [Abschnitt 8](#8-optionalen-originaldatenexport-einrichten) |
 | Prognosetage / `forecast_days` | Ganzzahlig 1–7, Standard 7; einschließlich des laufenden lokalen Tages, keine garantierten sieben vollen Folgetage |
 | Außentemperatur / `temperature_entity_id` | Optionaler Temperatursensor; °C, °F oder K |
 | Wind / `wind_entity_id` | Optionaler Windgeschwindigkeitssensor; m/s, km/h, mph oder kn |
@@ -235,3 +239,60 @@ angeben. Bei API-/Sensorproblemen die Einheit und das Alter angeben; persönlich
 Koordinaten, Tokens, komplette Konfigurationen und rohe Historien nicht veröffentlichen.
 Diagnose vor dem Hochladen gemäß [Datenschutz](datenschutz.md) prüfen. Ein kleiner
 reproduzierbarer Fall ist hilfreicher als ein vollständiges privates Backup.
+
+## 8. Optionalen Originaldatenexport einrichten
+
+Dieser Abschnitt gilt für den unveröffentlichten Entwicklungszweig. Das
+Referenzrelease 0.2.14 enthält diese Erweiterung noch nicht. Die Prognose kann
+weiterhin ohne Archivhost und ohne Exportpuffer betrieben werden.
+
+Im Standortdialog der Einrichtung oder unter **Konfigurieren/Optionen** lässt sich
+**Originaleingaben archivieren (privater Exportpuffer)** (`archive_export`)
+einschalten. Erst der vollständig abgeschlossene Optionsflow speichert die Wahl
+und lädt den Eintrag neu. Die Option ist standardmäßig aus; das Update allein
+aktiviert sie nicht. Sie gehört weder zu `SiteConfig` noch zu den physikalischen
+Historienhashes und setzt für sich keine Lernhistorie zurück.
+
+Der Puffer erfasst ursprüngliche Wetterantworten und deren Empfangs-/
+Normalisierungsbelege, sämtliche ausgegebenen Forecastzellen einschließlich Nacht
+und Teilstunden, verwendete Beobachtungen, Anlagenkonfiguration, Softwarestand,
+Schattenzustand und die tatsächlich verwendeten Fitzeilen mit Fitstichtag.
+Originale Zähler-, Gültigkeits- und Abregelungsberichte bleiben von abgeleiteten
+Messintervallen getrennt. Das sind private Daten; für Support keine vollständige
+Exportantwort veröffentlichen. [Datenschutz](datenschutz.md).
+
+Administratoren lesen den Puffer mit der Antwortaktion
+`adaptive_solar.export_archive`. `config_entry_id` wählt genau einen geladenen
+Adaptive-Solar-Eintrag. Optional sind `cursor`, `generation`, `limit`
+(Standard 100, höchstens 1.000) und `max_bytes` (Standard 2 MiB, höchstens 4 MiB).
+Die Antwort enthält `page` und einen getrennten `status`; bei ausgeschaltetem
+Export ist `page=null` und der Status `disabled`. Der Abruf löst weder Wetter-
+noch Prognoseneuberechnung aus und bestätigt oder löscht keine Ereignisse.
+Der Collector speichert die Seite zuerst dauerhaft und benutzt erst danach
+ihren `next_cursor`. [Archivbetrieb](archivbetrieb.md) und
+[Seiten-/Cursorvertrag](archive-storage-contract.md).
+
+Der neustartfeste HA-Puffer ist vom Lernstore getrennt: höchstens 72 Stunden,
+zusätzlich 64 MiB serialisierte Ereignisse und 10.000 Ereignisse. Große Lernstände
+und mehrere Stufen können den verfügbaren Zeitraum deutlich verkürzen. Die
+Warteschlange hat zusätzlich 64 Ereignisse und 8 MiB einschließlich laufender
+Schreibarbeit als Grenze. Große Originale werden in geprüfte komprimierte
+Chunks aufgeteilt. Diese Grenzen versprechen keine 72 Stunden Vollständigkeit;
+Dateigröße und temporäres Schreibbudget stehen im
+[Speichervertrag](archive-storage-contract.md#datenvertrag-und-grenzen).
+
+`archive_export` in der Diagnose und den Attributen des Prognosedatenstatus zeigt
+Aktivierung, Puffer-/Warteschlangengröße, Verdrängungszähler und letzten Fehlertyp.
+`gap` kann Pufferverdrängung oder lokale Aufnahmeverluste anzeigen; ein
+Cursorbruch wird zusätzlich als `page.gap` mit Sequenzbereich geliefert. Ob ein
+rechtzeitig abholender Collector Daten verloren hat, muss anhand seines Cursors
+und der Originalabhängigkeiten geprüft werden. `error` verlangt eine Prüfung des
+Archivs. Ein leerer Fehlerwert allein bestätigt keine Vollständigkeit.
+Archivfehler werden abgefangen, die Prognoseberechnung bleibt funktionsfähig.
+Fehlgeschlagenes Entry-Setup schreibt keinen Exportpuffer.
+
+Ausschalten beendet neue Aufnahmen nach dem Reload. Vorhandene Pufferdateien und
+externe Kopien werden dadurch nicht gelöscht. Langzeitaufnahme, 24-monatige
+Aufbewahrung, Sicherungen und Wiederherstellungsprobe gehören zum separat
+einzurichtenden [Archivbetrieb](archivbetrieb.md). Ein vollständiges technisches
+Replay ist noch kein Nachweis eines Prognosevorteils.

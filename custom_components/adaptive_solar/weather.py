@@ -12,10 +12,12 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime, timedelta
 import math
+from uuid import uuid4
 from typing import Any
 
 import aiohttp
 
+from .archive_export import encoded
 from .const import WEATHER_CACHE_SECONDS
 from .core.models import SiteConfig, WeatherForecast, WeatherPoint
 
@@ -29,8 +31,6 @@ UNITS = {
     "direct_normal_irradiance": "W/m²", "diffuse_radiation": "W/m²",
     "temperature_2m": "°C", "wind_speed_10m": "m/s", "cloud_cover": "%",
 }
-# Native short-range models may end earlier; never stretch their last value.
-MODEL_DAYS = {"icon_d2": 2, "icon_eu": 5, "meteofrance_arome_france": 2}
 RADIATION_FIELDS = VARIABLES[:3]
 AMBIENT_FIELDS = VARIABLES[3:]
 
@@ -143,6 +143,8 @@ class OpenMeteoClient:
         self._cache: dict[str, WeatherForecast] = {}
         self.errors: dict[str, str] = {}
         self.diagnostics: dict[str, dict] = {}
+        self.receipt_ids: dict[str, str] = {}
+        self.archive_sink = None
 
     async def async_forecasts(self, now: datetime) -> tuple[WeatherForecast, ...]:
         """Fetch independent model arms, retaining only a fresh successful cache."""
@@ -165,21 +167,48 @@ class OpenMeteoClient:
         params = {
             "latitude": self.config.latitude, "longitude": self.config.longitude,
             "hourly": ",".join(VARIABLES), "models": model,
-            "forecast_days": min(self.config.forecast_days + 1, MODEL_DAYS.get(model, 16)),
+            # Relative hours retain the native late-day short-model tail.
+            # One preceding endpoint supports the running radiation cell.
+            "forecast_hours": (self.config.forecast_days + 1) * 24 + 1,
+            "past_hours": 1,
             "timezone": "UTC", "timeformat": "unixtime",
             "temperature_unit": "celsius", "wind_speed_unit": "ms",
         }
+        payload = None
+        status = None
+        response_text = None
+        receipt_id = str(uuid4())
+        request_started = datetime.now(UTC)
+        diagnostics = {}
+        received = None
         try:
             async with asyncio.timeout(20):
                 async with self.session.get(URL, params=params) as response:
+                    status = response.status if isinstance(response.status, int) else None
+                    try:
+                        payload = await response.json()
+                    except (aiohttp.ContentTypeError, ValueError):
+                        response_text = await response.text()
+                        raise
+                    received = datetime.now(UTC)
                     response.raise_for_status()
-                    payload = await response.json()
-            # Receipt time, not request start or an invented NWP model run time.
-            received = datetime.now(UTC)
-            diagnostics = {}
             forecast = await asyncio.to_thread(parse_forecast, payload, model, received, self.config, diagnostics)
-        except (aiohttp.ClientError, TimeoutError, ValueError, TypeError) as err:
+        except (aiohttp.ClientError, TimeoutError, ValueError, TypeError, WeatherError) as err:
+            if self.archive_sink is not None:
+                self.archive_sink("weather_response", await asyncio.to_thread(encoded, {
+                    "request": {"url": URL, "params": params, "started_at": request_started.isoformat()},
+                    "model": model, "provider_run_at": None, "http_status": status,
+                    "raw_response": payload, "raw_unparsed_text": response_text, "normalization": diagnostics,
+                    "status": "failed", "error_type": type(err).__name__,
+                }), received or datetime.now(UTC), receipt_id)
             raise WeatherError("Open-Meteo fetch failed") from err
+        if self.archive_sink is not None:
+            self.archive_sink("weather_response", await asyncio.to_thread(encoded, {
+                "request": {"url": URL, "params": params, "started_at": request_started.isoformat()},
+                "model": model, "provider_run_at": None, "http_status": status,
+                "raw_response": payload, "raw_unparsed_text": response_text, "normalization": diagnostics, "status": "available",
+            }), received, receipt_id)
+        self.receipt_ids[model] = receipt_id
         self._cache[model] = forecast
         self.diagnostics[model] = diagnostics
         return forecast

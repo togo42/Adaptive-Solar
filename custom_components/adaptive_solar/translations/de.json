@@ -12,7 +12,8 @@
           "forecast_days": "Prognosetage",
           "temperature_entity_id": "Außentemperatursensor (optional)",
           "wind_entity_id": "Windgeschwindigkeit außen (optional)",
-          "irradiance_entity_id": "Horizontale Globalstrahlung außen (optional, unverschattet)"
+          "irradiance_entity_id": "Horizontale Globalstrahlung außen (optional, unverschattet)",
+          "archive_export": "Originaleingaben archivieren (privater Exportpuffer)"
         },
         "description": "Nur private, nichtkommerzielle Nutzung der kostenlosen Open-Meteo-API. Bestehende Wechselrichter und Strings werden beim Bearbeiten nacheinander angezeigt."
       },
@@ -85,7 +86,8 @@
           "forecast_days": "Prognosetage",
           "temperature_entity_id": "Außentemperatursensor (optional)",
           "wind_entity_id": "Windgeschwindigkeit außen (optional)",
-          "irradiance_entity_id": "Horizontale Globalstrahlung außen (optional, unverschattet)"
+          "irradiance_entity_id": "Horizontale Globalstrahlung außen (optional, unverschattet)",
+          "archive_export": "Originaleingaben archivieren (privater Exportpuffer)"
         },
         "description": "Nur private, nichtkommerzielle Nutzung der kostenlosen Open-Meteo-API. Bestehende Wechselrichter und Strings werden beim Bearbeiten nacheinander angezeigt."
       },

@@ -1,5 +1,47 @@
 # Entwicklungsstand und offene Nachweise
 
+## Unveröffentlichter Archiv- und Ensemblezweig vom 28.10.2026
+
+Branch `codex/archive-ensembles` ergänzt den optionalen HA-Originaldatenexport,
+das externe 24-Monats-Archiv, deterministische Wetter-/Ensembleaufnahmen,
+Recorder-/Referenzrevisionen und Offline-Replay. [Betriebsanleitung](archivbetrieb.md),
+[Speichervertrag](archive-storage-contract.md) und
+[Modellrecherche](wettermodelle-und-prognosehorizonte.md) beschreiben den Umfang.
+Es ist weder ein neues Release noch eine produktive Aktivierung auf HA oder dem
+Archivhost erfolgt. Die nachfolgenden Release-/Livebelege bleiben historisch.
+
+Die Prüfung verwendet Python 3.14, HA Core 2026.10.4, Testplugin 0.13.375,
+pvlib 0.16.1 und scikit-learn 1.9.1: **1.234 Tests ohne Skips bestanden**,
+Ruff, `pip check` und Diffprüfung sauber. Wheel und Sdist gebaut; alle 31
+Integrationsdateien sind bytegleich im Wheel enthalten, elf geänderte/neue
+Komponentenmodule wurden aus einer getrennten regulären Wheelinstallation importiert.
+Private Belege: `artifacts/archive-implementation-tests.xml`,
+`artifacts/archive-package-validation.json`, `artifacts/archive-independent-review.json`.
+Native Tests prüfen unter anderem deaktivierten
+Export, Setupabbruch, Administratorrechte, Wiederanlauf und bestehende Historie.
+Archivtests decken atomare Mehrteilaufnahmen, Cursor-/Generationslücken,
+retentionsgeschützte Pins, Wiederaufbau und beschädigte Journalmetadaten ab.
+Replaytests verwenden auch eine echte Vier-Stufen-/Drei-Modell-/Sieben-Tage-Ausgabe
+über der Einzelereignisgrenze und einen aktiven, aus Originalzeilen rekonstruierten
+Learner. Ensembletests prüfen vollständige Mitglieder, beide DST-Wechsel,
+Familiengewichte, Energiequantile und kausale Biaskorrektur.
+
+Unabhängige Subagenten mit GPT-6.1-Sol und Effort `high` haben die betroffenen
+Speicher-, Export-, Aufnahme- und Replaypfade geprüft. Konkrete Befunde zu großen
+Payloads, fehlenden Pinoriginalen, wiederholtem vollständigem SQLite-Umschreiben,
+unvollständigen Mehrteilaufnahmen und Journalmetadaten wurden mit Regressionen
+behoben und nachgeprüft. Dies ist ein abgegrenzter Code-Review; ein neuer externer
+Volltext-CLI-Review mit vollständigem Kontextreceipt liegt nicht vor. Alte
+Grok-Receipts gelten nicht für diese Änderungen.
+
+Eine öffentliche Open-Meteo-Stichprobe für Berlin bestätigte am 28.10.2026 die
+acht voreingestellten Produktabrufe und einen 24-Stunden-EPS-Replay. Die Stichprobe
+prüft Schnittstellen und Abdeckung, keine Genauigkeit am privaten Anlagenstandort.
+Sie entstand vor der abschließenden Ergänzung der Collector-Softwareprovenienz.
+Pilotdatenrate, Betrieb auf dem vorgesehenen Host, Backup-Wiederherstellung,
+chronologische Güteprüfung und lokale Streuungskalibrierung stehen aus. Die
+Median-Biaskorrektur ist keine validierte Wahrscheinlichkeitskalibrierung.
+
 ## Veröffentlichter und installierter Stand 0.2.14
 
 Stand: 27.10.2026. [Nachtstrahlung und historische Tagesstartwerte](forecast-repairs.md)

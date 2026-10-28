@@ -170,5 +170,55 @@ async def test_requests_models_separately_caches_and_does_not_invent_short_horiz
     params = [call.kwargs["params"] for call in session.get.call_args_list]
     assert {item["models"] for item in params} == {"best_match", "icon_d2"}
     assert all(item["timeformat"] == "unixtime" and item["wind_speed_unit"] == "ms" for item in params)
-    assert next(item for item in params if item["models"] == "icon_d2")["forecast_days"] == 2
+    assert all("forecast_days" not in item and item["forecast_hours"] == 193 and item["past_hours"] == 1
+               for item in params)
     assert len(first[1].points) == 2
+
+
+@pytest.mark.parametrize("stamp", [datetime(2026, 3, 29, 20, tzinfo=UTC), datetime(2026, 10, 25, 22, tzinfo=UTC)])
+@pytest.mark.parametrize("model", ["icon_d2", "meteofrance_arome_france"])
+async def test_late_day_short_model_keeps_native_tail_and_previous_endpoint(stamp, model):
+    site = SiteConfig(52, 13, "Europe/Berlin", (StringConfig("s", "i", 5, 30, 180),),
+                      (InverterConfig("i", 5),), weather_models=(model,), forecast_days=2)
+    response = AsyncMock()
+    response.raise_for_status = Mock()
+    response.json.return_value = payload(start=stamp - timedelta(hours=1), count=52)
+    session = Mock()
+    session.get.return_value.__aenter__ = AsyncMock(return_value=response)
+    session.get.return_value.__aexit__ = AsyncMock(return_value=False)
+    forecast, = await OpenMeteoClient(session, site).async_forecasts(stamp)
+    params = session.get.call_args.kwargs["params"]
+    assert params["forecast_hours"] == 73 and params["past_hours"] == 1
+    assert forecast.points[0].start == stamp - timedelta(hours=1)
+    assert forecast.points[-1].end == stamp + timedelta(hours=50)
+    assert len(forecast.points) == 51
+
+
+async def test_original_response_capture_preserves_failed_normalization_and_success_receipt():
+    import json
+
+    site = SiteConfig(52, 13, "UTC", (StringConfig("s", "i", 5, 30, 180),), (InverterConfig("i", 5),))
+    response = AsyncMock()
+    response.raise_for_status = Mock()
+    data = payload()
+    response.json.return_value = data
+    session = Mock()
+    session.get.return_value.__aenter__ = AsyncMock(return_value=response)
+    session.get.return_value.__aexit__ = AsyncMock(return_value=False)
+    client = OpenMeteoClient(session, site)
+    sink = Mock()
+    client.archive_sink = sink
+    await client.async_forecasts(NOW)
+    kind, text, received, receipt_id = sink.call_args.args
+    assert kind == "weather_response" and receipt_id == client.receipt_ids["best_match"]
+    receipt = json.loads(text)
+    assert receipt["raw_response"] == data
+    assert receipt["status"] == "available"
+    assert receipt["normalization"]["received_at"] == received.isoformat()
+    client._cache.clear()
+    data["hourly_units"]["wind_speed_10m"] = "wrong"
+    with pytest.raises(WeatherError):
+        await client.async_forecasts(NOW)
+    failed = json.loads(sink.call_args.args[1])
+    assert failed["status"] == "failed" and failed["raw_response"] == data
+    assert sink.call_count == 2

@@ -214,7 +214,9 @@ NWP-Ausgang, GHI-Anwendung und endgültige Lern-/Powerkorrektur bleiben zuordenb
 
 Die [Vertiefung zu Physikvergleich und Archivierung](physikvergleich-und-archivierung.md)
 konkretisiert den Vorschlag mit Datenvertrag, HA-Exportpuffer, externem
-Langzeitarchiv und Abnahmekriterien. Sie dokumentiert Planung, keine Umsetzung.
+Langzeitarchiv und Abnahmekriterien. Der Entwicklungsstand vom 28.10.2026 enthält
+Export, Archiv und Replay; [Betrieb und Grenzen](archivbetrieb.md) bleiben von
+Pilotbetrieb und gemessener Prognosegüte getrennt.
 
 **Abnahme:**
 

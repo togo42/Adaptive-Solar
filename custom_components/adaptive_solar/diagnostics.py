@@ -9,6 +9,7 @@ async def async_get_config_entry_diagnostics(hass, entry):
     output_types = {inv.output_type for inv in coordinator.site.inverters}
     return {
         "forecast_issued_at": coordinator.data.issued_at.isoformat() if coordinator.data else None,
+        "archive_export": coordinator.export.status,
         "last_update_success": coordinator.last_update_success,
         "strings": len(coordinator.site.strings),
         "inverters": len(coordinator.site.inverters),

@@ -1,6 +1,9 @@
 # Adaptive Solar installieren und aktualisieren
 
-Stand: 27.10.2026; Codebasis und veröffentlichtes Referenzrelease 0.2.14. Die hier beschriebenen Schritte
+Stand: 28.10.2026; veröffentlichtes Referenzrelease 0.2.14. Der optionale
+Originaldatenexport gehört zum unveröffentlichten Entwicklungszweig vom 28.10.2026
+und ist kein Bestandteil dieses Releases oder Nachweis einer produktiven Aktivierung.
+Die hier beschriebenen Schritte
 werden vom Betreiber auf der eigenen Installation ausgeführt. Projektprüfungen und
 ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 
@@ -24,6 +27,14 @@ scikit-learn 1.9.1. Ein früherer erfolgreicher Import anderer Versionen reicht 
 Benötigt werden Internetzugriff auf Open-Meteo, korrekte Standortdaten, Zeitzone
 und String-/Ausgangsparameter. Lokale Messsensoren sind optional. Ohne geeignete
 Energiehistorie arbeitet die Integration mit Physik statt mit einem gelernten Modell.
+Der optionale Originaldatenexport im Entwicklungszweig ist standardmäßig
+ausgeschaltet; ein Archivhost wird für die Prognose nicht benötigt. Für einen
+bewusst eingerichteten Archivbetrieb zusätzlich freien HA-Datenträgerplatz,
+privaten Hostspeicher, administrative HA-Leseberechtigung und einen
+Sicherungs-/Wiederherstellungsplan vorsehen. Logische Puffergrenzen und zusätzliches
+Diskbudget stehen im [Speichervertrag](archive-storage-contract.md); der
+[Archivbetrieb](archivbetrieb.md) beschreibt die getrennte Einrichtung.
+
 Die kostenlose Wetter-API ist für nichtkommerzielle Nutzung vorgesehen;
 [Datenflüsse und Bedingungen](datenschutz.md).
 
@@ -74,6 +85,12 @@ Es ist kein `adaptive_solar:`-Eintrag in `configuration.yaml` erforderlich.
   Tag 0 darf am ersten Einrichtungstag ohne vorherigen Mitternachtssnapshot fehlen.
 - `Prognosedatenstatus` und seine Attribute erklären Eingänge und Abdeckung.
   `physics` oder ein kalter Lerner ist bei einer neuen Anlage erwartbar.
+- Nur bei bewusst aktiviertem Originaldatenexport im Entwicklungszweig:
+  `archive_export`-Status prüfen und die Antwortaktion
+  `adaptive_solar.export_archive` mit einem Administratorzugang lesen.
+  Der Schalter **Originaleingaben archivieren (privater Exportpuffer)** steht
+  im Standort-/Optionsdialog und bleibt beim Update standardmäßig aus.
+  Erfolgreiche Prognosen allein belegen keine vollständige Archivaufnahme.
 - HA-Konfigurationsprüfung und Reparaturen auf neue Probleme prüfen. Für die eigene
   Installation verbleibt die Qualifikation der Messquellen und später des Lernens.
 
@@ -119,5 +136,7 @@ Zielmanifests und des gesicherten Paketstands zurücksetzen, keine fremden Paket
 Zum Entfernen zuerst abhängige Automationen, Dashboards und Energy-Verknüpfungen
 prüfen, dann den Eintrag in Geräte & Dienste entfernen und bei Bedarf den Code in
 HACS deinstallieren. **Eintragslöschung ist kein nachgewiesener Datenlöschvorgang**:
-Lernstores, Recorder und Sicherungen können Daten behalten. Den Umfang einer
+Lernstores, Recorder und Sicherungen können Daten behalten; beim optionalen
+Originaldatenexport zusätzlich der separate HA-Puffer und externe Archivkopien.
+Das Abschalten der Option oder eine Rückkehr zu 0.2.14 entfernt diese Daten nicht. Den Umfang einer
 vollständigen Löschung beschreibt [Datenschutz](datenschutz.md#4-entfernen-und-aufbewahrung).

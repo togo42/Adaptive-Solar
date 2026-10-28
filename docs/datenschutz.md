@@ -1,6 +1,8 @@
 # Datenschutz und Datenflüsse von Adaptive Solar
 
-Stand: 27.10.2026; beschrieben ist der Code von Adaptive Solar 0.2.14, keine
+Stand: 28.10.2026; Referenzrelease 0.2.14 plus ausdrücklich gekennzeichnete
+Originaldatenexport-Erweiterung des unveröffentlichten Entwicklungszweigs vom
+28.10.2026. Daraus folgt keine produktive Aktivierung und keine
 Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 
 ## 1. Externe Verbindungen
@@ -10,6 +12,7 @@ Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 | Wetterabruf | HTTPS `api.open-meteo.com/v1/forecast`: Breitengrad, Längengrad, Modellkennung, Wettervariablen, Horizont, Einheiten und UTC-Zeitformat; außerdem netzbedingt die öffentliche Quell-IP |
 | HACS-Installation/Update | GitHub über HACS; unterliegt dessen eigener Implementierung und Bedingungen |
 | Optionale lokale CLI `forecast.py --live` | Derselbe Wetterabruf für die explizit ausgewählte Standortdatei |
+| Optionaler Archivcollector im Entwicklungszweig | Authentifizierter Abruf vom gewählten HA zum privat eingerichteten Archivhost; vollständige Originaleingaben und Ausgaben einschließlich Standort, Entitybindungen und Lernzeilen. Die HA-Option allein richtet keinen externen Transfer ein |
 | Separat gestarteter externer Review | Nur der ausdrücklich vorbereitete öffentliche Quelltextumfang geht an den Reviewer; kein Bestandteil des normalen HA-Betriebs |
 
 Die Integration berechnet Physik und Residualmodelle lokal. Ihr Wetterrequest enthält
@@ -56,18 +59,58 @@ keiner kalendarischen Altersgrenze und zählt nicht gegen die genannten
 Forecast-/Istzeilengrenzen. Ohne neue Aufnahmen können Faktoren deshalb länger
 als 120 Tage bestehen bleiben. Physische Änderungen oder geänderte relevante
 Sensor-/Wettermodellbindungen setzen sie zurück; ein reiner Wechsel der
-Prognosetage erhält sie. Es gibt keine externe Synchronisierung.
+Prognosetage erhält sie. Ohne den optionalen Originaldatenexport wird sie nicht
+extern synchronisiert; bei eingeschaltetem Export gehört ihr verwendeter Stand
+zu den privaten Replayeingaben.
 [Persistenzvertrag](implementation-contract.md).
 
 Recorder, HA-Protokolle und Sicherungen haben eigene Aufbewahrungsregeln, die durch
 diese Limits nicht geändert werden. Auch unaufgezeichnete große Forecastattribute
 schließen eine Aufzeichnung anderer Zustände/Attribute nicht aus.
 
+### Optionaler Originaldatenpuffer im Entwicklungszweig
+
+`archive_export` ist eine separate Eintragsoption, standardmäßig aus. Sie wird
+über den nativen Standort-/Optionsdialog gewählt. Bei ausgeschalteter Option
+legt der neue Exportpfad keine Pufferdateien an. Bei Aktivierung liegt je Eintrag
+ein eigener Puffer unter
+`<HA-Konfigurationsverzeichnis>/adaptive_solar_archive/<entry_id>/`; der Lernstore
+bleibt getrennt. Erst erfolgreiches Erstrefresh, Plattform- und Service-Setup
+geben dauerhafte Exportwrites frei.
+
+Der Inhalt ist umfangreicher und sensibler als eine bereinigte Diagnose:
+ursprüngliche Wetterantworten mit Standort-/Anfrage- und Empfangsbezug,
+Normalisierung und Fehlerfälle, vollständige Prognoseausgaben, private
+Anlagenkonfiguration mit Entity-IDs, verwendete Beobachtungen mit Berichtzeiten,
+Original-Zähler-/Gültigkeits-/Abregelungsberichte, abgeleitete Messintervalle,
+Schattenzustand sowie tatsächlich verwendete Fitzeilen und deren Stichtag.
+Software-/Bibliotheksstände und Inhaltsprüfsummen verbinden diese Daten; sie
+anonymisieren den Inhalt nicht. Ausführbare Modell-Pickles werden nicht gespeichert.
+
+Die lokale Obergrenze beträgt 72 Stunden, 64 MiB Ereignisbytes und 10.000
+Ereignisse; Byte-/Zeilengrenzen können das Zeitfenster verkürzen. Zeitbereinigung
+erfolgt beim nächsten Append, nicht allein durch Zeitablauf. Dateioverhead,
+Warteschlangen- und temporäres Diskbudget sind im
+[Speichervertrag](archive-storage-contract.md) ausgewiesen. Große Nutzdaten werden
+komprimiert aufgeteilt; vollständige Referenzen sind für einen Replay nötig.
+
+`adaptive_solar.export_archive` ist eine authentifizierte Administrator-Leseaktion
+mit begrenzten Seiten. Ihre vollständige Antwort ist ein privater Export und
+eignet sich nicht für öffentliche Issues. Ein separat eingerichteter Collector
+legt die Daten auf dem gewählten privaten Archivhost ab; die HA-Integration
+verschickt sie nicht selbst an einen fest eingebauten Empfänger. HA-Token nur
+über die Umgebung des Collectors bereitstellen und nicht in Konfigurationen,
+Quelltext, Archive oder Reviewpakete schreiben. Für externe Archivkopien gelten
+eigene Zugriffs-, Sicherungs- und Aufbewahrungsregeln. Das Hostarchiv unterstützt bei
+ausdrücklich ausgeführter Wartung eine rollierende Frist von 24 Kalendermonaten;
+eingefrorene Vergleichspakete können bewusst länger aufbewahrt werden. [Bedienung](bedienung.md#8-optionalen-originaldatenexport-einrichten)
+und [Archivbetrieb](archivbetrieb.md).
+
 ## 3. Diagnose, Exporte und öffentliche Fehlerberichte
 
 Die integrierte Diagnoseausgabe lässt Standortkoordinaten, konfigurierte Entity-IDs
 und rohe Historienzeilen weg. Sie enthält unter anderem Wettermodelle, Fehlertypen,
-Zeitpunkte, Zähler, begrenzte Wetterkorrektur-Rohwertbeispiele und Lernstatus je selbst gewählter Stufenkennung. Solche Kennungen
+Zeitpunkte, Zähler, begrenzte Wetterkorrektur-Rohwertbeispiele und Lernstatus je selbst gewählter Stufenkennung. Im Entwicklungszweig kommen begrenzte Exportstatus-/Größen-/Fehlerangaben hinzu, nicht die rohen Exportnutzdaten. Solche Kennungen
 können persönliche Bezeichnungen enthalten; die Datei vor Weitergabe prüfen.
 
 Sensorattribute enthalten Forecastkurven, Eingangsqualität und Lerninformationen.
@@ -85,14 +128,19 @@ versionierten Dateien und anonymisiert keinen exportierten Inhalt.
 ## 4. Entfernen und Aufbewahrung
 
 Deaktivierung beendet nach dem Entladen die laufenden Beobachtungen und Wetterabrufe
-dieses Eintrags. Der Entladepfad kann zuvor noch seinen Verlauf speichern.
+dieses Eintrags. Der Entladepfad kann zuvor noch seinen Verlauf und bereits angenommene
+Exportereignisse speichern. Ausschalten von `archive_export` beendet nach dem
+Reload neue Exportaufnahmen, löscht aber keine vorhandenen Puffer- oder Hostkopien.
 Der Code hat keinen eigenen `async_remove_entry`-Bereinigungshandler für Lernstores.
 Eintragsentfernung und HACS-Deinstallation sind deshalb keine Zusage, dass alle
-Lern-/Recorder-/Sicherungsdaten gelöscht werden.
+Lern-/Recorder-/Sicherungsdaten oder optionale Exportpuffer und externe Archive
+gelöscht werden.
 
 Für vollständige Löschung zuerst Verbraucher und Sicherungsbedarf klären, dann den
 Eintrag entfernen und seine beiden exakten Storekeys sowie Recorder-/Backupkopien
-in einen getrennten administrativen Löschplan aufnehmen. Keine pauschale Löschung
+in einen getrennten administrativen Löschplan aufnehmen. Beim optionalen Export
+auch das eintragsspezifische Pufferverzeichnis, externe Originale, eingefrorene
+Datasets und deren Sicherungskopien berücksichtigen. Keine pauschale Löschung
 von `.storage` und keine direkten Änderungen laufender HA-internen Daten als
 Installationsanleitung verwenden. Es gibt derzeit keine eigene Schaltfläche für
 garantiert vollständige Datenlöschung. Aufbewahrung externer Provider liegt außerhalb

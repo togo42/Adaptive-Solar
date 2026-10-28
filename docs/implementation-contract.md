@@ -1,6 +1,6 @@
 # Implementierungsvertrag für Adaptive Solar
 
-Stand: 27.10.2026; Codebasis 0.2.14 einschließlich des [Messdaten-Nachtrags](messintervalle-92-prozent.md). Anwenderfelder und Abläufe: [Bedienung](bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen. Thematisch konsolidiert aus dem lokal archivierten Vorgänger `artifacts/releases/0.2.5-context-window-invalid/source/docs/implementation-contract.md`; das Archiv wird nicht veröffentlicht.
+Stand: 28.10.2026; veröffentlichtes Referenzrelease 0.2.14 einschließlich des [Messdaten-Nachtrags](messintervalle-92-prozent.md). Die ausdrücklich bezeichnete Originaldatenexport-Erweiterung ist im unveröffentlichten Entwicklungszweig vom 28.10.2026 implementiert; Release und produktive Aktivierung sind damit nicht erfolgt. Anwenderfelder und Abläufe: [Bedienung](bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen. Thematisch konsolidiert aus dem lokal archivierten Vorgänger `artifacts/releases/0.2.5-context-window-invalid/source/docs/implementation-contract.md`; das Archiv wird nicht veröffentlicht.
 
 Die [Ablehnungsdiagnose](ablehnungsdiagnose.md) erweitert diesen
 Stand um `training_quality.rejection_details` (Schema 1). Join-Ziele stammen aus
@@ -11,7 +11,7 @@ Schattenfilter erscheint als `incompatible_shade_baseline`; andere spätere Filt
 und Validierungsgates erzeugen keine Fake-Zeilen. `alignment` und Detailgruppen
 bilden ausdrücklich einen gemeinsamen Snapshot des letzten tatsächlichen Fits;
 Cachehits behalten dessen Cutoff. Fittrigger und Modelle bleiben unverändert.
-Keine Detailpersistenz oder neue Recorderreihen; bestehende Redaktion bleibt.
+Ohne optionalen Originaldatenexport keine Detailpersistenz oder neuen Recorderreihen; bestehende Redaktion bleibt. Bei aktiviertem Export gehört der tatsächliche Fit-Snapshot zum getrennten privaten Replayzustand.
 
 ## Ziel und Aufteilung
 
@@ -51,6 +51,13 @@ Grenzen: Mittelpunkt-Sonnenstand ist keine hochaufgelöste Energiequadratur, Fai
 Wetteradapter: ungültige/unvollständige Pflichtwerte bleiben Lücken. Die einzige numerische Nachtkorrektur normalisiert GHI/DNI/DHI gemeinsam aus [-1,0] W/m² zu 0, wenn mindestens einer negativ und die gesamte Stunde am Standort an 13 Fünfminutenstützen unter −6° Sonnenhöhe liegt. Ohne Standort, bei positiven Anteilen, Dämmerung, größeren Fehlern oder fehlenden/nichtendlichen Werten bleibt die Lücke. Rohwerte, Zeiten und Zähler stehen begrenzt in `weather_diagnostics`; Parser und SPA laufen beim Wetterabruf im Thread. [Vertrag](forecast-repairs.md). Open-Meteo-Strahlung am API-Zeitpunkt `t` gehört zu `[t-1h,t)`; Temperatur/Wind/Bewölkung sind Momentanwerte bei `t`. Zwei einzeln gültige, genau stündlich benachbarte Endpunkte ergeben eine lineare Mittelpunktnäherung, kein gemessenes Stundenmittel ([Zeitdefinition](https://open-meteo.com/en/docs#hourly-parameter-definition)). Fehlende Stützen werden nicht interpoliert. Cropping/Instant-Geometrieproxy behalten konstante Quellbedingungen; neue Grenzen erzeugen keine gemessene Substundenmeteo.
 
 Unterschiedliche Raster werden an vorhandenen Grenzen und Ausgabezeit geteilt. Je Intervall zählt nur die verfügbare Modellkohorte, ohne rückwirkende Abdeckung oder erfundene Tage. `best_match` kann andere Arme überlappen: keine behauptete Unabhängigkeit oder kalibrierte Ensemble-Unsicherheit. `PhysicsUnavailable` entfernt nur die betroffene Stufe/Modellzelle, erhält gültige Nachbarstufen und führt deren Kohorten, GHI-Regime und Instantreferenzen getrennt. Ohne gültige Berechnung bleibt eine Lücke; `inverter_id` ermöglicht selektive Stufenrechnung, unerwartete Programmierfehler propagieren.
+
+Im Entwicklungszweig fordert der Wetterclient relative Stunden statt einer auf
+UTC-Mitternacht verkürzten Tageszahl an: `forecast_hours=(forecast_days+1)*24+1`
+und `past_hours=1`, weiterhin UTC/Unixzeit. Der vorherige Momentanendpunkt dient
+der laufenden Quellzelle; ein früher endender nativer Modelllauf wird weder
+verlängert noch aufgefüllt. Lokale Tages-/DST-Grenzen bestimmt weiterhin der
+Forecastkern. Zusätzliche Providerstützen verlängern nicht `SiteConfig.forecast_days`.
 
 ### Lokale Eingaben und Nowcast
 
@@ -97,6 +104,86 @@ Angrenzende Messdifferenzen innerhalb einer UTC-Stunde werden exakt zusammengefa
 HA `Store`: höchstens120 Tage,60.000 Forecast-/30.000 Istzeilen; Raster/Stufenzahl können die Dauer verkürzen. Ist-/Tagesenergien:10% Ausgangsgrenzentoleranz, echte UTC-/DST-Dauer, keine Bool-Werte. Zwei feste Keys: neuer `history_v2`-Primary, Legacy ausschließlich lesend. Dessen opaker Vollhash muss zur Migration exakt passen; sonst Original behalten/neuen Primary kalt beginnen. Moderner `history_fingerprint` bindet Physik/Zeitzone/Output/Energie-/Curtailmentquelle und eine gesetzte Messgültigkeitsquelle; ungesetzt bleiben beide bisherigen Fingerprints unverändert. Die Direktstrahl-Schattentabelle liegt im `history_v2`-Primary unter `beam_shade_v1`, geht nicht in `history_fingerprint` ein und zählt nicht gegen die 120-Tage-/Zeilengrenzen von `archive` und `intervals`. Fehlt `beam_shade_v1` oder ist sein Inhalt beschädigt, wird eine leere Tabelle geladen, ohne valide `archive`-, `intervals`- oder `daily_snapshots`-Daten des Primary zu verwerfen. Wetter/Horizontlänge/Temp/Wind/GHI/Power-Bindungswechsel erhalten valide Istintervalle und ausgegebene Tages-Snapshots; `beam_shade_v1` ist an `shade_fingerprint` (Anlagengeometrie, Stufen, Wettermodelle und Leistungs-/GHI-/Umwelt-/Gültigkeits-/Curtailment-Bindungen ohne `forecast_days`) gebunden, sodass ein reiner `forecast_days`-Wechsel `beam_shade_v1` erhält, während Sensor- oder Wettermodellwechsel `beam_shade_v1` zurücksetzen. Forecastfeatures brauchen zusätzlich Vollhash und `learning_feature_contract="beam-shade-table-v1"`; deren Wechsel verwirft nur Lernfeatures/abgeleitete Modelle. Bekannte physische Änderungen (`history_fingerprint`) beginnen den festen Primary einschließlich `beam_shade_v1` neu, **erst nach erfolgreichem Erstrefresh/Plattform-/Service-Setup**. Zuvor kein Delay-/Close-Save; unbekannte/korrupte Primärdaten werden nicht überschrieben. Keine unbegrenzten Hash-Namespaces. AC-JSON/Fingerprint und HA-Store-Version bleiben kompatibel. Seit 0.2.14 bleiben historische Tagesstartwerte als unabhängig gekennzeichnete Originalprognosen im selben Store erhalten: `daily_snapshot_provenance` bindet ursprüngliche Konfigurationshashes, Identität, Zeitzone und Ausgangsgrenzen. Physische Änderungen verwerfen weiterhin Lernhistorie und zukünftige Alt-Snapshots, nicht bereits ausgegebene historische Werte derselben Anlagenidentität. Standort/Zeitzone/Stufenidentität dürfen nicht wechseln; opake Altprovenienz wird nicht geraten. [Details und Administratorimport](forecast-repairs.md).
 
 Modelle beim Erstaufbau oder bei geänderter Fit-Signatur rekonstruieren: Historienrevision, lokaler Tag und vollständig serialisierte Schattentabelle. Auch neue/ersetzte Schattenaufnahmen bei unverändertem Median können einen Refit auslösen; HA serialisiert Updates, offline kein paralleles `fit`/`predict` zugesichert. Tagesbeginnenergie: eigener vollständiger Snapshot vor Mitternacht, nie aus späterem Forecast rückdatieren. Keine Secrets/ausführbaren Modellobjekte persistieren.
+
+### Optionaler Originaldatenexport im Entwicklungszweig
+
+`archive_export` ist eine separate boolesche Config-Entry-/Optionswahl; fehlt sie,
+gilt `false`. Der native Standortdialog bietet den Schalter. Sie gehört nicht
+zu `SiteConfig`, `history_fingerprint` oder `shade_fingerprint`. Ein bestehender
+Eintrag wird durch die Codeaktualisierung nicht aktiviert. Der neue Pfad schreibt
+bei ausgeschalteter Option keine Exportdateien und verändert die deterministische
+Modellgewichtung nicht.
+
+`archive_export.py` führt einen vom Lernstore getrennten `ArchiveJournal` unter
+`<HA-Konfigurationsverzeichnis>/adaptive_solar_archive/<entry_id>/`. Writes beginnen
+erst nach erfolgreichem Erstrefresh, Plattform- und Service-Setup; ein
+Setupabbruch verwirft bis dahin nur im Speicher vorgemerkte Ereignisse.
+Schreibarbeit, Kompression und Quell-/Bibliotheksprovenienz laufen im Executor.
+Journal- oder Serialisierungsfehler werden abgefangen und als Exportfehler
+ausgewiesen; gültige Forecasts werden weiterhin veröffentlicht.
+
+`weather_response` bindet die tatsächliche ursprüngliche Antwort, Anfrageparameter,
+Modell, Empfang, HTTP-/Parserstatus und Normalisierungsbeleg an eine stabile ID.
+Ein Cachehit behält deren ID und ursprünglichen Empfang; eine unbekannte
+Providerlaufzeit bleibt unbekannt. `forecast_issued` bewahrt alle ausgegebenen
+Zellen einschließlich Nacht/Teilstunden, ursprüngliche normalisierte Wetterzellen
+und ihre Antwort-IDs, Beobachtungen, vollständige Anlagenkonfiguration, Software-
+und Featurevertrag sowie die Einzelmodell-Physikausgaben ohne Beobachtungs- und
+Residualkorrektur. `issued_at` ist der Berechnungscutoff; `computed_at` und der
+Ereignisempfang werden erst nach der numerischen Berechnung erfasst.
+
+Historienzeilen, Beobachtungen, Schattentabelle, Quellen-IDs und Historienrevision
+werden vor der Workerberechnung eingefroren. Der Replayzustand bewahrt die
+tatsächlich an den letzten Fit übergebenen `fit_samples`, `fit_as_of`, den
+gemeinsamen Diagnosesnapshot und den zur Ausgabe angewandten Schattenzustand.
+Ein Cachehit erhält den alten Fitstichtag und dessen Zeilen; aktuelle Meterdaten
+werden nicht nachträglich als frühere Fitgrundlage ausgegeben. `source_report`
+bewahrt Original-Zähler-/Gültigkeits-/Abregelungsberichte mit Quell- und
+Empfangszeiten; die Attribute sind auf Einheit, State-Class und `restored`
+beschränkt. `qualified_interval` ist ein getrenntes abgeleitetes Messergebnis,
+kein unabhängiger Beweis physischer Quellenqualität.
+
+`forecast_state_chunk`, `forecast_payload_chunk` und `weather_payload_chunk`
+verbinden große Zustände beziehungsweise vollständige Nutzdaten mit komprimierten
+Fragmenten, Gruppen-ID, Indizes und Prüfsumme. Ein kleines Manifest referenziert
+die vollständigen Inhalte; es ersetzt sie nicht durch Summen. Vor Replay werden
+Vollpayload-, Zustands- und Originalwetterabhängigkeiten einschließlich gleicher
+Quelle/Generation, Empfangsgrenze, Inhaltsprüfsummen und deklarierter
+Dekompressionsgrenze geprüft. Fehlende Originale bleiben ein Fehler. Identische
+Zustände werden nur wiederverwendet, solange ihre Chunks nachweislich noch im
+Puffer liegen; bei bereits komprimiertem Vollforecast bleiben dessen eingebettete
+Zustandsverweise unverändert und erhalten eigene Chunks.
+
+Die Aufnahme hat insgesamt 64 Ereignisse und 8 MiB Warteschlangenbudget
+einschließlich laufender Writes. Ein vollständiges Forecastpaket wird gemeinsam
+angenommen oder als Aufnahmeverlust gekennzeichnet. Der Journalwriter bestätigt
+Chunks, Nutzdatenmanifeste und vorgemerkte Aufnahmebelege einer Schreibcharge
+gemeinsam in einer SQLite-Transaktion einschließlich nötiger Verdrängungen.
+Wiederverwendbare Zustandsreferenzen werden erst nach dem Commit vorgemerkt;
+ein fehlgeschlagener später Datensatz lässt keine vorherigen Teilereignisse
+der Charge zurück. Journalgrenzen sind
+72 Stunden, 64 MiB Ereignisbytes und 10.000 Ereignisse; keine garantierte
+72-Stunden-Abdeckung. `archive_export` in Diagnostik/Statussensor und
+`status` der Exportantwort nennen Größen, Verdrängungszähler und letzte
+Fehlertypen. Cursorbrüche und verbleibende Referenzen müssen zusätzlich geprüft
+werden. Physische Dateigrenzen und temporärer Platzbedarf stehen im
+[Speichervertrag](archive-storage-contract.md).
+
+`adaptive_solar.export_archive` wird als Administratorservice mit
+`SupportsResponse.ONLY` registriert: geladene eigene `config_entry_id`, optional
+`cursor`/`generation`, 1–1.000 Ereignisse pro Seite, 1 KiB–4 MiB Seitenbudget
+(Standard 100/2 MiB). Antwort: `page` und separater `status`; ausgeschaltet
+`page=null`. Der native HA-Authentifizierungskontext prüft Administratorrechte.
+Die Aktion aktualisiert weder Wetter noch Prognosen und bestätigt oder entfernt
+keine Daten. Erfolgreich geladene Einträge teilen die Registrierung; der letzte
+Unload entfernt sie. Setupfehler entfernen vorgemerkte Servicebesitzer.
+
+Der externe Collector bestätigt seinen lokalen Cursor erst nach dauerhafter
+Originalspeicherung. HA-Puffer, externe Aufnahme, 24-monatige Hostaufbewahrung,
+Backups, Replay und Genauigkeitsbewertung bleiben getrennte Nachweise.
+[Archivbetrieb](archivbetrieb.md), [Speicher-/Cursorvertrag](archive-storage-contract.md)
+und [Datenschutz](datenschutz.md) beschreiben den privaten Betrieb. Keine produktive
+Aktivierung, Modelländerung oder Überlegenheit folgt aus den lokalen Tests.
 
 ### HA und native Energy
 
