@@ -3,6 +3,9 @@
 Stand: 28.10.2026. Die Implementierung ist lokal vorbereitet; produktiver
 Collectorbetrieb, HA-Aktivierung und eine Wiederherstellungsprobe auf einem
 Archivhost sind damit nicht erfolgt. Das Archiv belegt keine Prognoseverbesserung.
+Die [Speicherentscheidung](archiv-speicherung-und-transport.md) hält fest:
+zunächst Originaldateien und SQLite; PostgreSQL bei späterem Bedarf als
+zusätzliche Abfrageebene, ohne die Originale aufzugeben.
 
 ## Datenvertrag und Grenzen
 
@@ -198,6 +201,21 @@ betrieblichen Kapazitätsprüfung zusätzlich aufgeschlüsselt werden. Die
 Hochrechnung ist kein festgestellter langfristiger Bedarf.
 
 ## CLI und Transport
+
+`resolve_events(event_ids, source=..., generation=..., dataset=...)` liest
+höchstens 1.024 eindeutige Referenzen über einen SQLite-Index aus ihren
+Originalpaketen. Fehlende/mehrdeutige IDs, andere Quellen/Generationen und
+Verweise außerhalb des Pins werden abgelehnt; der Originalinhalt wird gegen
+die Indexzuordnung geprüft. Der Index bleibt vollständig wiederaufbaubar.
+
+Für viele aufeinanderfolgende Schritte bietet
+`reference_reader(source=..., generation=..., dataset=...)` einen Lesekontext.
+Er prüft den vollständigen gewählten Pin am Anfang und vor erfolgreichem Ende;
+jede einzelne Abfrage verifiziert die benötigten Originale erneut. Zwischen
+Abfragen wird kein Archivlock gehalten. Pinänderungen oder inzwischen fehlende
+Originale verhindern den erfolgreichen Abschluss. Der Aufrufer darf seinen
+Ergebnisbericht erst nach Verlassen des Kontexts veröffentlichen. Damit wird
+der vollständige Pin nicht für jede einzelne Chunkreferenz neu durchlaufen.
 
 Private Archive gehören unter ignorierte `data/`-Pfade, niemals in Git.
 Beispiele verwenden fiktive Bezeichner:

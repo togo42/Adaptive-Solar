@@ -138,10 +138,34 @@ tatsächlich an den letzten Fit übergebenen `fit_samples`, `fit_as_of`, den
 gemeinsamen Diagnosesnapshot und den zur Ausgabe angewandten Schattenzustand.
 Ein Cachehit erhält den alten Fitstichtag und dessen Zeilen; aktuelle Meterdaten
 werden nicht nachträglich als frühere Fitgrundlage ausgegeben. `source_report`
-bewahrt Original-Zähler-/Gültigkeits-/Abregelungsberichte mit Quell- und
-Empfangszeiten; die Attribute sind auf Einheit, State-Class und `restored`
-beschränkt. `qualified_interval` ist ein getrenntes abgeleitetes Messergebnis,
+bewahrt Original-Zähler-/Gültigkeits-/Abregelungsberichte sowie bei aktiviertem
+Export alle konfigurierten Leistungs-/GHI-/Temperatur-/Windberichte mit Quell-
+und Empfangszeiten. Unveränderte, ungültige, restaurierte und entfernte Zustände
+bleiben erhalten; die Attribute sind auf Einheit, State-Class und `restored`
+beschränkt. Die deduplizierte Subscriptionmenge ändert keine Zählerverarbeitung
+und erzwingt keine Quellenaktualisierung. `qualified_interval` ist ein getrenntes abgeleitetes Messergebnis,
 kein unabhängiger Beweis physischer Quellenqualität.
+
+`forecast_issued.shade_learning` (`schema: 1`) ergänzt den Rohzustandssnapshot
+aller konfigurierten Quellen, normalisierte Stufeneingaben sowie Entscheidungen
+einschließlich abgelehnter Lernversuche, Referenzleistungen, Sonnenstand, Faktor
+und versionierter Regelparameter. Der Replayzustand enthält `shading_before`
+und den weiterhin unter `shading` gespeicherten angewandten Folgezustand.
+`session_id`, `step_sequence`, `step_id` und `previous_step_id` binden jeden
+Schritt an seinen Vorgänger; die Nummer wird unabhängig vom Exporterfolg erhöht.
+Der erste Zustand ist ausdrücklich `unverified_preexisting_history`, kein
+rückwirkender Nachweis früherer Lerndaten.
+
+`core/shade_learning.py` enthält die gemeinsame Schrittfunktion; ihre Standardregel
+entspricht dem bisherigen Coordinator. `core/shade_replay.py` prüft eine gewählte
+vollständige Sitzung ab Schritt 1, Originalwetter-/Rohquellenbindung, Normalisierung,
+Zeitverfügbarkeit, Entscheidungen und Tabellenfortschreibung. Kandidaten besitzen
+unabhängige Tabellen und erhalten keine früher auf der alten Schattenbaseline
+trainierten Residualmodelle. Der separate Kontroll-Replay vergleicht weiterhin
+die tatsächlich ausgegebene Gesamtprognose. Der CLI schreibt schrittweise JSONL
+und benötigt einen Datenpin. Alte Exporte ohne Schattenlernvertrag bleiben für
+den normalen Prognose-Replay lesbar, nicht für vollständiges Schattenneulernen.
+[Ablauf und Grenzen](archivbetrieb.md#51-schattenlernen-chronologisch-vergleichen).
 
 `forecast_state_chunk`, `forecast_payload_chunk` und `weather_payload_chunk`
 verbinden große Zustände beziehungsweise vollständige Nutzdaten mit komprimierten

@@ -462,6 +462,7 @@ class ArchiveStore:
         conn.execute("CREATE TABLE IF NOT EXISTS batches(hash TEXT PRIMARY KEY,source TEXT,ingest_order INTEGER,stored_at TEXT,bytes INTEGER)")
         conn.execute("CREATE TABLE IF NOT EXISTS events(source TEXT,generation TEXT,sequence INTEGER,event_id TEXT,sha256 TEXT,batch TEXT,PRIMARY KEY(source,generation,sequence))")
         conn.execute("CREATE TABLE IF NOT EXISTS checkpoints(source TEXT PRIMARY KEY,cursor TEXT,ingest_order INTEGER)")
+        conn.execute("CREATE INDEX IF NOT EXISTS events_reference ON events(source,generation,event_id)")
 
     def _read_original(self, path):
         if path.stat().st_size > MAX_PAGE_BYTES + 65536:
@@ -618,6 +619,100 @@ class ArchiveStore:
                     if key not in seen and (kind is None or event["kind"] == kind):
                         seen.add(key)
                         yield {"source": value["source"], **event}
+
+    def resolve_events(self, event_ids, *, source, generation, dataset=None):
+        """Read exact same-generation dependencies through the disposable index.
+
+        Resolve at most one bounded set of references, never search unrelated
+        sources or silently reach outside a frozen dataset. A missing or
+        ambiguous identifier is an incomplete replay, not an empty result.
+        """
+        with self.reference_reader(source=source, generation=generation, dataset=dataset) as resolve:
+            return resolve(event_ids)
+
+    @contextmanager
+    def reference_reader(self, *, source, generation, dataset=None):
+        """Verify a frozen selection around many indexed dependency reads.
+
+        No lock is held while the caller works. Required originals are verified
+        on every lookup; the whole selected pin is checked at entry and normal
+        completion. Publish a result only after this context exits successfully.
+        """
+        _text(source, "source")
+        _generation(generation)
+        selected = None
+        pinned = None
+        if dataset is not None:
+            with _lock(self.root):
+                pins = self._pins()
+                if dataset not in pins:
+                    raise ArchiveError("Unknown pinned dataset")
+                pinned = tuple(pins[dataset])
+                self._validate_pins({dataset: pinned})
+                selected = frozenset(pinned)
+        active = True
+
+        def resolve(event_ids):
+            if not active:
+                raise ArchiveError("Reference reader is closed")
+            return self._resolve_events(event_ids, source=source, generation=generation, selected=selected)
+
+        try:
+            yield resolve
+            if dataset is not None:
+                with _lock(self.root):
+                    pins = self._pins()
+                    if dataset not in pins or tuple(pins[dataset]) != pinned:
+                        raise ArchiveError("Pinned dataset changed during reference read")
+                    self._validate_pins({dataset: pinned})
+        finally:
+            active = False
+
+    def _resolve_events(self, event_ids, *, source, generation, selected):
+        if not isinstance(event_ids, (list, tuple)) or not 1 <= len(event_ids) <= 1024:
+            raise ArchiveError("Reference lookup requires between one and 1024 IDs")
+        for identifier in event_ids:
+            _text(identifier, "event ID")
+        if len(set(event_ids)) != len(event_ids):
+            raise ArchiveError("Duplicate replay reference")
+        with _lock(self.root), self._db() as conn:
+            references = {}
+            for offset in range(0, len(event_ids), 200):
+                chunk = event_ids[offset:offset + 200]
+                placeholders = ",".join("?" for _ in chunk)
+                rows = conn.execute(
+                    "SELECT event_id,sequence,sha256,batch FROM events "
+                    f"WHERE source=? AND generation=? AND event_id IN ({placeholders})",
+                    (source, generation, *chunk),
+                )
+                for identifier, sequence, digest, batch in rows:
+                    if identifier in references:
+                        raise ArchiveError("Ambiguous replay reference")
+                    if selected is not None and batch not in selected:
+                        raise ArchiveError("Replay reference lies outside pinned dataset")
+                    references[identifier] = (sequence, digest, batch)
+            if len(references) != len(event_ids):
+                raise ArchiveError("Missing replay reference")
+            batches = {}
+            for identifier, (sequence, digest, batch) in references.items():
+                batches.setdefault(batch, {})[identifier] = (sequence, digest)
+            resolved = {}
+            for batch, wanted in batches.items():
+                original = self._read_original(self.originals / f"{batch}.json.gz")
+                if original["source"] != source:
+                    raise ArchiveError("Replay reference index disagrees with original source")
+                for event in original["page"]["events"]:
+                    identifier = event["event_id"]
+                    if identifier not in wanted:
+                        continue
+                    if (event["generation"] != generation
+                            or (event["sequence"], event["sha256"]) != wanted[identifier]
+                            or identifier in resolved):
+                        raise ArchiveError("Replay reference index disagrees with original event")
+                    resolved[identifier] = {"source": source, **event}
+            if len(resolved) != len(event_ids):
+                raise ArchiveError("Replay reference absent from indexed original")
+            return [resolved[identifier] for identifier in event_ids]
 
     def pin(self, dataset, *, sources=None):
         """Freeze all original files currently belonging to selected sources."""

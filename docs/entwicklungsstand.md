@@ -2,6 +2,34 @@
 
 ## Unveröffentlichter Archiv- und Ensemblezweig vom 28.10.2026
 
+Ergänzung nach `7a95718`: Vollständige passive Rohberichte der konfigurierten
+Leistungs-/GHI-/Temperatur-/Windquellen, Rohzustand am Berechnungscutoff und
+angenommene/abgelehnte Schattenlernversuche sind implementiert. Der chronologische
+Replay prüft pro Sitzung die ursprüngliche Fortführung und vergleicht davon
+getrennte Kandidatenzustände. [Bedienung und Grenzen](archivbetrieb.md#51-schattenlernen-chronologisch-vergleichen).
+Die [Speicherentscheidung](archiv-speicherung-und-transport.md) bleibt bei
+Originaldateien und SQLite; PostgreSQL ist eine spätere Option.
+
+Die Standard-Lernschrittfunktion wurde ohne beabsichtigte Verhaltensänderung aus
+dem Coordinator ausgegliedert. 1.000 synthetische Gatekonstellationen wurden
+chronologisch mit der eingefrorenen ursprünglichen Funktion verglichen; Status
+und vollständige Tabellen waren identisch. Der unabhängige Sol/high-Review
+prüfte neun geänderte/neue Code- und Testdateien. Gefundene Lücken bei der
+Rohquellenbindung und beim Speicherverbrauch langer Replays wurden korrigiert:
+die CLI verarbeitet einzelne Schritte, löst Referenzen über den Index auf und
+veröffentlicht JSONL erst nach Abschluss einschließlich letzter Pinprüfung.
+81 fokussierte Tests einschließlich nativer HA-Erfassung bis zum CLI-Replay
+bestanden. Der endgültige Stand besteht **1.315 Tests ohne Skips**; Ruff,
+Abhängigkeits- und Diffprüfung sind sauber. Wheel und Sdist wurden gebaut;
+33 Integrationsdateien sind bytegleich im Wheel, 13 Komponentenmodule aus einer
+getrennten regulären Wheelinstallation importiert. Private Belege:
+`artifacts/shade-archive-tests.xml`, `artifacts/shade-archive-package-validation.json`
+und `artifacts/shade-archive-independent-review.json`.
+Ein neuer externer Volltextreview oder eine produktive Aktivierung
+sind damit nicht erfolgt.
+
+Der folgende Prüfstand beschreibt zunächst die Archivgrundlage `7a95718`:
+
 Branch `codex/archive-ensembles` ergänzt den optionalen HA-Originaldatenexport,
 das externe 24-Monats-Archiv, deterministische Wetter-/Ensembleaufnahmen,
 Recorder-/Referenzrevisionen und Offline-Replay. [Betriebsanleitung](archivbetrieb.md),

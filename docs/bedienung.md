@@ -257,6 +257,12 @@ Der Puffer erfasst ursprüngliche Wetterantworten und deren Empfangs-/
 Normalisierungsbelege, sämtliche ausgegebenen Forecastzellen einschließlich Nacht
 und Teilstunden, verwendete Beobachtungen, Anlagenkonfiguration, Softwarestand,
 Schattenzustand und die tatsächlich verwendeten Fitzeilen mit Fitstichtag.
+Zusätzlich werden alle konfigurierten Leistungs-/GHI-/Temperatur-/Windberichte
+passiv aufgenommen, auch unveränderte und ungültige Werte. Angenommene und
+abgelehnte Schattenlernversuche samt Ausgangszustand ermöglichen den
+[chronologischen Vergleich anderer Lernregeln](archivbetrieb.md#51-schattenlernen-chronologisch-vergleichen).
+Die größere Berichtszahl kann die tatsächlich überbrückbare Ausfallzeit des
+begrenzten Exportpuffers verkürzen; dessen Belegung im Pilot beobachten.
 Originale Zähler-, Gültigkeits- und Abregelungsberichte bleiben von abgeleiteten
 Messintervallen getrennt. Das sind private Daten; für Support keine vollständige
 Exportantwort veröffentlichen. [Datenschutz](datenschutz.md).

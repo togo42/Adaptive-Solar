@@ -84,6 +84,11 @@ Normalisierung und Fehlerfälle, vollständige Prognoseausgaben, private
 Anlagenkonfiguration mit Entity-IDs, verwendete Beobachtungen mit Berichtzeiten,
 Original-Zähler-/Gültigkeits-/Abregelungsberichte, abgeleitete Messintervalle,
 Schattenzustand sowie tatsächlich verwendete Fitzeilen und deren Stichtag.
+Die Schattenlern-Erweiterung erfasst außerdem die Rohberichte aller konfigurierten
+Leistungs-/GHI-/Temperatur-/Windquellen einschließlich unveränderter und ungültiger
+Zustände. Pro Berechnung bleiben Rohzustand, Annahme-/Ablehnungsentscheidung,
+Referenzgrößen sowie Schattenzustand vor und nach dem Lernschritt erhalten.
+Diese privaten Zeitreihen können Betriebs- und Nutzungsmuster sichtbar machen.
 Software-/Bibliotheksstände und Inhaltsprüfsummen verbinden diese Daten; sie
 anonymisieren den Inhalt nicht. Ausführbare Modell-Pickles werden nicht gespeichert.
 

@@ -79,6 +79,12 @@ Synthetische Offline-Demo; für DC `--config examples/site-dc.json` einsetzen:
 
 Die [Wettermodellrecherche für die nächsten 24/48 Stunden](docs/wettermodelle-und-prognosehorizonte.md) begründet regionale Kurzfristmodelle, länger verfügbare Vergleichsmodelle und echte Wetterensembles. Der Offline-Pfad berechnet Energiequantile und Schwellenanteile aus vollständigen Mitgliedsverläufen; ihre lokale Zuverlässigkeit ist noch nicht gemessen. Speicherbewertungen sind nach drei und sechs Monaten vorgesehen. Neue produktive Modellgewichte, Akkuaktionen sowie die [geplanten Physikvarianten mit Zeitintegration und IAM](docs/physikvergleich-und-archivierung.md) stehen weiterhin aus.
 
+Der Archivzweig erfasst auch ungültige Originalbeobachtungen und sämtliche
+Schattenlernversuche. Ein [chronologischer Schatten-Replay](docs/archivbetrieb.md#51-schattenlernen-chronologisch-vergleichen)
+vergleicht unabhängige Lernverläufe auf denselben früher verfügbaren Eingaben.
+Als [Speicherung](docs/archiv-speicherung-und-transport.md) bleiben zunächst
+Originaldateien und SQLite vorgesehen; PostgreSQL ist eine spätere Ausbauoption.
+
 ## Recherche und Quellen
 
 Grundlagen: [Ensembles](ensemble_hybrid_solar_forecasting.md), [ML](solar_ml_research.md), [Daten/Merkmale](solarprognose_datenquellen_feature_engineering.md), [Gesamtrecherche](solar-prognose-ml-recherche.md). Literaturmetriken anderer Datensätze sind keine erwarteten lokalen Ergebnisse. Referenzen: [Helios Forecast](https://github.com/ReikanYsora/Helios-Forecast), [Open-Meteo Solar Forecast](https://github.com/rany2/open-meteo-solar-forecast); kein übernommener Quellcode.

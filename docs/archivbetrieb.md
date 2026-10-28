@@ -5,6 +5,9 @@ Die Werkzeuge sind implementiert. HA-Export, Host-Timer und private Zuordnungen
 sind damit noch nicht auf einer produktiven Installation aktiviert.
 [Speichervertrag](archive-storage-contract.md), [Modellauswahl](wettermodelle-und-prognosehorizonte.md)
 und [Physikversuchsplan](physikvergleich-und-archivierung.md) ergänzen diese Anleitung.
+Die [Speicherentscheidung und der Transport](archiv-speicherung-und-transport.md)
+beschreiben Originaldateien mit SQLite als ersten Schritt sowie PostgreSQL als
+spätere Option für Abfragen.
 
 ## 1. Umfang und Voraussetzungen
 
@@ -166,6 +169,85 @@ Beobachtungs-/Lernkorrekturen. `Candidate`/`ReplayInputs` in `core/replay.py`
 erlauben eigene versionierte Kandidaten auf frisch rekonstruierten identischen
 Eingaben. Feinere Zeitintegration und IAM sind noch keine implementierten Arme.
 Ein gelungener Replay ist ein Reproduzierbarkeitsnachweis, kein Genauigkeitsgewinn.
+
+### 5.1 Schattenlernen chronologisch vergleichen
+
+Bei aktiviertem Export werden jetzt zusätzlich die tatsächlichen HA-Berichte
+aller konfigurierten Leistungs-, GHI-, Temperatur- und Windquellen erfasst.
+Auch unveränderte Werte, `unknown`, `unavailable`, entfernte Zustände und
+`restored`-Markierungen bleiben mit Originalzeitstempeln erhalten. Das sind
+passive Beobachtungen: Die Integration erzwingt keine Sensoraktualisierung.
+Der bestehende Zähler-/Gültigkeits-/Abregelungspfad bleibt erhalten.
+
+Jede erfolgreiche Wetter-/Prognoseberechnung erfasst den Rohzustand aller
+konfigurierten Eingänge am Cutoff und jeden Schattenlernversuch: angenommene
+und abgelehnte Eingaben, normalisierte Leistung/GHI, Quellzeiten, Qualitätsgründe,
+Sonnenstand, Referenzleistungen ohne/mit Direktanteil, berechneten Faktor und
+Lernregelversion samt Parametern. Die Schattentabelle vor und nach dem Schritt
+bleibt nachvollziehbar. Eine angenommene Messung bedeutet nicht automatisch,
+dass das Sonnenstandsfenster schon genug Stützung zur Freigabe hat.
+
+Eine Sitzung beginnt je Coordinator-Instanz neu. Fortlaufende Schrittnummern und
+Verweise auf den Vorgänger machen fehlende Exporte sichtbar, auch wenn ein
+ausgelassener Schritt keine Tabellenänderung verursacht hätte. Ein unterbrochener
+Lernverlauf wird nicht still aus einem späteren Tabellenstand fortgesetzt.
+
+```bash
+.venv/bin/python scripts/replay_shading.py --archive data/pilot-01 \
+    --source ha-example --dataset pilot-01 --initial-state empty \
+    --candidate-min-clearness 0.8 --output data/shade-comparison.jsonl
+```
+
+Der Pflichtparameter `--dataset` bindet die Auswertung an einen unveränderlichen
+Pin. Für längere Auswertungen eine mit `export-dataset` erstellte Arbeitskopie
+verwenden: Die erste Archivdurchsicht hält den Leselock und kann sonst den
+Collector aufhalten. Bei mehreren Sitzungen oder alten Aufnahmen ohne den neuen
+Vertrag ist `--session-id` ausdrücklich zu setzen; die Fehlermeldung erzwingt
+diese Auswahl. Jede ausgewählte Sitzung muss mit Schritt 1 beginnen und bis
+zum gewählten Ende lückenlos sein. Neustarts oder Konfigurationsänderungen werden
+nicht automatisch zu einer durchgehenden Trainingshistorie verbunden.
+
+Der ursprüngliche Lernverlauf wird aus seinem aufgezeichneten Ausgangszustand
+Schritt für Schritt nachgerechnet und gegen Entscheidungen, Folgezustände und
+Originalprognosen geprüft. Dieser Ausgangszustand kann schon vor Archivbeginn
+gelernt worden sein; er bleibt als nicht nachgewiesene Vorgeschichte markiert.
+Die Vergleichsarme besitzen jeweils eine eigene Tabelle:
+
+- `--initial-state empty` lässt beide Arme ab Beginn der erfassten Sitzung neu
+  lernen. Das ist kein Nachweis vollständiger Lerndaten vor diesem Beginn.
+- `--initial-state recorded` übernimmt für beide Arme denselben damaligen
+  Ausgangszustand. Dies ist der Standard und ein bedingter Vergleich ab diesem
+  Zustand, kein vollständig neues Training der Vorgeschichte.
+- `shade_control` verwendet die ursprünglichen Lernregeln; `clearness_candidate`
+  verwendet den expliziten Klarhimmelsanteil als veränderte Aufnahmeschwelle.
+  Standardvergleich ist 0,6 gegen 0,8. Das ist ein Versuch, keine empfohlene neue
+  produktive Schwelle. `ShadeCandidate` kann außerdem eine eigene versionierte
+  Schrittfunktion erhalten.
+
+Die Kandidatenprognosen verwenden dieselben Wetterdaten und Anlagenparameter,
+jeweils ihre eigene gelernte Tabelle und reine PV-Physik. Die bisherige
+Residualkorrektur und der Beobachtungs-Nowcast werden dabei nicht übernommen.
+So stammen Unterschiede zwischen den beiden Armen aus ihrem Schattenlernen.
+Ein separater Replay prüft weiterhin die vollständige ursprüngliche Prognose.
+
+Ausgabe ist JSONL mit einem Datensatz je Schritt und einem abschließenden
+`summary`. Erst nach erfolgreicher Verarbeitung und abschließender Pinprüfung
+wird die Datei veröffentlicht; ein struktureller Fehler hinterlässt kein
+scheinbar vollständiges Teilergebnis. Ein numerischer/Software-Baselinefehler
+wird im Ergebnis und mit Fehlercode ausgewiesen. Standardmäßig sind höchstens
+256 MiB deklarierte dekomprimierte/serialisierte Eingaben je Schritt erlaubt
+(`--max-decoded-mib`). Das begrenzt keine Python-Spitzen-RAM-Belegung. Es werden
+keine vollständigen historischen Fit- oder Ergebnisreihen im RAM gesammelt;
+Tabellen, Identitäten und Auswahlmetadaten bleiben erforderlich.
+
+Der Replay arbeitet an den ursprünglichen Berechnungszeitpunkten. Für ein
+Verfahren mit anderer Lerntaktung braucht es einen zusätzlichen Treiber auf
+den jetzt vorhandenen Rohberichten. Ein akzeptierter Replay an den ursprünglichen
+Cutoffs bestätigt nicht automatisch die Lückenlosigkeit aller Rohberichte
+dazwischen; dafür sind Exportlücken und Quellenabdeckung zusätzlich zu prüfen.
+Eine echte Genauigkeitsbewertung benötigt
+spätere, qualifizierte Istwerte auf gemeinsamen Zielintervallen; der Bericht
+kennzeichnet sie derzeit als `unevaluated:no_qualified_paired_actuals`.
 
 ## 6. Energiequantile für 24/48 Stunden
 

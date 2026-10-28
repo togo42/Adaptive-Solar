@@ -10,6 +10,7 @@ import json
 import logging
 import math
 from typing import Any, Mapping
+from uuid import uuid4
 
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_state_change_event, async_track_state_report_event
@@ -26,13 +27,10 @@ from .core.learning import (MAX_MEASUREMENT_EDGE_SECONDS, MIN_MEASUREMENT_COVERA
                             MIN_TRAINING_SECONDS, ResidualLearner, feature_regime, ghi_feature_values, lead_bin)
 from .core.models import ForecastPoint, Observation, SiteConfig, TrainingSample, midpoint_lead_hours, utc_time
 from .core.rejection import RejectionDetails, detail_time
-from .core.physics import PhysicsUnavailable, clear_sky_ghi, solar_position
+from .core.physics import clear_sky_ghi, solar_position
+from .core.shade_learning import evaluate_shade_step
 from .core.shading import (
-    BEAM_SHADE_STORE_KEY, BeamShadeTable, MAX_SHADE_CAP_FRACTION, MAX_SHADE_PAIR_SECONDS,
-    MIN_SHADE_BEAM_ABS_W, MIN_SHADE_BEAM_CAP_FRACTION, MIN_SHADE_BEAM_SHARE,
-    MIN_SHADE_CLEARNESS_INDEX, MIN_SHADE_CLEAR_SKY_W_M2, MIN_SHADE_ELEVATION_DEG,
-    MIN_SHADE_SAMPLES, compute_beam_shade_factor, feature_solar_angles, shade_bin,
-    shade_factors_compatible,
+    BEAM_SHADE_STORE_KEY, BeamShadeTable, feature_solar_angles, shade_factors_compatible,
 )
 from .archive_export import ArchiveExport, CONF_ARCHIVE_EXPORT, json_value, replay_events, software_provenance
 from .weather import WeatherError
@@ -401,6 +399,9 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self._export_fit_samples = []
         self._export_fit_as_of = None
         self._export_software = None
+        self._shade_session_id = str(uuid4())
+        self._shade_step_sequence = 0
+        self._shade_previous_step_id = None
         self.site = config
         self.client = client
         self.shading = BeamShadeTable()
@@ -609,12 +610,15 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 if state is not None:
                     self._curtailment_seen_changed[inv.id] = state.last_changed
                     self._curtailment_seen_updated[inv.id] = state.last_updated
-        ids = [entity for inv in self.site.inverters for entity in (inv.energy_entity_id, inv.curtailed_entity_id, inv.measurement_valid_entity_id) if entity]
+        ids = sorted({entity for inv in self.site.inverters for entity in
+                      (inv.energy_entity_id, inv.curtailed_entity_id, inv.measurement_valid_entity_id) if entity})
+        # The archive observes reports passively. Extend the same subscriptions
+        # so a shared raw/control entity is never registered twice.
+        if self.export.enabled:
+            ids = sorted(set(ids) | self._raw_source_roles().keys())
         if ids:
             self._unsub = async_track_state_change_event(self.hass, ids, self._async_state_changed)
-        report_ids = [entity for inv in self.site.inverters for entity in (inv.energy_entity_id, inv.curtailed_entity_id, inv.measurement_valid_entity_id) if entity]
-        if report_ids:
-            self._unsub_reports = async_track_state_report_event(self.hass, report_ids, self._async_state_reported)
+            self._unsub_reports = async_track_state_report_event(self.hass, ids, self._async_state_reported)
         # Wait for the first actual numeric meter event before anchoring. A
         # pre-existing HA state may predate setup and its earlier interval has
         # no monitored availability/curtailment evidence.
@@ -626,6 +630,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         entity = event.data["entity_id"]
         now = event.time_fired.astimezone(UTC)
         self._export_source_report(event, now)
+        if not self._is_measurement_source(entity):
+            return
         for inv in self.site.inverters:
             if entity == inv.measurement_valid_entity_id:
                 self._measurement_flag_report(inv, event.data.get("new_state"), now)
@@ -650,6 +656,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         entity = event.data["entity_id"]
         now = event.time_fired.astimezone(UTC)
         self._export_source_report(event, now)
+        if not self._is_measurement_source(entity):
+            return
         # HA may mutate new_state.last_reported before this callback runs.
         # The timestamp captured in this event is the actual report boundary.
         stamp = event.data["last_reported"]
@@ -662,19 +670,66 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 self._record_energy(inv, event.data["new_state"], now, reported_at=stamp)
         self._schedule_save()
 
+    def _is_measurement_source(self, entity):
+        return any(entity in (inv.energy_entity_id, inv.curtailed_entity_id, inv.measurement_valid_entity_id)
+                   for inv in self.site.inverters)
+
+    def _raw_source_roles(self):
+        """Configured roles, including overlaps, with no private HA attributes."""
+        roles = defaultdict(dict)
+        for role, entity, kind in (("irradiance", self.site.irradiance_entity_id, "irradiance"),
+                                   ("temperature", self.site.temperature_entity_id, "temperature"),
+                                   ("wind", self.site.wind_entity_id, "wind")):
+            if entity:
+                roles[entity][role] = kind
+        for inv in self.site.inverters:
+            for role, entity, kind in ((f"power_{inv.id}", inv.power_entity_id, "power"),
+                                       (f"energy_{inv.id}", inv.energy_entity_id, "energy"),
+                                       (f"curtailment_{inv.id}", inv.curtailed_entity_id, "control"),
+                                       (f"measurement_valid_{inv.id}", inv.measurement_valid_entity_id, "validity")):
+                if entity:
+                    roles[entity][role] = kind
+        return roles
+
+    @staticmethod
+    def _raw_state(state, entity, *, reported_at=None):
+        return {"entity_id": entity, "state": state.state if state is not None else None,
+                "last_changed": state.last_changed if state is not None else None,
+                "last_updated": state.last_updated if state is not None else None,
+                "last_reported": reported_at or getattr(state, "last_reported", None),
+                "attributes": {key: state.attributes[key] for key in
+                               ("unit_of_measurement", "state_class", "restored")
+                               if state is not None and key in state.attributes}}
+
+    def _raw_state_snapshot(self, now):
+        """Capture immutable scalar fields at the same cutoff as observations."""
+        snapshot = {}
+        for entity, roles in self._raw_source_roles().items():
+            state = self.hass.states.get(entity)
+            item = self._raw_state(state, entity)
+            quality = {}
+            for role, kind in roles.items():
+                numeric = kind not in ("control", "validity")
+                value = state_number(state, now, kind) if numeric else None
+                quality[role] = {"status": self.input_quality.get(role,
+                    "valid" if value is not None else "missing_stale_restored_or_invalid" if numeric
+                    else "missing" if state is None else "restored" if state.attributes.get("restored") else state.state),
+                    "normalized_value": value}
+            item["quality"] = quality
+            snapshot[entity] = item
+        return snapshot
+
     def _export_source_report(self, event, received):
         if not self.export.enabled:
             return
         state = event.data.get("new_state")
-        payload = {"entity_id": event.data["entity_id"], "event_type": event.event_type,
-                   "state": state.state if state is not None else None,
-                   "last_changed": state.last_changed if state is not None else None,
-                   "last_updated": state.last_updated if state is not None else None,
-                   "last_reported": event.data.get("last_reported") or (getattr(state, "last_reported", None)),
-                   "attributes": {key: state.attributes[key] for key in
-                                  ("unit_of_measurement", "state_class", "restored")
-                                  if state is not None and key in state.attributes}}
-        self.export.record("source_report", json_value(payload), received)
+        payload = {**self._raw_state(state, event.data["entity_id"], reported_at=event.data.get("last_reported")),
+                   "event_type": event.event_type, "event_received_at": received}
+        try:
+            self.export.record("source_report", payload, received)
+        except Exception:
+            # Optional diagnostics must never change meter/control processing.
+            _LOGGER.debug("Adaptive Solar raw report export failed", exc_info=True)
 
     @staticmethod
     def _measurement_flag_valid(state) -> bool:
@@ -899,87 +954,16 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
     def _evaluate_beam_shade_stage(config: SiteConfig, inv, forecasts, now: datetime,
                                    observations: tuple[Observation, ...],
                                    shading: BeamShadeTable,
-                                   stage_input: dict[str, Any] | None = None) -> dict[str, Any]:
-        if stage_input is not None:
-            raw_power = stage_input.get("power_w")
-            power_time = stage_input.get("power_time")
-            ghi = stage_input.get("ghi_w_m2")
-            ghi_time = stage_input.get("ghi_time")
-            curtailed_or_invalid = bool(stage_input.get("curtailed_or_invalid"))
-        else:
-            own = [o for o in observations if o.inverter_id == inv.id]
-            power_obs = next(
-                (o for o in sorted(own, key=lambda item: item.time, reverse=True)
-                 if o.power_w is not None and 0 <= (now - o.time).total_seconds() <= SENSOR_MAX_AGE_SECONDS),
-                None,
-            )
-            ghi_obs = next(
-                (o for o in sorted(own, key=lambda item: item.time, reverse=True)
-                 if o.ghi_w_m2 is not None and 0 <= (now - o.time).total_seconds() <= 300),
-                None,
-            )
-            raw_power = power_obs.power_w if power_obs is not None else None
-            power_time = power_obs.time if power_obs is not None else None
-            ghi = ghi_obs.ghi_w_m2 if ghi_obs is not None else None
-            ghi_time = ghi_obs.time if ghi_obs is not None else None
-            curtailed_or_invalid = any(
-                o.curtailed or (o.power_w is not None and o.power_w > inv.output_cap_w * 1.1)
-                for o in own
-            )
-        reasons: set[str] = set()
-        if curtailed_or_invalid:
-            reasons.add("curtailed_or_invalid")
-        if (raw_power is None or power_time is None or ghi is None or ghi_time is None
-                or abs((power_time - ghi_time).total_seconds()) > MAX_SHADE_PAIR_SECONDS):
-            reasons.add("stale_or_unpaired")
-        eval_time = power_time if power_time is not None else (ghi_time if ghi_time is not None else now)
-        try:
-            eval_sun = solar_position(config, eval_time)
-            eval_clear_sky = clear_sky_ghi(config, eval_time)
-        except PhysicsUnavailable:
-            eval_sun = None
-            eval_clear_sky = 0.0
-        if (eval_sun is None or eval_sun.elevation_deg < MIN_SHADE_ELEVATION_DEG
-                or eval_clear_sky < MIN_SHADE_CLEAR_SKY_W_M2):
-            reasons.add("low_elevation")
-        if ghi is not None and ghi_time is not None:
-            try:
-                ghi_clear_sky = eval_clear_sky if ghi_time == eval_time else clear_sky_ghi(config, ghi_time)
-            except PhysicsUnavailable:
-                ghi_clear_sky = 0.0
-            if ghi_clear_sky <= 0.0 or (ghi / ghi_clear_sky) < MIN_SHADE_CLEARNESS_INDEX:
-                reasons.add("low_clearness")
-        ref_powers = shade_reference_powers(config, forecasts, now, inv.id, eval_time, observations)
-        cap_limit = MAX_SHADE_CAP_FRACTION * inv.output_cap_w
-        if raw_power is not None and raw_power <= inv.output_cap_w * 1.1 and raw_power >= cap_limit:
-            reasons.add("at_cap")
-        if ref_powers is None:
-            reasons.add("no_reference")
-        else:
-            p0_w, p1_w = ref_powers
-            beam_w = p1_w - p0_w
-            min_beam_w = max(MIN_SHADE_BEAM_ABS_W, MIN_SHADE_BEAM_CAP_FRACTION * inv.output_cap_w)
-            if beam_w < MIN_SHADE_BEAM_SHARE * p1_w or beam_w < min_beam_w:
-                reasons.add("low_beam")
-            if p1_w >= cap_limit:
-                reasons.add("at_cap")
-            if not reasons and eval_sun is not None and power_time is not None:
-                factor = compute_beam_shade_factor(raw_power, p0_w, p1_w)
-                shading.record(inv.id, eval_sun.azimuth_deg, eval_sun.elevation_deg, power_time, factor)
-        try:
-            now_sun = eval_sun if eval_time == now else solar_position(config, now)
-        except PhysicsUnavailable:
-            now_sun = None
-        az_now = now_sun.azimuth_deg if now_sun is not None else None
-        el_now = now_sun.elevation_deg if now_sun is not None else None
-        if shade_bin(az_now, el_now) is not None:
-            if len(shading.bin_samples(inv.id, az_now, el_now)) < MIN_SHADE_SAMPLES:
-                reasons.add("insufficient_samples")
-        elif eval_sun is not None and shade_bin(eval_sun.azimuth_deg, eval_sun.elevation_deg) is not None:
-            if len(shading.bin_samples(inv.id, eval_sun.azimuth_deg, eval_sun.elevation_deg)) < MIN_SHADE_SAMPLES:
-                reasons.add("insufficient_samples")
-        last_rejection = ";".join(sorted(reasons)) if reasons else None
-        return shading.status_for(inv.id, az_now, el_now, last_rejection=last_rejection)
+                                   stage_input: dict[str, Any] | None = None,
+                                   *, decision_sink=None) -> dict[str, Any]:
+        decision = evaluate_shade_step(
+            config, inv, forecasts, now, observations, shading, stage_input,
+            solar_position_fn=solar_position, clear_sky_ghi_fn=clear_sky_ghi,
+            reference_powers_fn=shade_reference_powers,
+        )
+        if decision_sink is not None:
+            decision_sink[inv.id] = decision
+        return decision["status"]
 
     async def _async_update_data(self):
         if self._closing:
@@ -995,6 +979,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         now = datetime.now(UTC)
         self._prune(now)
         observations = self._observations(now)
+        raw_state_snapshot = self._raw_state_snapshot(now) if self.export.enabled else None
         # Copy event-loop-owned mutable rows before passing them to a worker.
         archive, intervals = deepcopy(self.archive), deepcopy(self.intervals)
         shading = self.shading.copy()
@@ -1039,12 +1024,38 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         output_caps = {inv.id: inv.output_cap_w for inv in self.site.inverters}
 
         def calculate():
+            shade_learning = None
+            shading_before = None
+            decisions = {} if self.export.enabled else None
+            if self.export.enabled:
+                # Advance on evaluation, independently of serialization/queue/
+                # disk success. Missing exports remain detectable in the chain.
+                self._shade_step_sequence += 1
+                previous_step_id = self._shade_previous_step_id
+                step_id = str(uuid4())
+                self._shade_previous_step_id = step_id
+                shading_before = shading.to_dict()
+                shade_learning = {
+                    "schema": 1, "session_id": self._shade_session_id,
+                    "step_sequence": self._shade_step_sequence, "step_id": step_id,
+                    "previous_step_id": previous_step_id, "evaluated_at": now,
+                    "initial_state_source": "session_seed" if previous_step_id is None else "previous_step",
+                    "initial_state_scope": "unverified_preexisting_history" if previous_step_id is None else "captured_previous_step",
+                    "raw_state_snapshot": raw_state_snapshot,
+                }
             beam_shade_by_inv = {
                 inv.id: self._evaluate_beam_shade_stage(
-                    self.site, inv, forecasts, now, observations, shading, shade_inputs.get(inv.id)
+                    self.site, inv, forecasts, now, observations, shading, shade_inputs.get(inv.id),
+                    decision_sink=decisions,
                 )
                 for inv in self.site.inverters
             }
+            if shade_learning is not None:
+                shade_learning.update(
+                    policy_version=next(iter(decisions.values()))["policy_version"],
+                    inputs={inv_id: decision["input"] for inv_id, decision in decisions.items()},
+                    decisions=decisions,
+                )
             shade_key = json.dumps(shading.to_dict(), sort_keys=True)
             signature = (history_revision, now.astimezone(ZoneInfo(self.site.timezone)).date(), shade_key)
             alignment = {}
@@ -1107,11 +1118,12 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                         "weather": json_value(forecasts),
                         "weather_receipt_ids": weather_receipt_ids, "weather_errors": weather_errors,
                         "observations": json_value(observations), "input_quality": input_quality,
-                        "result": json_value(result),
+                        "result": json_value(result), "shade_learning": shade_learning,
                         "individual_model_physics": {weather.model: json_value(self.engine.forecast(
                             (weather,), now, observations=(), learner=None, shading=shading)) for weather in forecasts},
                     }, {"history_revision": history_revision, "fit_as_of": self._export_fit_as_of,
                         "fit_samples": self._export_fit_samples, "shading": shading.to_dict(),
+                        "shading_before": shading_before,
                         "training_snapshot": self._training_snapshot}, computed_at)
                 except Exception as err:
                     events = [("export_failure", json.dumps({"error_type": type(err).__name__}), now, None)]
