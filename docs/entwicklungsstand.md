@@ -101,7 +101,13 @@ Der Host hat zuletzt rund **6,8 GiB freien Platz**; die 24-Monats-Retention ist
 konfiguriert, ausreichende Kapazität für zwei Jahre jedoch nicht nachgewiesen.
 Platzschutz und regelmäßige Größenbelege sind aktiv; bereits nach vollständigen
 Beobachtungstagen nachmessen und die Drei-/Sechsmonatsprüfungen beibehalten.
-Eine dauerhaft betriebene zweite Archivsicherung ist damit nicht nachgewiesen.
+Ergänzung vom 28.10.2026: Laut Betreiber wird der Archivhost-LXC täglich über
+Proxmox Backup Server (PBS) gesichert. Der Archivpfad liegt im Root-Dateisystem
+des LXC; diese Zuordnung wurde lesend geprüft. Damit ist ein bestehender
+regelmäßiger Sicherungsweg benannt; ein zusätzlicher Archivbackupdienst wird
+nicht eingerichtet. PBS-Auftragsstatus und eine LXC-Wiederherstellung wurden
+hier nicht geprüft. Die oben belegte Wiederherstellung betrifft die getrennte
+eingefrorene Archivkopie.
 
 Private Betriebsbelege: `data/release-0.2.17-20261028/`.
 Abnahmereceipt `acceptance/acceptance-receipt.json`, SHA256

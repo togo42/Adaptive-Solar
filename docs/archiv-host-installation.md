@@ -108,6 +108,20 @@ wie der Collector aus und ist deshalb durch den gemeinsamen Lock geschützt.
 Nach ausreichenden Pilotdaten Speicherbedarf, Backup und Wiederherstellung prüfen;
 nach drei und sechs Monaten die Speicherentscheidung erneut bewerten.
 
+## Vorhandene Hostsicherung
+
+Für die dokumentierte Installation bestätigt der Betreiber eine tägliche
+LXC-Sicherung über Proxmox Backup Server (PBS). Das Archiv liegt im
+Root-Dateisystem des LXC; dafür wird kein zusätzlicher Archivbackupdienst
+eingerichtet. Bei einer späteren Verlagerung auf ein separates Volume dessen
+Einbeziehung in die Hostsicherung erneut prüfen.
+
+Die 24-Monats-Aufbewahrung der Originale und die Aufbewahrung der PBS-Sicherungen
+sind getrennte Einstellungen. Eine erfolgreiche Wiederherstellung einer
+eingefrorenen Archivkopie ist kein Nachweis einer vollständigen LXC-Rücksicherung
+aus PBS. Herkunft und Umfang der aktuellen Belege stehen im
+[Entwicklungsstand](entwicklungsstand.md#veröffentlichter-und-installierter-stand-0217).
+
 Für Rollback zuerst ausschließlich die vier Archivtimer stoppen und deaktivieren,
 anschließend laufende Archivdienste kontrolliert beenden. Den bisherigen
 `current`-Link und die bisherigen Unitdateien gesichert zurücksetzen, `daemon-reload`
