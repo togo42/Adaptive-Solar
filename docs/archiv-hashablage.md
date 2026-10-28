@@ -76,4 +76,35 @@ Ein danach ergänzter Gegenfall für zwei gültige, aber unterschiedlich komprim
 Kopien bestand ebenfalls; alle **15 Migrationstests** sind erfolgreich. Ruff für
 Komponente, Skripte und Tests, `pip check` sowie Diffprüfung bestanden.
 
-Der aktuelle Installationsnachweis wird nach erfolgreichem Hostreadback ergänzt.
+## Installierter Stand auf dem Archivhost
+
+Die Hostinstallation vom 28.10.2026 verwendet Commit
+`ce6173a9baeec2504861287e14b431e6c9ad0ebc`. Der öffentliche Transferumfang
+(185 Dateien) wurde gegen das lokale Quellmanifest geprüft; SHA256 des
+Transferarchivs: `c6e5ee83d29386ad3b5f8c16dbc91e745ea273455a6381ab9d9ee43c6e2dd7b7`.
+Die bestehende 0.2.17-Pythonumgebung wird mit unveränderten Abhängigkeiten genutzt;
+der bisherige Releasebaum und eine geprüfte lokale Archivkopie bleiben erhalten.
+
+- **524 Originaldateien / 22.979 Ereignisse** vor der Migration gesichert.
+- Alle 524 Originale in **230 belegte Präfixverzeichnisse** verschoben;
+  komprimierte Bytes, Pins, SQLite-Index und sämtliche Checkpoints unverändert.
+- Unabhängige Archivkopie allein aus Originalen und Pins mit neu aufgebautem
+  Index erfolgreich geprüft; identische Batches, Ereigniszahl und Checkpoints.
+- Vier Timer wieder aktiv und weiterhin aktiviert. Kontrollierte HA-, Wetter-
+  und Beobachtungsläufe erfolgreich mit dem neuen Release ausgeführt.
+- Bei der Abnahme **539 Originale**, davon **15 neue Pakete** ausschließlich
+  in Hashverzeichnissen. Neue Quellenberichte, Prognosen, qualifizierte
+  Messintervalle, acht Wetterantworten und zwei Beobachtungsaufnahmen vorhanden;
+  keine gemeldeten Exportlücken oder Exportfehler in diesen neuen Paketen.
+- Flacher Export einer eingefrorenen Arbeitskopie mit dem ursprünglichen
+  0.2.17-Leser erfolgreich geprüft. **Vier Originalreplays akzeptiert**,
+  einschließlich striktem Softwareabgleich; maximale Leistungsabweichung
+  `9,095e-13 W` bei unverändert `1e-6 W` Leistungstoleranz.
+
+Die Installation betrifft ausschließlich den Archivhost. HA-Code, Einstellungen
+und Lernhistorie wurden nicht verändert. Diese Prüfungen belegen die Migration
+und begrenzte Reproduzierbarkeit, keine zusätzliche Prognosegenauigkeit oder
+langfristig ausreichende Speicherkapazität. Private Migrations-/Prüfbelege liegen
+lokal unter `data/archive-hash-layout-20261028/`; vollständige Archive und
+Rückwegkopien bleiben auf dem Archivhost. Die unveränderte tägliche PBS-Sicherung
+ist davon getrennt; eine vollständige LXC-Rücksicherung wurde hier nicht getestet.

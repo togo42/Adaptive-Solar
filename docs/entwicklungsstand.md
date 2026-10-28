@@ -2,7 +2,9 @@
 
 ## Archivhost-Erweiterung: hierarchische Hashablage
 
-Die Hosterweiterung nach 0.2.17 verwendet `originals/<Hashpräfix>/<Hash>.json.gz`.
+Die auf dem Archivhost installierte Erweiterung `ce6173a` nach 0.2.17 verwendet
+`originals/<Hashpräfix>/<Hash>.json.gz`. 524 Originale wurden bytegleich migriert;
+neue Aufnahmen, Indexwiederaufbau und vier exakte Originalreplays sind geprüft.
 [Migration, Kompatibilität und Prüfstand](archiv-hashablage.md) beschreibt
 die Änderung getrennt von der weiterhin veröffentlichten HA-Version 0.2.17.
 Historische Releaseprüfungen unten gelten für ihre ursprünglichen Quellstände.
