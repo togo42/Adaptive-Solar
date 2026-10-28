@@ -1,6 +1,6 @@
 # Originaldaten archivieren und Prognosen wiederholen
 
-Stand: 28.10.2026, Funktionsumfang 0.2.16. Den tatsächlich veröffentlichten und
+Stand: 28.10.2026, Funktionsumfang 0.2.17. Den tatsächlich veröffentlichten und
 installierten Stand nennt der [Entwicklungsstand](entwicklungsstand.md).
 Die [Hostinstallation](archiv-host-installation.md) beschreibt Dienste, Timer,
 verschlüsselte Zugangsdaten und die Platzüberwachung.
@@ -164,6 +164,15 @@ Toleranz beträgt standardmäßig `--tolerance-w 0.000001`. Exakte Abnahme verla
 zusätzlich übereinstimmende Quell- und Bibliotheksprovenienz. Aktive Lernmodelle
 werden aus den tatsächlich verwendeten Fitzeilen am ursprünglichen Fit-Cutoff
 rekonstruiert; spätere Beobachtungen sind nicht zulässig.
+
+Seit 0.2.17 werden benannte berechnete Gleitkomma-Zwischenwerte mit der festen
+Policy `computed-float-roundoff-v1` verglichen (absolut/relativ jeweils `1e-12`).
+So führen kleinste Laufzeit-Rundungsunterschiede bei Sonnenstand/Jahreszyklus
+nicht allein zum Fehlschlag. Originaldaten, Zeitunterstützung, Konfiguration,
+Gateentscheidungen und Provenienz bleiben streng; die Leistungstoleranz wird
+nicht erweitert. Die vollständige Allowlist steht im [Datenvertrag](archive-storage-contract.md).
+Ein altes 0.2.16-Archiv wird dadurch nicht automatisch ein quellenidentischer
+0.2.17-Datensatz; alte fehlgeschlagene Abnahmen bleiben als solche erhalten.
 
 `--physics-ablation` vergleicht zusätzlich den NWP-Physikpfad ohne lokale
 Beobachtungs-/Lernkorrekturen. `Candidate`/`ReplayInputs` in `core/replay.py`

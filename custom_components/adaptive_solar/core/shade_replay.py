@@ -21,6 +21,7 @@ from .replay import (
     verify_weather_receipts, weather_from_json,
 )
 from .shading import BeamShadeTable
+from .replay_numeric import COMPUTED_FLOAT_POLICY, computed_float_equal, computed_mapping_equal
 from .shade_learning import ShadeLearningPolicy, evaluate_shade_step
 
 
@@ -42,6 +43,61 @@ def _json(value):
 
 def _same(left, right):
     return canonical_bytes(_json(left)) == canonical_bytes(_json(right))
+
+
+
+_SHADE_REFERENCE_FLOATS = frozenset({
+    "solar_azimuth_deg", "solar_elevation_deg", "clear_sky_ghi_w_m2", "ghi_clear_sky_w_m2",
+    "clearness_index", "p0_w", "p1_w", "beam_w",
+})
+_SHADE_STATUS_FLOATS = frozenset({"transmittance", "candidate_transmittance", "daily_mad"})
+
+
+def _shade_decisions_same(left, right):
+    """Only calculated diagnostics/factors may round; every gate stays exact."""
+    left, right = _json(left), _json(right)
+    if not isinstance(left, dict) or not isinstance(right, dict) or left.keys() != right.keys():
+        return False
+    for inverter, decision in left.items():
+        other = right[inverter]
+        if not isinstance(decision, dict) or not isinstance(other, dict) or decision.keys() != other.keys():
+            return False
+        for key, value in decision.items():
+            if key in {"reference", "status"}:
+                fields = _SHADE_REFERENCE_FLOATS if key == "reference" else _SHADE_STATUS_FLOATS
+                same = computed_mapping_equal(value, other[key], fields)
+            elif key == "factor":
+                same = computed_float_equal(value, other[key])
+            else:
+                same = _same(value, other[key])
+            if not same:
+                return False
+    return True
+
+
+def _shade_states_same(left, right):
+    """Compare learned sample/release factors, preserving every evidence clock."""
+    left, right = _json(left), _json(right)
+    if not isinstance(left, dict) or not isinstance(right, dict) or left.keys() != right.keys():
+        return False
+    for branch, stages in left.items():
+        other = right[branch]
+        if branch not in {"inverters", "released"}:
+            if not _same(stages, other):
+                return False
+            continue
+        if not isinstance(stages, dict) or not isinstance(other, dict) or stages.keys() != other.keys():
+            return False
+        for stage, windows in stages.items():
+            if not isinstance(windows, dict) or not isinstance(other[stage], dict) or windows.keys() != other[stage].keys():
+                return False
+            for window, rows in windows.items():
+                actual = other[stage][window]
+                if not isinstance(rows, list) or not isinstance(actual, list) or len(rows) != len(actual):
+                    return False
+                if not all(computed_mapping_equal(row, partner, {"factor"}) for row, partner in zip(rows, actual)):
+                    return False
+    return True
 
 
 def _table(value, site, cutoff):
@@ -335,7 +391,7 @@ def replay_shading_stream(stream, *, candidates=(), initial_state="recorded", se
             baseline = before
             for arm in arms.values():
                 arm["table"] = before.copy() if initial_state == "recorded" else BeamShadeTable()
-        if not _same(baseline.to_dict(), before.to_dict()):
+        if not _shade_states_same(baseline.to_dict(), before.to_dict()):
             raise ValueError("recorded shade state does not continue previous step")
         weather = tuple(weather_from_json(row) for row in payload["weather"])
         observations = tuple(timed_record(Observation, row, {"time"}) for row in payload["observations"])
@@ -353,8 +409,8 @@ def replay_shading_stream(stream, *, candidates=(), initial_state="recorded", se
                 candidate = arm["candidate"]
                 arm_decisions[name][inv.id] = candidate.step(site, inv, weather, now, observations,
                                                             arm["table"], dict(stage_input), policy=candidate.policy)
-        decision_match = _same(decisions, learning["decisions"])
-        state_match = _same(baseline.to_dict(), after.to_dict())
+        decision_match = _shade_decisions_same(decisions, learning["decisions"])
+        state_match = _shade_states_same(baseline.to_dict(), after.to_dict())
         original_forecast = replay_forecast(event, dependencies, as_of=as_of)["baseline"]
         baseline_ok &= decision_match and state_match and original_forecast["accepted"]
         # An incorrect baseline cannot be reset from the next recorded state.
@@ -381,4 +437,5 @@ def replay_shading_stream(stream, *, candidates=(), initial_state="recorded", se
                                                         "software_match": software_match},
             "candidate_versions": {name: arm["candidate"].version for name, arm in arms.items()},
             "replay_software": current, "step_count": count,
+            "computed_float_comparison": dict(COMPUTED_FLOAT_POLICY),
             "accuracy_status": "unevaluated:no_qualified_paired_actuals", "residual_learning": "disabled_in_candidates"}

@@ -1,6 +1,6 @@
 # Dauerhafter Exportpuffer und externes Originalarchiv
 
-Stand: 28.10.2026, Datenvertrag für 0.2.16. Produktive Aufnahme und
+Stand: 28.10.2026, Datenvertrag für 0.2.17. Produktive Aufnahme und
 Wiederherstellungsprüfungen werden separat im [Entwicklungsstand](entwicklungsstand.md)
 nachgewiesen. Das Archiv belegt keine Prognoseverbesserung.
 Die [Speicherentscheidung](archiv-speicherung-und-transport.md) hält fest:
@@ -17,6 +17,27 @@ Features, modellweise Punkte und deren ursprüngliche Wetterempfangszeiten.
 `early_bias_shadow` enthält Status und Kandidatenpunkte getrennt von der
 operativen Prognose. Ein Originalreplay prüft auch Status, Features und
 Modellpunkte; übereinstimmende Gesamtleistung allein genügt nicht.
+
+Ab 0.2.17 erlaubt `computed-float-roundoff-v1` bei ausdrücklich berechneten
+Zwischenwerten `math.isclose` mit absoluter und relativer Toleranz jeweils
+`1e-12`. Bei Forecastfeatures betrifft dies ausschließlich `baseline_w`,
+Sonnenhöhe/-azimut einschließlich Sinus/Kosinus und den Sinus/Kosinus des
+Jahresverlaufs. Andere Features, insbesondere Vorlauf-/Alterswerte, Rohwetter,
+Regimeflags, `beam_shade_factor` und `ghi_nowcast_gain`, bleiben exakt.
+
+Beim Schattenreplay betrifft die Toleranz berechnete Sonnenstands-, Klarhimmel-,
+Clearness- und P0/P1-/Direktleistungsreferenzen, berechnete Faktoren sowie
+`transmittance`, `candidate_transmittance` und `daily_mad`. In den fortgeführten
+Tabellen darf ausschließlich der `factor` qualifizierter Proben und Freigaben
+so verglichen werden. Struktur, Zeitstempel, Schrittfolge, Rohinputs, Policy,
+Annahme/Ablehnung, Gründe, Bins, Zähler und unqualifizierte Altdaten bleiben exakt.
+Die ursprüngliche eingefrorene Tabelle wird weiterhin kanonisch validiert.
+
+Diese Vergleichstoleranz verändert keine Lernschwelle oder Prognose. Die
+separate Leistungstoleranz bleibt standardmäßig `1e-6 W`; Quellhash und die
+erfassten Bibliotheksversionen müssen weiterhin exakt passen. Jede erfolgreiche
+Vergleichsausgabe nennt die angewandte Rundungspolicy. Eine Änderung der
+Lernentscheidung an einer numerischen Gategrenze wird weiterhin zurückgewiesen.
 
 `issued_at` bezeichnet den Eingabecutoff, `computed_at` das Ende der
 Forecast-/Modellberechnung. Der Umschlag erhält seinen `received_at` erst nach

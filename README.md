@@ -8,7 +8,7 @@
 
 Wetterprognosen, PV-Physik und lokale Residualmodelle für bis zu sieben lokale Kalendertage einschließlich heute: Resttag und bis zu sechs Folgetage, abhängig von der Wetterabdeckung. Unterschiedliche Stringausrichtungen, gemeinsame AC-/DC-Ausgabestufen und wiederkehrende Verschattung werden berücksichtigt. Frische HA-Temperatur/Windwerte, optionale horizontale Globalstrahlung und geeignete PV-Leistung unterstützen den kurzfristigen Nowcast.
 
-**Stand, 28.10.2026:** Version **0.2.16** ergänzt das Originaldatenarchiv und chronologische Replays. Der letzte abgeschlossene Installationsnachweis betrifft 0.2.15; Prüfung und Auslieferung des neuen Stands werden im [Entwicklungsstand](docs/entwicklungsstand.md) dokumentiert. [Release und Upgrade](docs/release-0.2.16.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
+**Stand, 28.10.2026:** **0.2.17** korrigiert den Rundungsvergleich beim Original-/Schattenreplay. 1.634 Tests ohne Skips, 90,84 % kombinierte Abdeckung und ein unabhängiger begrenzter Sol/high-Review sind abgeschlossen. Der letzte Installationsnachweis betrifft 0.2.16; die neue Liveabnahme wird getrennt nachgetragen. [Release und Upgrade](docs/release-0.2.17.md), [Betriebs- und Prüfstand](docs/entwicklungsstand.md), [Validierungsplan](docs/validierung.md).
 
 **Messdatenänderungen in 0.2.13:** Die [Messaufbereitung](docs/messintervalle-92-prozent.md) behandelt kurze Rundungsbursts, wählt den längsten gültigen Messblock und verlangt nun 92 % Abdeckung mit höchstens drei Minuten Lücke je Rand. Veröffentlichung und Installation sind gegenüber dem bisherigen 0.2.12-Stand getrennt nachgewiesen.
 
@@ -35,9 +35,9 @@ Herstellerunabhängige String-/Stufenkonfiguration, optionale HA-Sensoren: keine
 | [Bedienung](docs/bedienung.md) | Alle Einrichtungsfelder, Sensoren, Energy, Lernstatus und Fehlerbehebung |
 | [Datenschutz](docs/datenschutz.md) | Externe Datenflüsse, lokale Speicherung und Diagnoseweitergabe |
 
-HACS-Mindestversion ist **Core 2026.10.2**. Historische Kompatibilitätsprüfungen betreffen **2026.10.2/.3/.4** mit Python 3.14; die vollständige Suite für **0.2.16** läuft auf **2026.10.4**. Andere Versionen sind damit nicht automatisch neu geprüft. **HAOS ist bislang nur auf amd64 mit passender CPython-3.14-Musl-Binärbasis belegt.** ARM/Raspberry Pi und andere Python-ABIs sind nicht qualifiziert. Der HA-unabhängige Modellkern unterstützt Python ab 3.13.
+HACS-Mindestversion ist **Core 2026.10.2**. Historische Kompatibilitätsprüfungen betreffen **2026.10.2/.3/.4** mit Python 3.14; die vollständige Suite für **0.2.17** läuft auf **2026.10.4**. Andere Versionen sind damit nicht automatisch neu geprüft. **HAOS ist bislang nur auf amd64 mit passender CPython-3.14-Musl-Binärbasis belegt.** ARM/Raspberry Pi und andere Python-ABIs sind nicht qualifiziert. Der HA-unabhängige Modellkern unterstützt Python ab 3.13.
 
-Über HACS: **Benutzerdefinierte Repositories** öffnen, `https://github.com/togo42/Adaptive-Solar` als **Integration** hinzufügen und die gewünschte veröffentlichte Version herunterladen. Danach Home Assistant neu starten und **Adaptive Solar** unter **Einstellungen → Geräte & Dienste** hinzufügen beziehungsweise bestehende Einträge weiterverwenden. [Änderungen und Upgrade in 0.2.16](docs/release-0.2.16.md). Die benötigte HAOS-Binärbasis ist unten separat beschrieben; HACS ersetzt diese Abhängigkeit nicht.
+Über HACS: **Benutzerdefinierte Repositories** öffnen, `https://github.com/togo42/Adaptive-Solar` als **Integration** hinzufügen und die gewünschte veröffentlichte Version herunterladen. Danach Home Assistant neu starten und **Adaptive Solar** unter **Einstellungen → Geräte & Dienste** hinzufügen beziehungsweise bestehende Einträge weiterverwenden. [Änderungen und Upgrade in 0.2.17](docs/release-0.2.17.md). Die benötigte HAOS-Binärbasis ist unten separat beschrieben; HACS ersetzt diese Abhängigkeit nicht.
 
 Alternativ den vollständigen Ordner `custom_components/adaptive_solar` in das gleichnamige Verzeichnis der HA-Konfiguration kopieren; Details und Abhängigkeitsprüfung stehen in der Installationsanleitung.
 

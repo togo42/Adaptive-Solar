@@ -21,6 +21,7 @@ from .learning import ResidualLearner
 from .models import (ForecastPoint, ForecastResult, Observation, SiteConfig, TrainingSample,
                      WeatherForecast, WeatherPoint, utc_time)
 from .shading import BeamShadeTable
+from .replay_numeric import COMPUTED_FEATURES, COMPUTED_FLOAT_POLICY, computed_mapping_equal
 
 
 def timestamp(value):
@@ -234,7 +235,7 @@ def compare_results(expected: ForecastResult, actual: ForecastResult, tolerance_
     errors = []
     for key, point in expected_points.items():
         other = actual_points[key]
-        if point.features != other.features:
+        if not computed_mapping_equal(point.features, other.features, COMPUTED_FEATURES):
             return {"matched": False, "reason": "different_features", "max_error_w": None}
         for field in ("baseline_w", "power_w", "lower_w", "upper_w"):
             left, right = getattr(point, field), getattr(other, field)
@@ -250,7 +251,8 @@ def compare_results(expected: ForecastResult, actual: ForecastResult, tolerance_
         errors.append(member["max_error_w"])
     maximum = max(errors, default=0.0)
     return {"matched": maximum <= tolerance_w, "reason": "numerical_comparison", "max_error_w": maximum,
-            "tolerance_w": tolerance_w, "points": len(actual.points)}
+            "tolerance_w": tolerance_w, "points": len(actual.points),
+            "computed_float_comparison": dict(COMPUTED_FLOAT_POLICY)}
 
 
 def replay_forecast(event: dict, events: list[dict], *, as_of: datetime | None = None,

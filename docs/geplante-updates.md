@@ -4,8 +4,8 @@ Stand: 28.10.2026. Diese Liste dokumentiert beauftragte Folgeänderungen und der
 
 ## AS-START-001: Kalten Wetter-/Physikimport aus dem Eventloop nehmen
 
-**Status: in 0.2.16 behoben und lokal geprüft; Liveabnahme separat im
-[Entwicklungsstand](entwicklungsstand.md).** Historischer Befund beim produktiven
+**Status: in 0.2.16 behoben, lokal geprüft und beim nativen Neustart ohne
+erneute Blocking-Meldungen abgenommen. [Nachweis](entwicklungsstand.md).** Historischer Befund beim produktiven
 Start von 0.2.15 auf Core 2026.10.4:
 HA meldete vier blockierende Datei-/Modulzugriffe während des Imports von
 pvlib/SciPy. Alle vier Einträge wurden geladen und lieferten danach gültige

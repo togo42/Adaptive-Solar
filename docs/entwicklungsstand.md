@@ -1,6 +1,45 @@
 # Entwicklungsstand und offene Nachweise
 
-## Releasevorbereitung 0.2.16 vom 28.10.2026
+## Releasevorbereitung 0.2.17 vom 28.10.2026
+
+Der reale 0.2.16-Replaybefund wurde auf kleinste Unterschiede berechneter
+Gleitkommawerte eingegrenzt: gleiche Intervallunterstützung, Originaldaten und
+Gateentscheidungen; maximal 2,3e-12 W Abweichung. Auch der direkt mit Python
+`math.sin`/`math.cos` berechnete Jahreszyklus unterschied sich um ein ULP.
+Unterschiedliche Laufzeit-/libm-Umgebungen sind die naheliegende Erklärung;
+eine bestimmte Bibliothek wurde nicht als alleinige Ursache nachgewiesen.
+
+Die feste Vergleichspolicy `computed-float-roundoff-v1` erlaubt ausschließlich
+benannte berechnete Werte mit absoluter/relativer Toleranz je `1e-12`.
+Produktive Physik, Lernen, Eingaben, Zeitunterstützung und Gateentscheidungen
+bleiben unverändert. [Genauer Vertrag](archive-storage-contract.md),
+[Upgrade](release-0.2.17.md). Der alte Datensatz passt numerisch mit der neuen
+Vergleichsregel; seine formale Abnahme bleibt wegen der unverändert anderen
+Quellprovenienz korrekt abgelehnt. Dafür gibt es keine rückwirkende Freigabe.
+
+**1.634 Tests ohne Skips**, kombinierte Abdeckung **90,84 %** (Zeilen 93,25 %,
+Zweige 85,08 %), Ruff, `pip check` und Diffprüfung bestanden. 121 geprüfte
+Komponenten-/Test-/Skriptdateien sind unverändert; Digest
+`644b8fdd03573e8d7bbd78768f70124dcfa618e682dc432fe3f41768151af7aa`.
+Der unabhängige GPT-6.1-Sol/high-Review bindet vier Patchdateien und dieses
+Quellmanifest: keine blockierenden Befunde; 109 Replay-/Schattentests und
+anschließend 38 eingefrorene Rundungstests bestanden. Änderungen an Rohwerten,
+Zeitstempeln, Policy, Bin/Zählern und selbst eine durch Rundung veränderte
+Gateentscheidung werden weiterhin zurückgewiesen. Eine mehrtägige Folge mit
+sechs angenommenen Lernschritten prüft die Fortführung freigegebener Faktoren.
+
+Wheel, Sdist und Integrations-ZIP sind gebaut; alle 38 Komponentendateien
+sind bytegleich im Wheel und 19 HA-/Kernmodule importieren aus einer getrennten
+regulären Wheelinstallation.
+
+Private Test-/Reviewnachweise liegen unter `artifacts/release-0.2.17/`.
+Die 23 bekannten SQLite-ResourceWarnings aus Tests bleiben getrennt von der
+Laufzeitbewertung. Veröffentlichung und neue, zur Quellversion passende
+Liveaufnahmen werden separat nachgetragen. Der folgende 0.2.16-Nachweis bleibt
+historisch und beschreibt auch dessen fehlgeschlagene Replayabnahme.
+
+
+## Historischer Veröffentlichungs- und Installationsnachweis 0.2.16
 
 Der Archivzweig wurde mit dem veröffentlichten Stand 0.2.15 zusammengeführt.
 Messkontinuität, zeitgebundene Schema-3-Schattenfreigaben, optionale Physik-/
@@ -30,9 +69,72 @@ Quellmanifest, Testreceipt und beiden Reviewreceipts.
 
 Wheel, Sdist und Integrations-ZIP sind gebaut. Alle 37 Integrationsdateien sind
 bytegleich im Wheel, 18 HA-/Kernmodule importieren aus einer getrennten regulären
-Wheelinstallation. Veröffentlichung und anschließende Laufzeitprüfung werden
-separat nachgetragen; diese lokalen Nachweise behaupten keine aktive Installation
-oder bessere Prognosegüte. [Releasehinweise](release-0.2.16.md).
+Wheelinstallation. Die vier veröffentlichten Releaseartefakte wurden
+bytegleich zurückgeladen. [v0.2.16](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.16)
+ist aus Commit `2881fd3a5715fe4e7fb882aa6653a81ad3540b75` veröffentlicht und auf
+`main` übernommen. [Main-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40724322250)
+und [Tag-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40724322136) sind
+abgeschlossen erfolgreich; heruntergeladene JUnit-/Coverageartefakte bestätigen
+je 1.596 Tests ohne Skips und 90,83 % kombinierte Abdeckung.
+[Releasehinweise](release-0.2.16.md).
+
+Die Installation erfolgte über HACS auf unverändertem Core 2026.10.4, nach neuer
+nativer geschützter Konfigurations-/App-Sicherung ohne Recorder-DB. Metadaten
+und vollständiger äußerer Archivhash sind geprüft; Entschlüsselung/HA-Restore
+wurden nicht ausgeführt. Zusätzlich sind 30 vorherige Komponentendateien und
+acht Lern-/Vergleichsstores für einen gezielten Rückweg gesichert.
+Nach Prüfung aller 37 ausgelieferten Dateien wurde Core **einmal neu gestartet**.
+
+Vier Einträge sind mit Version 0.2.16 geladen; **80 Entity-/Unique-IDs, vier Geräte,
+alle Standort-/String-/Messoptionen, Energy, Ertragsdashboard, Fingerprints,
+abgeschlossene Messintervalle und historische Tagesstartwerte** sind erhalten.
+Der einzige Optionsunterschied ist das anschließend per nativem Optionsflow
+aktivierte `archive_export`. Alle vier Puffer sind aktiv und melden in der
+Abnahme keine Lücken, Drops oder Exportfehler. Die Quellprovenienz in echten
+Archivnutzdaten stimmt mit den Pythonbytes des Release-Tags überein.
+
+Drei vollständige lokale Folgetage pro Anlage, Leistung/Energieeinheiten und
+nominelle Grenzen sind geprüft. Konfiguration gültig, keine aktiven Repairs,
+keine neuen Adaptive-Solar-Fehler und keine blockierenden Kaltstartmeldungen im
+Readback. Damit ist AS-START-001 für diesen nativen Neustart nicht reproduziert.
+Keine ursprüngliche Messquelle wurde erzwungen. Private HA-Betriebsbelege:
+`data/release-0.2.16-20261028/`.
+
+Auf dem getrennten Archivhost sind alle vier Timer aktiv: HA-Export alle fünf
+Minuten, Wetter und Recorder/Referenzen stündlich sowie Retention täglich.
+Die erste automatische HA-Aufnahme wurde mit vier erfolgreichen Teilabrufen
+bestätigt. Acht Wetterprodukte, zwölf Referenzgruppen und getrennte Roh-Istwerte
+werden erfasst; ohne zusätzliche Qualitätsmasken gelten diese Recorderwerte
+weiterhin nicht als qualifizierte Trainingslabels.
+
+Ein eingefrorener Datensatz aus sieben Quellen wurde auf den Arbeitsrechner
+übertragen. Aus seinen 19 Originaldateien wurden Index, 213 Ereignisidentitäten
+und Pin unverändert rekonstruiert. Dies prüft eine konkrete Originaldaten-
+Wiederherstellung; es ist keine vollständige HA-Wiederherstellung und kein
+Nachweis einer dauerhaft betriebenen zweiten Sicherung.
+
+**Offener Replaybefund dieses Releases:** Die tatsächlichen Ausgaben unterscheiden
+sich zwischen HA und Archivhost höchstens um 2,3e-12 W bei gleicher Quellprovenienz
+und den fünf erfassten Bibliotheksversionen. Der bitgenaue Vergleich abgeleiteter
+Gleitkommafeatures beziehungsweise Sonnenstandsreferenzen weist dennoch harmlose
+Rundungsdifferenzen zurück. Original- und Schatten-CLI-Replays sind für diesen
+0.2.16-Livedatensatz deshalb **nicht abgenommen**. Die fehlgeschlagenen Receipts
+und der unveränderte Pin bleiben erhalten; eine Korrektur braucht ein neues
+Release und neu dazu passende Originalaufnahmen. Roharchivierung und automatische
+Aufnahme sind von diesem Vergleichsfehler nicht betroffen.
+
+Der Host verwendet NumPy 2.3.2 passend zur tatsächlichen HA-Provenienz sowie
+pandas 2.3.3 als kompatiblen Pin. Live-HA-pandas ist nicht verifiziert, Python-
+Patchstände und Betriebssystem-ABI unterscheiden sich; eine vollständig gleiche
+Laufzeitumgebung wird nicht behauptet. Zuletzt etwa 7,5 GiB frei. Die rund
+16-minütige Anlaufmessung trägt keine Zweijahreskapazitätszusage: `stats` setzt
+für die Ratenanzeige mindestens einen Tag an; eine naive Hochrechnung der ersten
+Minuten ist wegen Einmalkosten ebenfalls nicht belastbar. Früh nach vollständigen
+Tagen nachmessen, danach die geplanten Drei-/Sechsmonatsprüfungen beibehalten.
+
+Diese Betriebsnachträge liegen außerhalb des unveränderten Release-Tags und
+seiner Reviewreceipts. Sie ändern keine Integrationsbytes und belegen keinen
+Prognosevorteil oder lokal kalibrierte Ensemblewahrscheinlichkeiten.
 
 
 ## Historischer Prüfstand des Archivzweigs vor Zusammenführung mit 0.2.15
