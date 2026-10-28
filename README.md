@@ -75,6 +75,8 @@ Synthetische Offline-Demo; für DC `--config examples/site-dc.json` einsetzen:
 
 `--live` ruft Open-Meteo auf und ist nicht rückdatierbar. Reale Prognosen/Recorder-Istwerte archivieren und vergleichen: [Aufnahmeleitfaden](docs/benchmark-aufnahme.md). Private Zuordnungen unter ignoriertem `data/`; Standorte, Entity-IDs und Zugangsdaten weder in Git noch Reviews.
 
+Die [Analyse zu Stundenintegration, Reflexionsverlusten und Archivierung](docs/physikvergleich-und-archivierung.md) beschreibt einen geplanten Vierarmvergleich und die Aufteilung zwischen HA-Exportpuffer und externem Langzeitarchiv. Originalwetterexport, neue Physikvarianten und Archivbetrieb sind damit nicht implementiert.
+
 ## Recherche und Quellen
 
 Grundlagen: [Ensembles](ensemble_hybrid_solar_forecasting.md), [ML](solar_ml_research.md), [Daten/Merkmale](solarprognose_datenquellen_feature_engineering.md), [Gesamtrecherche](solar-prognose-ml-recherche.md). Literaturmetriken anderer Datensätze sind keine erwarteten lokalen Ergebnisse. Referenzen: [Helios Forecast](https://github.com/ReikanYsora/Helios-Forecast), [Open-Meteo Solar Forecast](https://github.com/rany2/open-meteo-solar-forecast); kein übernommener Quellcode.

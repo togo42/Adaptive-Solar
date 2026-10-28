@@ -2,6 +2,11 @@
 
 Stand: 25.10.2026. Collector lokal mit simulierten HA-Antworten getestet; native Adapter/Statistikquellen lesend geprüft. Kein produktiver Vergleich gestartet und keine HA-Einstellung verändert. Diese Anleitung konsolidiert den lokal archivierten Vorgänger `artifacts/releases/0.2.5-blocked/source/docs/benchmark-aufnahme.md`; das Archiv wird nicht veröffentlicht. Annahmekriterien: [Validierungsplan](validierung.md).
 
+Die vorhandenen Collector sichern Prognoseergebnisse und Istwerte, kein vollständiges
+Originalwetterarchiv für geänderte Physik. Der ergänzende
+[Archivierungs- und Physikvergleichsvorschlag](physikvergleich-und-archivierung.md)
+beschreibt diesen noch nicht implementierten Ausbau.
+
 ## 1. Vergleichbare Messgrenze wählen
 
 Alle drei Anbieter müssen dieselben Module, Ausgabestufen, nominellen Grenzen und dieselbe AC-/DC-Messgrenze abbilden. Keine Aufteilung eines Anlagenwerts auf Einzelstufen. Native Adaptive-Energy-Prognosen gelten für homogene Entries; Stufen liefern eigene Qualitätskurven, Mixed-Entries keinen Gesamtforecast einer einzelnen Messgrenze.

@@ -212,6 +212,10 @@ AC-/DC-Grenze und die Aggregationspolitik fest. Originalwetter oder unveränderl
 Referenzen darauf erlauben die Wiederholung mit den damals verfügbaren Eingaben.
 NWP-Ausgang, GHI-Anwendung und endgültige Lern-/Powerkorrektur bleiben zuordenbar.
 
+Die [Vertiefung zu Physikvergleich und Archivierung](physikvergleich-und-archivierung.md)
+konkretisiert den Vorschlag mit Datenvertrag, HA-Exportpuffer, externem
+Langzeitarchiv und Abnahmekriterien. Sie dokumentiert Planung, keine Umsetzung.
+
 **Abnahme:**
 
 - Ausgabe-/Empfangszeiten, Originalintervall, Modellkennung, Kohorte, Features und Konfigurations-/Vertragsbindung sind ausreichend, um den aktuellen Mittelwert samt nachfolgenden Stufen zu reproduzieren. Fehlende Mitglieder bleiben fehlend.
