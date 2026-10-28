@@ -77,6 +77,8 @@ Synthetische Offline-Demo; für DC `--config examples/site-dc.json` einsetzen:
 
 Die [Analyse zu Stundenintegration, Reflexionsverlusten und Archivierung](docs/physikvergleich-und-archivierung.md) beschreibt einen geplanten Vierarmvergleich und die Aufteilung zwischen HA-Exportpuffer und externem Langzeitarchiv. Originalwetterexport, neue Physikvarianten und Archivbetrieb sind damit nicht implementiert.
 
+Die [Wettermodellrecherche für die nächsten 24/48 Stunden](docs/wettermodelle-und-prognosehorizonte.md) ergänzt den Plan um regionale Kurzfristmodelle, länger verfügbare Vergleichsmodelle und echte Wetterensembles für Ertragswahrscheinlichkeiten und spätere Speicherentscheidungen. Vorgesehen sind 24 Monate Archivaufbewahrung mit erneuter Speicherbewertung nach einigen Monaten; Ensembleverarbeitung, neue Modellgewichte oder Akkuaktionen sind damit nicht umgesetzt.
+
 ## Recherche und Quellen
 
 Grundlagen: [Ensembles](ensemble_hybrid_solar_forecasting.md), [ML](solar_ml_research.md), [Daten/Merkmale](solarprognose_datenquellen_feature_engineering.md), [Gesamtrecherche](solar-prognose-ml-recherche.md). Literaturmetriken anderer Datensätze sind keine erwarteten lokalen Ergebnisse. Referenzen: [Helios Forecast](https://github.com/ReikanYsora/Helios-Forecast), [Open-Meteo Solar Forecast](https://github.com/rany2/open-meteo-solar-forecast); kein übernommener Quellcode.

@@ -31,6 +31,15 @@ folgen ein Versuch mit feinerer Zeitintegration und die IAM-Erweiterung
 (Incidence Angle Modifier). Vier getrennte Vergleichsarme sollen den jeweiligen
 Beitrag und ihr Zusammenwirken zeigen.
 
+Das Archiv dient darüber hinaus späteren Wettermodell-, Ensemble- und
+Lernvergleichen. Vorrang haben die nächsten 24/48 Stunden als Grundlage für
+Speicherentscheidungen. Die [Wettermodellrecherche vom 28.10.2026](wettermodelle-und-prognosehorizonte.md)
+konkretisiert Einzelmodelle, kurze Horizonte, längere Rückfallmodelle und den
+zusätzlichen Datenbedarf. Ein kurzer Modellhorizont ist kein Ausschlussgrund.
+Echte Wetterensembles sind ab Aufnahmestart vorgesehen: vollständige Mitglieder
+von ICON-D2-EPS und IFS-ENS bilden die Grundlage für später geprüfte
+Ertragswahrscheinlichkeiten; ein Mittelwert allein genügt dafür nicht.
+
 **Architekturvorschlag:** HA sichert die tatsächlich verwendeten Eingaben mit
 einem begrenzten, dauerhaften Exportpuffer. Ein externer Archivhost übernimmt
 Langzeitspeicherung und Auswertung. Konkrete Hostnamen, Zielpfade,
@@ -195,12 +204,14 @@ nicht zwingend die von HA tatsächlich verwendete Wetterversion.
 | Datensatz | Erforderlicher Inhalt |
 | --- | --- |
 | Wetterabruf | Ursprüngliche Antwort ohne Zugangsdaten, Einheiten, Modellkennung, Originalintervalle, Empfangszeit, Parser-/Normalisierungsregeln und daraus erzeugte Wetterzellen |
+| Wetterensemble | Vollständige Verläufe je Lauf und Mitglied, erwartete/empfangene Mitglieder, Kontrolllauf soweit vorhanden und Lücken; gemeinsame Variablen- und Zeitzuordnung erhalten |
 | Prognoseausgabe | Ausgabezeit, Zielintervalle, verwendete Wetter-IDs, gültige Modellkohorte, Einzelmodellleistungen, Ensemblebaseline und Endergebnis einschließlich Ausfällen |
 | Konfiguration | Geometrie, AC-/DC-Messgrenze, Leistungsgrenzen, feste Verluste, Horizonte und Dämpfung; versioniert und über Hash verknüpft |
 | Software | Integrations-/Schema-/Featureversion und reproduzierbarer Quell- sowie Bibliotheksstand |
 | Beobachtungen und Korrekturen | Original-Berichts- und Empfangszeiten, Werte, Gültigkeit, verwendete GHI-/Leistungs-/Umweltkorrekturen und Schattenzustand zur Ausgabe |
 | Istenergie | Originale Recorder-Antworten, angeforderte Einheit, stündliche change-Energie, Erfassungszeit und getrennte Qualitätsbelege |
 | Referenzprognosen | Unveränderte ausgewählte Helios-/Open-Meteo-Kurven, tatsächliche Empfangszeiten und gemeinsame Messgrenze |
+| Wahrscheinlichkeitsausgabe | Fenster und Energieschwelle, rohe Szenarien/Verteilung, Quantildefinition, Kalibrierungsstand mit Trainingsstichtag und Quellenbindung; getrennt vom Punktforecast |
 
 GHI, DNI und DHI bedeuten globale horizontale, direkte normale beziehungsweise
 diffuse horizontale Strahlung. Originalwerte und abgeleitete oder korrigierte
@@ -237,8 +248,15 @@ zu messende Planungswerte gelten:
 | --- | --- |
 | Dauer des HA-Puffers | Bis zu 72 Stunden, zusätzlich harte Byte-/Zeilengrenze |
 | Abruf durch den Archivhost | Alle fünf Minuten, ohne neue Wetterabrufe auszulösen |
-| Langzeitaufbewahrung | Zunächst zwölf Monate |
-| Speicherprüfung | Kurzer Pilot vor Festlegung verbindlicher Grenzen |
+| Langzeitaufbewahrung | 24 Monate; Nutzerentscheidung vom 28.10.2026 |
+| Speicherprüfung | Kurzer Pilot; erneute Bewertung nach einigen Monaten, vorgeschlagen nach drei und sechs Monaten ab Aufnahmestart |
+
+Die erneute Bewertung erfasst komprimierte Bytes pro Tag und Modell, Index,
+Messdaten, Lernzustände, temporären Replaybedarf und Backups. Daraus wird der
+Bedarf für 24 Monate samt Reserve neu hochgerechnet. Mehr Modelle und feinere
+Messreihen sind gesondert auszuweisen. Eingefrorene Vergleichsdatensätze bleiben
+als vollständige Pakete mit ihren referenzierten Originalen erhalten; ihre
+Aufbewahrung wird getrennt von der rollierenden Frist festgelegt.
 
 Bei Überlauf entstehen ein sichtbarer Fehlerzustand und eine dokumentierte
 Sequenzlücke; unbegrenztes Anwachsen oder stiller Datenverlust sind zu vermeiden.
@@ -277,12 +295,13 @@ Sie sind weder begonnene Implementierung noch freigegebener Remote-Betrieb.
 
 | Paket | Abhängigkeit und Ergebnis | Wesentliche Abnahme |
 | --- | --- | --- |
-| 1. Daten- und Vergleichsvertrag | Zuerst: Schema, Zeitsemantik, Kohorte, Messgrenzen und Ressourcenmessplan | Ein vollständiges Beispiel ist ohne private Betriebsdaten erklärbar; Cutoffs und Ausschlüsse stehen vor dem Versuch fest |
+| 1. Daten- und Vergleichsvertrag | Zuerst: Schema, Zeitsemantik, Kohorte, Messgrenzen, Wettermodellumfang und Ressourcenmessplan | Ein vollständiges Beispiel ist ohne private Betriebsdaten erklärbar; Cutoffs und Ausschlüsse stehen vor dem Versuch fest; kurze und lange Modellhorizonte bleiben nutzbar |
 | 2. HA-Erfassung und Exportpuffer | Nach 1: Originalwetter und tatsächlich verwendete Prognoseeingaben erfassen | Neustart, unterbrochener Schreibvorgang, fehlerhafte Daten und Pufferüberlauf sind geprüft; bestehende Lernhistorie bleibt erhalten |
 | 3. Collector und Langzeitarchiv | Nach 1; Transportabnahme nach 2 | Wiederholter Abruf erzeugt keine Doppelzählung; Cursor geht erst nach dauerhaftem Speichern vor; Lücken, Prüfsummen und Indexwiederaufbau sind geprüft |
 | 4. Istwerte und Referenzen | Nach 1; vorhandene Capturewerkzeuge erweitern | Ganze Intervalle, Rohrevisionen, Qualitätsnachweise, Fristen und beide DST-Wechsel sind nachvollziehbar |
 | 5. Baseline-Replay und Pilot | Nach 2–4 | Festgelegte gespeicherte Physikbaseline ist innerhalb vorab definierter numerischer Toleranz reproduzierbar; Datenrate, Speicherbedarf und vollständige gemeinsame Tage sind gemessen |
 | 6. Vierarmvergleich | Nach 5; begrenzte private historische Vorstudie separat möglich | Varianten B/C/D gegen A auf derselben Paarmenge; Stunden-/Tagesfehler, Bias, Abdeckung und Unsicherheit je Stufe dokumentiert |
+| 7. Ensemble-Replay und Wahrscheinlichkeitsprüfung | Erfassung ab 2–4; nach 5 unabhängig von 6 auswertbar | Vollständige Mitgliedsverläufe reproduzierbar; Energiequantile und Schwellenwahrscheinlichkeiten chronologisch kalibriert und auf späteren Tagen geprüft; Quellenwechsel erzeugen keine erfundenen Szenarien |
 
 Die technische Archivabnahme, ein historischer Versuch, die prospektive
 Genauigkeitsprüfung und eine mögliche produktive Modelländerung bleiben

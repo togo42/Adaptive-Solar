@@ -66,6 +66,11 @@ HARMONIE oder andere regionale Modelle bleiben mögliche externe Forschungsquell
 Die tatsächlich auswählbaren UI-Vorgaben und die Möglichkeit eigener Modellkennungen
 stehen in der [Bedienung](docs/bedienung.md#2-schritt-standort).
 
+Die [vertiefte Wettermodellrecherche vom 28.10.2026](docs/wettermodelle-und-prognosehorizonte.md)
+vergleicht konkrete Produkte und Horizonte für die nächsten 24/48 Stunden.
+Sie ergänzt die Archivierungsplanung, ohne eine lokale Rangfolge oder eine
+produktive Änderung der Modellauswahl zu behaupten.
+
 ### 2.3 Strahlungs- und Zeitsemantik
 
 GHI und DHI sind horizontal, DNI bezieht sich auf die zur direkten Strahlung normale

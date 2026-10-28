@@ -299,6 +299,12 @@ und zur Gleichgewichtung regularisierte Gewichte prüfen. Auswahl der Mitglieder
 Horizontabhängigkeit und feste ICON-D2-Bevorzugung sind weitere getrennte
 Politiken. Kosten und Abdeckung zählen neben dem Forecastfehler.
 
+Die [Wettermodellrecherche vom 28.10.2026](wettermodelle-und-prognosehorizonte.md)
+konkretisiert den Archivgrundbestand, die Priorität der ersten 24/48 Stunden und
+den Wechsel bei auslaufenden Regionalmodellen. Sie dokumentiert außerdem die
+Begrenzung durch kalendertagsbezogene Abrufe; eine lokale Genauigkeitsrangliste
+oder implementierte Bevorzugung folgt daraus nicht.
+
 **Abnahme:**
 
 - Gewichte werden ausschließlich aus vor Ausgabe verfügbaren älteren Daten bestimmt; die abschließenden Prüftage bleiben von Auswahl und Tuning unberührt. Modellüberlappungen und unterschiedliche Horizonte sind ausgewiesen.
