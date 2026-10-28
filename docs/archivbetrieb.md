@@ -1,8 +1,9 @@
 # Originaldaten archivieren und Prognosen wiederholen
 
-Stand: 28.10.2026, unveröffentlichter Entwicklungsbranch `codex/archive-ensembles`.
-Die Werkzeuge sind implementiert. HA-Export, Host-Timer und private Zuordnungen
-sind damit noch nicht auf einer produktiven Installation aktiviert.
+Stand: 28.10.2026, Funktionsumfang 0.2.16. Den tatsächlich veröffentlichten und
+installierten Stand nennt der [Entwicklungsstand](entwicklungsstand.md).
+Die [Hostinstallation](archiv-host-installation.md) beschreibt Dienste, Timer,
+verschlüsselte Zugangsdaten und die Platzüberwachung.
 [Speichervertrag](archive-storage-contract.md), [Modellauswahl](wettermodelle-und-prognosehorizonte.md)
 und [Physikversuchsplan](physikvergleich-und-archivierung.md) ergänzen diese Anleitung.
 Die [Speicherentscheidung und der Transport](archiv-speicherung-und-transport.md)
@@ -167,7 +168,9 @@ rekonstruiert; spätere Beobachtungen sind nicht zulässig.
 `--physics-ablation` vergleicht zusätzlich den NWP-Physikpfad ohne lokale
 Beobachtungs-/Lernkorrekturen. `Candidate`/`ReplayInputs` in `core/replay.py`
 erlauben eigene versionierte Kandidaten auf frisch rekonstruierten identischen
-Eingaben. Feinere Zeitintegration und IAM sind noch keine implementierten Arme.
+Eingaben. Die seit 0.2.15 verfügbaren Zeitintegrations-/IAM-Parameter können in
+einem ausdrücklich versionierten Physikkandidaten verglichen werden; die CLI
+aktiviert sie nicht automatisch als zusätzliche Arme.
 Ein gelungener Replay ist ein Reproduzierbarkeitsnachweis, kein Genauigkeitsgewinn.
 
 ### 5.1 Schattenlernen chronologisch vergleichen

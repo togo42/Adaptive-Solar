@@ -22,7 +22,10 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", ".[test,ha-test]"
 PY
 .venv/bin/python -m pip check
 .venv/bin/ruff check custom_components tests scripts
-.venv/bin/python -m pytest -q --junitxml=artifacts/tests.xml
+.venv/bin/python -m pytest -q --junitxml=artifacts/tests.xml \
+    --cov=custom_components.adaptive_solar --cov-branch \
+    --cov-report=term-missing:skip-covered \
+    --cov-report=xml:artifacts/coverage.xml --cov-report=json:artifacts/coverage.json
 ```
 
 Das ist derselbe Installationsumfang wie in [CI](../.github/workflows/tests.yml).
@@ -40,6 +43,29 @@ Für Core .2 wurde NumPy 2.3.2 mit Pandas 2.3.3 verwendet. Matrixprüfungen jewe
 mit passender expliziter Core-/Pluginauflösung und `pip check` beginnen. Ein einzelner
 Lauf prüft seine tatsächliche Umgebung, nicht automatisch alle drei Matrixarme.
 
+`pytest-cov` gehört zum Testextra. Die Coveragekonfiguration in `pyproject.toml`
+erfasst sämtliche Komponentenmodule einschließlich des HA-unabhängigen Kerns;
+sie lässt keine neuen Module aus dem Scope. Der Gesamtwert kombiniert ausgeführte
+Statements und Zweige. Das Gate verlangt zunächst 90,00 %, ohne feste Testanzahl.
+XML und JSON berichten zusätzlich die getrennten Zeilen-/Zweigzahlen; CI lädt
+JUnit- und Coverageberichte auch bei einem fehlgeschlagenen Lauf als Artefakte hoch.
+Ein Coveragewert beweist weder korrekte fachliche Ergebnisse noch Forecastgüte.
+Die endgültige Schwelle und der gemessene Entwicklungsstand müssen am stabilen
+Quellstand gemeinsam abgeglichen werden; Paralleländerungen während eines Laufs
+sind kein belastbarer Baselinebeleg.
+
+Die native HA-Konfiguration nutzt pro Test die Pluginfixture `hass_tmp_config_dir`
+über `hass_config_dir`. Echte Storeprüfungen schreiben so ausschließlich in die
+temporäre Testkonfiguration und verändern keine installierten Pluginfixtures.
+Coverage-Rohdaten liegen ebenfalls ignoriert unter `artifacts/`.
+Für `adaptive_solar`-Stores schreibt die Testfixture native Dateien zusätzlich
+zum Speicherabbild des HA-Testplugins. Restorefixtures legen vollständige echte
+Store-Envelopes an; sie ersetzen das Laden nicht durch ein vorgefertigtes
+`async_load`-Ergebnis. Verzögerte Datenfunktionen werden dabei genau einmal
+ausgewertet, bevor derselbe eingefrorene Payload auf Platte und ins Speicherabbild
+geht. Damit bleiben Korruptionsschutz, echte Schreibfehler, Rücklesen und
+Migrationen unter den normalen Setup-/Close-Gates prüfbar.
+
 ## 2. Änderungen und Beiträge
 
 Vor Änderungen aktuellen Code und zugehörige Dokumentation lesen. Fehlerfälle mit
@@ -48,6 +74,15 @@ Standorte/Entitäten nicht in Testfixtures übernehmen. Bei Prognoseänderungen 
 Mess- und Ausgabemessgrenzen erhalten; sinnvolle Verhaltenstests für Lücken, beide
 DST-Wechsel und as-of-Verfügbarkeit ergänzen. Bei reinen Textkorrekturen genügen
 Link-/Inhalts-/Darstellungsprüfungen.
+
+Die neuen Datenverträge sind nach Themen getrennt:
+[Messkontinuität und Endpunktfenster](measurement-learning.md),
+[früher Bias ausschließlich im Shadow](early-bias-shadow.md),
+[Physik-/Schatten-/Nowcastkandidaten](physics-learning-options.md),
+[Fit-/Wetterfehler und Ressourcen](forecast-resilience.md) und
+[prospektive Modellvergleichsarchive](model-comparison-archive.md).
+Die bestehenden Residualgates bleiben aktiv; ein Kandidat oder größeres Archiv
+ersetzt keine eingefrorene prospektive Vergleichsmessung.
 
 Pull Requests beschreiben Problem, resultierendes Verhalten und Prüfungen. Zu
 Versionsänderungen `pyproject.toml`, HA-Manifest und Releasebeschreibung abgleichen;
@@ -77,7 +112,12 @@ Repositoryquellen und nötige Grok-Nachreviews liegt seit 27.10.2026 die
 dauerhafte [Freigabe in AGENTS.md](../AGENTS.md#dauerhafte-grok-transferfreigabe)
 vor; keine erneute Nachfrage je Payload-Hash. Private Daten und andere Empfänger
 sind nicht umfasst. `--prepare-only` prüft lokal den
-Exportumfang. Der aktuelle vollständige Scope benötigt dabei ausdrücklich
+Exportumfang. Neue Codex-Aufrufe binden 800.000 angeforderte Kontexttokens in
+Receipt und beiden Kontextflags; Grok bleibt bei 500.000. Nur die bekannten
+vollständig gebundenen Codex-Referenzvarianten 500k/800k bleiben zulässig. Das
+angeforderte Budget ist keine garantierte native Effektivkapazität und ersetzt
+keinen vollständigen Audit ohne Compaction; [Details](validierung.md#4-lokale-prüfung-und-review).
+Der aktuelle vollständige Scope benötigt dabei ausdrücklich
 `--transport chunks`, da er die unveränderte Single-Bytegrenze überschreitet;
 die Vorbereitung ist kein Kontext- oder Reviewnachweis. Geänderte Forschung kann
 nicht über alte Forschungs-SHAs geerbt werden.

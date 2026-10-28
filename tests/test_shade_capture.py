@@ -104,7 +104,7 @@ async def test_default_off_has_no_raw_subscriptions_snapshot_or_reports(hass):
 
 async def test_capture_before_after_accepted_rejected_and_session_seed(hass):
     instance = configured(hass)
-    instance.shading.record("i", 180, 45, NOW - timedelta(days=1), 0.8)
+    instance.shading.record("i", 180, 45, NOW - timedelta(days=1), 0.8, as_of=NOW - timedelta(days=1))
     seed = instance.shading.to_dict()
     with freeze_time(NOW, real_asyncio=True), patch("custom_components.adaptive_solar.coordinator.solar_position", return_value=SimpleNamespace(azimuth_deg=180, elevation_deg=45)), patch("custom_components.adaptive_solar.coordinator.clear_sky_ghi", return_value=800), patch("custom_components.adaptive_solar.coordinator.shade_reference_powers", return_value=(100, 1000)):
         hass.states.async_set("sensor.power", "550", {"unit_of_measurement": "W"})
@@ -128,7 +128,7 @@ async def test_capture_before_after_accepted_rejected_and_session_seed(hass):
         assert second["decisions"]["i"]["accepted"] is False
         assert "stale_or_unpaired" in second["decisions"]["i"]["reasons"]
         assert first["inputs"]["i"] == first["decisions"]["i"]["input"]
-        assert first["schema"] == 1 and first["policy_version"] == "beam-shade-learning-v1"
+        assert first["schema"] == 1 and first["policy_version"] == "beam-shade-learning-v2"
         assert str(UUID(first["session_id"])) == first["session_id"]
         assert first["initial_state_source"] == "session_seed"
         assert first["initial_state_scope"] == "unverified_preexisting_history"

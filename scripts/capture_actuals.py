@@ -21,6 +21,8 @@ Optional private quality file:
 A quality interval asserts evidence over its ENTIRE duration. Mask truth cannot
 be established from the hourly statistics themselves. Unknown coverage,
 curtailment or resets never become accepted labels. No mask means raw-only.
+Positive release requires the complete hour; negative evidence invalidates
+every indivisible Recorder hour it overlaps, at its own quality revision.
 
 Raw responses and masks are retained separately from derived normalization.
 Later Recorder corrections remain separate captures. Conflicting revisions
@@ -30,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from bisect import bisect_left, bisect_right
 from datetime import UTC, datetime, timedelta
 import fcntl
 import json
@@ -49,6 +52,8 @@ ENERGY_FACTORS = {"Wh": 0.001, "kWh": 1.0, "MWh": 1000.0}
 # HA EnergyConverter units describe metadata dimensions, not response scaling.
 ENERGY_UNITS = frozenset({"J", "kJ", "MJ", "GJ", "mWh", "Wh", "kWh", "MWh", "GWh", "TWh", "cal", "kcal", "Mcal", "Gcal", "thm"})
 MAX_DAYS = 32
+INVALIDATING_QUALITY_REASONS = frozenset({"unverified_measurement_coverage", "unknown_curtailment",
+                                        "curtailed", "unknown_counter_reset", "counter_reset"})
 
 
 class CaptureError(ValueError):
@@ -133,6 +138,22 @@ def parse_quality(payload, *, normalized_at: datetime) -> tuple[list[dict], dict
             raise CaptureError("Quality masks must not overlap for the same inverter")
         parsed.append({**row, "start": start, "end": end})
     return parsed, {**provenance, "validated_at": validated.isoformat()}
+
+
+def _quality_rejections(mask) -> set[str]:
+    """Reject known invalid or uncertain support without assuming a good hour."""
+    reasons = set()
+    if mask["quality"] != "valid" or mask["complete_coverage"] is not True:
+        reasons.add("unverified_measurement_coverage")
+    if mask["curtailed"] is None:
+        reasons.add("unknown_curtailment")
+    elif mask["curtailed"]:
+        reasons.add("curtailed")
+    if mask["counter_reset"] is None:
+        reasons.add("unknown_counter_reset")
+    elif mask["counter_reset"]:
+        reasons.add("counter_reset")
+    return reasons
 
 
 def _finite(value) -> bool:
@@ -254,21 +275,14 @@ def normalize_capture(capture, quality=None, *, normalized_at=None) -> dict:
                         values.append(change * ENERGY_FACTORS[unit])
                 if previous is None or not _finite(previous.get("change")) or previous["change"] < 0:
                     reasons.add("missing_or_invalid_predecessor")
-            matching = [mask for mask in masks if mask["inverter_id"] == scope and mask["start"] <= hour and stop <= mask["end"]]
-            if not matching:
+            overlapping = [mask for mask in masks if mask["inverter_id"] == scope
+                           and mask["start"] < stop and hour < mask["end"]]
+            if not any(mask["start"] <= hour and stop <= mask["end"] for mask in overlapping):
                 reasons.add("missing_quality_evidence")
-            else:
-                mask = matching[0]
-                if mask["quality"] != "valid" or mask["complete_coverage"] is not True:
-                    reasons.add("unverified_measurement_coverage")
-                if mask["curtailed"] is None:
-                    reasons.add("unknown_curtailment")
-                elif mask["curtailed"]:
-                    reasons.add("curtailed")
-                if mask["counter_reset"] is None:
-                    reasons.add("unknown_counter_reset")
-                elif mask["counter_reset"]:
-                    reasons.add("counter_reset")
+            for mask in overlapping:
+                # Recorder energy is indivisible: one invalid covered part is
+                # enough to invalidate the hour, without inventing its energy.
+                reasons.update(_quality_rejections(mask))
             if not reasons:
                 energy = sum(values)
                 if not math.isfinite(energy) or not math.isfinite(energy * 1000):
@@ -291,12 +305,18 @@ def actual_records_from_captures(captures, *, as_of=None) -> list[dict]:
     revision. For identical accepted values, advance raw receipt and positive
     quality revision independently. Their combined availability bounds
     observed_at; neither a reread nor a late check backdates the evidence.
+    A partial negative mask invalidates the whole hour at its quality revision;
+    missing evidence or a partial positive mask alone never advances that axis.
+    Explicit invalid or changed predecessor values can contradict an earlier
+    accepted hour, but unqualified predecessor support never creates a label
+    or advances a positive raw revision.
     """
     selected = {}
     selected_receipts = {}
     selected_quality = {}
     invalid_revisions = {}
-    invalid_quality = {}
+    predecessors = {}
+    negative_quality = {}
     cutoff = utc(as_of) if as_of is not None else None
     for capture in captures:
         if not isinstance(capture, dict) or "normalized_at" not in capture or "normalization" not in capture:
@@ -305,18 +325,26 @@ def actual_records_from_captures(captures, *, as_of=None) -> list[dict]:
         if verified["normalization"] != capture["normalization"]:
             raise CaptureError("Actual records differ from raw capture and quality evidence")
         received = utc(capture["retrieved_at"])
+        if cutoff is None or received <= cutoff:
+            for key, power in _predecessor_revisions(verified):
+                predecessors.setdefault(key, []).append((received, power))
         quality_provenance = verified["normalization"]["quality_provenance"]
         quality_validated = utc(quality_provenance["validated_at"]) if quality_provenance else None
         quality_known = max(received, quality_validated) if quality_validated else received
-        quality_reasons = {"missing_quality_evidence", "unverified_measurement_coverage",
-                           "unknown_curtailment", "curtailed", "unknown_counter_reset", "counter_reset"}
+        if quality_validated is not None and (cutoff is None or quality_known <= cutoff):
+            # Quality files may cover hours/scopes outside this raw query.
+            # Retain their own revisions; apply them only to accepted archive
+            # hours after all captures are known, independently of input order.
+            for mask in capture["quality"]["intervals"]:
+                if _quality_rejections(mask):
+                    negative_quality.setdefault(mask["inverter_id"], []).append(
+                        (utc(mask["start"]), utc(mask["end"]), quality_validated))
+        quality_reasons = INVALIDATING_QUALITY_REASONS | {"missing_quality_evidence"}
         for excluded in verified["normalization"]["excluded"]:
             reasons = set(excluded["reasons"])
             key = (excluded["inverter_id"], excluded["start"], excluded["end"])
             if reasons - quality_reasons and (cutoff is None or received <= cutoff):
                 invalid_revisions.setdefault(key, []).append(received)
-            if reasons & (quality_reasons - {"missing_quality_evidence"}) and (cutoff is None or quality_known <= cutoff):
-                invalid_quality.setdefault(key, []).append(quality_validated or quality_known)
         for row in verified["normalization"]["records"]:
             if cutoff is not None and utc(row["observed_at"]) > cutoff:
                 continue
@@ -335,11 +363,76 @@ def actual_records_from_captures(captures, *, as_of=None) -> list[dict]:
                 selected[key] = dict(row)
                 selected_receipts[key] = received
                 selected_quality[key] = record_quality
+    invalid_quality = _quality_invalidations(selected, negative_quality)
     for key, row in selected.items():
         if (any(stamp >= selected_receipts[key] for stamp in invalid_revisions.get(key, ()))
-                or any(stamp >= selected_quality[key] for stamp in invalid_quality.get(key, ()))):
+                or any(stamp >= selected_receipts[key] and (power is None or power != row["power_w"])
+                       for stamp, power in predecessors.get(key, ()))
+                or key in invalid_quality and invalid_quality[key] >= selected_quality[key]):
             raise CaptureError("A later invalid actual revision conflicts with an accepted interval")
     return [selected[key] for key in sorted(selected)]
+
+
+def _predecessor_revisions(verified):
+    """Read only explicit native predecessor values already validated above.
+
+    HA resolves the preceding sum separately even at a query's first row;
+    change=None is invalid data, not a missing query-context placeholder.
+    A missing row or incomplete aggregate alone asserts no contradiction.
+    """
+    raw = verified["raw"]
+    stop = utc(raw["target_start"])
+    if stop > utc(verified["retrieved_at"]):
+        return []
+    start = stop - timedelta(hours=1)
+    timestamp = start.timestamp() * 1000
+    metadata = {row["statistic_id"]: row for row in raw["metadata"]}
+    factor = ENERGY_FACTORS[raw["request"]["units"]["energy"]]
+    result = []
+    for mapping in raw["mappings"]:
+        values, complete, invalid = [], True, False
+        for statistic in mapping["statistic_ids"]:
+            row = next((row for row in (raw["statistics"].get(statistic) or ()) if row["start"] == timestamp), None)
+            if row is None:
+                complete = False
+                continue
+            change = row.get("change")
+            if not _finite(change) or change < 0:
+                invalid = True
+            else:
+                values.append(change * factor)
+            if not energy_metadata(metadata.get(statistic)):
+                complete = False
+        if invalid:
+            power = None
+        elif complete:
+            power = sum(values) * 1000
+            if not math.isfinite(power):
+                power = None
+        else:
+            continue
+        result.append(((mapping["inverter_id"], start.isoformat(), stop.isoformat()), power))
+    return result
+
+
+def _quality_invalidations(selected, negative_quality):
+    """Index only accepted whole hours; never manufacture out-of-query labels."""
+    by_scope = {}
+    for key in sorted(selected):
+        by_scope.setdefault(key[0], []).append(key)
+    invalid = {}
+    for scope, masks in negative_quality.items():
+        keys = by_scope.get(scope, ())
+        if not keys:
+            continue
+        starts, ends = [utc(key[1]) for key in keys], [utc(key[2]) for key in keys]
+        for start, end, revision in masks:
+            # Exact boundary contact does not overlap an indivisible hour.
+            first, stop = bisect_right(ends, start), bisect_left(starts, end)
+            for position in range(first, stop):
+                key = keys[position]
+                invalid[key] = max(invalid[key], revision) if key in invalid else revision
+    return invalid
 
 
 def websocket_url(ha_url: str) -> str:

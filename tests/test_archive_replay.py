@@ -9,6 +9,7 @@ import pytest
 from custom_components.adaptive_solar.archive_export import json_value, replay_events, software_provenance
 from custom_components.adaptive_solar.core.archive import ArchiveJournal, ArchiveStore
 from custom_components.adaptive_solar.core.engine import ForecastEngine
+from custom_components.adaptive_solar.core.learning import ResidualLearner
 from custom_components.adaptive_solar.core.models import InverterConfig, SiteConfig, StringConfig
 from custom_components.adaptive_solar.core.replay import Candidate, reconstruct_state, replay_forecast
 from custom_components.adaptive_solar.weather import parse_forecast
@@ -37,11 +38,12 @@ def forecast_bundle(tmp_path, *, observation=False):
     from custom_components.adaptive_solar.core.models import Observation
 
     parsed_obs = tuple(Observation(**{**row, "time": NOW}) for row in observations)
-    result = ForecastEngine(config).forecast((weather,), NOW, parsed_obs)
+    learner = ResidualLearner(timezone_name=config.timezone, output_caps={"i": 5000}).fit([], NOW)
+    result = ForecastEngine(config).forecast((weather,), NOW, parsed_obs, learner)
     payload = {"site": config.to_dict(), "weather": json_value((weather,)), "observations": observations,
                "issued_at": NOW.isoformat(), "result": json_value(result), "software": software_provenance(),
                "weather_receipt_ids": {"best_match": original["event_id"]}}
-    state = {"fit_as_of": None, "fit_samples": [], "shading": {"schema": 1, "inverters": {}}, "history_revision": 1}
+    state = {"fit_as_of": NOW.isoformat(), "fit_samples": [], "learner_available": True, "shading": {"schema": 3, "inverters": {}, "released": {}}, "history_revision": 1}
     events = replay_events(payload, state, NOW + timedelta(seconds=1))
     for kind, value, received, event_id in events:
         journal.append(kind, json.loads(value), received, event_id)
@@ -185,7 +187,6 @@ def test_cli_replays_immutable_dataset_without_network(tmp_path, monkeypatch):
 
 
 def test_active_cached_learner_rebuilds_from_compressed_original_fit_samples(tmp_path):
-    from custom_components.adaptive_solar.core.learning import ResidualLearner
     from tests.test_learning import synthetic_days
 
     config = site()
@@ -193,6 +194,7 @@ def test_active_cached_learner_rebuilds_from_compressed_original_fit_samples(tmp
     samples = [replace(row, issued_at=row.issued_at + shift, start=row.start + shift,
                        end=row.end + shift, observed_at=row.observed_at + shift, inverter_id="i")
                for row in synthetic_days()]
+    samples = [replace(row, measurement_support=((row.start, row.end),)) for row in samples]
     fit_cutoff = max(row.observed_at for row in samples) + timedelta(minutes=1)
     learner = ResidualLearner(timezone_name=config.timezone, output_caps={"i": 5000}).fit(samples, fit_cutoff)
     assert learner.status["i"]["state"] == "active"
@@ -208,10 +210,27 @@ def test_active_cached_learner_rebuilds_from_compressed_original_fit_samples(tmp
                "issued_at": NOW.isoformat(), "result": json_value(result), "software": software_provenance(),
                "weather_receipt_ids": {"best_match": original["event_id"]}}
     state = {"fit_as_of": fit_cutoff.isoformat(), "fit_samples": json_value(samples),
-             "shading": {"schema": 1, "inverters": {}}, "history_revision": 1}
+             "shading": {"schema": 3, "inverters": {}, "released": {}}, "history_revision": 1}
     for kind, value, received, event_id in replay_events(payload, state, NOW + timedelta(seconds=1)):
         journal.append(kind, json.loads(value), received, event_id)
     rows = journal.page(limit=100)["events"]
     assert rows[-1]["payload"]["replay_state"]["encoding"] == "zlib+base64"
     report = replay_forecast(rows[-1], rows)
     assert report["baseline"]["accepted"] and report["baseline"]["max_error_w"] == 0
+
+
+@pytest.mark.parametrize("changed", ["features", "model_status", "member_power", "member_issue"])
+def test_baseline_acceptance_includes_features_status_and_individual_model_outputs(tmp_path, changed):
+    event, rows, _ = forecast_bundle(tmp_path)
+    result = event["payload"]["result"]
+    if changed == "features":
+        result["points"][0]["features"]["beam_shade_factor"] = .5
+    elif changed == "model_status":
+        result["model_status"]["i"] = "different"
+    elif changed == "member_power":
+        result["member_points"]["best_match"][0]["power_w"] += 1
+    else:
+        result["member_issued_at"]["best_match"] = (NOW - timedelta(seconds=1)).isoformat()
+    report = replay_forecast(event, rows)
+    assert not report["baseline"]["matched"]
+    assert not report["baseline"]["accepted"]

@@ -48,9 +48,12 @@ def _table(value, site, cutoff):
     table = BeamShadeTable.from_dict(value, inverter_ids={inv.id for inv in site.inverters})
     if not _same(table.to_dict(), value):
         raise ValueError("invalid or incompatible shading table")
-    if any(timestamp(row["quarter_hour"]) > cutoff for bins in value["inverters"].values()
-           for rows in bins.values() for row in rows):
+    if any(timestamp(row[field]) > cutoff for bins in value["inverters"].values()
+           for rows in bins.values() for row in rows for field in ("quarter_hour", "observed_at", "available_at")):
         raise ValueError("future shade seed/sample")
+    if any(timestamp(row["at"]) > cutoff for bins in value["released"].values()
+           for rows in bins.values() for row in rows):
+        raise ValueError("future shade release")
     return table
 
 
@@ -116,6 +119,24 @@ def _validate_sources(learning, site, observations, now):
             if qualification.get("normalized_value") != number:
                 raise ValueError("raw source normalization disagrees with original value/units/cutoff")
             normalized[role] = number, at
+    historical = learning.get("observation_sources", [])
+    if not isinstance(historical, list) or len(historical) > 128:
+        raise ValueError("invalid observation source history")
+    source_by_role = {}
+    for captured in historical:
+        at = timestamp(captured["captured_at"])
+        if not site.power_nowcast_window_minutes or not 0 <= (now - at).total_seconds() <= site.power_nowcast_window_minutes * 60:
+            raise ValueError("observation source history violates configured window/cutoff")
+        for entity_id, role, kind in roles:
+            raw = captured["sources"].get(entity_id)
+            if kind in {"control", "validity"} or raw is None:
+                continue
+            if raw.get("entity_id") != entity_id:
+                raise ValueError("historical observation source identity differs")
+            number, stamp = _raw_number(raw, at, kind)
+            if raw.get("quality", {}).get(role, {}).get("normalized_value") != number:
+                raise ValueError("historical source qualification disagrees with raw source")
+            source_by_role.setdefault(role, []).append((number, stamp))
     stage_ids = {inv.id for inv in site.inverters}
     for observation in observations:
         if observation.inverter_id not in stage_ids:
@@ -125,7 +146,8 @@ def _validate_sources(learning, site, observations, now):
             number = getattr(observation, field)
             if number is not None:
                 expected, at = normalized.get(role, (None, None))
-                if number != expected or observation.time != at:
+                if ((number, observation.time) != (expected, at)
+                        and (number, observation.time) not in source_by_role.get(role, [])):
                     raise ValueError("observation disagrees with original raw source/qualification")
 
 def _stage_input(learning, inv, site, now):

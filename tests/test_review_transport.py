@@ -600,7 +600,8 @@ def test_implementation_includes_every_other_original_byte_and_discloses_inherit
 
 
 @pytest.mark.parametrize('fault', ['blocked', 'chunks', 'inherited', 'invalid_inheritance', 'returncode', 'bool_returncode', 'cli_hash',
-    'missing_cli_version', 'weak_flags', 'manifest_offset', 'manifest_omission', 'payload', 'prompt', 'stdout',
+    'missing_cli_version', 'weak_flags', 'context_budget', 'bool_context_budget', 'string_context_budget',
+    'manifest_offset', 'manifest_omission', 'payload', 'prompt', 'stdout',
     'review', 'research', 'compaction', 'no_end_turn', 'native_reply', 'native_effort', 'native_model', 'native_usage'])
 def test_reference_is_independently_rejected_before_any_cli_call(reference_workspace, fault):
     (root, _), receipt, directory = reference_workspace
@@ -620,6 +621,9 @@ def test_reference_is_independently_rejected_before_any_cli_call(reference_works
         receipt.pop('cli_version')
     elif fault == 'weak_flags':
         receipt['calls'][0]['argv'].remove('--no-memory')
+    elif fault in ('context_budget', 'bool_context_budget', 'string_context_budget'):
+        receipt['requested_context_window_tokens'] = {
+            'context_budget': 800000, 'bool_context_budget': True, 'string_context_budget': '500000'}[fault]
     elif fault == 'manifest_offset':
         receipt['file_manifest'][0]['byte_start'] += 1
     elif fault == 'manifest_omission':
@@ -667,6 +671,7 @@ def test_legacy_all_reference_without_effort_flag_still_needs_native_high(refere
     receipt.pop('scope')
     receipt.pop('workspace_files')
     receipt.pop('reference_only_files')
+    receipt.pop('requested_context_window_tokens')
     argv = receipt['calls'][0]['argv']
     index = argv.index('--reasoning-effort')
     del argv[index:index + 2]
@@ -885,7 +890,9 @@ if mode != "missing_updates":
     rows.append({
         "timestamp": "2026-10-26T16:00:01.000Z",
         "type": "event_msg",
-        "payload": {"type": "task_started", "turn_id": turn_id, "model_context_window": 500000},
+        "payload": {"type": "task_started", "turn_id": turn_id,
+                    "model_context_window": int(next(arg.split("=", 1)[1] for arg in args
+                                                      if arg.startswith("model_context_window=")))},
     })
     if not existing:
         rows.append({
@@ -1084,6 +1091,7 @@ def test_codex_single_transport_binds_gpt_6_1_sol_high_and_audits_native_rollout
     assert receipt["reviewer"] == "codex"
     assert receipt["requested_model"] == "gpt-6.1-sol"
     assert receipt["requested_reasoning_effort"] == "high"
+    assert receipt["requested_context_window_tokens"] == 800000
     assert receipt["session_id"] == "01a1781a-e760-73b3-9db1-bbdc214acc4f"
     assert len(receipt["calls"]) == 1
     call = receipt["calls"][0]
@@ -1092,6 +1100,8 @@ def test_codex_single_transport_binds_gpt_6_1_sol_high_and_audits_native_rollout
     assert 'model_reasoning_effort="high"' in call["argv"]
     assert 'sandbox_mode="read-only"' in call["argv"]
     assert 'web_search="disabled"' in call["argv"]
+    assert "model_context_window=800000" in call["argv"]
+    assert "model_auto_compact_token_limit=800000" in call["argv"]
     for feature in review.CODEX_DISABLED_FEATURES:
         idx = call["argv"].index(feature)
         assert call["argv"][idx - 1] == "--disable"
@@ -1148,12 +1158,19 @@ def test_codex_failures_and_context_audit_violations_fail_closed(codex_workspace
     assert not (output / "review.json").exists()
 
 
-def test_codex_all_single_receipt_serves_as_verified_reference_for_implementation_scope(codex_workspace):
+@pytest.mark.parametrize("context_budget", [500000, 800000])
+def test_codex_all_single_receipt_serves_as_verified_reference_for_implementation_scope(codex_workspace, context_budget):
     root, _ = codex_workspace
+    script = root / "scripts/review.py"
+    current_helper = script.read_text()
+    script.write_text(current_helper.replace("CODEX_REVIEW_CONTEXT_WINDOW_TOKENS = 800000",
+                                            f"CODEX_REVIEW_CONTEXT_WINDOW_TOKENS = {context_budget}"))
     for index, name in enumerate(sorted(review.RESEARCH_FILES)):
         (root / name).write_text(f"Originalforschung {index}: Grüße ☀️\n")
     run, baseline, base_dir = run_fake_codex(codex_workspace, "success", transport="single", output_name="codex-base")
     assert run.returncode == 0, run.stderr
+    assert baseline["requested_context_window_tokens"] == context_budget
+    script.write_text(current_helper)
     (root / "README.md").write_text("# Geänderte Implementierungsdoku\n")
     run2, impl, impl_dir = run_fake_codex(
         codex_workspace, "success", transport="single", output_name="codex-impl",
@@ -1162,8 +1179,75 @@ def test_codex_all_single_receipt_serves_as_verified_reference_for_implementatio
     assert impl["status"] == "accepted"
     assert impl["scope"] == "implementation"
     assert impl["reviewer"] == "codex"
+    assert impl["requested_context_window_tokens"] == 800000
     assert impl["reference"]["native_model_id"] == "gpt-6.1-sol"
     assert impl["reference"]["reasoning_effort"] == "high"
     assert impl["reference"]["receipt_sha256"] == review.digest((base_dir / "receipt.json").read_bytes())
     assert (impl_dir / "review.json").exists()
 
+
+
+@pytest.mark.parametrize("new", [True, False])
+def test_codex_context_budget_is_explicit_for_new_and_resumed_calls(new):
+    argv = review.codex_argv("codex", new=new, session="00000000-0000-4000-8000-000000000001")
+    assert "model_context_window=800000" in argv
+    assert "model_auto_compact_token_limit=800000" in argv
+    legacy = review.codex_argv("codex", new=new, session="00000000-0000-4000-8000-000000000001",
+                               context_window_tokens=500000)
+    differences = [(old, current) for old, current in zip(legacy, argv, strict=True) if old != current]
+    assert differences == [("model_context_window=500000", "model_context_window=800000"),
+                           ("model_auto_compact_token_limit=500000", "model_auto_compact_token_limit=800000")]
+
+
+@pytest.mark.parametrize("budget", [True, "800000", 800000.0, 499999, 700000, 800001, None])
+def test_codex_context_budget_rejects_unbound_variants(budget):
+    with pytest.raises(ValueError, match="Unsupported Codex review context budget"):
+        review.codex_argv("codex", context_window_tokens=budget)
+
+
+@pytest.mark.parametrize("context_budget", [500000, 800000])
+def test_codex_reference_budget_and_strict_flags_are_bound_together(codex_workspace, monkeypatch, context_budget):
+    root, _ = codex_workspace
+    script = root / "scripts/review.py"
+    current_helper = script.read_text()
+    script.write_text(current_helper.replace("CODEX_REVIEW_CONTEXT_WINDOW_TOKENS = 800000",
+                                            f"CODEX_REVIEW_CONTEXT_WINDOW_TOKENS = {context_budget}"))
+    for index, name in enumerate(sorted(review.RESEARCH_FILES)):
+        (root / name).write_text(f"Originalforschung {index}\n")
+    run, receipt, directory = run_fake_codex(codex_workspace, output_name="budget-reference")
+    assert run.returncode == 0, run.stderr
+    script.write_text(current_helper)
+    monkeypatch.setattr(review, "ROOT", root)
+    monkeypatch.setenv("CODEX_HOME", str(root.parent / "fake-codex-home"))
+    workspace = review.snapshot()
+    path = directory / "receipt.json"
+    original = path.read_bytes()
+    assert review.validate_reference(path, workspace)["native_model_id"] == "gpt-6.1-sol"
+    for mutation in ("unknown_budget", "other_known_budget", "bool_budget", "string_budget", "missing_budget",
+                     "context_only", "compact_only", "duplicate_context", "strict_flag", "enabled_feature"):
+        changed = json.loads(original)
+        argv = changed["calls"][0]["argv"]
+        if mutation == "unknown_budget":
+            changed["requested_context_window_tokens"] = 700000
+        elif mutation == "other_known_budget":
+            changed["requested_context_window_tokens"] = 800000 if context_budget == 500000 else 500000
+        elif mutation == "bool_budget":
+            changed["requested_context_window_tokens"] = True
+        elif mutation == "string_budget":
+            changed["requested_context_window_tokens"] = str(context_budget)
+        elif mutation == "missing_budget":
+            changed.pop("requested_context_window_tokens")
+        elif mutation in ("context_only", "compact_only"):
+            key = "model_context_window" if mutation == "context_only" else "model_auto_compact_token_limit"
+            argv[argv.index(f"{key}={context_budget}")] = f"{key}=700000"
+        elif mutation == "duplicate_context":
+            argv.extend(["-c", f"model_context_window={context_budget}"])
+        elif mutation == "strict_flag":
+            argv.remove("--strict-config")
+        else:
+            argv[argv.index("apps") - 1] = "--enable"
+        path.write_text(json.dumps(changed))
+        with pytest.raises(ValueError, match="Reference CLI identity/call artifacts are invalid"):
+            review.validate_reference(path, workspace)
+    path.write_bytes(original)
+    assert review.validate_reference(path, workspace)["native_model_id"] == "gpt-6.1-sol"

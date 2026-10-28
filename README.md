@@ -8,9 +8,11 @@
 
 Wetterprognosen, PV-Physik und lokale Residualmodelle für bis zu sieben lokale Kalendertage einschließlich heute: Resttag und bis zu sechs Folgetage, abhängig von der Wetterabdeckung. Unterschiedliche Stringausrichtungen, gemeinsame AC-/DC-Ausgabestufen und wiederkehrende Verschattung werden berücksichtigt. Frische HA-Temperatur/Windwerte, optionale horizontale Globalstrahlung und geeignete PV-Leistung unterstützen den kurzfristigen Nowcast.
 
-**Stand, 27.10.2026:** **0.2.14 veröffentlicht und über HACS auf HA Core 2026.10.4 installiert.** Kleine negative Nachtstrahlung wird begrenzt und nachvollziehbar normalisiert; historische Tagesstartprognosen behalten ihre ursprüngliche Konfigurationsprovenienz. Die Stundenlücke ist live geschlossen, drei vollständige Folgetage je Anlage und die wiederhergestellten heutigen Originalwerte sind geprüft. **1102 Tests ohne Skips**, gültiger Grok-4.7/high-Volltextreview ohne Findings, Branch-/Tag-CI und Releasepakete erfolgreich geprüft. Vier Einträge, 80 Entity-/Unique-IDs, Geräte, Optionen, Energy und bestehende Messhistorie erhalten. [Neue Regeln](docs/forecast-repairs.md), [Release](docs/release-0.2.14.md), [Prüfstand](docs/entwicklungsstand.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
+**Stand, 28.10.2026:** Version **0.2.16** ergänzt das Originaldatenarchiv und chronologische Replays. Der letzte abgeschlossene Installationsnachweis betrifft 0.2.15; Prüfung und Auslieferung des neuen Stands werden im [Entwicklungsstand](docs/entwicklungsstand.md) dokumentiert. [Release und Upgrade](docs/release-0.2.16.md), [Reviewnachweise](docs/review-findings.md), [Validierungsplan](docs/validierung.md).
 
 **Messdatenänderungen in 0.2.13:** Die [Messaufbereitung](docs/messintervalle-92-prozent.md) behandelt kurze Rundungsbursts, wählt den längsten gültigen Messblock und verlangt nun 92 % Abdeckung mit höchstens drei Minuten Lücke je Rand. Veröffentlichung und Installation sind gegenüber dem bisherigen 0.2.12-Stand getrennt nachgewiesen.
+
+**Neu in 0.2.15:** [Messkontinuität und echte Endpunktfenster](docs/measurement-learning.md) ergänzen die bisherigen Qualitätsgates. Ein kleiner [früher Bias-Kandidat](docs/early-bias-shadow.md) läuft ausschließlich im Shadow-Betrieb. [Physik-, Schatten- und Nowcastoptionen](docs/physics-learning-options.md), [Wetter-/Lernfehler und Ressourcen](docs/forecast-resilience.md) sowie ein [getrenntes Modellvergleichsarchiv](docs/model-comparison-archive.md) machen Kandidaten überprüfbar. Die Änderungen sind kein Nachweis besserer realer Prognosen; dafür bleibt ein prospektiver Anlagenvergleich erforderlich.
 
 Die [Ablehnungsdiagnose](docs/ablehnungsdiagnose.md) ergänzt eindeutige Ziel-/Zeilendetails mit Originalzeiten und Gründen (`schema_version: 1`, höchstens 50 Einträge je Gruppe). Zielzähler und Details zeigen gemeinsam den letzten tatsächlichen Fit-Cutoff; Cachehits erfinden keine neue Auswertung. Der tatsächliche Installationsstand steht im Prüfstand.
 
@@ -33,9 +35,9 @@ Herstellerunabhängige String-/Stufenkonfiguration, optionale HA-Sensoren: keine
 | [Bedienung](docs/bedienung.md) | Alle Einrichtungsfelder, Sensoren, Energy, Lernstatus und Fehlerbehebung |
 | [Datenschutz](docs/datenschutz.md) | Externe Datenflüsse, lokale Speicherung und Diagnoseweitergabe |
 
-HACS-Mindestversion ist **Core 2026.10.2**. Geprüft sind **2026.10.2/.3/.4** mit Python 3.14; neuere Versionen sind damit nicht automatisch geprüft. **HAOS ist bislang nur auf amd64 mit passender CPython-3.14-Musl-Binärbasis belegt.** ARM/Raspberry Pi und andere Python-ABIs sind nicht qualifiziert. Der HA-unabhängige Modellkern unterstützt Python ab 3.13.
+HACS-Mindestversion ist **Core 2026.10.2**. Historische Kompatibilitätsprüfungen betreffen **2026.10.2/.3/.4** mit Python 3.14; die vollständige Suite für **0.2.16** läuft auf **2026.10.4**. Andere Versionen sind damit nicht automatisch neu geprüft. **HAOS ist bislang nur auf amd64 mit passender CPython-3.14-Musl-Binärbasis belegt.** ARM/Raspberry Pi und andere Python-ABIs sind nicht qualifiziert. Der HA-unabhängige Modellkern unterstützt Python ab 3.13.
 
-Über HACS: **Benutzerdefinierte Repositories** öffnen, `https://github.com/togo42/Adaptive-Solar` als **Integration** hinzufügen und die gewünschte veröffentlichte Version herunterladen. Danach Home Assistant neu starten und **Adaptive Solar** unter **Einstellungen → Geräte & Dienste** hinzufügen beziehungsweise bestehende Einträge weiterverwenden. [Änderungen und Upgrade in 0.2.14](docs/release-0.2.14.md). Die benötigte HAOS-Binärbasis ist unten separat beschrieben; HACS ersetzt diese Abhängigkeit nicht.
+Über HACS: **Benutzerdefinierte Repositories** öffnen, `https://github.com/togo42/Adaptive-Solar` als **Integration** hinzufügen und die gewünschte veröffentlichte Version herunterladen. Danach Home Assistant neu starten und **Adaptive Solar** unter **Einstellungen → Geräte & Dienste** hinzufügen beziehungsweise bestehende Einträge weiterverwenden. [Änderungen und Upgrade in 0.2.16](docs/release-0.2.16.md). Die benötigte HAOS-Binärbasis ist unten separat beschrieben; HACS ersetzt diese Abhängigkeit nicht.
 
 Alternativ den vollständigen Ordner `custom_components/adaptive_solar` in das gleichnamige Verzeichnis der HA-Konfiguration kopieren; Details und Abhängigkeitsprüfung stehen in der Installationsanleitung.
 
@@ -60,7 +62,8 @@ python3.14 -m venv .venv
 .venv/bin/python -m pip install '.[test,ha-test]'
 .venv/bin/python -m pip install 'pvlib==0.16.1' 'scikit-learn==1.9.1'
 .venv/bin/python -m pip check
-.venv/bin/python -m pytest
+.venv/bin/python -m pytest -q --cov=custom_components.adaptive_solar --cov-branch \
+    --cov-report=term-missing:skip-covered --cov-report=xml:artifacts/coverage.xml
 .venv/bin/ruff check custom_components tests scripts
 ```
 
@@ -75,9 +78,9 @@ Synthetische Offline-Demo; für DC `--config examples/site-dc.json` einsetzen:
 
 `--live` ruft Open-Meteo auf und ist nicht rückdatierbar. Reale Prognosen/Recorder-Istwerte archivieren und vergleichen: [Aufnahmeleitfaden](docs/benchmark-aufnahme.md). Private Zuordnungen unter ignoriertem `data/`; Standorte, Entity-IDs und Zugangsdaten weder in Git noch Reviews.
 
-**Entwicklungsstand vom 28.10.2026, noch nicht veröffentlicht:** Der optionale HA-Originaldatenexport, ein externes Archiv mit 24 Monaten Aufbewahrung, zusätzliche Wetter-/Ensembleaufnahmen und Offline-Replay sind implementiert. Die [Betriebsanleitung](docs/archivbetrieb.md) beschreibt Einrichtung, Aufnahme, eingefrorene Datensätze und Grenzen. Die Aktivierung auf HA und dem Archivhost steht aus; der oben dokumentierte Release bleibt davon getrennt.
+**Originaldatenarchiv ab 0.2.16:** Optionaler HA-Export, externes Archiv mit 24 Monaten Aufbewahrung, zusätzliche Wetter-/Ensembleaufnahmen und Offline-Replay. Die [Betriebsanleitung](docs/archivbetrieb.md) beschreibt Aufnahme, eingefrorene Datensätze und Grenzen; die [Hostinstallation](docs/archiv-host-installation.md) Dienste, verschlüsselte Zugangsdaten und Speichergrenzen. Originaldateien bleiben maßgeblich, SQLite ist der lokale Index; PostgreSQL kann später als Abfrageebene ergänzt werden.
 
-Die [Wettermodellrecherche für die nächsten 24/48 Stunden](docs/wettermodelle-und-prognosehorizonte.md) begründet regionale Kurzfristmodelle, länger verfügbare Vergleichsmodelle und echte Wetterensembles. Der Offline-Pfad berechnet Energiequantile und Schwellenanteile aus vollständigen Mitgliedsverläufen; ihre lokale Zuverlässigkeit ist noch nicht gemessen. Speicherbewertungen sind nach drei und sechs Monaten vorgesehen. Neue produktive Modellgewichte, Akkuaktionen sowie die [geplanten Physikvarianten mit Zeitintegration und IAM](docs/physikvergleich-und-archivierung.md) stehen weiterhin aus.
+Die [Wettermodellrecherche für die nächsten 24/48 Stunden](docs/wettermodelle-und-prognosehorizonte.md) begründet regionale Kurzfristmodelle, länger verfügbare Vergleichsmodelle und echte Wetterensembles. Der Offline-Pfad berechnet Energiequantile und Schwellenanteile aus vollständigen Mitgliedsverläufen; ihre lokale Zuverlässigkeit ist noch nicht gemessen. Speicherbewertungen sind nach drei und sechs Monaten vorgesehen. Neue produktive Modellgewichte und Akkuaktionen stehen weiterhin aus. Die seit 0.2.15 optionalen [Physikvarianten mit Zeitintegration und IAM](docs/physics-learning-options.md) müssen anhand der Originaldaten lokal verglichen werden.
 
 Der Archivzweig erfasst auch ungültige Originalbeobachtungen und sämtliche
 Schattenlernversuche. Ein [chronologischer Schatten-Replay](docs/archivbetrieb.md#51-schattenlernen-chronologisch-vergleichen)

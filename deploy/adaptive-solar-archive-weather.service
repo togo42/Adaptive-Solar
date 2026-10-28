@@ -1,0 +1,13 @@
+[Unit]
+Description=Adaptive Solar archive weather
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/adaptive-solar-archive/current
+ExecStart=%h/adaptive-solar-archive/current/.venv/bin/python %h/adaptive-solar-archive/current/scripts/archive_host.py weather --config %h/adaptive-solar-archive/current/data/host.json
+UMask=0077
+NoNewPrivileges=yes
+TimeoutStartSec=30min
+KillMode=control-group
+StandardOutput=journal
+StandardError=journal

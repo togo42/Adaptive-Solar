@@ -29,6 +29,22 @@ erzeugen keinen neuen Wetterempfang. Die Originalantwort wird nicht verändert.
 
 `prognose_tag_0` bleibt die tatsächlich vor lokalem Tagesbeginn ausgegebene
 vollständige Prognose. Sie wird nie aus aktuellem Wetter oder Istenergie nachgebaut.
+Die zusätzliche lokale Verfügbarkeitsabsicherung prüft beim Archivieren neben
+`issued_at` auch die tatsächliche Rückkehr des vollständig berechneten Ergebnisses
+aus dem Executor, einschließlich der optionalen Shadowberechnung. Beginnt ein
+Lauf um 23:59 und endet erst nach lokalem Tagesbeginn, erzeugt er keinen fehlenden
+Tagesstartwert und überschreibt keinen vorhandenen Originalwert oder
+Administratorimport. Ein späterer zukünftiger Tag bleibt nutzbar. Die lokale
+Mitternacht wird mit der Anlagenzeitzone in UTC umgerechnet, auch an beiden
+Zeitumstellungstagen.
+
+Dieselbe Verfügbarkeitsgrenze schützt neue Trainingszeilen: Ist ihre Zielzelle
+bei Fertigstellung bereits begonnen, wird sie nicht nachträglich als prospektiv
+archiviert. Noch nicht begonnene Zellen bleiben nutzbar. `issued_at` und
+Leadfeatures behalten ihren ursprünglichen Berechnungsbezug; es wird keine
+frühere Verfügbarkeit erfunden und keine bereits begonnene Trainingszelle
+nachträglich zugeschnitten. Bestehende historische Datensätze und ihre
+Provenienz werden durch diese Schreibsperren nicht umgedeutet.
 Im bestehenden festen `history_v2`-Store ergänzt `daily_snapshot_provenance` die
 bestehenden `daily_snapshots`; es entstehen keine zusätzlichen Storedateien.
 

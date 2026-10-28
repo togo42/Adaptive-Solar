@@ -124,12 +124,12 @@ async def test_archive_separates_bounded_regime_origins_without_displacement(has
             extra = {"ghi_regime": 1, "ghi_nowcast_gain": 0.7, "ghi_observation_age_seconds": 20} if mode == "ghi" else {}
             point = ForecastPoint(start, start + timedelta(hours=1), names[0], 1000, 1000, features={"baseline_w": 1000, "sun_elevation_deg": 45, **extra})
             issue = start + timedelta(minutes=30) - timedelta(hours=lead)
-            instance._archive_result(ForecastResult(issue, (point,)))
+            instance._archive_result(ForecastResult(issue, (point,)), available_at=issue)
     assert sum(feature_regime(row["features"]) == "nwp" for row in instance.archive) == expected_nwp
     assert sum(feature_regime(row["features"]) == "ghi" for row in instance.archive) == expected_ghi
     # Another raw NWP issue after an outage cannot erase GHI history.
     saved = [row for row in instance.archive if feature_regime(row["features"]) == "ghi"]
-    instance._archive_result(ForecastResult(start, (replace(point, features={"baseline_w": 1000, "sun_elevation_deg": 45}),)))
+    instance._archive_result(ForecastResult(start, (replace(point, features={"baseline_w": 1000, "sun_elevation_deg": 45}),)), available_at=start)
     assert all(row in instance.archive for row in saved)
     await instance.async_close()
 
@@ -142,7 +142,7 @@ async def test_issue_clipped_output_partial_cell_is_not_an_archived_training_tar
     issued = EPOCH + timedelta(hours=10, minutes=10)
     point = ForecastPoint(issued, issued + timedelta(minutes=50), "i", 1000, 1000,
                           features={"baseline_w": 1000, "sun_elevation_deg": 45, "source_partial_at_issue": 1})
-    instance._archive_result(ForecastResult(issued, (point,)))
+    instance._archive_result(ForecastResult(issued, (point,)), available_at=issued)
     assert instance.archive == []
     # Even a previously persisted partial row cannot enter the join later.
     raw = {"issued_at": issued.isoformat(), "start": point.start.isoformat(), "end": point.end.isoformat(), "inverter_id": "i", "baseline_w": 1000, "features": point.features}

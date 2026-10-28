@@ -31,7 +31,7 @@ def step(table, *, now=T0, inputs=None, observations=(), policy=None, reference=
     )
 
 
-def test_accepted_record_is_distinct_from_released_bin_and_same_quarter_replaces():
+def test_accepted_records_require_multiple_days_and_same_quarter_stays_immutable():
     table = BeamShadeTable()
     for index in range(5):
         result = step(table, now=T0 + timedelta(minutes=15 * index))
@@ -39,13 +39,17 @@ def test_accepted_record_is_distinct_from_released_bin_and_same_quarter_replaces
         assert result["reasons"] == []
         assert result["factor"] == 0.5
         assert result["status"]["samples"] == index + 1
-        assert result["status"]["released"] is (index == 4)
-        assert result["status"]["last_rejection"] == (None if index == 4 else "insufficient_samples")
-    replacement = step(table, now=T0 + timedelta(minutes=60, seconds=10), inputs={"power_w": 1800.0})
-    assert replacement["accepted"] is True
+        assert result["status"]["released"] is False
+        assert result["status"]["last_rejection"] == ("insufficient_days" if index == 4 else "insufficient_samples")
+    replacement_at = T0 + timedelta(minutes=60, seconds=10)
+    replacement = step(table, now=replacement_at, inputs={"power_w": 1800.0})
+    assert replacement["accepted"] is False
     assert replacement["status"]["samples"] == 5
-    assert replacement["status"]["transmittance"] == 0.5
-    assert table.bin_samples("i", 182, 40) == (0.5, 0.5, 0.5, 0.5, 0.8)
+    assert table.bin_samples("i", 182, 40, as_of=replacement_at) == (0.5,) * 5
+    released = step(table, now=T0 + timedelta(days=1))
+    assert released["accepted"] and released["status"]["released"]
+    assert released["status"]["transmittance"] == 0.5
+    assert table.status_for("i", 182, 40, as_of=T0 + timedelta(hours=1))["released"] is False
 
 
 @pytest.mark.parametrize(("kwargs", "reason"), [
@@ -210,4 +214,4 @@ def test_real_physics_reference_and_learning_match_known_half_beam_factor(output
     assert result["reference"]["p0_w"] == pytest.approx(p0)
     assert result["reference"]["p1_w"] == pytest.approx(p1)
     sun = solar_position(config, T0)
-    assert table.bin_samples("i", sun.azimuth_deg, sun.elevation_deg) == pytest.approx((0.5,))
+    assert table.bin_samples("i", sun.azimuth_deg, sun.elevation_deg, as_of=T0) == pytest.approx((0.5,))

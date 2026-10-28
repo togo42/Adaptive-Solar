@@ -1,0 +1,11 @@
+[Unit]
+Description=Adaptive Solar archive ha schedule
+
+[Timer]
+OnCalendar=*-*-* *:00/5:00
+Persistent=true
+AccuracySec=10s
+Unit=adaptive-solar-archive-ha.service
+
+[Install]
+WantedBy=timers.target

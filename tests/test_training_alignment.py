@@ -5,6 +5,8 @@ from unittest.mock import AsyncMock
 
 from freezegun import freeze_time
 import pytest
+
+from tests.storage_helpers import seed_store
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.adaptive_solar.coordinator import AdaptiveSolarCoordinator, LEARNING_FEATURE_CONTRACT, join_training, lead_bucket
@@ -168,7 +170,7 @@ async def test_corrupt_or_over_cap_stored_intervals_reject_entire_store(hass, en
     payload = {**instance._stored(), "learning_feature_contract": LEARNING_FEATURE_CONTRACT,
                "archive": [archived()], "intervals": [measured()], "daily_snapshots": {}}
     payload["intervals"][0]["energy_kwh"] = energy
-    instance._store.async_load = AsyncMock(return_value=payload)
+    seed_store(instance._store, payload)
     with freeze_time(NOW + timedelta(hours=2)):
         await instance.async_restore()
     assert instance.archive == instance.intervals == []
@@ -183,7 +185,7 @@ async def test_snapshot_cap_uses_real_dst_duration_and_rejects_bool(hass, day, h
     snapshot = {"issued_at": "2026-01-01T00:00:00+00:00", "energies": {"i": True if bad == "boolean" else 5 * hours * 1.1 + 0.001}}
     if bad == "non_mapping":
         snapshot["energies"] = ["i"]
-    instance._store.async_load = AsyncMock(return_value={**instance._stored(),
+    seed_store(instance._store, {**instance._stored(),
         "learning_feature_contract": LEARNING_FEATURE_CONTRACT, "archive": [archived()], "intervals": [], "daily_snapshots": {day: snapshot}})
     with freeze_time(NOW + timedelta(hours=2)):
         await instance.async_restore()
@@ -198,7 +200,7 @@ async def test_restored_forecast_must_match_inverter_boundary(hass, field, value
     row = {**archived(), "power_w": 1000, field: value}
     if field == "baseline_w":
         row["features"] = {**row["features"], "baseline_w": value}
-    instance._store.async_load = AsyncMock(return_value={**instance._stored(),
+    seed_store(instance._store, {**instance._stored(),
         "learning_feature_contract": LEARNING_FEATURE_CONTRACT, "archive": [row], "intervals": [measured()], "daily_snapshots": {}})
     with freeze_time(NOW + timedelta(hours=2)):
         await instance.async_restore()
@@ -227,7 +229,7 @@ async def test_valid_dst_snapshot_and_interval_at_the_live_tolerance_are_retaine
     payload = {**instance._stored(), "archive": [],
                "intervals": [measured(start, start + timedelta(hours=1), power=5500)],
                "daily_snapshots": {day: {"issued_at": (start - timedelta(hours=1)).isoformat(), "energies": {"i": 5 * hours * 1.1}}}}
-    instance._store.async_load = AsyncMock(return_value=payload)
+    seed_store(instance._store, payload)
     with freeze_time(start + timedelta(hours=2)):
         await instance.async_restore()
     assert instance.intervals == payload["intervals"]
@@ -247,13 +249,13 @@ async def test_archive_fixed_slot_budget_keeps_actual_bin_edges_and_middle(hass,
     point = ForecastPoint(NOW, NOW + timedelta(hours=1), ids[0], 1000, 1000, features={"baseline_w": 1000, "sun_elevation_deg": 45})
     for lead in (95.9, 80, 72, 60, 48.1):
         issue = NOW + timedelta(minutes=30) - timedelta(hours=lead)
-        instance._archive_result(ForecastResult(issue, (point,)))
+        instance._archive_result(ForecastResult(issue, (point,)), available_at=issue)
     assert sorted(row["features"]["lead_hours"] for row in instance.archive) == pytest.approx(expected)
     # Repeated capture cannot manufacture more origins; night/zero baselines
     # never spend the bounded training archive budget.
-    instance._archive_result(ForecastResult(issue, (point,)))
+    instance._archive_result(ForecastResult(issue, (point,)), available_at=issue)
     night = replace(point, start=NOW + timedelta(hours=1), end=NOW + timedelta(hours=2), features={"baseline_w": 1000, "sun_elevation_deg": -1})
-    instance._archive_result(ForecastResult(issue, (night,)))
+    instance._archive_result(ForecastResult(issue, (night,)), available_at=issue)
     assert len(instance.archive) == len(expected)
     await instance.async_close()
 

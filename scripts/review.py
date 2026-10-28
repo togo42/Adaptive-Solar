@@ -28,6 +28,8 @@ REVIEWER_LABELS = {"grok": "Grok", "codex": "Codex"}
 CODEX_DISABLED_FEATURES = ("shell_tool", "unified_exec", "multi_agent", "memories", "plugins", "apps")
 MAX_SINGLE_PAYLOAD_BYTES = 1250000
 REVIEW_CONTEXT_WINDOW_TOKENS = 500000
+CODEX_REVIEW_CONTEXT_WINDOW_TOKENS = 800000
+CODEX_REFERENCE_CONTEXT_WINDOWS = (500000, 800000)
 SUFFIXES = {".py", ".json", ".md", ".toml", ".txt", ".yml", ".yaml", ".sh"}
 RESEARCH_FILES = frozenset({
     "solar-prognose-ml-recherche.md", "solar-prognosemodelle-zusammenfassung.md",
@@ -124,7 +126,10 @@ def validate_prompt_bytes(prompt: bytes) -> None:
         raise ValueError("Review prompts must have no outer whitespace")
 
 
-def codex_argv(binary: str, *, session: str | None = None, new: bool = True) -> list[str]:
+def codex_argv(binary: str, *, session: str | None = None, new: bool = True,
+               context_window_tokens: int = CODEX_REVIEW_CONTEXT_WINDOW_TOKENS) -> list[str]:
+    if type(context_window_tokens) is not int or context_window_tokens not in CODEX_REFERENCE_CONTEXT_WINDOWS:
+        raise ValueError("Unsupported Codex review context budget")
     argv = [binary, "exec"]
     if not new:
         if not isinstance(session, str) or not session:
@@ -138,8 +143,8 @@ def codex_argv(binary: str, *, session: str | None = None, new: bool = True) -> 
         "-c", 'approval_policy="never"',
         "-c", 'sandbox_mode="read-only"',
         "-c", 'web_search="disabled"',
-        "-c", f"model_context_window={REVIEW_CONTEXT_WINDOW_TOKENS}",
-        "-c", f"model_auto_compact_token_limit={REVIEW_CONTEXT_WINDOW_TOKENS}",
+        "-c", f"model_context_window={context_window_tokens}",
+        "-c", f"model_auto_compact_token_limit={context_window_tokens}",
     ])
     for feature in CODEX_DISABLED_FEATURES:
         argv.extend(["--disable", feature])
@@ -680,6 +685,10 @@ def validate_reference(path: Path, workspace: dict[str, str]) -> dict:
     if ref_reviewer not in REVIEWER_MODELS:
         raise ValueError("Reference reviewer is invalid")
     expected_model = REVIEWER_MODELS[ref_reviewer]
+    if ref_reviewer == "grok" and "requested_context_window_tokens" in previous:
+        budget = previous["requested_context_window_tokens"]
+        if type(budget) is not int or budget != REVIEW_CONTEXT_WINDOW_TOKENS:
+            raise ValueError("Reference Grok context budget is invalid")
     if (not isinstance(previous, dict) or previous.get("status") != "accepted"
             or previous.get("requested_model") != expected_model or previous.get("transport") != "single"
             or previous.get("scope", "all") != "all" or previous.get("reference_only_files", {}) != {}
@@ -739,7 +748,10 @@ def validate_reference(path: Path, workspace: dict[str, str]) -> dict:
         tail = ["--verbatim", "--session-id", session, "--prompt-file", str(artifacts["single-prompt.md"])]
         valid_argv = argv in (flags + tail, flags + ["--reasoning-effort", "high"] + tail)
     else:
-        valid_argv = isinstance(session, str) and bool(session) and argv == codex_argv(argv[0], new=True)
+        budget = previous.get("requested_context_window_tokens")
+        valid_argv = (isinstance(session, str) and bool(session) and type(budget) is int
+                      and budget in CODEX_REFERENCE_CONTEXT_WINDOWS
+                      and argv == codex_argv(argv[0], new=True, context_window_tokens=budget))
     if (not valid_argv
             or call.get("label") != "single" or type(call.get("returncode")) is not int or call["returncode"] != 0
             or call.get("prompt_sha256") != digest(payload)
@@ -803,7 +815,8 @@ def main(default_reviewer: str = "grok") -> int:
     receipt = {"reviewer": reviewer, "requested_model": requested_model,
                "requested_reasoning_effort": "high", "base_commit": git("rev-parse", "HEAD"),
                "single_payload_limit_bytes": MAX_SINGLE_PAYLOAD_BYTES,
-               "requested_context_window_tokens": REVIEW_CONTEXT_WINDOW_TOKENS,
+               "requested_context_window_tokens": (CODEX_REVIEW_CONTEXT_WINDOW_TOKENS
+                                                    if reviewer == "codex" else REVIEW_CONTEXT_WINDOW_TOKENS),
                "scope": args.scope, "files": files, "workspace_files": workspace,
                "reference_only_files": {name: workspace[name] for name in sorted(RESEARCH_FILES) if name in workspace and name not in files},
                "transport": args.transport, "calls": [],

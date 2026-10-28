@@ -1,13 +1,47 @@
 # Dauerhafter Exportpuffer und externes Originalarchiv
 
-Stand: 28.10.2026. Die Implementierung ist lokal vorbereitet; produktiver
-Collectorbetrieb, HA-Aktivierung und eine Wiederherstellungsprobe auf einem
-Archivhost sind damit nicht erfolgt. Das Archiv belegt keine Prognoseverbesserung.
+Stand: 28.10.2026, Datenvertrag für 0.2.16. Produktive Aufnahme und
+Wiederherstellungsprüfungen werden separat im [Entwicklungsstand](entwicklungsstand.md)
+nachgewiesen. Das Archiv belegt keine Prognoseverbesserung.
 Die [Speicherentscheidung](archiv-speicherung-und-transport.md) hält fest:
 zunächst Originaldateien und SQLite; PostgreSQL bei späterem Bedarf als
 zusätzliche Abfrageebene, ohne die Originale aufzugeben.
 
 ## Datenvertrag und Grenzen
+
+### Prognose- und Lernzustand ab 0.2.16
+
+Die Aufnahme enthält den vollständigen `SiteConfig` einschließlich optionaler
+Physik-/Nowcastparameter aus 0.2.15. `result` bewahrt Gesamtpunkte, Status,
+Features, modellweise Punkte und deren ursprüngliche Wetterempfangszeiten.
+`early_bias_shadow` enthält Status und Kandidatenpunkte getrennt von der
+operativen Prognose. Ein Originalreplay prüft auch Status, Features und
+Modellpunkte; übereinstimmende Gesamtleistung allein genügt nicht.
+
+`issued_at` bezeichnet den Eingabecutoff, `computed_at` das Ende der
+Forecast-/Modellberechnung. Der Umschlag erhält seinen `received_at` erst nach
+Rückkehr aus dem Executor einschließlich Serialisierung. Dieser spätere Zeitpunkt
+begrenzt `--as-of` und entspricht der Verfügbarkeit für das interne Forecastarchiv.
+Ein während der Berechnung liegender Entscheidungszeitpunkt darf das Ergebnis
+noch nicht verwenden. Die spätere Übernahme auf dem Archivhost bleibt nochmals
+getrennt als `stored_at` erhalten.
+
+`learner_available` unterscheidet einen vorhandenen Lerner vom Physikfallback
+nach einem Fitfehler. Ein fehlender Lerner darf keine angeblichen Fitzeilen oder
+einen Fit-Cutoff tragen. Erfolgreiche Fits werden aus den tatsächlich verwendeten
+Zeilen einschließlich echter `measurement_support`-Zeitintervalle rekonstruiert.
+
+`shade_learning` erfasst die Regel `beam-shade-learning-v2`: Schema-3-Tabellen
+mit ursprünglichem Beobachtungs- und Verfügbarkeitszeitpunkt sowie zeitgebundenen
+Freigaben. Die qualifizierte erste Probe einer UTC-Viertelstunde bleibt erhalten;
+mehrtägige Stützung und Freigaberate entsprechen 0.2.15. `shading_before` und
+`shading` dokumentieren die Zustände vor und nach jedem Lernschritt. Für die
+optionale Nowcastglättung enthalten begrenzte `observation_sources` zusätzlich
+die Rohzustände der tatsächlich verwendeten älteren Beobachtungen innerhalb
+des konfigurierten Fensters. Zukünftige Proben/Freigaben und unbelegte
+Beobachtungen werden beim Replay abgelehnt.
+
+### Physisches Format
 
 `custom_components/adaptive_solar/core/archive.py` importiert kein Home Assistant.
 Alle Methoden führen blockierende Arbeit aus; HA ruft sie im Executor auf.

@@ -216,6 +216,7 @@ def evaluate_forecasts(
     The daily-win threshold applies separately to each declared inverter/horizon
     stratum. Repeated origins within one stratum/day use mean absolute energy
     error and count as one day only when every planned origin is paired. The
+    minimum-day gate uses that same complete-origin denominator. The
     top-level daily_win_fraction is the minimum stratum fraction (null if any
     stratum has no complete day), never a pooled or weighted success fraction.
     """
@@ -389,6 +390,7 @@ def evaluate_forecasts(
     if unsupported_energy_groups:
         reasons.append("incomplete_declared_energy_schedule")
     strata = {}
+    complete_days_by_stratum = {}
     for inverter, horizon in sorted({(inverter, horizon)
                                      for (_, _, inverter), horizon in group_horizons.items()}):
         scope_windows = [window for window in eligible if window.inverter_id == inverter
@@ -397,14 +399,20 @@ def evaluate_forecasts(
         common_duration = sum((row.end - row.start).total_seconds() for row in scope_windows
                               if (row.cutoff, row.start, row.end, row.inverter_id) in paired_map)
         energy_rows = [x for x in energies if x["inverter_id"] == inverter and x["horizon"] == horizon]
-        strata[f"{inverter}|{horizon}"] = {
+        expected_pairs = [
+            {"cutoff": cutoff.isoformat(), "target_day": target_day.isoformat()}
+            for (cutoff, target_day, group_inverter), group_horizon in sorted(group_horizons.items())
+            if group_inverter == inverter and group_horizon == horizon]
+        expected_origins = Counter(row["target_day"] for row in expected_pairs)
+        paired_origins = Counter(row["target_day"] for row in energy_rows)
+        complete_days = {day for day, count in expected_origins.items() if paired_origins[day] == count}
+        key = f"{inverter}|{horizon}"
+        complete_days_by_stratum[key] = complete_days
+        strata[key] = {
             "inverter_id": inverter, "horizon": horizon,
-            "expected_pairs": [
-                {"cutoff": cutoff.isoformat(), "target_day": target_day.isoformat()}
-                for (cutoff, target_day, group_inverter), group_horizon in sorted(group_horizons.items())
-                if group_inverter == inverter and group_horizon == horizon],
+            "expected_pairs": expected_pairs,
             "coverage": common_duration / expected_duration if expected_duration else 0.0,
-            "complete_target_days": len({x["target_day"] for x in energy_rows}),
+            "complete_target_days": len(complete_days),
             "scores": {source: _energy_metrics([(x["actual_kwh"], x["forecasts_kwh"][source])
                                                  for x in energy_rows]) for source in sources}}
     if any(x["coverage"] < min_coverage for x in strata.values()):
@@ -444,16 +452,22 @@ def evaluate_forecasts(
                     and abs(candidate["bias_kwh"]) <= abs(reference["bias_kwh"]) + 1e-12)
                 expected_days = Counter(row["target_day"] for row in stratum["expected_pairs"])
                 day_means = []
-                for day, expected_count in sorted(expected_days.items()):
+                for day in sorted(complete_days_by_stratum[key]):
+                    expected_count = expected_days[day]
                     errors = daily_errors[key, day]
-                    if len(errors) == expected_count:
-                        day_means.append((sum(row[0] for row in errors) / expected_count,
-                                          sum(row[1] for row in errors) / expected_count))
+                    day_means.append((sum(row[0] for row in errors) / expected_count,
+                                      sum(row[1] for row in errors) / expected_count))
                 wins = sum(candidate < reference for candidate, reference in day_means)
                 fraction = wins / len(day_means) if day_means else None
-                passed = fraction is not None and fraction >= min_daily_win_fraction
-                failures = ([] if passed else ["no_complete_paired_target_days" if fraction is None
-                                               else "insufficient_daily_win_fraction"])
+                failures = []
+                if fraction is None:
+                    failures.append("no_complete_paired_target_days")
+                else:
+                    if len(day_means) < min_paired_days:
+                        failures.append("insufficient_complete_paired_target_days")
+                    if fraction < min_daily_win_fraction:
+                        failures.append("insufficient_daily_win_fraction")
+                passed = not failures
                 daily_win_checks[key] = {"expected_target_days": len(expected_days),
                                          "paired_target_days": len(day_means), "winning_target_days": wins,
                                          "daily_win_fraction": fraction, "passed": passed,
@@ -500,5 +514,6 @@ def evaluate_forecasts(
                        "min_paired_intervals": min_paired_intervals,
                        "min_daily_win_fraction": min_daily_win_fraction,
                        "daily_win_scope": "each_declared_inverter_horizon_stratum",
+                       "complete_target_day_scope": "all_declared_origins_within_inverter_horizon_stratum",
                        "min_relative_improvement": min_relative_improvement,
                        "max_inverter_worsening": max_inverter_worsening}}

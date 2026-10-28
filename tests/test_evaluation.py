@@ -118,6 +118,40 @@ def test_daily_win_counts_complete_days_once_even_with_multiple_declared_origins
     assert check["daily_win_fraction"] == 1
 
 
+@pytest.mark.parametrize("missing_origin", [True, False])
+def test_minimum_target_days_requires_every_declared_origin_without_bootstrap(missing_origin):
+    forecasts, actuals, windows = archive(days=30)
+    first_windows = [replace(row, cutoff=row.cutoff - timedelta(days=1)) for row in windows]
+    second_windows = [replace(row, cutoff=row.cutoff - timedelta(days=1) + timedelta(seconds=30))
+                      for row in windows]
+    first_forecasts = [replace(row, issued_at=row.issued_at - timedelta(days=1)) for row in forecasts]
+    second_forecasts = [replace(row, issued_at=row.issued_at - timedelta(days=1) + timedelta(seconds=30))
+                        for row in forecasts]
+    if missing_origin:
+        second_forecasts = [replace(row, power_w=None)
+                            if row.source == "helios" and row.start == EPOCH + timedelta(hours=12)
+                            else row for row in second_forecasts]
+    report = evaluate(first_forecasts + second_forecasts, actuals, first_windows + second_windows)
+    expected_days = 29 if missing_origin else 30
+    key = "wr|day_1_at_00:00"
+    assert report["coverage"] > report["policy"]["min_coverage"]
+    assert report["paired_target_days"] == 30  # Interval availability is a separate numerator.
+    assert report["strata"][key]["complete_target_days"] == expected_days
+    for source in ("helios", "open_meteo"):
+        check = report["improvement"][source]["daily_win_by_inverter_horizon"][key]
+        assert check["expected_target_days"] == 30
+        assert check["paired_target_days"] == check["winning_target_days"] == expected_days
+        assert check["daily_win_fraction"] == 1
+        assert check["passed"] is (not missing_origin)
+        assert report["improvement"][source]["supports_improvement_on_paired_archive"] is (not missing_origin)
+    assert report["comparison_eligible"] is (not missing_origin)
+    assert report["supports_improvement_over_both_references_on_paired_archive"] is (not missing_origin)
+    assert report["statistical_acceptance"] == "not_evaluated"
+    if missing_origin:
+        assert "insufficient_per_horizon_inverter_days" in report["gate_reasons"]
+        assert check["gate_reasons"] == ["insufficient_complete_paired_target_days"]
+
+
 def test_distinct_forecast_tasks_have_explicit_exposure_scope_not_extra_independent_days():
     from custom_components.adaptive_solar.core.statistical_validation import paired_day_bootstrap
 

@@ -1,0 +1,11 @@
+[Unit]
+Description=Adaptive Solar archive weather schedule
+
+[Timer]
+OnCalendar=*-*-* *:03:00
+Persistent=true
+AccuracySec=10s
+Unit=adaptive-solar-archive-weather.service
+
+[Install]
+WantedBy=timers.target

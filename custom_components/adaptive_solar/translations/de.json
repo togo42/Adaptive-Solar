@@ -13,7 +13,9 @@
           "temperature_entity_id": "Außentemperatursensor (optional)",
           "wind_entity_id": "Windgeschwindigkeit außen (optional)",
           "irradiance_entity_id": "Horizontale Globalstrahlung außen (optional, unverschattet)",
-          "archive_export": "Originaleingaben archivieren (privater Exportpuffer)"
+          "archive_export": "Originaleingaben archivieren (privater Exportpuffer)",
+          "physics_substeps": "Physik-Teilintervalle (1 = bisherig, >1 = Kandidat)",
+          "power_nowcast_window_minutes": "Nowcast-Glättungsfenster (0 = aus)"
         },
         "description": "Nur private, nichtkommerzielle Nutzung der kostenlosen Open-Meteo-API. Bestehende Wechselrichter und Strings werden beim Bearbeiten nacheinander angezeigt."
       },
@@ -47,7 +49,11 @@
           "add_another": "Nach vorhandenen Einträgen weiteren hinzufügen",
           "remove": "Diesen Eintrag entfernen",
           "damping_morning": "Morgendämpfung (0–1, 0 = aus)",
-          "damping_evening": "Abenddämpfung (0–1, 0 = aus)"
+          "damping_evening": "Abenddämpfung (0–1, 0 = aus)",
+          "iam_ashrae_b0": "ASHRAE IAM b0 (0 = aus, Kandidat)",
+          "faiman_u0": "Faiman u0 (W/m²/K)",
+          "faiman_u1": "Faiman u1 (W/m²/K je m/s)",
+          "wind_speed_factor": "Windfaktor zur Koeffizienten-Bezugshöhe"
         }
       },
       "dc_inverter": {
@@ -87,7 +93,9 @@
           "temperature_entity_id": "Außentemperatursensor (optional)",
           "wind_entity_id": "Windgeschwindigkeit außen (optional)",
           "irradiance_entity_id": "Horizontale Globalstrahlung außen (optional, unverschattet)",
-          "archive_export": "Originaleingaben archivieren (privater Exportpuffer)"
+          "archive_export": "Originaleingaben archivieren (privater Exportpuffer)",
+          "physics_substeps": "Physik-Teilintervalle (1 = bisherig, >1 = Kandidat)",
+          "power_nowcast_window_minutes": "Nowcast-Glättungsfenster (0 = aus)"
         },
         "description": "Nur private, nichtkommerzielle Nutzung der kostenlosen Open-Meteo-API. Bestehende Wechselrichter und Strings werden beim Bearbeiten nacheinander angezeigt."
       },
@@ -121,7 +129,11 @@
           "add_another": "Nach vorhandenen Einträgen weiteren hinzufügen",
           "remove": "Diesen Eintrag entfernen",
           "damping_morning": "Morgendämpfung (0–1, 0 = aus)",
-          "damping_evening": "Abenddämpfung (0–1, 0 = aus)"
+          "damping_evening": "Abenddämpfung (0–1, 0 = aus)",
+          "iam_ashrae_b0": "ASHRAE IAM b0 (0 = aus, Kandidat)",
+          "faiman_u0": "Faiman u0 (W/m²/K)",
+          "faiman_u1": "Faiman u1 (W/m²/K je m/s)",
+          "wind_speed_factor": "Windfaktor zur Koeffizienten-Bezugshöhe"
         }
       },
       "dc_inverter": {

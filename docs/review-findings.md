@@ -1,5 +1,200 @@
 # Reviewnachweise und fachliche Bearbeitung
 
+## Abgeschlossener Vollreview des Entwicklungsstands
+
+27.10.2026, **Codex GPT-6.1-Sol/high**, geprüfter Commit
+`d1991da6a621c736abbc402bc2ebd7d5a715f707`: **mergeable, keine Findings**.
+Vollständiger Textreview über **135 öffentliche Originaldateien**,
+**1.842.921 Payloadbytes**, 31 Quelltextabschnitte und einen finalen
+Bewertungsturn. Binäre Markenbilder liegen außerhalb der Textprüfung.
+
+Der unabhängige Nachaudit bestätigt alle 32 abgeschlossenen Turns, unveränderte
+Originaldateien und vollständige Payload-/Manifest-/Promptbytes, die tatsächliche
+Endantwort, CLI-0.164.0-Bytes sowie native Modell-/High-Identität. Alle Aufrufe
+entsprechen exakt den strikten 800k-Argumenten. Keine Compaction, Tools oder
+Hintergrundaufgaben. **1364 Tests ohne Skips**, Ruff und Dependencycheck sauber;
+Zeilenabdeckung 94,61 %, Zweigabdeckung 87,63 %, kombiniert 92,57 %.
+Alle 30 Integrationsdateien stimmen byteweise mit dem isoliert installierten
+Wheel überein; zwölf HA-/Kernimporte sind geprüft.
+
+Receipt-SHA256:
+`8163ebb6749d480a8481bd743a08e0ff36db5809dd393c85a051cad406c5f6dd`.
+Review-SHA256:
+`c99b0cb30bdfc7457bed6ddac38a8ad7213d49f7038d15de49ed53e0ce520ae9`.
+Payload-SHA256:
+`6f8f4688883aa0c4d35cb8c469c5edddc0ccf7f8ac07cf920a2a833006090358`.
+Private Belege: `reviews/private/forecast-quality-20261027-codex-round7/`
+und `artifacts/forecast-quality-closeout.json`.
+
+Dieser Abschlussabschnitt und die zugehörige aktuelle Statusdokumentation
+entstehen nach dem eingefrorenen Reviewtext; Implementierungs-, Test- und
+übrige Dateibytes bleiben unverändert. Der Review erteilt keine produktive
+HA-Freigabe und beweist keinen Prognosevorsprung. Während dieses Reviewabschlusses
+erfolgten kein Push, Release oder produktiver Eingriff. Der anschließend ausdrücklich
+beauftragte Release-/Installationsschritt ist im [Entwicklungsstand](entwicklungsstand.md)
+separat nachgewiesen. Dabei trat der neue offene Startimportbefund
+[AS-START-001](geplante-updates.md#as-start-001-kalten-wetter-physikimport-aus-dem-eventloop-nehmen)
+auf; ein akzeptierter Review ersetzt die native Prüfung nicht.
+
+## Entwicklungsnachtrag nach 0.2.14
+
+Der ursprüngliche Arbeitsstand `d73fc4c` erhielt noch keine Freigabe. Ein
+vollständiger Grok-4.7/high-Lauf bestätigte 29 Quelltextteile, scheiterte aber
+beim Abschlussturn mit `max_tokens_truncation`: kein gültiges Reviewurteil.
+
+Der alternative vollständige **Codex GPT-6.1-Sol/high**-Review desselben Standes
+war transportgültig, aber **blocked**. 126 öffentliche Originaldateien,
+1.731.723 Payloadbytes, 30 erfolgreich abgeschlossene Turns; exakte
+Prompt-/Antwortbindung, Modell/High und null Compaction/Tools wurden nach dem
+Abschluss unabhängig erneut geprüft. Receipt-SHA256:
+`d7073a885733e1c89f12610ee48aec3c980e64f874984e81c5bdedea79acc71f`.
+
+Die drei Findings wurden mit gezielten Regressionen bearbeitet:
+
+- **AS-001 (hoch):** Mindesthistorie und Tagesgewinnprüfung verwenden jetzt
+  dieselben Tage, an denen sämtliche geplanten Origins des Stufen-/
+  Horizontstratums vollständig gepaart sind. 29 vollständige von 30 deklarierten
+  Tagen reichen auch ohne optionalen Bootstrap nicht aus.
+- **AS-002 (mittel):** Beide Aufrufe zur Schattenkohortenbestimmung erhalten
+  die ursprünglichen Wetterintervalle. Bei Teilintervallintegration wird die
+  interne Zeitform damit über dieselbe Stütze wie die operative Prognose
+  normiert. Regressionen prüfen Rohphysik und GHI-Anpassung.
+- **AS-003 (niedrig):** Die Vergleichsdokumentation beschreibt den ersten
+  tatsächlichen Versuch ab 18 Uhr einschließlich Ausfall; ein späterer Erfolg
+  ersetzt diesen Tagescapture nicht.
+
+Der zusätzliche eigene Ende-zu-Ende-Review fand verlorene gemeinsame
+Forecast-Origins durch zellweise Archivverdichtung. Die zeitliche Paarauswahl
+erhält jetzt tatsächlich gemeinsam ausgegebene Nachbarzellen. Regressionen mit
+wiederholtem echtem Archivierungsablauf prüfen NWP-Lead-Bins, GHI, eindeutige
+Messstunden sowie die Budgets bei einer, vier und sieben Stufen.
+[Vertrag und Grenzen](measurement-learning.md).
+
+Der zweite gültige **Codex GPT-6.1-Sol/high**-Nachreview von `9e85391`
+blockierte noch einen Messkonfliktfall (AS-001 dieser Runde, mittel): Links
+beginnenden beziehungsweise rechts endenden überlappenden Messstücken wurde
+vor der Auswahl ganzer Stundenstücke nicht ausreichend Rechnung getragen.
+Die Korrektur erstellt einen gemeinsamen, nach tatsächlicher Verfügbarkeit
+gefilterten Intervallindex. Die Konfliktprüfung erfolgt vor dem Randbeschnitt;
+unabhängige saubere Stunden und Endpunktfenster bleiben nutzbar. 15 neue
+Regressionen prüfen beide Ränder, Verschachtelungen, Restore, Zukunftsreceipts
+und den Aufwand. Ein unabhängiger Gegencheck bestätigt 63.000 Abfragen gegen
+eine einfache Referenzberechnung. Dieser zweite Lauf bleibt ein historischer
+blockierender Befund, kein positiver Nachweis.
+
+Der dritte gültige **Codex GPT-6.1-Sol/high**-Nachreview von `18dbbd2`
+fand einen weiteren Speicherfehler (AS-001 dieser Runde, mittel): HA kann
+syntaktisch beschädigtes JSON beim normalen Store-Laden umbenennen und `None`
+zurückgeben. Die Integration behandelte dies wie einen fehlenden Hauptspeicher
+und konnte dadurch eine alte Legacy-Historie übernehmen und den Hauptspeicher
+neu beschreiben. Der Lauf umfasste 129 Originaldateien, 1.766.544 Payloadbytes
+und 31 erfolgreiche Turns. Der unabhängige Nachaudit bestätigt Prompt-/
+Antwortbindung, Modell/High und null Compaction/Tools; Receipt-SHA256:
+`050faf278867bc4841125bc3f52b2b01dcf782bc0bb4ad0d7678f6e4843ba522`.
+Die 1256 Tests dieses Standes deckten beschädigte Inhaltsdaten ab, aber nicht
+diesen nativen Dateifehler. Auch dieser Review bleibt ein blockierender Befund.
+
+Die Korrektur liest Primary und Legacy jeweils ohne verändernde HA-Load-
+Operation im Executor. Nur eine wirklich fehlende Primärdatei erlaubt den
+Legacy-Pfad; vorhandene beschädigte oder unbekannte Dateien bleiben unverändert
+und sperren die Hauptpersistenz. 23 neue Fälle prüfen native Dateifehler,
+Storehüllen, lesbare ältere Hüllen, reguläre Migration, neutrale Physik,
+Schreibsperren und einen tatsächlichen verzögerten Save. Die bisherigen
+Restoretests verwenden jetzt reale Dateien statt vorgefertigter Ladeantworten.
+Der unabhängige Gegencheck fand und behob zusätzlich einen Fixturefehler bei
+der Auswertung verzögerter Datenfunktionen; diese werden genau einmal ausgeführt.
+
+Der vierte gültige **Codex GPT-6.1-Sol/high**-Nachreview von `1beb9da`
+fand einen Fehler im Istwert-Capturewerkzeug (AS-001 dieser Runde, mittel):
+Spätere negative Qualitätsevidenz für eine Teilstunde wurde nur als fehlende
+Vollstundenfreigabe behandelt. Dadurch konnte ein älteres positives Stundenlabel
+im Vergleich weiterverwendet werden. Dieser Lauf umfasste 131 Originaldateien,
+1.784.219 Payloadbytes und 31 erfolgreiche Turns; der unabhängige Audit bestätigt
+Modell/High, exakte Prompt-/Antwortbindung und null Compaction/Tools.
+Receipt-SHA256:
+`b69e0beb77212ef317e467d1cc37fbd3b26538c4bb4c90c91f6fbaf01aa5ce5f`.
+Die **1279 Tests ohne Skips** und die Paketprüfung dieses Standes deckten diesen
+Revisionsfall noch nicht ab. Seine kombinierte Komponentenabdeckung betrug
+**92,48 %**; auch dieser Review bleibt ein historischer blockierender Befund.
+
+Der gezielte unabhängige Gegencheck bestätigte zwei verwandte Pfade: Eine
+negative Maske außerhalb des aktuellen Recorder-Abruffensters kann eine ältere
+archivierte Stunde betreffen. Außerdem konnte ein positives Inline-Istlabel aus
+`payload.actuals` eine negative Revision in `--actual-captures` umgehen. Diese
+Fälle werden gemeinsam mit dem ursprünglichen Befund durch zeitlich verfügbare
+Negativrevisionen über tatsächlich archivierte Stunden und eine explizite
+Trennung der CLI-Istquellen abgesichert.
+
+Auch explizit ungültige oder geänderte vorhandene Recorder-Vorlaufwerte müssen
+ältere akzeptierte Stunden mit ihrer tatsächlichen Rohrevision konfrontieren.
+Die native HA-Quellprüfung unterscheidet sie von bloß fehlendem Abfragekontext.
+Vollständige metadatengültige Summen werden nur gegen bestehende Stundenlabels
+verglichen; fehlende oder identische Vorläufe erzeugen weder neue Labels noch
+eine Wiederfreigabe. 53 neue Revisionsfälle und vier CLI-Fälle ergänzen die
+bestehenden Tests. Ein unabhängiger Gegencheck bestätigt 110 Ablaufprüfungen
+und 4.729 Maskenindexvergleiche gegen eine einfache Referenzberechnung.
+
+Der damalige gemeinsam korrigierte Stand bestand lokal **1336 Tests ohne Skips**,
+Ruff und die Paketprüfung. Seine kombinierte Komponentenabdeckung betrug **92,48 %**.
+
+Der fünfte gültige **Codex GPT-6.1-Sol/high**-Nachreview von `44aec9d`
+fand zwei weitere Fehler mittlerer Schwere. **AS-001**: Bei einer über Mitternacht
+laufenden Berechnung konnte der vor dem Executor gesetzte Ausgabezeitpunkt eine
+erst danach verfügbare Tagesstartprognose zulassen. Derselbe Verfügbarkeitsfehler
+betrifft Trainingszellen an normalen Stundengrenzen. **AS-002**: Der
+Vergleichsloader verwendete für fehlende Dateien noch `exists()` und erkannte
+deshalb einen vorhandenen defekten Symlink fälschlich als neuen Speicher.
+134 Originaldateien, 1.817.258 Payloadbytes und 32 erfolgreiche Turns wurden
+vollständig geprüft. Der unabhängige Nachaudit bestätigt die Quell-/Promptbindung,
+Modell/High und null Compaction/Tools; Receipt-SHA256:
+`626e266247f610a6cc1475c8b417bb074611f3fe8f854fe255a4b4cc8083c484`.
+Dieser Lauf bleibt ein historischer blockierender Befund für den damaligen Stand.
+
+Die Korrektur prüft für neue Tagesstartwerte und Trainingszellen zusätzlich
+die tatsächliche lokale Verfügbarkeit des vollständig zurückgekehrten
+Executor-Ergebnisses. Der ursprüngliche Berechnungsissue bleibt erhalten;
+historische Werte oder Operatorimporte werden nicht nachträglich umgedeutet.
+Der Vergleichsloader erlaubt eine Neuanlage nur bei echter Abwesenheit des
+Verzeichniseintrags gemäß `lstat()`. Vorhandene defekte Symlinks bleiben nach
+Setup, Capture, Save und Close schreibgeschützt erhalten.
+
+Der damalige erneut korrigierte Stand bestand **1349 Tests ohne Skips**, Ruff und die
+Paketprüfung. Zeilenabdeckung **94,61 %**, Zweigabdeckung **87,63 %**, kombinierte
+Komponentenabdeckung **92,57 %**. Zehn neue Executor-/Archivierungsfälle und drei
+Dateisystemregressionen ergänzen die bisherigen Tests; ein unabhängiger Gegencheck
+bestätigt DST, Trainingszellen, vorhandene Snapshots und Operatorimporte.
+
+Der sechste Codex-Lauf von `2f78698` ist **kein gültiger Review**: Der
+Kontextaudit brach mit ungültigen `token_usage_record`-Metadaten ab; die native
+Sitzung enthält eine tatsächliche Compaction und nennt ein effektives
+Kontextfenster von 475.000 Tokens. Auch der Reviewer selbst meldete einen
+unvollständigen, komprimierten Quellkontext und keine Mergefreigabe. Daraus
+folgt weder ein positiver Nachweis noch ein neuer bestätigter Codebefund.
+Der vollständige Quellumfang muss mit ausreichend großem, nativ überprüftem
+Kontext erneut gelesen werden; diese Sitzung wird nicht als Referenz verwendet.
+
+Der Reviewhelfer fordert für neue Codex-Aufrufe deshalb 800.000 Kontexttokens
+an; Grok bleibt bei 500.000. Historische 500k-/800k-Codex-Referenzen werden
+ausschließlich mit ihren exakt gebundenen Budgetwerten und unveränderten
+strikten Flags akzeptiert. Scope, Quell-/Prompt-/CLI-Hashes sowie die Ablehnung
+von Compaction, Tools oder unvollständigem Abschluss bleiben unverändert.
+Ein echter einzelner Konfigurationsprobelauf mit Codex 0.164.0 und
+GPT-6.1-Sol/high bestätigt 760.000 effektive Tokens, einen abgeschlossenen Turn
+und null Compaction/Tools. Er enthält keinen Quellreview und erteilt keine
+Mergefreigabe. Private Belege: `reviews/private/forecast-quality-codex-800k-probe/`.
+176 Transporttests und 14 zusätzliche unabhängige Gegenchecks prüfen die
+Budgetbindung, historischen Referenzen und die unveränderten Sperren.
+
+Die anschließende Gesamtsuite besteht **1364 Tests ohne Skips**; Ruff und
+Diffprüfung sind sauber. Die Komponentenabdeckung bleibt **92,57 %**. Alle
+30 Integrationsdateien sind seit `2f78698` unverändert und entsprechen weiterhin
+dem isoliert installierten und geprüften Wheel.
+
+Die in diesem Entwicklungsnachtrag beschriebenen früheren Läufe sind keine
+Freigabe späterer Korrekturen. Der gültige aktuelle Vollreview ist im
+vorangestellten Abschlussabschnitt an seine tatsächlichen Quellen gebunden.
+Rohpayloads und native Sitzungsbelege bleiben unter ignoriertem `reviews/private/`.
+
 ## Gültiger Grok-Nachreview der Ablehnungsdiagnose
 
 27.10.2026, **Grok 4.7/high**, Arbeitsstand auf Basis `1634e08`:

@@ -1,6 +1,6 @@
 # Direktstrahl-Verschattung aus Globalstrahlung und Stufenleistung
 
-Stand: 27.10.2026. Spezifikation und Umsetzungsstand gegen Codebasis **0.2.12**.
+Stand: 27.10.2026. Ursprüngliche Spezifikation gegen Codebasis **0.2.12**, mit lokalem Nachtrag nach 0.2.14. Die aktuellen zeitlichen Freigaberegeln stehen in [Physik-/Schattenoptionen](physics-learning-options.md).
 Die Arbeitspakete `VS-01` bis `VS-06` sind im Code und in der Testsuite umgesetzt;
 `VS-00` bleibt die anlagenseitige Konfigurationsvorgabe ohne Codeänderung. Ein
 prospektiver Gütevergleich ist damit noch nicht durchgeführt. Eine gefüllte
@@ -63,9 +63,12 @@ Sonnenstandsrechnung. Azimutfenster sind `floor(azimuth / 10) mod 36` auf
 kein Fenster.
 
 Jedes Fenster speichert höchstens die letzten 24 Aufnahmen. Eine Aufnahme ist
-eine Viertelstunde in UTC und ein Faktor. Dieselbe Viertelstunde ersetzt die
-ältere Aufnahme. Freigegeben ist der Median, sobald fünf verschiedene
-Viertelstunden gespeichert sind. Sonst ist der Faktor 1. Leere Fenster werden
+eine Viertelstunde in UTC, ein Faktor sowie der echte Mess- und Verfügbarkeitszeitpunkt.
+Im lokalen Nachtrag bleibt die erste qualifizierte Probe je Viertelstunde unverändert;
+ein späterer Bericht ersetzt frühere Belege nicht rückwirkend. Im lokalen Nachtrag erfordert die Freigabe mindestens fünf
+Viertelstunden aus mindestens zwei UTC-Tagen innerhalb 45 Tagen. Die gleichgewichteten
+Tagesmediane dürfen höchstens MAD 0,15 aufweisen; nach Freigabe ist die Änderung auf
+0,10 pro verstrichenem UTC-Kalendertag begrenzt. Sonst ist der Faktor 1. Leere Fenster werden
 nicht aus Nachbarn gefüllt.
 
 ### 4.2 Faktor
@@ -164,7 +167,7 @@ Qualitätsstatus gibt `learning` bereits aus, die Diagnose ebenfalls. Felder:
 | `azimuth_bin_deg`, `elevation_bin_deg` | Fenster des aktuellen Sonnenstands, sonst leer |
 | `transmittance` | freigegebener Faktor, sonst 1 |
 | `samples` | gespeicherte Viertelstunden dieses Fensters |
-| `released` | wahr ab fünf Viertelstunden |
+| `released` | zeitliche, Tageszahl- und Streuungsgates erfüllt |
 | `filled_bins` | Zahl freigegebener Fenster der Stufe |
 | `last_rejection` | letzter Ablehnungsgrund oder leer |
 
@@ -186,15 +189,17 @@ der Tabelle.
 
 ## 5. Eingefrorene Parameter
 
-Diese Werte gelten für die ersten Pakete. Eine Änderung ist eine neue
-Tabellendefinition und kein stilles Nachjustieren.
+Die ursprünglichen Werte galten für die ersten Pakete. Der lokale Nachtrag
+erweitert die Freigabe ausdrücklich um Zeit-, Tageszahl-, Streuungs- und Driftgates.
+Diese Schutzregeln benötigen ebenfalls prospektive Prüfung.
 
 | Parameter | Wert |
 | --- | --- |
 | Azimutfenster | 10° |
 | Höhenfenster | 5° |
-| Freigabe | Median ab 5 verschiedenen UTC-Viertelstunden |
-| Speicher je Fenster | 24 Aufnahmen |
+| Freigabe | 5 verschiedene UTC-Viertelstunden, 2 UTC-Tage, höchstens 45 Tage alt; Tagesmedian-MAD höchstens 0,15 |
+| Änderung nach Freigabe | höchstens 0,10 pro vergangenem UTC-Kalendertag |
+| Speicher je Fenster | 24 zeitlich qualifizierte Aufnahmen, bis zu 64 Freigabeänderungen; alte unbelegte Proben separat diagnostisch |
 | Faktorgrenzen | 0 bis 1, sonst 1 |
 | Mindest-Sonnenhöhe | 10° |
 | Mindest-Klarhimmel | 50 W/m² Haurwitz |
@@ -233,6 +238,10 @@ gebunden. Private Zuordnungen bleiben außerhalb von Git.
 Abschnitt PV-String. Kein Laufzeitcode.
 
 ### VS-01 Schattentabelle
+
+Historische Paketabnahme der ursprünglichen 0.2.12-Definition; die Freigabetests
+werden im lokalen Nachtrag zusätzlich um die aktuellen Zeit-/Tages-/Streuungsgates
+erweitert. Die fünfte Probe allein reicht dort nicht mehr.
 
 **Priorität P0 · Aufwand S · Voraussetzung:** keine.
 

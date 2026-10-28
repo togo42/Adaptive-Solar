@@ -1,9 +1,6 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 28.10.2026. Veröffentlichtes Referenzrelease: 0.2.14 einschließlich des
-[Messdaten-Nachtrags](messintervalle-92-prozent.md). Der unten beschriebene
-Originaldatenexport gehört zum unveröffentlichten Entwicklungszweig vom 28.10.2026;
-eine produktive Aktivierung wird damit nicht behauptet. [Installation](installation.md),
+Stand: 28.10.2026, Funktionsumfang 0.2.16. Veröffentlichung und produktive Prüfung werden im [Entwicklungsstand](entwicklungsstand.md) nachgewiesen. [Installation](installation.md),
 [Datenverträge](implementation-contract.md), [Datenschutz](datenschutz.md).
 
 ## 1. Anlagenaufteilung vorbereiten
@@ -32,6 +29,8 @@ kurzfristige Korrekturen, kumulative Energie ermöglicht spätere Lernlabels.
 | Außentemperatur / `temperature_entity_id` | Optionaler Temperatursensor; °C, °F oder K |
 | Wind / `wind_entity_id` | Optionaler Windgeschwindigkeitssensor; m/s, km/h, mph oder kn |
 | Globalstrahlung / `irradiance_entity_id` | Optional: echte horizontale Globalstrahlung in W/m² oder kW/m², keine Beleuchtungsstärke in Lux |
+| Physik-Teilschritte / `physics_substeps` | Standard 1 = bisheriger Mittelpunkt; 2, 4, 6 oder 12 aktivieren interne Zeitintegration als Kandidaten |
+| Leistungs-Nowcast-Fenster / `power_nowcast_window_minutes` | Standard 0 = bisheriger Einzelbericht; 1–15 Minuten aktivieren die zeitgewichtete normierte Residualglättung |
 
 Mit `best_match` beginnen. Zusätzliche Wettermodelle werden gleichgewichtet, soweit
 sie das jeweilige Intervall gültig abdecken. Mehr Modelle sind kein belegter
@@ -75,6 +74,9 @@ Wiederfreigabe: [Messgültigkeit](measurement-validity.md).
 | Temperaturkoeffizient / `temperature_coefficient` | Standard −0,004 pro °C = −0,4 %/°C; Modulblattwert durch 100 teilen, wenn er in %/°C angegeben ist |
 | Morgen-/Abenddämpfung / `damping_morning`, `damping_evening` | Je 0–1, Standard 0 = aus; 1 bedeutet volle Randdämpfung bei Auf-/Untergang, keine ganztägige Abschaltung |
 | Horizontpunkte / `horizon` | Liste, standardmäßig leer. Je Punkt `azimuth_deg`, `elevation_deg` und optional `beam_transmission` (Standard 0 = kein Direktlicht unter dem Horizont) |
+| ASHRAE-IAM / `iam_ashrae_b0` | Standard 0 = aus; 0–0,2 für direkte optische Einfallswinkelverluste |
+| Faiman / `faiman_u0`, `faiman_u1` | Standard 25 beziehungsweise 6,84; Wärmeübergangskandidaten mit Bereichen 5–100 beziehungsweise 0–30 |
+| Windfaktor / `wind_speed_factor` | Standard 1; 0–2 auf Quellwind vor der Temperaturberechnung, keine automatisch vermessene Höhenkorrektur |
 | Weiteren hinzufügen / `add_another` | Einen weiteren String nach vorhandenen Einträgen bearbeiten |
 | Entfernen / `remove` | Diesen String entfernen; jede verbleibende Stufe braucht weiterhin einen String |
 
@@ -101,8 +103,10 @@ Horizontprofil, Morgen-/Abenddämpfung und die gelernte Direktstrahl-Tabelle
   und gemeinsamer Stufenleistung (`power_entity_id`) an klaren, ungedrosselten Stunden
   (`Clearness-Index >= 0,6`, Sonnenhöhe `>= 10°`, Haurwitz-Klarhimmel `>= 50 W/m²`,
   Paarung innerhalb von fünf Minuten, ausreichender Direktanteil, unterhalb 98 % der
-  Stufengrenze) den wirksamen Direktstrahl-Faktor `t` in `[0, 1]`. Ab fünf verschiedenen
-  UTC-Viertelstunden je Fenster wird der Median freigegeben; leere oder noch nicht
+  Stufengrenze) den wirksamen Direktstrahl-Faktor `t` in `[0, 1]`. Im lokalen Nachtrag
+  braucht die Freigabe fünf verschiedene UTC-Viertelstunden an mindestens zwei
+  UTC-Tagen innerhalb 45 Tagen, mit begrenzter Tagesmedian-Streuung und Drift;
+  Details: [Physik-/Schattenoptionen](physics-learning-options.md). Leere oder noch nicht
   freigegebene Fenster bleiben bei Faktor `1` ohne Nachbarschaftsfüllung. Der Faktor
   skaliert nur `poa_direct` nach einem etwaigen fernen Horizont und lässt Diffuslicht
   an bedeckten Tagen unverändert.
@@ -154,7 +158,7 @@ Gesamtsensoren einer Einzelstufe bleiben als ausgeblendete Aliase erhalten.
 | --- | --- |
 | `curtailed` | Aktuelle Abregelung aktiv; Prognose bleibt verfügbares PV-Potenzial |
 | `partial` | Verbleibender heutiger Tag unvollständig abgedeckt |
-| `degraded` | Konfigurierte aktuelle Eingänge/Abregelungsinformation eingeschränkt |
+| `degraded` | Konfigurierte aktuelle Eingänge/Abregelungsinformation eingeschränkt, optionaler Residualfit fehlgeschlagen oder alter Wettercache nach Abruffehler verwendet |
 | `physics` | Physikalisches Rückfallmodell |
 | `mixed` | Residualkorrektur nur teilweise im veröffentlichten Horizont angewandt |
 | `complete` | Resttag abgedeckt und Residualkorrektur horizonweit ohne relevanten Tagesfallback angewandt |
@@ -165,11 +169,22 @@ den Ausgabeverlauf, `coverage` den Resttag. Der Statussensor enthält außerdem
 `forecast` mit Intervallstart/-ende, `power_w`, `energy_kwh` und optionalen Grenzen.
 `energy_kwh` ist bereits Intervallenergie und wird nicht nochmals integriert.
 
+Der lokale Nachtrag ergänzt [Messfenster aus echten Endpunkten](measurement-learning.md),
+ohne fehlende Energie aufzufüllen. `weather_diagnostics` nennt Intervallablehnungen,
+Cachealter und Tagesabdeckung; `resources` nennt Join-/Fit-/Prognosezeiten und
+Fitfehler. Bei einem optionalen Fitfehler läuft gültige Physik weiter. Nach
+Wetterabrufproblemen kann ein unveränderter Cache höchstens zwölf Stunden alt
+sein und muss Zukunftsintervalle enthalten; [Fehlerregeln](forecast-resilience.md).
+Der [frühe Bias-Kandidat](early-bias-shadow.md) bleibt separat im Shadow und
+ändert diese Sensorwerte nicht. Das [Vergleichsarchiv](model-comparison-archive.md)
+speichert tatsächlich ausgegebene Arme für spätere Auswertung; es ist keine
+zusätzliche aktive Prognoseintegration.
+
 `learning.<Stufe>.training_quality` erklärt Zähler- und Alignment-Ablehnungen.
 `learning.<Stufe>.beam_shade` zeigt für die Direktstrahl-Schattentabelle das aktuelle
 Sonnenfenster (`azimuth_bin_deg`, `elevation_bin_deg`), den wirksamen Faktor
 (`transmittance`, ohne Freigabe `1.0`), die gespeicherten Viertelstunden dieses Fensters
-(`samples`), die Freigabe ab fünf Viertelstunden (`released`), die Gesamtzahl
+(`samples`), die zeitlich qualifizierte Freigabe (`released`), die Gesamtzahl
 freigegebener Fenster der Stufe (`filled_bins`) und den letzten (auch mehrteiligen)
 Ablehnungsgrund (`last_rejection`).
 Für Lernlabels gelten mindestens 92 % Messabdeckung des ursprünglichen Ziels
@@ -177,7 +192,9 @@ und höchstens drei Minuten fehlende Zeit je Rand. Der längste zusammenhängend
 gültige Messblock zählt; Lücken werden nicht aufgefüllt.
 `training_quality.policy.max_missing_edge_seconds` nennt die absolute Randgrenze.
 Kurze auffällige Zählerdifferenzen können bis zu einem echten Folgebericht
-innerhalb eines begrenzten 60-Sekunden-Fensters zurückgehalten werden;
+innerhalb von höchstens 15 Minuten ab dem ursprünglichen Anker zurückgehalten werden;
+die anfängliche Energiegrenze bleibt auf die bei Ausgangsgrenze plus zehn Prozent
+in 60 Sekunden mögliche Energie begrenzt;
 `meter.pending_counter_aggregation` und die Ereigniszähler erklären den Zustand.
 
 Die lokale [Ablehnungsdiagnose](ablehnungsdiagnose.md) ergänzt
@@ -242,8 +259,7 @@ reproduzierbarer Fall ist hilfreicher als ein vollständiges privates Backup.
 
 ## 8. Optionalen Originaldatenexport einrichten
 
-Dieser Abschnitt gilt für den unveröffentlichten Entwicklungszweig. Das
-Referenzrelease 0.2.14 enthält diese Erweiterung noch nicht. Die Prognose kann
+Der optionale Originaldatenexport ist ab Version 0.2.16 verfügbar. Die Prognose kann
 weiterhin ohne Archivhost und ohne Exportpuffer betrieben werden.
 
 Im Standortdialog der Einrichtung oder unter **Konfigurieren/Optionen** lässt sich

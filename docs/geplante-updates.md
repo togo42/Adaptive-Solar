@@ -1,6 +1,28 @@
 # Änderungsliste und Umsetzungsstand
 
-Stand: 26.10.2026. Diese Liste dokumentiert beauftragte Folgeänderungen und deren Umsetzungsstand.
+Stand: 28.10.2026. Diese Liste dokumentiert beauftragte Folgeänderungen und deren Umsetzungsstand sowie bestätigte offene Betriebsbefunde.
+
+## AS-START-001: Kalten Wetter-/Physikimport aus dem Eventloop nehmen
+
+**Status: in 0.2.16 behoben und lokal geprüft; Liveabnahme separat im
+[Entwicklungsstand](entwicklungsstand.md).** Historischer Befund beim produktiven
+Start von 0.2.15 auf Core 2026.10.4:
+HA meldete vier blockierende Datei-/Modulzugriffe während des Imports von
+pvlib/SciPy. Alle vier Einträge wurden geladen und lieferten danach gültige
+Prognosen. Eine Blockierungsdauer oder weitere Folgewirkungen wurden nicht gemessen.
+
+Die neue Abhängigkeit `weather.py → engine.WEATHER_MAX_AGE → physics → pvlib`
+wird durch den synchronen Wetterimport in `async_setup_entry` ausgelöst, bevor
+der vorgesehene native Importexecutor für den Coordinator erreicht wird. Der
+Vergleich mit Tag `v0.2.14` bestätigt, dass diese schwere Abhängigkeit neu ist.
+Der erfolgreiche Vollreview und die Tests hatten diesen kalten Importpfad nicht
+als Befund erfasst.
+
+0.2.16 lädt das Wettermodul über den nativen `async_import_module`, bevor es
+den Client erzeugt. Eine Regression startet einen frischen Prozess mit echter
+HA und prüft die tatsächlichen pvlib-/NumPy-/SciPy-Imports außerhalb des
+Eventloop-Threads. Die produktive Neustartprüfung bleibt davon getrennt.
+Der historische Release-/Installationsauftrag 0.2.15 enthielt diesen Folgefix nicht.
 
 ## AS-UI-001: Doppelte Gesamtanzeige bei einer Ausgangsstufe vermeiden
 

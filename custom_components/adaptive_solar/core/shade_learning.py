@@ -19,7 +19,7 @@ from .physics import PhysicsUnavailable, clear_sky_ghi, solar_position
 from .shading import (
     MAX_SHADE_CAP_FRACTION, MAX_SHADE_PAIR_SECONDS, MIN_SHADE_BEAM_ABS_W,
     MIN_SHADE_BEAM_CAP_FRACTION, MIN_SHADE_BEAM_SHARE, MIN_SHADE_CLEARNESS_INDEX,
-    MIN_SHADE_CLEAR_SKY_W_M2, MIN_SHADE_ELEVATION_DEG, MIN_SHADE_SAMPLES,
+    MIN_SHADE_CLEAR_SKY_W_M2, MIN_SHADE_ELEVATION_DEG,
     BeamShadeTable, compute_beam_shade_factor, shade_bin,
 )
 
@@ -32,7 +32,7 @@ class ShadeLearningPolicy:
     every decision so a changed candidate threshold remains distinguishable.
     """
 
-    version: str = "beam-shade-learning-v1"
+    version: str = "beam-shade-learning-v2"
     min_elevation_deg: float = MIN_SHADE_ELEVATION_DEG
     min_clear_sky_w_m2: float = MIN_SHADE_CLEAR_SKY_W_M2
     min_clearness_index: float = MIN_SHADE_CLEARNESS_INDEX
@@ -154,7 +154,7 @@ def evaluate_shade_step(
             reasons.add("at_cap")
         if not reasons and eval_sun is not None and power_time is not None:
             factor = compute_beam_shade_factor(raw_power, p0_w, p1_w)
-            accepted = shading.record(inv.id, eval_sun.azimuth_deg, eval_sun.elevation_deg, power_time, factor)
+            accepted = shading.record(inv.id, eval_sun.azimuth_deg, eval_sun.elevation_deg, power_time, factor, as_of=now)
     gate_reasons = sorted(reasons)
     try:
         now_sun = eval_sun if eval_time == now else sun_at(config, now)
@@ -163,11 +163,13 @@ def evaluate_shade_step(
     az_now = now_sun.azimuth_deg if now_sun is not None else None
     el_now = now_sun.elevation_deg if now_sun is not None else None
     if shade_bin(az_now, el_now) is not None:
-        if len(shading.bin_samples(inv.id, az_now, el_now)) < MIN_SHADE_SAMPLES:
-            reasons.add("insufficient_samples")
+        status = shading.status_for(inv.id, az_now, el_now, as_of=now)
+        if not status["released"]:
+            reasons.add(status["release_reason"])
     elif eval_sun is not None and shade_bin(eval_sun.azimuth_deg, eval_sun.elevation_deg) is not None:
-        if len(shading.bin_samples(inv.id, eval_sun.azimuth_deg, eval_sun.elevation_deg)) < MIN_SHADE_SAMPLES:
-            reasons.add("insufficient_samples")
+        status = shading.status_for(inv.id, eval_sun.azimuth_deg, eval_sun.elevation_deg, as_of=now)
+        if not status["released"]:
+            reasons.add(status["release_reason"])
     last_rejection = ";".join(sorted(reasons)) if reasons else None
     return {
         "schema": 1,
@@ -175,7 +177,7 @@ def evaluate_shade_step(
         "policy": asdict(policy),
         "accepted": accepted,
         "reasons": gate_reasons,
-        "status": shading.status_for(inv.id, az_now, el_now, last_rejection=last_rejection),
+        "status": shading.status_for(inv.id, az_now, el_now, as_of=now, last_rejection=last_rejection),
         "input": inputs,
         "reference": {
             "eval_time": eval_time,

@@ -304,3 +304,60 @@ async def test_failed_late_batch_record_preserves_journal_and_state_cache(hass):
     assert export._state_cache == {}
     assert export._reported_drops == 0
     await export.close()
+
+
+async def test_fit_failure_and_recovery_export_exact_optional_learner_state(hass):
+    from custom_components.adaptive_solar.core.learning import ResidualLearner
+    from custom_components.adaptive_solar.core.replay import reconstruct_state, replay_forecast
+    from custom_components.adaptive_solar.weather import parse_forecast
+    from tests.test_weather import payload
+
+    instance, _ = make_coordinator(hass, True)
+    raw = payload(start=NOW - timedelta(hours=1), count=8)
+    weather = parse_forecast(raw, "best_match", NOW, instance.site)
+    instance.client.async_forecasts.return_value = (weather,)
+    instance.client.receipt_ids = {"best_match": "original-weather"}
+    with freeze_time(NOW, real_asyncio=True):
+        instance.export.record("weather_response", {"model": "best_match", "status": "available", "raw_response": raw},
+                               NOW, "original-weather")
+        with patch.object(ResidualLearner, "fit", side_effect=RuntimeError("optional failure")):
+            failed = await instance._async_update_data()
+        recovered = await instance._async_update_data()
+        assert failed.points and recovered.points
+        instance.async_commit_setup()
+        events = (await instance.export.page())["page"]["events"]
+        issued = [event for event in events if event["kind"] == "forecast_issued"]
+        unavailable, available = [reconstruct_state(event, events) for event in issued]
+        assert unavailable["learner_available"] is False
+        assert unavailable["fit_samples"] == [] and unavailable["fit_as_of"] is None
+        assert available["learner_available"] is True
+        assert available["fit_as_of"] == NOW.isoformat()
+        for event in issued:
+            assert replay_forecast(event, events)["baseline"]["accepted"]
+            assert event["payload"]["early_bias_shadow"]["status"]["operational_use"] is False
+        await instance.async_close()
+
+
+async def test_archive_availability_includes_serialization_after_computation(hass):
+    from custom_components.adaptive_solar.core.replay import replay_forecast
+
+    instance, _ = make_coordinator(hass, True)
+    original = replay_events
+    with freeze_time(NOW, real_asyncio=True) as clock:
+        def encode_then_advance(*args, **kwargs):
+            events = original(*args, **kwargs)
+            clock.tick(timedelta(seconds=20))
+            return events
+
+        with patch("custom_components.adaptive_solar.coordinator.replay_events", side_effect=encode_then_advance):
+            await instance._async_update_data()
+        instance.async_commit_setup()
+        events = (await instance.export.page())["page"]["events"]
+        issued = next(event for event in events if event["kind"] == "forecast_issued")
+        assert issued["payload"]["issued_at"] == NOW.isoformat()
+        assert issued["payload"]["computed_at"] == NOW.isoformat()
+        assert issued["received_at"] == (NOW + timedelta(seconds=20)).isoformat()
+        assert all(event["received_at"] == issued["received_at"] for event in events)
+        with pytest.raises(ValueError, match="not archived.*as-of"):
+            replay_forecast(issued, events, as_of=NOW + timedelta(seconds=10))
+        await instance.async_close()

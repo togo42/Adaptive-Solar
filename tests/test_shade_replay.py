@@ -12,6 +12,7 @@ from custom_components.adaptive_solar.core.models import InverterConfig, Observa
 from custom_components.adaptive_solar.core.physics import clear_sky_ghi
 from custom_components.adaptive_solar.core.shade_learning import ShadeLearningPolicy, evaluate_shade_step
 from custom_components.adaptive_solar.core.shade_replay import ShadeCandidate, replay_shading
+from custom_components.adaptive_solar.core.replay import hydrate_forecast
 from custom_components.adaptive_solar.core.shading import BeamShadeTable
 from custom_components.adaptive_solar.weather import parse_forecast
 from tests.test_weather import payload as raw_weather
@@ -63,7 +64,7 @@ def bundle(tmp_path, *, times=None, seed=None, blocked=False, future_ghi=False, 
                    "issued_at": now.isoformat(), "computed_at": now.isoformat(), "software": software,
                    "result": json_value(ForecastEngine(site, table).forecast((weather,), now, observations)),
                    "weather_receipt_ids": {"best_match": receipt["event_id"]}, "shade_learning": json_value(learning)}
-        state = {"shading_before": before, "shading": table.to_dict(), "fit_samples": [], "fit_as_of": None}
+        state = {"shading_before": before, "shading": table.to_dict(), "fit_samples": [], "fit_as_of": None, "learner_available": False}
         if state_padding:
             state["padding"] = "x" * state_padding
         import json
@@ -89,7 +90,7 @@ def test_continuous_replay_exact_decisions_and_independent_candidate_divergence(
     assert all(row["baseline"]["decisions_match"] and row["baseline"]["state_match"] for row in report["steps"])
     assert any(row["baseline"]["decisions"]["i"]["accepted"] for row in report["steps"])
     assert all(not row["candidates"]["strict"]["decisions"]["i"]["accepted"] for row in report["steps"])
-    assert report["steps"][-1]["candidates"]["strict"]["shading"] == {"schema": 1, "inverters": {}}
+    assert report["steps"][-1]["candidates"]["strict"]["shading"] == {"schema": 3, "inverters": {}, "released": {}}
     assert report["accuracy_status"].startswith("unevaluated")
     assert report["residual_learning"] == "disabled_in_candidates"
 
@@ -141,14 +142,14 @@ def test_future_observations_and_normalized_inputs_are_rejected(tmp_path):
 
 def test_future_seed_rejected_and_empty_candidate_does_not_inherit_old_seed(tmp_path):
     seed = BeamShadeTable()
-    seed.record("i", 180, 30, NOW - timedelta(days=1), .3)
+    seed.record("i", 180, 30, NOW - timedelta(days=1), .3, as_of=NOW - timedelta(days=1))
     forecasts, rows = bundle(tmp_path, seed=seed, blocked=True)
     report = replay_shading(forecasts, rows, initial_state="empty", candidates=(strict_candidate(),))
     assert report["baseline"]["accepted"]
     assert report["initial_state_scope"] == "observed_segment_only"
     assert report["steps"][0]["candidates"]["strict"]["shading"]["inverters"] == {}
     future = BeamShadeTable()
-    future.record("i", 180, 30, NOW + timedelta(hours=1), .2)
+    future.record("i", 180, 30, NOW + timedelta(hours=1), .2, as_of=NOW + timedelta(hours=1))
     future_forecasts, future_rows = bundle(tmp_path / "future", seed=future)
     with pytest.raises(ValueError, match="future shade seed"):
         replay_shading(future_forecasts, future_rows)
@@ -287,7 +288,8 @@ def test_all_configured_environment_sources_and_observation_closure_are_required
         replay_shading(forecasts, rows)
 
 
-async def test_native_capture_through_pinned_store_to_subprocess_streaming_cli(hass, tmp_path):
+@pytest.mark.parametrize("candidate_options", [False, True])
+async def test_native_capture_through_pinned_store_to_subprocess_streaming_cli(hass, tmp_path, candidate_options):
     import asyncio
     import json
     from pathlib import Path
@@ -301,6 +303,13 @@ async def test_native_capture_through_pinned_store_to_subprocess_streaming_cli(h
 
     hass.config.config_dir = str(tmp_path)
     instance = configured(hass)
+    if candidate_options:
+        from dataclasses import replace
+        from custom_components.adaptive_solar.coordinator import AdaptiveSolarCoordinator
+
+        site = replace(instance.site, physics_substeps=4, power_nowcast_window_minutes=15,
+                       strings=tuple(replace(string, iam_ashrae_b0=.05, wind_speed_factor=.8) for string in instance.site.strings))
+        instance = AdaptiveSolarCoordinator(hass, instance.config_entry, site, instance.client)
     with freeze_time(NOW, real_asyncio=True):
         raw = raw_weather(start=NOW - timedelta(hours=1), count=6)
         weather = parse_forecast(raw, "best_match", NOW, instance.site)
@@ -311,14 +320,20 @@ async def test_native_capture_through_pinned_store_to_subprocess_streaming_cli(h
         instance.client.async_forecasts.return_value = (weather,)
         instance.async_start_tracking()
         instance.async_commit_setup()
-        for offset in (0, 15):
+        for offset in (0, 5):
             with freeze_time(NOW + timedelta(minutes=offset), real_asyncio=True):
                 hass.states.async_set("sensor.power", "1000", {"unit_of_measurement": "W"})
                 hass.states.async_set("sensor.ghi", "600", {"unit_of_measurement": "W/m²"})
                 hass.states.async_set("sensor.temp", "20", {"unit_of_measurement": "°C"})
                 hass.states.async_set("sensor.wind", "3", {"unit_of_measurement": "m/s"})
                 await instance._async_update_data()
-        await instance.export.page()
+        page = await instance.export.page()
+        if candidate_options:
+            issued = [hydrate_forecast(event, page["page"]["events"])["payload"]
+                      for event in page["page"]["events"] if event["kind"] == "forecast_issued"]
+            assert issued[-1]["site"]["physics_substeps"] == 4
+            assert len([row for row in issued[-1]["observations"] if row["power_w"] is not None]) == 2
+            assert "candidate:normalized_history" in issued[-1]["result"]["model_status"]["power_nowcast:i"]
         await instance.async_close()
     store = ArchiveStore(tmp_path / "store")
     await hass.async_add_executor_job(flush_journal, instance.export.journal, store, "ha:native")

@@ -1,0 +1,14 @@
+{
+  "archive": "data/archive",
+  "status_dir": "data/host-status",
+  "entries": [{"source": "ha-example", "entry_id": "PRIVATE_ENTRY_ID"}],
+  "weather_source": "weather-example",
+  "observations_source": "measurements-example",
+  "site_json": "data/site.json",
+  "actual_config": "data/actual-mapping.json",
+  "reference_config": "data/reference-mapping.json",
+  "min_free_bytes": 2147483648,
+  "operation_reserve_bytes": 1073741824,
+  "min_free_percent": 15,
+  "max_archive_bytes": 4294967296
+}

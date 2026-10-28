@@ -70,6 +70,9 @@ class _Editor:
                 self._archive_export = user_input.pop(CONF_ARCHIVE_EXPORT, getattr(self, "_archive_export", False))
                 self._site.update(user_input)
                 self._site["forecast_days"] = int(user_input["forecast_days"])
+                for key in ("physics_substeps", "power_nowcast_window_minutes"):
+                    if key in user_input:
+                        self._site[key] = int(user_input[key])
                 return await self.async_step_inverter()
             except (ZoneInfoNotFoundError, ValueError):
                 errors["timezone"] = "invalid_timezone"
@@ -81,6 +84,8 @@ class _Editor:
         field(schema, "timezone", defaults.get("timezone", self.hass.config.time_zone), selector.TextSelector())
         field(schema, "weather_models", defaults.get("weather_models", ["best_match"]), selector.SelectSelector({"options": MODELS, "multiple": True, "custom_value": True}))
         field(schema, "forecast_days", defaults.get("forecast_days", MAX_FORECAST_DAYS), number(1, MAX_FORECAST_DAYS, 1))
+        field(schema, "physics_substeps", str(defaults.get("physics_substeps", 1)), selector.SelectSelector({"options": ["1", "2", "4", "6", "12"]}))
+        field(schema, "power_nowcast_window_minutes", defaults.get("power_nowcast_window_minutes", 0), number(0, 15, 1, "min"))
         field(schema, "temperature_entity_id", defaults.get("temperature_entity_id"), entity("temperature"), False)
         field(schema, "wind_entity_id", defaults.get("wind_entity_id"), entity("wind_speed"), False)
         field(schema, "irradiance_entity_id", defaults.get("irradiance_entity_id"), entity("irradiance"), False)
@@ -215,6 +220,10 @@ class _Editor:
         field(schema, "temperature_coefficient", current.get("temperature_coefficient", -0.004), number(-0.02, 0, 0.0001, "1/°C"))
         field(schema, "damping_morning", current.get("damping_morning", 0), number(0, 1, 0.01))
         field(schema, "damping_evening", current.get("damping_evening", 0), number(0, 1, 0.01))
+        field(schema, "iam_ashrae_b0", current.get("iam_ashrae_b0", 0), number(0, 0.2, 0.001))
+        field(schema, "faiman_u0", current.get("faiman_u0", 25), number(5, 100, 0.1))
+        field(schema, "faiman_u1", current.get("faiman_u1", 6.84), number(0, 30, 0.01))
+        field(schema, "wind_speed_factor", current.get("wind_speed_factor", 1), number(0, 2, 0.01))
         field(schema, "horizon", current.get("horizon", []), selector.ObjectSelector({
             "multiple": True,
             "label_field": "azimuth_deg",

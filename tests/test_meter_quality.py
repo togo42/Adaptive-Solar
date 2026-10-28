@@ -72,8 +72,12 @@ async def test_whole_crossing_preserves_energy_and_supports_only_a_containing_ta
     assert crossing["end"] == (NOW + timedelta(hours=1, minutes=1)).isoformat()
     assert crossing["energy_kwh"] == pytest.approx(5 / 60)
     assert join_training([archived()], instance.intervals) == []
-    # Four missing minutes at the far edge now exceed the absolute 3min limit.
-    assert join_training([archived(duration=10800)], instance.intervals) == []
+    # Four missing minutes reject the original3h target, but the original
+    # forecast still covers two disjoint whole endpoint windows without any
+    # splitting of meter energy at a forecast-hour boundary.
+    shifted = join_training([archived(duration=10800)], instance.intervals)
+    assert len(shifted) == 2
+    assert all(row.features["measurement_endpoint_window"] == 1 for row in shifted)
     sample = join_training([archived(duration=10860)], instance.intervals)[0]
     assert sample.start == NOW + timedelta(minutes=1)
     assert sample.end == NOW + timedelta(hours=3, minutes=1)

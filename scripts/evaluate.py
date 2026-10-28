@@ -15,6 +15,7 @@ from custom_components.adaptive_solar.core.evaluation import (
     ActualRecord, EvaluationWindow, ForecastRecord, evaluate_forecasts,
 )
 from custom_components.adaptive_solar.core.statistical_validation import paired_day_bootstrap
+from custom_components.adaptive_solar.core.comparison_archive import COMPARISON_ARCHIVE_KEY, ComparisonArchive
 from scripts.capture_actuals import actual_records_from_captures
 
 
@@ -87,18 +88,49 @@ def forecast_records_from_captures(captures, windows):
     return records
 
 
+def forecast_records_from_comparison_archive(payload, windows, *, as_of=None):
+    """Read the isolated branch or a privately exported HA Store document.
+
+    Evaluator availability is the real local receipt, never a weather issue.
+    Empty inverter curves get null sentinels; partly missing target support
+    already fails the evaluator's newest-issue integration without fallback.
+    """
+    if isinstance(payload, dict) and "data" in payload:
+        payload = payload["data"]
+    if isinstance(payload, dict) and COMPARISON_ARCHIVE_KEY in payload:
+        payload = payload[COMPARISON_ARCHIVE_KEY]
+    archive = ComparisonArchive.from_dict(payload, as_of=as_of)
+    windows = tuple(windows)
+    records = []
+    for snapshot in archive.snapshots:
+        source, received = snapshot["source"], _receipt(snapshot["retrieved_at"])
+        supported = set()
+        for row in snapshot["points"]:
+            inverter, start, end, _, power, _ = row
+            supported.add(inverter)
+            records.append(ForecastRecord(source, received, _receipt(start), _receipt(end), inverter, power))
+        for window in windows:
+            if window.inverter_id in archive.output_caps and window.inverter_id not in supported:
+                records.append(ForecastRecord(source, received, window.start, window.end,
+                                              window.inverter_id, None))
+    return records
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--captures", type=Path, help="Read-only capture JSONL, preserving unavailable issues")
-    parser.add_argument("--actual-captures", type=Path, help="Read-only validated Recorder actual-capture JSONL")
+    parser.add_argument("--actual-captures", type=Path,
+                        help="Read-only validated Recorder actual-capture JSONL; input.actuals must be absent or empty")
+    parser.add_argument("--comparison-archive", type=Path,
+                        help="Private comparison_archive_v1 branch JSON or HA Store export; actual receipts retained")
     parser.add_argument("--bootstrap", action="store_true", help="Run conditional paired target-day statistical policy v1")
     parser.add_argument("--bootstrap-resamples", type=int, default=20000, help="Minimum resamples; declared family may require more")
     parser.add_argument("--bootstrap-seed", type=int, default=20261024)
     parser.add_argument("--bootstrap-confidence", type=float, default=0.95, help="Nominal family confidence, at least 0.95")
     args = parser.parse_args()
-    for source in (args.input, args.captures, args.actual_captures):
+    for source in (args.input, args.captures, args.actual_captures, args.comparison_archive):
         if source is not None and (args.output.resolve() == source.resolve()
                 or args.output.exists() and source.exists() and args.output.samefile(source)):
             parser.error("evaluation output must not overwrite an input archive")
@@ -109,6 +141,9 @@ def main():
         for field in ("windows", "forecasts", "actuals", "sources"):
             if field in payload and not isinstance(payload[field], list):
                 raise ValueError(f"Evaluation {field} must be a list")
+        if args.actual_captures and payload.get("actuals"):
+            raise ValueError("--actual-captures cannot be combined with nonempty input.actuals; "
+                             "use one actual-data source so quality revisions cannot be bypassed")
         as_of = _receipt(payload["as_of"])
         sources = tuple(payload.get("sources", ("adaptive", "physics", "helios", "open_meteo")))
         windows = [EvaluationWindow.from_dict(row) for row in payload["windows"]]
@@ -117,8 +152,11 @@ def main():
             # Every line must be complete JSON. Blank lines are errors too.
             with args.captures.open(encoding="utf-8") as archive:
                 forecasts.extend(forecast_records_from_captures((json.loads(line) for line in archive), windows))
-        elif "forecasts" not in payload:
-            raise ValueError("input requires forecasts or --captures")
+        elif "forecasts" not in payload and not args.comparison_archive:
+            raise ValueError("input requires forecasts, --captures or --comparison-archive")
+        if args.comparison_archive:
+            captured = json.loads(args.comparison_archive.read_text(encoding="utf-8"))
+            forecasts.extend(forecast_records_from_comparison_archive(captured, windows))
         actuals = [ActualRecord.from_dict(row) for row in payload.get("actuals", [])]
         if args.actual_captures:
             with args.actual_captures.open(encoding="utf-8") as archive:

@@ -22,6 +22,7 @@ from zoneinfo import ZoneInfo
 import numpy as np
 from sklearn.ensemble import GradientBoostingRegressor
 
+from ..const import MAX_MEASUREMENT_GAP_SECONDS_PER_HOUR, MAX_MEASUREMENT_SINGLE_GAP_SECONDS
 from .models import TrainingSample
 from .rejection import RejectionDetails
 from .shading import SHADE_BASELINE_TOLERANCE, feature_shade_bin, shade_factors_compatible
@@ -49,7 +50,7 @@ def lead_bin(lead_hours: float) -> int:
 def _target_hours(rows: list[TrainingSample]) -> int:
     """Whole hours of unique observed duration, never one vote per tiny piece."""
     merged = []
-    for start, end in sorted({(row.start, row.end) for row in rows}):
+    for start, end in sorted({span for row in rows for span in (row.measurement_support or ((row.start, row.end),))}):
         if merged and start <= merged[-1][1]:
             merged[-1] = (merged[-1][0], max(end, merged[-1][1]))
         else:
@@ -58,8 +59,14 @@ def _target_hours(rows: list[TrainingSample]) -> int:
 
 
 def _aligned_duration(row: TrainingSample) -> bool:
-    duration = (row.end - row.start).total_seconds()
-    target = row.features.get("target_duration_seconds", duration)
+    support = row.measurement_support or ((row.start, row.end),)
+    duration = sum((b - a).total_seconds() for a, b in support)
+    gaps = [(support[index][0] - support[index - 1][1]).total_seconds() for index in range(1, len(support))]
+    elapsed = (row.end - row.start).total_seconds()
+    target = row.features.get("target_duration_seconds", elapsed)
+    if (any(gap < 0 or gap > MAX_MEASUREMENT_SINGLE_GAP_SECONDS for gap in gaps)
+            or sum(gaps) > MAX_MEASUREMENT_GAP_SECONDS_PER_HOUR * target / 3600):
+        return False
     coverage = row.features.get("measurement_coverage_fraction", 1.0)
     edge = row.features.get("measurement_edge_fraction", 0.0)
     edge_seconds = row.features.get("measurement_edge_seconds", edge * target)
@@ -67,6 +74,7 @@ def _aligned_duration(row: TrainingSample) -> bool:
             and MIN_MEASUREMENT_COVERAGE <= coverage <= 1.0
             and 0 <= edge_seconds <= MAX_MEASUREMENT_EDGE_SECONDS
             and math.isclose(edge_seconds, edge * target, rel_tol=1e-9, abs_tol=1e-9)
+            and math.isclose(row.features.get("measurement_gap_seconds", sum(gaps)), sum(gaps), rel_tol=1e-9, abs_tol=1e-9)
             and math.isclose(duration / target, coverage, rel_tol=1e-9, abs_tol=1e-9))
 
 
@@ -200,13 +208,30 @@ def _valid_output_cap(features: Mapping[str, float], configured_cap: float | Non
 
 
 def _interval_weights(rows: list[TrainingSample]) -> np.ndarray:
-    counts = Counter((row.start, row.end, row.inverter_id) for row in rows)
-    return np.array([(row.end - row.start).total_seconds()
-                     / counts[row.start, row.end, row.inverter_id] for row in rows])
+    return _weights(rows)
 
 
 def _weights(rows: list[TrainingSample]) -> np.ndarray:
-    return _interval_weights(rows)
+    # Each measured second has a total weight of one, including partially
+    # overlapping targets and repeated origins. Gaps receive zero weight.
+    events = defaultdict(Counter)
+    for row in rows:
+        for start, end in row.measurement_support or ((row.start, row.end),):
+            events[row.inverter_id][start] += 1
+            events[row.inverter_id][end] -= 1
+    integrals = {}
+    for inverter, changes in events.items():
+        active, integral, previous, values = 0, 0.0, None, {}
+        for stamp, change in sorted(changes.items()):
+            if previous is not None and active:
+                integral += (stamp - previous).total_seconds() / active
+            values[stamp] = integral
+            active += change
+            previous = stamp
+        integrals[inverter] = values
+    return np.array([sum(integrals[row.inverter_id][end] - integrals[row.inverter_id][start]
+                         for start, end in row.measurement_support or ((row.start, row.end),))
+                     for row in rows])
 
 
 def _mae(actual: np.ndarray, predicted: np.ndarray, weights: np.ndarray) -> float:

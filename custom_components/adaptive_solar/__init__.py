@@ -12,11 +12,11 @@ async def async_setup_entry(hass, entry) -> bool:
 
     from .const import CONF_SITE
     from .core.models import SiteConfig
-    from .weather import OpenMeteoClient
+    weather_module = await async_import_module(hass, f"{__package__}.weather")
 
     coordinator_module = await async_import_module(hass, f"{__package__}.coordinator")
     config = SiteConfig.from_dict(entry.options.get(CONF_SITE, entry.data[CONF_SITE]))
-    coordinator = coordinator_module.AdaptiveSolarCoordinator(hass, entry, config, OpenMeteoClient(async_get_clientsession(hass), config))
+    coordinator = coordinator_module.AdaptiveSolarCoordinator(hass, entry, config, weather_module.OpenMeteoClient(async_get_clientsession(hass), config))
     services_module = None
     try:
         services_module = await async_import_module(hass, f"{__package__}.services")

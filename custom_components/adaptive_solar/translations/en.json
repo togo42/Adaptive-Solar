@@ -13,7 +13,9 @@
           "temperature_entity_id": "Outdoor temperature sensor (optional)",
           "wind_entity_id": "Outdoor wind speed sensor (optional)",
           "irradiance_entity_id": "Outdoor horizontal global irradiance (optional, unshaded)",
-          "archive_export": "Archive original inputs (private export buffer)"
+          "archive_export": "Archive original inputs (private export buffer)",
+          "physics_substeps": "Physics substeps (1 = legacy, >1 = candidate)",
+          "power_nowcast_window_minutes": "Nowcast smoothing window (0 = off)"
         },
         "description": "Free Open-Meteo API for private noncommercial use. Existing inverters and strings are shown sequentially when editing."
       },
@@ -47,7 +49,11 @@
           "add_another": "Add another after existing items",
           "remove": "Remove this item",
           "damping_morning": "Morning damping (0–1, 0 = off)",
-          "damping_evening": "Evening damping (0–1, 0 = off)"
+          "damping_evening": "Evening damping (0–1, 0 = off)",
+          "iam_ashrae_b0": "ASHRAE IAM b0 (0 = off, candidate)",
+          "faiman_u0": "Faiman u0 (W/m²/K)",
+          "faiman_u1": "Faiman u1 (W/m²/K per m/s)",
+          "wind_speed_factor": "Wind factor to coefficient reference height"
         }
       },
       "dc_inverter": {
@@ -87,7 +93,9 @@
           "temperature_entity_id": "Outdoor temperature sensor (optional)",
           "wind_entity_id": "Outdoor wind speed sensor (optional)",
           "irradiance_entity_id": "Outdoor horizontal global irradiance (optional, unshaded)",
-          "archive_export": "Archive original inputs (private export buffer)"
+          "archive_export": "Archive original inputs (private export buffer)",
+          "physics_substeps": "Physics substeps (1 = legacy, >1 = candidate)",
+          "power_nowcast_window_minutes": "Nowcast smoothing window (0 = off)"
         },
         "description": "Free Open-Meteo API for private noncommercial use. Existing inverters and strings are shown sequentially when editing."
       },
@@ -121,7 +129,11 @@
           "add_another": "Add another after existing items",
           "remove": "Remove this item",
           "damping_morning": "Morning damping (0–1, 0 = off)",
-          "damping_evening": "Evening damping (0–1, 0 = off)"
+          "damping_evening": "Evening damping (0–1, 0 = off)",
+          "iam_ashrae_b0": "ASHRAE IAM b0 (0 = off, candidate)",
+          "faiman_u0": "Faiman u0 (W/m²/K)",
+          "faiman_u1": "Faiman u1 (W/m²/K per m/s)",
+          "wind_speed_factor": "Wind factor to coefficient reference height"
         }
       },
       "dc_inverter": {

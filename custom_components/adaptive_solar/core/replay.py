@@ -28,7 +28,10 @@ def timestamp(value):
 
 
 def timed_record(cls, value, fields):
-    return cls(**{key: timestamp(item) if key in fields else item for key, item in value.items()})
+    parsed = {key: timestamp(item) if key in fields else item for key, item in value.items()}
+    if cls is TrainingSample and "measurement_support" in parsed:
+        parsed["measurement_support"] = tuple((timestamp(a), timestamp(b)) for a, b in parsed["measurement_support"])
+    return cls(**parsed)
 
 
 def weather_from_json(value):
@@ -39,7 +42,10 @@ def weather_from_json(value):
 def result_from_json(value):
     return ForecastResult(timestamp(value["issued_at"]),
                           tuple(timed_record(ForecastPoint, point, {"start", "end"}) for point in value["points"]),
-                          value.get("model_status", {}))
+                          value.get("model_status", {}),
+                          {model: tuple(timed_record(ForecastPoint, point, {"start", "end"}) for point in points)
+                           for model, points in value.get("member_points", {}).items()},
+                          {model: timestamp(at) for model, at in value.get("member_issued_at", {}).items()})
 
 
 def _reconstruct_json(forecast_event, events, reference, kind, hash_field):
@@ -163,7 +169,7 @@ class ReplayInputs:
     weather: tuple[WeatherForecast, ...]
     issued_at: datetime
     observations: tuple[Observation, ...]
-    learner: ResidualLearner
+    learner: ResidualLearner | None
     shading: BeamShadeTable
 
 
@@ -199,7 +205,14 @@ def _inputs(payload, state):
     if fit_as_of > issued or any(sample.observed_at > fit_as_of for sample in samples):
         raise ValueError("fitted label is newer than fitted-state cutoff")
     learner = ResidualLearner(timezone_name=site.timezone, output_caps={v.id: v.output_cap_w for v in site.inverters})
-    learner.fit(samples, fit_as_of)
+    if type(state.get("learner_available", True)) is not bool:
+        raise ValueError("invalid learner availability")
+    if state.get("learner_available", True) is False:
+        if samples or state.get("fit_as_of") is not None:
+            raise ValueError("unavailable learner carries fitted inputs")
+        learner = None
+    else:
+        learner.fit(samples, fit_as_of)
     shading = BeamShadeTable.from_dict(state["shading"], inverter_ids={v.id for v in site.inverters})
     if canonical_bytes(shading.to_dict()) != canonical_bytes(state["shading"]):
         raise ValueError("invalid or incompatible frozen shading state")
@@ -214,15 +227,27 @@ def compare_results(expected: ForecastResult, actual: ForecastResult, tolerance_
     actual_points = {(p.start, p.end, p.inverter_id): p for p in actual.points}
     if expected.issued_at != actual.issued_at or expected_points.keys() != actual_points.keys():
         return {"matched": False, "reason": "different_interval_support", "max_error_w": None}
+    if expected.model_status != actual.model_status:
+        return {"matched": False, "reason": "different_model_status", "max_error_w": None}
+    if expected.member_issued_at != actual.member_issued_at:
+        return {"matched": False, "reason": "different_member_issue_support", "max_error_w": None}
     errors = []
     for key, point in expected_points.items():
         other = actual_points[key]
+        if point.features != other.features:
+            return {"matched": False, "reason": "different_features", "max_error_w": None}
         for field in ("baseline_w", "power_w", "lower_w", "upper_w"):
             left, right = getattr(point, field), getattr(other, field)
             if (left is None) != (right is None):
                 return {"matched": False, "reason": "different_uncertainty_support", "max_error_w": None}
             if left is not None:
                 errors.append(abs(left - right))
+    for model, points in expected.member_points.items():
+        member = compare_results(ForecastResult(expected.issued_at, points),
+                                 ForecastResult(actual.issued_at, actual.member_points[model]), tolerance_w)
+        if not member["matched"]:
+            return {**member, "member_model": model}
+        errors.append(member["max_error_w"])
     maximum = max(errors, default=0.0)
     return {"matched": maximum <= tolerance_w, "reason": "numerical_comparison", "max_error_w": maximum,
             "tolerance_w": tolerance_w, "points": len(actual.points)}

@@ -1,9 +1,7 @@
 # Adaptive Solar installieren und aktualisieren
 
-Stand: 28.10.2026; veröffentlichtes Referenzrelease 0.2.14. Der optionale
-Originaldatenexport gehört zum unveröffentlichten Entwicklungszweig vom 28.10.2026
-und ist kein Bestandteil dieses Releases oder Nachweis einer produktiven Aktivierung.
-Die hier beschriebenen Schritte
+Stand: 28.10.2026; Releaseanleitung für 0.2.16. Den Veröffentlichungs-
+und Installationsnachweis nennt der [Entwicklungsstand](entwicklungsstand.md). Die hier beschriebenen Schritte
 werden vom Betreiber auf der eigenen Installation ausgeführt. Projektprüfungen und
 ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 
@@ -19,15 +17,15 @@ ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 | ARM/aarch64, Raspberry Pi, andere Python-ABIs | Bisher nicht qualifiziert; kein passender Build-/Installationsnachweis im Projekt |
 
 Die HACS-Untergrenze 2026.10.2 entspricht dem ältesten geprüften Core. Sie ist keine
-Zusage für alle späteren Versionen. Versionsdetails und historische Testnachweise
-stehen im [Entwicklungsstand](entwicklungsstand.md). Runtimepins stehen im
+Zusage für alle späteren Versionen. Die vollständige Release-Suite für 0.2.16 prüft Core 2026.10.4;
+die Nachweise für .2/.3 stammen aus früheren Releases. Versionsdetails stehen im [Entwicklungsstand](entwicklungsstand.md). Runtimepins stehen im
 [Manifest](../custom_components/adaptive_solar/manifest.json): pvlib 0.16.1 und
 scikit-learn 1.9.1. Ein früherer erfolgreicher Import anderer Versionen reicht nicht.
 
 Benötigt werden Internetzugriff auf Open-Meteo, korrekte Standortdaten, Zeitzone
 und String-/Ausgangsparameter. Lokale Messsensoren sind optional. Ohne geeignete
 Energiehistorie arbeitet die Integration mit Physik statt mit einem gelernten Modell.
-Der optionale Originaldatenexport im Entwicklungszweig ist standardmäßig
+Der optionale Originaldatenexport ab 0.2.16 ist standardmäßig
 ausgeschaltet; ein Archivhost wird für die Prognose nicht benötigt. Für einen
 bewusst eingerichteten Archivbetrieb zusätzlich freien HA-Datenträgerplatz,
 privaten Hostspeicher, administrative HA-Leseberechtigung und einen
@@ -85,7 +83,7 @@ Es ist kein `adaptive_solar:`-Eintrag in `configuration.yaml` erforderlich.
   Tag 0 darf am ersten Einrichtungstag ohne vorherigen Mitternachtssnapshot fehlen.
 - `Prognosedatenstatus` und seine Attribute erklären Eingänge und Abdeckung.
   `physics` oder ein kalter Lerner ist bei einer neuen Anlage erwartbar.
-- Nur bei bewusst aktiviertem Originaldatenexport im Entwicklungszweig:
+- Nur bei bewusst aktiviertem Originaldatenexport ab 0.2.16:
   `archive_export`-Status prüfen und die Antwortaktion
   `adaptive_solar.export_archive` mit einem Administratorzugang lesen.
   Der Schalter **Originaleingaben archivieren (privater Exportpuffer)** steht
@@ -116,6 +114,22 @@ Originalprovenienz und begrenzen kleine negative Nachtstrahlung. Bereits verlore
 Tageswerte brauchen einen expliziten Originalimport. Nach HACS-Download einmal
 Core neu starten; kein Core-/OS-Upgrade.
 
+[Version 0.2.15](release-0.2.15.md) ergänzt [Messkontinuität/Endpunktfenster](measurement-learning.md),
+[Fit-/Wetterfallback und Diagnosen](forecast-resilience.md), einen ausschließlich
+beobachteten [frühen Bias-Kandidaten](early-bias-shadow.md) und das
+[Modellvergleichsarchiv](model-comparison-archive.md). Die optionalen
+[Physik-/Nowcastparameter](physics-learning-options.md) haben neutrale Standards;
+aktive Physikänderungen verändern die strenge Historienbindung. Passende alte
+Messhistorie erhält keinen nachträglich erfundenen Kontinuitätsnachweis; ältere
+Schattentabellen behalten unbelegte Schema-1/2-Proben nur diagnostisch; aktive
+Freigaben brauchen neue zeitlich qualifizierte Proben nach Schema 3. Ein Rückweg braucht
+weiterhin die gesicherte Komponente und Historie der Zielversion.
+
+[Version 0.2.16](release-0.2.16.md) ergänzt den optionalen Originaldatenexport
+und den externen Archivbetrieb. Exportoption und Hostcollector werden getrennt
+eingerichtet; die Option allein verändert weder Physikbindung noch Modellgewichte.
+Der kalte Wetterimport läuft über den nativen HA-Importexecutor.
+
 Historisch für 0.2.13: Featurevertrag, passende Forecast-/Messhistorie,
 Schattentabellen und echte Tagesbeginn-Snapshots erhalten. Die
 [Releasebeschreibung](release-0.2.13.md) erklärt die neuen Messabdeckungsregeln
@@ -138,5 +152,5 @@ prüfen, dann den Eintrag in Geräte & Dienste entfernen und bei Bedarf den Code
 HACS deinstallieren. **Eintragslöschung ist kein nachgewiesener Datenlöschvorgang**:
 Lernstores, Recorder und Sicherungen können Daten behalten; beim optionalen
 Originaldatenexport zusätzlich der separate HA-Puffer und externe Archivkopien.
-Das Abschalten der Option oder eine Rückkehr zu 0.2.14 entfernt diese Daten nicht. Den Umfang einer
+Das Abschalten der Option oder eine Rückkehr zu einer Version ohne Export entfernt diese Daten nicht. Den Umfang einer
 vollständigen Löschung beschreibt [Datenschutz](datenschutz.md#4-entfernen-und-aufbewahrung).

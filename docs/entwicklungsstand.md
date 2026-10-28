@@ -1,6 +1,41 @@
 # Entwicklungsstand und offene Nachweise
 
-## Unveröffentlichter Archiv- und Ensemblezweig vom 28.10.2026
+## Releasevorbereitung 0.2.16 vom 28.10.2026
+
+Der Archivzweig wurde mit dem veröffentlichten Stand 0.2.15 zusammengeführt.
+Messkontinuität, zeitgebundene Schema-3-Schattenfreigaben, optionale Physik-/
+Nowcastparameter, frühe Bias-Shadow-Ausgaben und Vergleichsarchive bleiben erhalten.
+Der Originalreplay berücksichtigt tatsächliche Fitverfügbarkeit, Messzeitstützen,
+Modellpunkte und Status/Features. Die Empfangszeit archivierter Ausgaben liegt
+nach der Rückkehr aus dem Rechenexecutor einschließlich Serialisierung;
+ein früherer Entscheidungszeitpunkt kann das Ergebnis noch nicht verwenden.
+Der kalte Wetterimport läuft über den nativen HA-Importexecutor (AS-START-001).
+
+Abschlussprüfung mit HA Core 2026.10.4: **1.596 Tests ohne Skips**, kombinierte
+Abdeckung **90,83 %** (Zeilen 93,25 %, Zweige 85,01 %), Ruff, `pip check` und
+Diffprüfung erfolgreich. Die Quellprüfung bestätigt 119 unveränderte geprüfte
+Komponenten-/Test-/Skriptdateien; Digest
+`4aef52d94b44b49e1a3ee37478c47f64c78125f8b5852cf8eb08a5b12c7d6fd7`.
+23 ResourceWarnings betreffen ungeschlossene SQLite-Verbindungen in Tests;
+die produktive Archivverbindung schließt beim Verlassen ihres Kontextes.
+
+Zwei unabhängige GPT-6.1-Sol/high-Subagenten prüften begrenzte, hashgebundene
+Scopes: Zusammenführung/Replay und Hostrunner/Dienste. Keine offenen
+blockierenden Befunde; 128 plus 28 gezielte Merge-/Exporttests sowie elf
+Hostrunnertests erfolgreich. Das ersetzt keinen neuen externen Volltext-CLI-Review;
+alte Grok-Reviews gelten nicht für den neuen Quellstand. Grok bleibt nach
+Nutzervorgabe bis einschließlich 03.11.2026 ausgesetzt.
+Private Nachweise: `artifacts/release-0.2.16/` mit JUnit, Coverage,
+Quellmanifest, Testreceipt und beiden Reviewreceipts.
+
+Wheel, Sdist und Integrations-ZIP sind gebaut. Alle 37 Integrationsdateien sind
+bytegleich im Wheel, 18 HA-/Kernmodule importieren aus einer getrennten regulären
+Wheelinstallation. Veröffentlichung und anschließende Laufzeitprüfung werden
+separat nachgetragen; diese lokalen Nachweise behaupten keine aktive Installation
+oder bessere Prognosegüte. [Releasehinweise](release-0.2.16.md).
+
+
+## Historischer Prüfstand des Archivzweigs vor Zusammenführung mit 0.2.15
 
 Ergänzung nach `7a95718`: Vollständige passive Rohberichte der konfigurierten
 Leistungs-/GHI-/Temperatur-/Windquellen, Rohzustand am Berechnungscutoff und
@@ -19,7 +54,7 @@ Rohquellenbindung und beim Speicherverbrauch langer Replays wurden korrigiert:
 die CLI verarbeitet einzelne Schritte, löst Referenzen über den Index auf und
 veröffentlicht JSONL erst nach Abschluss einschließlich letzter Pinprüfung.
 81 fokussierte Tests einschließlich nativer HA-Erfassung bis zum CLI-Replay
-bestanden. Der endgültige Stand besteht **1.315 Tests ohne Skips**; Ruff,
+bestanden. Der damalige Stand bestand **1.315 Tests ohne Skips**; Ruff,
 Abhängigkeits- und Diffprüfung sind sauber. Wheel und Sdist wurden gebaut;
 33 Integrationsdateien sind bytegleich im Wheel, 13 Komponentenmodule aus einer
 getrennten regulären Wheelinstallation importiert. Private Belege:
@@ -70,7 +105,122 @@ Pilotdatenrate, Betrieb auf dem vorgesehenen Host, Backup-Wiederherstellung,
 chronologische Güteprüfung und lokale Streuungskalibrierung stehen aus. Die
 Median-Biaskorrektur ist keine validierte Wahrscheinlichkeitskalibrierung.
 
+## Historischer Veröffentlichungs- und Installationsnachweis 0.2.15
+
+Basis ist `6193efc39b4da87a5fad3252b991493c8b9fcda4` auf dem Entwicklungszweig
+`feat/forecast-quality-20261027`. Drei Subagenten mit GPT-6.1-Sol und Reasoning
+`high` haben die Änderungen implementiert und gegenseitig geprüft.
+
+- [Messkontinuität](measurement-learning.md): begrenzte Zeitstempeltoleranz,
+  unveränderte echte Energie, längeres Warten auf Zählerberichte und zusätzliche
+  Lernfenster an erhaltenen Messendpunkten. Gemeinsame ursprüngliche Forecast-
+  Ausgaben bleiben bei der Archivverdichtung erhalten.
+- [Fehlerbehandlung](forecast-resilience.md): Physikfallback bei gescheitertem
+  Fit, begrenzter alter Wettercache bei Abruffehlern, geschützte defekte
+  Historienspeicher und Laufzeitdiagnosen.
+- [Früher Bias-Kandidat](early-bias-shadow.md) und
+  [Vergleichsarchiv](model-comparison-archive.md): ausschließlich prospektive
+  Prüfung, keine automatische Änderung der Modellgewichte oder Aktivierung.
+- [Physik und Schatten](physics-learning-options.md): optionale Parameter und
+  Teilintervallintegration, zeitlich qualifizierte Schattentabelle und optionale
+  Glättung normalisierter Leistungsabweichungen.
+- [Istwertrevisionen](benchmark-aufnahme.md#5-istwerte-lesend-archivieren) und
+  [Archivverfügbarkeit](forecast-repairs.md#2-tagesstartwerte-getrennt-von-lernhistorie-erhalten):
+  spätere negative Qualitäts-/Rohrevisionen sperren widersprüchliche Labels;
+  erst nach dem Cutoff fertige Berechnungen erzeugen keine rückdatierten
+  Tagesstartwerte oder Trainingszellen.
+
+Alte gültige Schattenproben ohne belegte Beobachtungs-/Empfangszeit bleiben als
+zeitlich unqualifizierte Altdaten erhalten und beeinflussen die neue
+Schattentabelle nicht. Gültige bisherige Messhistorie und ausgegebene
+Tagesstartprognosen bleiben nach ihren bisherigen Bindungsprüfungen erhalten.
+Früher verworfene Messenergie oder nie archivierte Forecasts werden nicht
+rekonstruiert. Historische/importierte Originale erhalten keinen rückwirkenden
+Verfügbarkeitsnachweis. Die [Reviewbearbeitung](review-findings.md#entwicklungsnachtrag-nach-0214)
+dokumentiert die gefundenen Fehler, Korrekturen und ihre gezielten Gegenprüfungen.
+
+Lokale Abschlussprüfung mit Python 3.14.4 und HA Core 2026.10.4:
+**1364 Tests bestanden, keine Skips**, Ruff und Dependencycheck sauber.
+Zeilenabdeckung **94,61 %**, Zweigabdeckung **87,63 %**, kombinierte
+Komponentenabdeckung **92,57 %**; das neue CI-Gate verlangt mindestens 90 %
+kombinierte Abdeckung über den Komponentenquelltext. Ein reguläres Wheel wurde
+isoliert installiert: alle 30 Integrationsdateien sind bytegleich zum geprüften
+Quellstand, zwölf HA-/Kernmodule importieren aus dieser Installation.
+Private Prüfartefakte liegen unter `artifacts/forecast-quality-*`.
+
+Vollständiger unabhängiger **Codex GPT-6.1-Sol/high**-Review von
+`d1991da6a621c736abbc402bc2ebd7d5a715f707`: **mergeable, keine Findings**.
+135 öffentliche Originaltextdateien, 1.842.921 Payloadbytes und 32 erfolgreich
+abgeschlossene Turns. Der erneute unabhängige Nachaudit bestätigt exakte
+Quell-/Prompt-/Antwortbytes, CLI-/Modell-/Effortbindung und null Compaction,
+Tools oder Hintergrundaufgaben. Der größere Codex-Reviewkontext ändert keine
+Prognosebytes oder globale Konfiguration; die vollständigen Prüfgates bleiben
+aktiv. [Abschlussnachweis und Hashes](review-findings.md#abgeschlossener-vollreview-des-entwicklungsstands).
+
+[v0.2.15](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.15) ist am
+27.10.2026 aus Commit `3fb1985ce43781933c6a7fa2110b4fbed59fb0fd` veröffentlicht.
+Die neue Releaseprüfung bestätigt erneut **1364 Tests ohne Skips** und dieselbe
+Abdeckung. [Main-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40573603340)
+und [Tag-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40573603383)
+sind abgeschlossen erfolgreich; ihre heruntergeladenen JUnit-/Abdeckungsartefakte
+bestätigen ebenfalls je 1364 Tests ohne Skips und 92,57 % kombinierte Abdeckung.
+
+Wheel, Sdist, Integrations-ZIP und SHA256-Liste wurden gebaut und nach der
+Veröffentlichung bytegleich zurückgeladen. Das regulär separat installierte Wheel
+besteht 15 HA-/Kernimporte. Alle 30 Komponentendateien sind geprüft; gegenüber
+dem akzeptierten Review unterscheidet sich ausschließlich die Manifestversion,
+die übrigen 29 Dateien sind bytegleich. Private Paketbelege:
+`artifacts/release-0.2.15/`.
+
+Die Übernahme erfolgte über native HACS-Funktionen auf bestehendem Core 2026.10.4.
+Zuvor neue geschützte native Konfigurations-/App-Sicherung ohne Recorder-DB:
+Create-Timeout durch native Auflistung geklärt, Archivmetadaten und vollständiger
+äußerer SHA256 geprüft. Entschlüsselung/Wiederherstellung wurden nicht getestet.
+Zusätzlich 26 alte Komponentendateien und vier Historienstores separat für einen
+gezielten Rückweg gesichert. Nach Download alle 30 ausgelieferten Dateien exakt
+zurückgelesen, Konfiguration geprüft und **ein Core-Neustart** durchgeführt.
+
+Vier Einträge sind geladen und melden nativ Version **0.2.15**. Alle **80 Entity-/
+Unique-IDs und Benutzeranpassungen, vier Geräte, vollständigen Optionen, Energy-
+Einstellungen und das Ertragsdashboard** sind unverändert. Fingerprints,
+Lernfeaturevertrag, zuvor abgeschlossene Messintervalle sowie heutige/historische
+Original-Tagesstartwerte einschließlich Provenienz sind erhalten. Die Historienstores
+melden `recognized_primary`; neue optionale Physik-/Nowcastwerte bleiben neutral.
+
+Nach echten Quellenberichten ausschließlich die vier eigenen Prognosestatusanzeigen
+aktualisiert: alle vier **Physik/kalt mit gültigen Umwelt-/Leistungseingängen**,
+keine Fitfehler und keine Wetterabrufprobleme. Keine Originalmessquelle erzwungen.
+Die neuen Kontinuitäts-, Ein-Sekunden-/Fünf-Sekunden- und Endpunktfensterregeln sind
+in allen vier nativen Diagnosen vorhanden. **Drei vollständige lokale Folgetage
+je Anlage**, nominale Grenzen und konsistenter Leistungs-/Energiebezug geprüft.
+
+Vier neue getrennte Vergleichsstores sind beschreibbar und persistent zurückgelesen:
+zusammen **16 originale Captures mit 1.764 Punkten**, mit echten Empfangszeiten,
+zukünftiger Unterstützung und gültiger Konfigurationsbindung. Der noch nicht
+qualifizierte Shadow-Arm ist ausdrücklich ohne Kandidatenpunkte; er verändert
+keine operative Prognose. Alte Schattenproben bleiben diagnostisch unqualifiziert
+und brauchen für aktive Schema-3-Freigaben neue zeitlich belegte Daten.
+
+Konfiguration gültig, keine aktiven Repairs; HACS installiert/angeboten v0.2.15,
+kein Update offen. **Offener Befund AS-START-001:** HA protokollierte beim kalten
+Start vier blockierende Datei-/Modulzugriffe durch den neuen synchronen
+Wetter-/Physikimport. Keine weiteren Wiederholungen im abschließenden Logreadback;
+alle Einträge und Prognosen laufen. Der Quellvergleich zu v0.2.14 und ein unabhängiger
+Subagent bestätigen die neue Importabhängigkeit. Dauer/Folgewirkungen sind nicht
+gemessen; der Folgefix ist noch offen. [Ursache und Abnahmekriterien](geplante-updates.md#as-start-001-kalten-wetter-physikimport-aus-dem-eventloop-nehmen).
+Der Installationsnachweis ist deshalb ausdrücklich kein fehlerfreier Startnachweis.
+
+Private Betriebsbelege: `data/release-0.2.15-20261027/`; Laufzeitaudit-SHA256:
+`92e3f35dde7bc78d0133c724efb08002b9da83121b064f7632497a3f7a423d20`.
+
+Diese Release-/Betriebsstatusnachträge liegen außerhalb des eingefrorenen Reviews
+und teilweise außerhalb des unveränderten Release-Tags. Integrationsbytes bleiben
+unverändert. Eine bessere reale Prognose und eine Freigabe des frühen Bias-Kandidaten
+brauchen weiterhin die getrennte prospektive Auswertung.
+
 ## Veröffentlichter und installierter Stand 0.2.14
+
+Historischer Nachweis der Vorgängerversion.
 
 Stand: 27.10.2026. [Nachtstrahlung und historische Tagesstartwerte](forecast-repairs.md)
 sind implementiert und vollständig geprüft. [Releasebeschreibung](release-0.2.14.md).
