@@ -108,6 +108,14 @@ wie der Collector aus und ist deshalb durch den gemeinsamen Lock geschützt.
 Nach ausreichenden Pilotdaten Speicherbedarf, Backup und Wiederherstellung prüfen;
 nach drei und sechs Monaten die Speicherentscheidung erneut bewerten.
 
+## Layoutmigration und Rollback
+
+Für die Hosterweiterung nach 0.2.17 beschreibt [Hashablage](archiv-hashablage.md)
+die Migration bestehender Originale in Präfixverzeichnisse sowie den Rückweg vor
+einem Rollback auf ältere Software. Neue Leser unterstützen beide Layouts;
+alte Leser benötigen einen flachen Bestand. Die Historie der HA-Integration wird
+durch diese Hostmigration nicht verändert.
+
 ## Vorhandene Hostsicherung
 
 Für die dokumentierte Installation bestätigt der Betreiber eine tägliche

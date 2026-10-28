@@ -115,4 +115,4 @@ def test_reader_rejects_pin_drift_before_result_publication(tmp_path, change):
                 path.write_text(json.dumps(pins))
             else:
                 digest = pins["datasets"]["all"][-1]
-                (store.originals / f"{digest}.json.gz").unlink()
+                store._original_path(digest).unlink()

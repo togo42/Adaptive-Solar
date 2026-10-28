@@ -464,7 +464,92 @@ class ArchiveStore:
         conn.execute("CREATE TABLE IF NOT EXISTS checkpoints(source TEXT PRIMARY KEY,cursor TEXT,ingest_order INTEGER)")
         conn.execute("CREATE INDEX IF NOT EXISTS events_reference ON events(source,generation,event_id)")
 
+    def _layout_path(self, digest, layout="hash-prefix"):
+        if (not isinstance(digest, str) or len(digest) != 64
+                or any(char not in "0123456789abcdef" for char in digest)):
+            raise ArchiveError("Invalid original hash")
+        if layout not in {"hash-prefix", "flat"}:
+            raise ArchiveError("Unknown original layout")
+        parent = self.originals / digest[:2] if layout == "hash-prefix" else self.originals
+        if parent.is_symlink() or self.originals.is_symlink():
+            raise ArchiveError("Original directories must not be symlinks")
+        return parent / f"{digest}.json.gz"
+
+    def _original_path(self, digest):
+        """Resolve new and legacy originals without changing their contents."""
+        path = self._layout_path(digest)
+        return path if path.exists() else self._layout_path(digest, "flat")
+
+    def _original_files(self):
+        """Scan exactly the supported layouts, including interrupted migrations."""
+        if self.originals.is_symlink():
+            raise ArchiveError("Original directories must not be symlinks")
+        for path in self.originals.glob("*.json.gz"):
+            digest = path.name.removesuffix(".json.gz")
+            self._layout_path(digest, "flat")
+            if path.is_symlink():
+                raise ArchiveError("Original must not be a symlink")
+            yield path
+        for directory in self.originals.iterdir():
+            if directory.is_symlink():
+                raise ArchiveError("Original must not be a symlink")
+            if not directory.is_dir():
+                continue
+            if len(directory.name) != 2 or any(char not in "0123456789abcdef" for char in directory.name):
+                raise ArchiveError("Unknown original directory")
+            for path in directory.iterdir():
+                if path.is_symlink() or path.is_dir():
+                    raise ArchiveError("Unsupported original path")
+                if path.name.endswith(".json.gz"):
+                    digest = path.name.removesuffix(".json.gz")
+                    if path != self._layout_path(digest):
+                        raise ArchiveError("Original hash prefix mismatch")
+                    yield path
+
+    def _prepare_parent(self, path):
+        if not path.parent.exists():
+            path.parent.mkdir(mode=0o700)
+            _fsync_dir(self.originals)
+
+    def _write_original(self, digest, raw, *, layout="hash-prefix"):
+        path = self._layout_path(digest, layout)
+        self._prepare_parent(path)
+        _atomic(path.parent, path.name, raw)
+
+    def migrate_layout(self, *, layout="hash-prefix"):
+        """Relocate verified bytes under the archive lock; resumable in either direction."""
+        self._layout_path("0" * 64, layout)  # Validate before making any changes.
+        with _lock(self.root):
+            self._validate_pins()
+            paths = list(self._original_files())
+            # Validate the entire set before moving even one original.
+            for path in paths:
+                self._read_original(path)
+                target = self._layout_path(path.name.removesuffix(".json.gz"), layout)
+                if target != path and target.exists() and target.read_bytes() != path.read_bytes():
+                    raise ArchiveError("Conflicting original layout copies")
+            self._reconcile()
+            moved = duplicates = 0
+            for path in paths:
+                target = self._layout_path(path.name.removesuffix(".json.gz"), layout)
+                if target == path:
+                    continue
+                self._prepare_parent(target)
+                if not target.exists():
+                    # Publish without overwriting. Until destination fsync succeeds,
+                    # the old name remains the durable recovery path.
+                    os.link(path, target)
+                    moved += 1
+                else:
+                    duplicates += 1
+                _fsync_dir(target.parent)
+                path.unlink()
+                _fsync_dir(path.parent)
+            return dict(layout=layout, moved_originals=moved, removed_duplicates=duplicates)
+
     def _read_original(self, path):
+        if path.is_symlink() or path.parent.is_symlink():
+            raise ArchiveError("Original must not be a symlink")
         if path.stat().st_size > MAX_PAGE_BYTES + 65536:
             raise ArchiveError("Compressed original exceeds byte bound")
         try:
@@ -511,7 +596,7 @@ class ArchiveStore:
     def _reconcile(self):
         with self._db() as conn:
             known = {row[0] for row in conn.execute("SELECT hash FROM batches")}
-            paths = list(self.originals.glob("*.json.gz"))
+            paths = list(self._original_files())
             actual = {path.name.removesuffix(".json.gz") for path in paths}
             if known - actual:
                 raise ArchiveError("Indexed original is missing; restore archive backup")
@@ -554,7 +639,7 @@ class ArchiveStore:
                             "SELECT b.hash FROM batches b JOIN checkpoints c ON b.source=c.source "
                             "AND b.ingest_order=c.ingest_order WHERE b.source=?", (source,))}
                     for digest in known_batches:
-                        self._read_original(self.originals / f"{digest}.json.gz")
+                        self._read_original(self._original_path(digest))
                     return current
                 if page["requested_cursor"] != current:
                     raise ArchiveError("Page does not continue the durable local checkpoint")
@@ -565,12 +650,11 @@ class ArchiveStore:
                              stored_at=stored, archive_started_at=first[0] if first else stored, page=page)
                 raw = canonical_bytes(value)
                 digest = hashlib.sha256(raw).hexdigest()
-                name = f"{digest}.json.gz"
                 compressed = gzip.compress(raw, mtime=0)
                 # Validate and stage derived writes first; no transaction is committed yet.
                 # A conflict must never leave a poison original behind.
                 self._index(conn, digest, value, len(compressed))
-                _atomic(self.originals, name, compressed)
+                self._write_original(digest, compressed)
                 conn.commit()
                 return page["next_cursor"]
 
@@ -582,7 +666,7 @@ class ArchiveStore:
             try:
                 with self._db(candidate) as conn:
                     self._tables(conn)
-                    for path in self.originals.glob("*.json.gz"):
+                    for path in self._original_files():
                         value = self._read_original(path)
                         self._index(conn, path.name.removesuffix(".json.gz"), value, path.stat().st_size)
                 with candidate.open("rb") as handle:
@@ -613,7 +697,7 @@ class ArchiveStore:
             for (digest,) in rows:
                 if selected is not None and digest not in selected:
                     continue
-                value = self._read_original(self.originals / f"{digest}.json.gz")
+                value = self._read_original(self._original_path(digest))
                 for event in value["page"]["events"]:
                     key = value["source"], event["generation"], event["sequence"]
                     if key not in seen and (kind is None or event["kind"] == kind):
@@ -698,7 +782,7 @@ class ArchiveStore:
                 batches.setdefault(batch, {})[identifier] = (sequence, digest)
             resolved = {}
             for batch, wanted in batches.items():
-                original = self._read_original(self.originals / f"{batch}.json.gz")
+                original = self._read_original(self._original_path(batch))
                 if original["source"] != source:
                     raise ArchiveError("Replay reference index disagrees with original source")
                 for event in original["page"]["events"]:
@@ -737,9 +821,10 @@ class ArchiveStore:
             _atomic(self.root, "pins.json", raw)
             return pins[dataset]
 
-    def export_dataset(self, dataset, destination):
+    def export_dataset(self, dataset, destination, *, layout="hash-prefix"):
         """Copy a frozen original set and its manifest; never overwrite a destination."""
         target = Path(destination)
+        self._layout_path("0" * 64, layout)
         with _lock(self.root):
             pins = self._pins()
             self._validate_pins(pins)
@@ -750,7 +835,7 @@ class ArchiveStore:
             verified = []
             sources = {}
             for digest in pins[dataset]:
-                path = self.originals / f"{digest}.json.gz"
+                path = self._original_path(digest)
                 value = self._read_original(path)
                 stamps = [event["received_at"] for event in value["page"]["events"]]
                 summary = sources.setdefault(value["source"], {"events": 0, "first_received_at": None, "last_received_at": None})
@@ -762,8 +847,10 @@ class ArchiveStore:
             target.mkdir(parents=True, mode=0o700)
             originals = target / "originals"
             originals.mkdir(mode=0o700)
+            exported = ArchiveStore.__new__(ArchiveStore)
+            exported.root, exported.originals = target, originals
             for digest, path in verified:
-                _atomic(originals, f"{digest}.json.gz", path.read_bytes())
+                exported._write_original(digest, path.read_bytes(), layout=layout)
             manifest = dict(schema=SCHEMA, dataset=dataset, original_sha256=pins[dataset], sources=sources,
                             integrity_only=True, completeness="requires replay dependency validation")
             _atomic(target, "dataset.json", canonical_bytes(manifest))
@@ -795,7 +882,7 @@ class ArchiveStore:
         """Do not turn a missing pinned original into a silently partial dataset."""
         pins = self._pins() if pins is None else pins
         for digest in {digest for hashes in pins.values() for digest in hashes}:
-            if not (self.originals / f"{digest}.json.gz").is_file():
+            if not self._original_path(digest).is_file():
                 raise ArchiveError("Pinned original is missing; restore archive backup")
         return pins
 
@@ -817,7 +904,11 @@ class ArchiveStore:
                     conn.execute("DELETE FROM batches WHERE hash=?", (digest,))
                 conn.commit()
                 for digest in expired:
-                    (self.originals / f"{digest}.json.gz").unlink()
+                    for layout in ("flat", "hash-prefix"):
+                        path = self._layout_path(digest, layout)
+                        if path.exists():
+                            path.unlink()
+                            _fsync_dir(path.parent)
                 _fsync_dir(self.originals)
                 conn.execute("VACUUM")
                 return dict(removed_batches=len(expired), cutoff=cutoff.isoformat(), retained_pinned=len(pinned))
@@ -828,7 +919,7 @@ class ArchiveStore:
             self._validate_pins()
             with self._db(check_integrity=True):
                 pass
-            for path in self.originals.glob("*.json.gz"):
+            for path in self._original_files():
                 self._read_original(path)
             self._reconcile()
         return True

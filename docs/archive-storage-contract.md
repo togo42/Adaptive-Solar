@@ -176,12 +176,27 @@ Sequenzkontinuität, Lücken und den resultierenden Cursor.
 ## Langzeitarchiv und Transaktionsreihenfolge
 
 `ArchiveStore(root)` speichert jedes neu angenommene Seitenpaket unter
-`originals/<sha256>.json.gz`. Der Hash bezieht sich auf den unkomprimierten
+`originals/<erste-zwei-Hashzeichen>/<sha256>.json.gz` (Hosterweiterung nach
+0.2.17, siehe [Migration und Betrieb](archiv-hashablage.md)). Die 256 möglichen
+Präfixverzeichnisse entstehen bei Bedarf. Der Hash bezieht sich auf den unkomprimierten
 Originalwrapper mit `schema`, privatem `source`, monotoner `ingest_order`,
 `stored_at`, ursprünglichem `archive_started_at` und der vollständigen Seite.
 Kompression verwendet einen festen gzip-Zeitstempel. Jeder komprimierte und
 dekomprimierte Lesevorgang hat eine harte Grenze. Die Originale sind maßgeblich;
 `index.sqlite3` enthält den abgeleiteten Suchindex und Collector-Checkpoint.
+Die Leser unterstützen auch das bisherige flache Layout und gemischte Bestände.
+Neue Aufnahmen und Datasetexporte verwenden standardmäßig das Hashpräfixlayout.
+Pins und Indexverweise enthalten weiterhin nur den vollständigen Hash, keine Pfade.
+
+`migrate_layout(layout="hash-prefix")` prüft unter der Archivlock zuerst sämtliche
+Originale und Pins. Danach veröffentlicht es pro Datei einen Hardlink am Ziel,
+synchronisiert das Zielverzeichnis, entfernt erst dann den alten Namen und
+synchronisiert dessen Verzeichnis. Bei Abbruch sind alte/neue Pfade oder beide
+vorhanden; der nächste Lauf setzt fort. Unterschiedliche komprimierte Kopien
+desselben Hashs werden vor dem ersten Verschieben abgelehnt. Originalbytes,
+Zeitangaben, Checkpoints und Pins bleiben unverändert. Symlinks, falsche
+Hashpräfixe und unbekannte Unterverzeichnisse werden abgelehnt. `layout="flat"`
+ermöglicht den Rückweg vor einem Rollback auf alte Leser.
 
 `ingest_page(source, page)` verlangt den eigenen aktuellen dauerhaften Cursor
 als `requested_cursor`. Eine Wiederholung bereits vollständig aufgenommener Ereignisse prüft
@@ -190,7 +205,8 @@ setzt den aktuellen Checkpoint nicht zurück. Die Reihenfolge ist:
 
 1. Seite und mögliche Inhaltskonflikte prüfen; Indexänderungen nur vormerken.
 2. Original in temporäre Datei schreiben und Datei synchronisieren.
-3. Datei atomar umbenennen und Originalverzeichnis synchronisieren.
+3. Datei atomar umbenennen und Präfixverzeichnis synchronisieren; neue
+   Präfixverzeichnisse zuvor im Originalverzeichnis dauerhaft verankern.
 4. Erst danach die SQLite-Transaktion mit dem neuen Checkpoint bestätigen.
 
 Bei einem Absturz vor Schritt vier bleibt der alte Checkpoint gültig. Beim

@@ -126,9 +126,13 @@ def main(argv=None):
     commands.add_parser("verify", help="Read and verify all originals")
     commands.add_parser("rebuild-index", help="Explicitly reconstruct derived index from verified originals")
     commands.add_parser("maintain", help="Apply 24 calendar month retention, preserving pins")
+    migration = commands.add_parser("migrate-layout", help="Relocate verified originals without changing hashes or pins")
+    migration.add_argument("--layout", choices=("hash-prefix", "flat"), default="hash-prefix")
     export = commands.add_parser("export-dataset", help="Copy frozen originals and an immutable manifest")
     export.add_argument("dataset")
     export.add_argument("destination", type=Path)
+    export.add_argument("--layout", choices=("hash-prefix", "flat"), default="hash-prefix",
+                        help="Use flat for replay with older software")
     pin = commands.add_parser("pin", help="Permanently pin a named immutable dataset")
     pin.add_argument("dataset")
     pin.add_argument("--source", action="append")
@@ -178,8 +182,10 @@ def main(argv=None):
                 result = {"verified": store.verify()}
             elif args.command == "maintain":
                 result = store.maintain()
+            elif args.command == "migrate-layout":
+                result = store.migrate_layout(layout=args.layout)
             elif args.command == "export-dataset":
-                result = store.export_dataset(args.dataset, args.destination)
+                result = store.export_dataset(args.dataset, args.destination, layout=args.layout)
             else:
                 result = {"pinned": store.pin(args.dataset, sources=args.source)}
         print(json.dumps(result, sort_keys=True))

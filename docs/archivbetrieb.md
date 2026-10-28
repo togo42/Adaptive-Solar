@@ -58,6 +58,11 @@ zurück. Erst das dauerhaft gespeicherte Original erlaubt dessen Fortschreiben;
 Wiederholungen sind idempotent. Bei einer neuen Journalgeneration oder verdrängten
 Ereignissen meldet der Collector eine Lücke. Sie wird nicht durch Nullwerte ersetzt.
 
+Die Hosterweiterung nach 0.2.17 schreibt Originalpakete unter
+`originals/<erste-zwei-Hashzeichen>/<vollständiger-Hash>.json.gz`.
+Bestehende flache Archive bleiben lesbar. Migration, Rückweg und Kompatibilität
+mit älteren Replayumgebungen beschreibt [Hashablage](archiv-hashablage.md).
+
 Das Journal begrenzt beim Schreiben auf 72 Stunden, 10.000 Ereignisse und 64 MiB
 serialisierten Ereignisinhalt; die zuerst erreichte Grenze gilt. Ohne weitere
 Schreibvorgänge werden alte Inhalte nicht automatisch gelöscht. SQLite benötigt zusätzliche
@@ -157,6 +162,12 @@ Originalprüfsummen, referenzierte Wetterantworten, erneut geparste Normalisieru
 Zustandsteile, Konfiguration und Zeitverfügbarkeit. Fehlende, fremde oder geänderte
 Originale führen zum Abbruch. Ausgabezeit/Cutoff, Ende der Berechnung und spätere
 Archivübernahme sind verschiedene Zeitpunkte.
+
+Datasetexporte verwenden ebenfalls die Hashablage. Für ältere, quellenidentische
+Replayumgebungen beim Export `--layout flat` ergänzen. Eine geänderte
+Host-Speicherbibliothek verändert den erfassten Quellhash; für die exakte Abnahme
+alter HA-Aufnahmen deshalb die ursprüngliche Software auf dieser flachen
+Arbeitskopie ausführen. Die Hashprüfung wird nicht gelockert.
 
 Standard ist der jüngste passende `forecast_issued`; `--event-id` wählt eine
 bestimmte Ausgabe, `--as-of` begrenzt die damalige Verfügbarkeit. Die numerische

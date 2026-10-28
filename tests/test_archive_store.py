@@ -118,7 +118,7 @@ def test_crash_after_original_before_index_recovers(tmp_path, monkeypatch):
     with pytest.raises(OSError):
         store.ingest_page("site", j.page())
     assert store.checkpoint("site") is None
-    assert len(list(store.originals.glob("*.json.gz"))) == 1
+    assert len(list(store.originals.rglob("*.json.gz"))) == 1
     monkeypatch.setattr(module, "_atomic", real)
     recovered = ArchiveStore(tmp_path / "host")
     assert recovered.checkpoint("site") == j.page()["next_cursor"]
@@ -144,7 +144,7 @@ def test_corrupt_original_rebuild_preserves_index(tmp_path):
     store = ArchiveStore(tmp_path / "host")
     store.ingest_page("site", j.page())
     index = (store.root / "index.sqlite3").read_bytes()
-    path = next(store.originals.glob("*.json.gz"))
+    path = next(store.originals.rglob("*.json.gz"))
     path.write_bytes(gzip.compress(b"{}"))
     with pytest.raises(ArchiveError, match="checksum"):
         store.rebuild_index()
@@ -232,7 +232,7 @@ def test_missing_original_aborts_and_corrupt_pins_abort_retention(tmp_path):
     with pytest.raises(ArchiveError, match="pin manifest"):
         store.maintain()
     (store.root / "pins.json").unlink()
-    next(store.originals.glob("*.json.gz")).unlink()
+    next(store.originals.rglob("*.json.gz")).unlink()
     with pytest.raises(ArchiveError, match="missing"):
         ArchiveStore(store.root)
 
@@ -288,7 +288,7 @@ def test_missing_pinned_original_cannot_become_partial_dataset(tmp_path, operati
     pinned = store.pin("frozen")
     append(j, 1)
     store.ingest_page("site", j.page(cursor))
-    (store.originals / f"{pinned[0]}.json.gz").unlink()
+    store._original_path(pinned[0]).unlink()
     index_before = (store.root / "index.sqlite3").read_bytes()
     operations = {
         "rebuild": store.rebuild_index,

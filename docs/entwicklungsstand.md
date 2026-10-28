@@ -1,5 +1,12 @@
 # Entwicklungsstand und offene Nachweise
 
+## Archivhost-Erweiterung: hierarchische Hashablage
+
+Die Hosterweiterung nach 0.2.17 verwendet `originals/<Hashpräfix>/<Hash>.json.gz`.
+[Migration, Kompatibilität und Prüfstand](archiv-hashablage.md) beschreibt
+die Änderung getrennt von der weiterhin veröffentlichten HA-Version 0.2.17.
+Historische Releaseprüfungen unten gelten für ihre ursprünglichen Quellstände.
+
 ## Veröffentlichter und installierter Stand 0.2.17
 
 Der reale 0.2.16-Replaybefund wurde auf kleinste Unterschiede berechneter

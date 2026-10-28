@@ -14,7 +14,11 @@ neue Frischebelege sein; abgelehnte Schattenlerneingaben bleiben für spätere
 Verfahren relevant. Diese Information darf beim Speichern nicht verschwinden.
 
 Der aktuelle `ArchiveStore` bewahrt deshalb komprimierte Originalpakete mit
-Prüfsummen. Ein lokaler SQLite-Index enthält Quellen, Generationen, Sequenzen,
+Prüfsummen. Neue Originale liegen in 256 möglichen Hashpräfixverzeichnissen unter
+`originals/<erste-zwei-Hashzeichen>/<vollständiger-Hash>.json.gz`; alte flache
+Bestände bleiben lesbar und lassen sich ohne Inhaltsänderung migrieren.
+[Migration und Rollback](archiv-hashablage.md) erläutert das Vorgehen.
+Ein lokaler SQLite-Index enthält Quellen, Generationen, Sequenzen,
 Originalverweise und Lesecursor. Die Dateien sind maßgeblich; der Index kann
 wiederaufgebaut werden. Ein Pin friert konkrete Originale für einen Versuch ein.
 Details: [Datenvertrag, Retention und Wiederherstellung](archive-storage-contract.md).
