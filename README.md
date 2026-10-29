@@ -4,102 +4,117 @@
   <img src="assets/adaptive-solar-logo.png" alt="Adaptive Solar: Sonne über einem Solarmodul mit aufsteigender Prognosekurve" width="240">
 </p>
 
-[GitHub](https://github.com/togo42/Adaptive-Solar) · [Fehler melden](https://github.com/togo42/Adaptive-Solar/issues) · [Logo und Gestaltung](docs/branding.md)
+[Dokumentation](docs/README.md) · [Versionshinweise](docs/releases/README.md) · [Fehler melden](https://github.com/togo42/Adaptive-Solar/issues)
 
-Wetterprognosen, PV-Physik und lokale Residualmodelle für bis zu sieben lokale Kalendertage einschließlich heute: Resttag und bis zu sechs Folgetage, abhängig von der Wetterabdeckung. Unterschiedliche Stringausrichtungen, gemeinsame AC-/DC-Ausgabestufen und wiederkehrende Verschattung werden berücksichtigt. Frische HA-Temperatur/Windwerte, optionale horizontale Globalstrahlung und geeignete PV-Leistung unterstützen den kurzfristigen Nowcast.
+Adaptive Solar verbindet Open-Meteo-Wetterprognosen, PV-Physik und lokale
+Residualmodelle. Die Integration prognostiziert das **verfügbare PV-Potenzial
+ohne betriebliche Abregelung**: Leistung, Resttag und bis zu sechs Folgetage,
+abhängig von der eingestellten und tatsächlich verfügbaren Wetterabdeckung.
 
-**Stand, 29.10.2026:** **0.2.18 veröffentlicht und über HACS auf HA installiert.** Vollständiger Codex-Integrationsreview ohne Findings, 1.727 Tests ohne Skips sowie erfolgreiche Main-/Tag-CI mit mindestens 90,85 % kombinierter Abdeckung. Vier Einträge laufen mit erhaltener Konfiguration und Historie; für den 30.10. sind vollständige Tagesbeginnkurven gespeichert. Externe Archivhostdienste wurden dabei nicht aktualisiert. [Release und Upgrade](docs/release-0.2.18.md), [Betriebs- und Prüfstand](docs/entwicklungsstand.md), [Validierungsplan](docs/validierung.md). Der historische vollständige Release-/Archivnachweis für 0.2.17 bleibt erhalten.
+Unterschiedliche Stringausrichtungen, gemeinsame AC-/DC-Ausgangsstufen und
+wiederkehrende Verschattung werden berücksichtigt. Frische HA-Messungen für
+Temperatur, Wind, horizontale Globalstrahlung und PV-Leistung unterstützen
+kurzfristige Korrekturen. Ohne qualifizierte Lernhistorie bleibt die Physik aktiv.
+Ein gemeinsamer Zähler kann keine Einzelstringverluste identifizieren.
 
-**Archivhost ohne lokales HA, installiert am 29.10.2026:** [Installation und Updates](docs/archiv-runtime-ohne-ha.md) verwenden einen eigenen Installer mit verpflichtender HA-Paketsperre. Historische Replayabnahmen behalten ihre strenge Versionsprüfung.
-
-**Archivhost-Erweiterung nach 0.2.17 installiert:** Die [hierarchische Hashablage](docs/archiv-hashablage.md) verteilt Originalpakete auf Präfixverzeichnisse. Migration und Rückweg bewahren Bytes, Pins und Checkpoints; ältere Replayumgebungen erhalten flache Datasetkopien. Der Installationsnachweis steht im verlinkten Betriebsbericht.
-
-**Messdatenänderungen in 0.2.13:** Die [Messaufbereitung](docs/messintervalle-92-prozent.md) behandelt kurze Rundungsbursts, wählt den längsten gültigen Messblock und verlangt nun 92 % Abdeckung mit höchstens drei Minuten Lücke je Rand. Veröffentlichung und Installation sind gegenüber dem bisherigen 0.2.12-Stand getrennt nachgewiesen.
-
-**Neu in 0.2.15:** [Messkontinuität und echte Endpunktfenster](docs/measurement-learning.md) ergänzen die bisherigen Qualitätsgates. Ein kleiner [früher Bias-Kandidat](docs/early-bias-shadow.md) läuft ausschließlich im Shadow-Betrieb. [Physik-, Schatten- und Nowcastoptionen](docs/physics-learning-options.md), [Wetter-/Lernfehler und Ressourcen](docs/forecast-resilience.md) sowie ein [getrenntes Modellvergleichsarchiv](docs/model-comparison-archive.md) machen Kandidaten überprüfbar. Die Änderungen sind kein Nachweis besserer realer Prognosen; dafür bleibt ein prospektiver Anlagenvergleich erforderlich.
-
-Die [Ablehnungsdiagnose](docs/ablehnungsdiagnose.md) ergänzt eindeutige Ziel-/Zeilendetails mit Originalzeiten und Gründen (`schema_version: 1`, höchstens 50 Einträge je Gruppe). Zielzähler und Details zeigen gemeinsam den letzten tatsächlichen Fit-Cutoff; Cachehits erfinden keine neue Auswertung. Der tatsächliche Installationsstand steht im Prüfstand.
-
-## Funktionsweise
-
-Open-Meteo liefert verfügbare Modellintervalle. pvlib berechnet Sonnenstand, Transposition und Temperaturverluste je String; Stringsumme und Begrenzung erfolgen gemeinsam je deklarierter AC-/DC-Stufe. DC hat keine versteckte AC-Effizienz. Optionale Horizonte dämpfen direkte Strahlung teilweise.
-
-Gradient Boosting lernt je Stufe und NWP-/GHI-Regime auf prospektiv archivierten Features und späteren Messintervallen. Training, Prüfung und Kalibrierung liegen zeitlich getrennt; unbelegte Lead-Bereiche behalten Physik. Ohne qualifizierte Historie bleibt das Modell kalt. Ein gemeinsamer Zähler identifiziert keine Einzelstringverluste.
-
-Ausgegeben wird **verfügbares PV-Potenzial ohne betriebliche Abregelung**, keine Reglerbefehlsprognose. Abregelung, Eingabeprobleme, Resttagslücken und Physik-/teilweise/vollständige Residualanwendung sind getrennte Qualitätszustände, keine Genauigkeitsklassen. Alle Näherungen, Datenverträge und APIparameter: [Implementierungsvertrag](docs/implementation-contract.md).
-
-Herstellerunabhängige String-/Stufenkonfiguration, optionale HA-Sensoren: keine Pflicht für Wechselrichtermarke, Batterietyp oder Hersteller-API. Ohne Abregelungssignal gilt die zu prüfende Annahme ungedrosselten Betriebs. Ein voller Akku allein beweist keine Abregelung; Genauigkeit auf beliebiger Hardware ist nicht belegt.
+**Dokumentierter Release: 0.2.18, Stand 29.10.2026.** Neu sind gespeicherte
+[Stundenkurven der Tagesbeginnprognose](docs/technik/day-start-curve.md).
+[Änderungen und Upgrade](docs/releases/release-0.2.18.md),
+[historische Quell- und Testnachweise](docs/entwicklung/pruefnachweise.md).
+Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
+Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
 
 ## Installation und Bedienung
 
-| Anleitung | Inhalt |
-| --- | --- |
-| [Installation](docs/installation.md) | Geprüfte Plattformen, HACS, manuelle Installation, Upgrade und Rückweg |
-| [HAOS-Binärabhängigkeiten](docs/haos-installation.md) | amd64-Musl-Wheel bauen, vorbereiten und im persistenten Corepfad bereitstellen |
-| [Bedienung](docs/bedienung.md) | Alle Einrichtungsfelder, Sensoren, Energy, Lernstatus und Fehlerbehebung |
-| [Datenschutz](docs/datenschutz.md) | Externe Datenflüsse, lokale Speicherung und Diagnoseweitergabe |
+1. [Plattform und Abhängigkeiten prüfen](docs/anwendung/installation.md).
+   HACS-Mindestversion ist Core **2026.10.2**; die vollständige Suite für 0.2.18
+   wurde unter **2026.10.4 / Python 3.14** geprüft. Frühere Nachweise für .2/.3
+   sind historisch. Für HAOS ist bislang nur **amd64 / CPython 3.14 / Musl**
+   mit separat bereitgestellter Binärbasis qualifiziert;
+   [HAOS-Bau- und Installationsweg](docs/anwendung/haos-installation.md).
+2. In HACS unter **Benutzerdefinierte Repositories**
+   `https://github.com/togo42/Adaptive-Solar` als **Integration** hinzufügen,
+   eine veröffentlichte Version herunterladen und Home Assistant neu starten.
+3. Unter **Einstellungen → Geräte & Dienste → Integration hinzufügen → Adaptive Solar**
+   Standort, Ausgangsstufen und Strings einrichten. Bestehende Einträge beim Upgrade
+   weiterverwenden. [Bedienung und Fehlerbehebung](docs/anwendung/bedienung.md).
 
-HACS-Mindestversion ist **Core 2026.10.2**. Historische Kompatibilitätsprüfungen betreffen **2026.10.2/.3/.4** mit Python 3.14; die vollständige Suite für **0.2.18** läuft auf **2026.10.4**. Andere Versionen sind damit nicht automatisch neu geprüft. **HAOS ist bislang nur auf amd64 mit passender CPython-3.14-Musl-Binärbasis belegt.** ARM/Raspberry Pi und andere Python-ABIs sind nicht qualifiziert. Der HA-unabhängige Modellkern unterstützt Python ab 3.13.
+Die [Installationsanleitung](docs/anwendung/installation.md) enthält auch manuelle
+Installation, Sicherung, Erfolgskontrolle und Rückweg. Ein HACS-Download ersetzt
+keine fehlende HAOS-Binärabhängigkeit.
 
-Über HACS: **Benutzerdefinierte Repositories** öffnen, `https://github.com/togo42/Adaptive-Solar` als **Integration** hinzufügen und die gewünschte veröffentlichte Version herunterladen. Danach Home Assistant neu starten und **Adaptive Solar** unter **Einstellungen → Geräte & Dienste** hinzufügen beziehungsweise bestehende Einträge weiterverwenden. [Änderungen und Upgrade in 0.2.18](docs/release-0.2.18.md). Die benötigte HAOS-Binärbasis ist unten separat beschrieben; HACS ersetzt diese Abhängigkeit nicht.
+Je String werden kWp, Neigung, Azimut und Verluste angegeben:
+**0° Nord / 90° Ost / 180° Süd / 270° West**. AC-Stufen haben Wirkungsgrad und
+AC-Grenze; DC-Stufen eine nominelle Ausgangsgrenze und optionale Zusatzverluste.
+Fiktive [AC-](examples/site.json) und [DC-Beispiele](examples/site-dc.json)
+zeigen die herstellerunabhängige Konfiguration. Optionale Horizontprofile und
+Morgen-/Abenddämpfung sind Konfigurationsannahmen, keine vermessene Teilverschattung.
 
-Alternativ den vollständigen Ordner `custom_components/adaptive_solar` in das gleichnamige Verzeichnis der HA-Konfiguration kopieren; Details und Abhängigkeitsprüfung stehen in der Installationsanleitung.
-
-Nach Neustart: **Einstellungen → Geräte & Dienste → Integration hinzufügen → Adaptive Solar**. Einrichtung, Prognoseausgabe, Persistenz und Optionsänderung sind live geprüft; produktives Training mit qualifizierter Messhistorie steht noch aus.
-
-Je String kWp, Neigung, Azimut und Verluste: **0°N/90°O/180°S/270°W**. AC: Wirkungsgrad/AC-Grenze; DC: nominelle Ausgangsgrenze/optionaler Zusatzverlust, keine spannungsunabhängige Hardwaregarantie. Fiktive [AC-](examples/site.json)/[DC-Beispiele](examples/site-dc.json); Details im Implementierungsvertrag.
-
-Optional lassen sich je String Horizontpunkte sowie Morgen-/Abenddämpfungen von 0 bis 1 eintragen. 0 bedeutet keine Dämpfung; zwischen Sonnenaufgang, Tageslichtmitte und Sonnenuntergang wird linear überblendet. Vorhandene Dämpfungen anderer Prognoseintegrationen können als Ausgangswerte dienen, müssen aber dieselbe Solarfläche beschreiben. Die Horizontkorrektur lässt diffuse Strahlung erhalten. Bei einer Ausgangsstufe erscheint nur ihr Gerätebereich; vorhandene alte Gesamt-Sensoren bleiben ausgeblendet für bestehende Verweise verfügbar.
-
-Lernen braucht kumulative PV-Energie am richtigen Messpunkt, Nowcast Leistung in W. Keine Zählermehrfachbindung an unabhängige Stufen; Netzbilanz/Batterieentladung sind keine PV-Produktion. Mindestens 92 % Messabdeckung und höchstens drei Minuten Lücke je Rand; `training_quality` erklärt Ablehnungen. Energieintegrale, Verfügbarkeit und Abregelung separat qualifizieren; HA-Empfang allein genügt nicht.
-
-Optional kann je Stufe ein [Messgültigkeitssignal](docs/measurement-validity.md) ungültige Energie- und Leistungsdaten sperren. Es ersetzt kein Abregelungssignal. Bei aus mehreren Leistungen berechneter Energie muss der externe Qualitätsadapter alle benötigten Originalquellen prüfen; ursprüngliche Zähler und echte Nullberichte bleiben erhalten.
-
-Optionales GHI verlangt echte horizontale W/m², Frische und geeigneten Sonnenstand. Lücken bleiben fehlend; Modelle entstehen aus lokalen Zeilen, nicht ausführbaren Dateien.
-
-Resttag enthält die verbleibende Teilstunde; native Energy nur volle UTC-Stunden homogener Entries. Tagesbeginnprognose braucht einen vor Mitternacht eingefrorenen Snapshot. Historische Werte bleiben seit 0.2.14 mit Originalkonfiguration gekennzeichnet erhalten; [Wiederherstellung verlorener Originalwerte](docs/forecast-repairs.md#3-bereits-verlorenen-originalwert-gezielt-wiederherstellen).
-Ab 0.2.18 wird die [Stundenkurve zu Tagesbeginn](docs/day-start-curve.md) zusammen mit neuen Tagesbeginn-Snapshots gespeichert und am Tag-0-Sensor bereitgestellt; vorhandene reine Tagessummen behalten eine leere Kurve.
+Lernen benötigt kumulative PV-Energie am richtigen Messpunkt, der Leistungsnowcast
+Leistung in W. Messlücken bleiben fehlend; aktive oder unbekannte konfigurierte
+Abregelung sperrt betroffene Lern-/Leistungsbeobachtungen. Die
+[Messkontinuitätsregeln](docs/technik/measurement-learning.md) und die
+[Ablehnungsdiagnose](docs/technik/ablehnungsdiagnose.md) erklären verwendbare Labels.
+Ausgabequalität ist keine Genauigkeitsklasse. Datenflüsse und lokale Aufbewahrung
+stehen unter [Datenschutz](docs/anwendung/datenschutz.md).
 
 ## Entwicklung
 
+Für native HA-Tests Python 3.14 verwenden; der HA-unabhängige Modellkern unterstützt
+Python ab 3.13. Der [Entwicklungsleitfaden](docs/entwicklung/entwicklung.md) beschreibt
+die reproduzierbare Installation mit automatischer Übernahme der Manifestpins.
+
 ```bash
 python3.14 -m venv .venv
-.venv/bin/python -m pip install '.[test,ha-test]'
-.venv/bin/python -m pip install 'pvlib==0.16.1' 'scikit-learn==1.9.1'
+.venv/bin/python -m pip install '.[test,ha-test]' 'pvlib==0.16.1' 'scikit-learn==1.9.1'
 .venv/bin/python -m pip check
 .venv/bin/python -m pytest -q --cov=custom_components.adaptive_solar --cov-branch \
     --cov-report=term-missing:skip-covered --cov-report=xml:artifacts/coverage.xml
 .venv/bin/ruff check custom_components tests scripts
 ```
 
-Die zweite Installation gleicht die Laufzeitbibliotheken mit dem aktuellen HA-Manifest ab, wie es auch CI tut. Der [Entwicklungsleitfaden](docs/entwicklung.md) zeigt die automatische Übernahme dieser Pins, die Testmatrix und den Ablauf für Beiträge. Historische Nachweise: [Entwicklungsstand](docs/entwicklungsstand.md).
-
-Synthetische Offline-Demo; für DC `--config examples/site-dc.json` einsetzen:
+Synthetische Offline-Demo:
 
 ```bash
 .venv/bin/python scripts/forecast.py --config examples/site.json --synthetic \
     --as-of 2026-06-21T08:00:00+02:00 --output artifacts/demo.json
 ```
 
-`--live` ruft Open-Meteo auf und ist nicht rückdatierbar. Reale Prognosen/Recorder-Istwerte archivieren und vergleichen: [Aufnahmeleitfaden](docs/benchmark-aufnahme.md). Private Zuordnungen unter ignoriertem `data/`; Standorte, Entity-IDs und Zugangsdaten weder in Git noch Reviews.
+`--live` ruft Open-Meteo auf und ist nicht rückdatierbar.
+[Datenverträge](docs/technik/implementation-contract.md),
+[Vergleichsaufnahme](docs/entwicklung/benchmark-aufnahme.md) und
+[Reviewablauf](docs/entwicklung/validierung.md#4-lokale-prüfung-und-review)
+ergänzen die Entwicklung. Private Zuordnungen und Betriebsprotokolle gehören unter
+ignoriertes `data/`, generierte Artefakte unter `artifacts/`, rohe Reviewdaten unter
+`reviews/private/`.
 
-**Originaldatenarchiv ab 0.2.16:** Optionaler HA-Export, externes Archiv mit 24 Monaten Aufbewahrung, zusätzliche Wetter-/Ensembleaufnahmen und Offline-Replay. Die [Betriebsanleitung](docs/archivbetrieb.md) beschreibt Aufnahme, eingefrorene Datensätze und Grenzen; die [Hostinstallation](docs/archiv-host-installation.md) Dienste, verschlüsselte Zugangsdaten und Speichergrenzen. Originaldateien bleiben maßgeblich, SQLite ist der lokale Index; PostgreSQL kann später als Abfrageebene ergänzt werden.
+## Optionaler Archivbetrieb
 
-Die [Wettermodellrecherche für die nächsten 24/48 Stunden](docs/wettermodelle-und-prognosehorizonte.md) begründet regionale Kurzfristmodelle, länger verfügbare Vergleichsmodelle und echte Wetterensembles. Der Offline-Pfad berechnet Energiequantile und Schwellenanteile aus vollständigen Mitgliedsverläufen; ihre lokale Zuverlässigkeit ist noch nicht gemessen. Speicherbewertungen sind nach drei und sechs Monaten vorgesehen. Neue produktive Modellgewichte und Akkuaktionen stehen weiterhin aus. Die seit 0.2.15 optionalen [Physikvarianten mit Zeitintegration und IAM](docs/physics-learning-options.md) müssen anhand der Originaldaten lokal verglichen werden.
+Der [Originaldatenexport und Replay](docs/archiv/archivbetrieb.md) archiviert
+ursprüngliche Wetter-, Beobachtungs- und Prognosedaten auf einem separaten Host.
+Export und Collector werden bewusst eingerichtet; die Prognose benötigt keinen
+Archivhost. Die [Hostinstallation](docs/archiv/archiv-host-installation.md)
+verwendet eine [eigene Laufzeit ohne HA Core](docs/archiv/archiv-runtime-ohne-ha.md).
+HACS aktualisiert weder externe Hostdienste noch Dashboardressourcen.
 
-Der Archivzweig erfasst auch ungültige Originalbeobachtungen und sämtliche
-Schattenlernversuche. Ein [chronologischer Schatten-Replay](docs/archivbetrieb.md#51-schattenlernen-chronologisch-vergleichen)
-vergleicht unabhängige Lernverläufe auf denselben früher verfügbaren Eingaben.
-Als [Speicherung](docs/archiv-speicherung-und-transport.md) bleiben zunächst
-Originaldateien und SQLite vorgesehen; PostgreSQL ist eine spätere Ausbauoption.
+Originaldateien und ein wiederaufbaubarer SQLite-Index sind die Speicherbasis.
+24 Monate Retention sind eine Einstellung; der tatsächliche Platzbedarf muss
+nach Pilotdaten und erneut nach drei und sechs Monaten bewertet werden.
+Reproduzierbarer Replay und Ensemblequantile ersetzen keine lokal gemessene Güte.
 
 ## Recherche und Quellen
 
-Grundlagen: [Ensembles](ensemble_hybrid_solar_forecasting.md), [ML](solar_ml_research.md), [Daten/Merkmale](solarprognose_datenquellen_feature_engineering.md), [Gesamtrecherche](solar-prognose-ml-recherche.md). Literaturmetriken anderer Datensätze sind keine erwarteten lokalen Ergebnisse. Referenzen: [Helios Forecast](https://github.com/ReikanYsora/Helios-Forecast), [Open-Meteo Solar Forecast](https://github.com/rany2/open-meteo-solar-forecast); kein übernommener Quellcode.
+Die [Rechercheübersicht](docs/README.md#recherche-und-planung) erschließt Grundlagen,
+Werkzeuge, Wettermodelle und historische Arbeitspakete unter `docs/recherche/`.
+Literaturergebnisse sind keine erwarteten lokalen Resultate. Referenzintegrationen:
+[Helios Forecast](https://github.com/ReikanYsora/Helios-Forecast) und
+[Open-Meteo Solar Forecast](https://github.com/rany2/open-meteo-solar-forecast);
+es wird kein Quellcode daraus übernommen.
 
-Primärquellen/Parameter: [Implementierungsvertrag](docs/implementation-contract.md); [Open-Meteo API](https://open-meteo.com/en/docs), [pvlib](https://pvlib-python.readthedocs.io/), [scikit-learn](https://scikit-learn.org/stable/), [HA](https://developers.home-assistant.io/).
-
-Open-Meteos freie API erlaubt private Hausautomation gemäß nichtkommerziellen [Nutzungsbedingungen](https://open-meteo.com/en/terms); Attribution/Limits gelten. Bibliothekslizenzen und API-Bedingungen sind getrennt zu betrachten.
+Primärquellen und konkrete Parameter stehen im
+[Implementierungsvertrag](docs/technik/implementation-contract.md).
+Bibliothekslizenzen und die API-Bedingungen der Wetterdienste gelten getrennt;
+weitere Hinweise unter [Datenschutz](docs/anwendung/datenschutz.md).
 
 ## Lizenz
 

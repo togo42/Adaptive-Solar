@@ -568,6 +568,7 @@ def reference_workspace(transport_workspace):
     binary.rename(binary_dir / 'native-grok')
     binary.symlink_to(binary_dir / 'native-grok')
     for index, name in enumerate(sorted(review.RESEARCH_FILES)):
+        (root / name).parent.mkdir(parents=True, exist_ok=True)
         (root / name).write_text(f"Originalforschung {index}: Grüße ☀️\n")
     for name in ('tests/current.py', 'docs/current.md', 'scripts/current.py', 'new-public.md'):
         (root / name).parent.mkdir(exist_ok=True)
@@ -582,6 +583,49 @@ def implementation_run(reference_workspace, *, extra_env=None):
     return run_fake(workspace, 'success', transport='single', output_name='implementation',
                     extra=('--scope', 'implementation', '--reference-receipt', str(directory / 'receipt.json')),
                     extra_env=extra_env)
+
+
+def test_nested_public_docs_are_reviewed_but_private_operator_notes_are_excluded(transport_workspace):
+    root, _ = transport_workspace
+    public = "docs/recherche/solar-prognose-ml-recherche.md"
+    private = "data/docs/betrieb/entwicklungsstand.md"
+    for name, content in ((public, "Öffentliche Recherche\n"), (private, "PRIVATE_OPERATOR_SENTINEL\n")):
+        (root / name).parent.mkdir(parents=True, exist_ok=True)
+        (root / name).write_text(content)
+    # Even a mistakenly tracked private file must never enter a review payload.
+    subprocess.run(["git", "add", public, private], cwd=root, check=True)
+
+    run, receipt, output = run_fake(transport_workspace, "success", transport="single")
+
+    assert run.returncode == 0, run.stderr
+    assert public in receipt["files"]
+    assert private not in receipt["workspace_files"]
+    payload = (output / "payload.md").read_bytes()
+    assert (root / public).read_bytes() in payload
+    assert b"PRIVATE_OPERATOR_SENTINEL" not in payload
+
+
+def test_old_root_research_reference_cannot_be_inherited_after_relocation(reference_workspace):
+    workspace, _, _ = reference_workspace
+    root, _ = workspace
+    for name in review.RESEARCH_FILES:
+        (root / name).rename(root / Path(name).name)
+    run, old_receipt, directory = run_fake(workspace, "success", transport="single", output_name="old-root")
+    assert run.returncode == 0, run.stderr
+    assert old_receipt["status"] == "accepted"
+    for name in review.RESEARCH_FILES:
+        (root / Path(name).name).rename(root / name)
+
+    run, receipt, output = run_fake(
+        workspace, "success", transport="single", output_name="relocated",
+        extra=("--scope", "implementation", "--reference-receipt", str(directory / "receipt.json")),
+    )
+
+    assert run.returncode != 0
+    assert receipt["status"] == "failed"
+    assert "Research source differs" in receipt["error"]
+    assert receipt["calls"] == []
+    assert not (output / "review.json").exists()
 
 
 def native_path(reference_workspace, filename):
@@ -1184,6 +1228,7 @@ def test_codex_all_single_receipt_serves_as_verified_reference_for_implementatio
     script.write_text(current_helper.replace("CODEX_REVIEW_CONTEXT_WINDOW_TOKENS = 800000",
                                             f"CODEX_REVIEW_CONTEXT_WINDOW_TOKENS = {context_budget}"))
     for index, name in enumerate(sorted(review.RESEARCH_FILES)):
+        (root / name).parent.mkdir(parents=True, exist_ok=True)
         (root / name).write_text(f"Originalforschung {index}: Grüße ☀️\n")
     run, baseline, base_dir = run_fake_codex(codex_workspace, "success", transport="single", output_name="codex-base")
     assert run.returncode == 0, run.stderr
@@ -1231,6 +1276,7 @@ def test_codex_reference_budget_and_strict_flags_are_bound_together(codex_worksp
     script.write_text(current_helper.replace("CODEX_REVIEW_CONTEXT_WINDOW_TOKENS = 800000",
                                             f"CODEX_REVIEW_CONTEXT_WINDOW_TOKENS = {context_budget}"))
     for index, name in enumerate(sorted(review.RESEARCH_FILES)):
+        (root / name).parent.mkdir(parents=True, exist_ok=True)
         (root / name).write_text(f"Originalforschung {index}\n")
     run, receipt, directory = run_fake_codex(codex_workspace, output_name="budget-reference")
     assert run.returncode == 0, run.stderr

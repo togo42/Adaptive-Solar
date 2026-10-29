@@ -2,20 +2,30 @@
 
 ## Project Structure & Module Organization
 
-This repository contains German-language research on solar forecasting, emphasizing resources free for private use, and the Adaptive Solar HA integration. The original research lives in root-level Markdown files:
+This repository contains the Adaptive Solar HA integration and German-language
+research on solar forecasting. Documentation starts at `docs/README.md`:
 
-- `solar-prognose-ml-recherche.md`: comprehensive overview and references.
-- `solar-prognosemodelle-zusammenfassung.md`: forecasting tools and service comparison.
-- `solar_ml_research.md`: machine-learning approaches.
-- `ensemble_hybrid_solar_forecasting.md`: ensembles and hybrid models.
-- `solarprognose_datenquellen_feature_engineering.md`: data sources and features.
-- `solarstrahlungsprognose_recherche.md`: physical and NWP-based models.
+- `docs/recherche/solar-prognose-ml-recherche.md`: comprehensive overview and references.
+- `docs/recherche/solar-prognosemodelle-zusammenfassung.md`: forecasting tools and service comparison.
+- `docs/recherche/solar_ml_research.md`: machine-learning approaches.
+- `docs/recherche/ensemble_hybrid_solar_forecasting.md`: ensembles and hybrid models.
+- `docs/recherche/solarprognose_datenquellen_feature_engineering.md`: data sources and features.
+- `docs/recherche/solarstrahlungsprognose_recherche.md`: physical and NWP-based models.
 
-The research documents remain in the root. The deployable HA integration lives in
-`custom_components/adaptive_solar/`; its HA-independent physics, learning and
-evaluation modules live in `core/`. Tests are in `tests/`, local command-line
-helpers in `scripts/`, synthetic examples in `examples/`, and implementation and
-validation documentation in `docs/`. `README.md` is the implementation entrypoint.
+Research documents live in `docs/recherche/`, user guides in `docs/anwendung/`,
+data contracts in `docs/technik/`, reusable archive operations in `docs/archiv/`,
+development and validation guides in `docs/entwicklung/`, release notes in
+`docs/releases/`, and historical implementation plans in `docs/historie/`.
+Private installation logs and operator-specific evidence belong under ignored
+`data/docs/betrieb/`; public documentation must not require these files.
+Before removing a worktree, preserve its private documentation in the main
+checkout's ignored data directory. Record the archive location and source commit
+in project shared memory without copying private operational contents there.
+The deployable HA integration lives in `custom_components/adaptive_solar/`;
+its HA-independent physics, learning and evaluation modules live in
+`custom_components/adaptive_solar/core/`. Tests are in `tests/`, local command-line
+helpers in `scripts/`, and synthetic examples in `examples/`.
+`README.md` is the implementation entrypoint.
 Embedded code in the older research documents still illustrates concepts and is
 not itself the implementation.
 
@@ -24,8 +34,8 @@ not itself the implementation.
 A Python package and pytest suite are configured in `pyproject.toml`. Documentation
 edits need no dependency installation. For implementation work use a local venv:
 
-- `python3 -m venv .venv`
-- `.venv/bin/python -m pip install '.[test,ha-test]' 'pvlib==0.16.1' 'scikit-learn==1.9.1'`: match the current HA manifest; see `docs/entwicklung.md` for automatic pin extraction.
+- `python3.14 -m venv .venv`: use Python 3.14 for native HA tests.
+- `.venv/bin/python -m pip install '.[test,ha-test]' 'pvlib==0.16.1' 'scikit-learn==1.9.1'`: match the current HA manifest; see `docs/entwicklung/entwicklung.md` for automatic pin extraction.
 - `.venv/bin/python -m pip check`
 - `.venv/bin/python -m pytest -q`: includes tests with actual HA Core.
 - `.venv/bin/ruff check custom_components tests scripts`
@@ -33,11 +43,11 @@ edits need no dependency installation. For implementation work use a local venv:
 - `.venv/bin/python scripts/evaluate.py --help`: paired archived forecast evaluation.
 - `.venv/bin/python scripts/capture_ha.py --help`: explicit read-only HA capture using private mappings.
 - `.venv/bin/python scripts/capture_actuals.py --help`: Recorder change-energy capture with separate quality evidence.
-- `.venv/bin/python scripts/review.py --transport chunks --prepare-only`: freeze a local review package for the current full source scope (default Grok 4.7; pass `--reviewer codex` for Codex GPT-6.1-Sol). The default `single` transport rejects payloads above 1,250,000 bytes; see `docs/validierung.md` for scope and context-audit requirements.
+- `.venv/bin/python scripts/review.py --transport chunks --prepare-only`: freeze a local review package for the current full source scope (default Grok 4.7; pass `--reviewer codex` for Codex GPT-6.1-Sol). The default `single` transport rejects payloads above 1,250,000 bytes; see `docs/entwicklung/validierung.md` for scope and context-audit requirements.
 
 - `rg --files -g '*.md'`: list Markdown documents.
-- `rg -n '^#{1,3} ' *.md`: inspect document headings.
-- `rg -n 'Open-Meteo|pvlib' *.md`: locate related claims before editing.
+- `rg -n '^#{1,3} ' README.md docs -g '*.md'`: inspect document headings.
+- `rg -n 'Open-Meteo|pvlib' README.md docs -g '*.md'`: locate related claims before editing.
 
 Preview edited documents in a Markdown viewer to check tables, equations, code blocks, and navigation.
 
@@ -96,7 +106,7 @@ Keep runtime data and private mappings under ignored `data/`, generated artifact
 under `artifacts/`, and raw review payloads under `reviews/private/`. The requested
 external reviewer is Grok 4.7 (`grok-4.7`, effort `high`) or alternatively Codex
 with GPT-6.1-Sol (`gpt-6.1-sol`, effort `high`); follow the hash-bound procedure in
-`docs/validierung.md`, and respect external transfer approval. Creating or testing
+`docs/entwicklung/validierung.md`, and respect external transfer approval. Creating or testing
 the integration does not authorize modifying productive HA settings.
 
 ### Dauerhafte Grok-Transferfreigabe
