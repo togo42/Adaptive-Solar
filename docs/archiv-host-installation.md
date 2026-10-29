@@ -1,5 +1,16 @@
 # Archivhost dauerhaft betreiben
 
+Der HA-Job prueft ausser dem Child-Exitcode dessen strukturierten
+Collector-Abschluss. Cursorluecken, fehlender Abschluss am Seitenlimit,
+Producer-Schreibfehler, offene Producer-Schreibvorgaenge oder fehlende
+Statusbelege ergeben `complete=false` und einen fehlgeschlagenen Hostlauf.
+Die Statusdatei nennt nur feste Statuswerte, Zaehler und Fehlerbooleans;
+rohe Producerfehler, Endpunkte, Tokens und Quellen-IDs werden nicht ins
+Journal uebernommen. Bestaetigte Checkpoints bleiben fuer den naechsten
+Lauf erhalten. Normale Pufferretention ohne Cursorverlust zaehlt nicht
+als neue Abholluecke. Collector und Runner muessen gemeinsam aktualisiert
+werden; eine reine Codevorbereitung aendert keinen bestehenden Hostdienst.
+
 Stand: 29.10.2026. Die Vorlagen unter `deploy/` und der Runner
 `scripts/archive_host.py` bereiten den Hostbetrieb vor. Ihre Existenz bedeutet
 keine Aktivierung. HA-Exportoptionen und produktive Hoständerungen benötigen den

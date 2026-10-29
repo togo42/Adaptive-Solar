@@ -150,6 +150,17 @@ bleiben Sequenzlücke und strenge Prüfung fehlender fachlicher Referenzen nöti
 
 ## Seiten, Lücken und Wiederanlauf
 
+Der Collector uebernimmt neben der Seite einen bereinigten Producerstatus.
+Ein erfolgreicher Lauf verlangt eine bestaetigte leere Abschlussseite,
+keine tatsaechliche Cursorluecke, keinen Producerfehler und keine offenen
+Producer-Schreibvorgaenge. Fehlende Statusbelege, fehlende Seiten oder ein
+ohne Abschluss erreichtes Seitenlimit ergeben `complete=false` und Exit 1.
+Bereits dauerhaft bestaetigte Seiten/Checkpoints bleiben trotzdem erhalten.
+Eine leere letzte erlaubte Seite zaehlt als bestaetigter Abschluss und nicht
+als Seitenlimitfehler. `state=gap`/historische `dropped_events` allein sind
+kein Fehler des aktuellen Laufs, wenn normale Ringpufferretention keinen
+Cursorverlust bewirkt und `last_error` leer ist.
+
 `page(cursor=None, limit=100, max_bytes=2097152)` liefert:
 
 | Feld | Bedeutung |

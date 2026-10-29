@@ -14,6 +14,11 @@ import tempfile
 from datetime import UTC, datetime
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.archive import collection_summary  # noqa: E402
+
 GIB = 1024 ** 3
 
 
@@ -140,7 +145,17 @@ def run(job, config):
                     continue
                 # Capture tools already sanitize errors, but their full output remains private.
                 # Do not copy source IDs, credentials, endpoints or raw provider messages into journal.
-                report["commands"].append({"returncode": result.returncode})
+                status = {"returncode": result.returncode}
+                if job == "ha":
+                    try:
+                        status["collector"] = collection_summary(json.loads(result.stdout))
+                        if not status["collector"]["complete"]:
+                            status["status"] = "incomplete_collection"
+                            report["complete"] = False
+                    except (ValueError, TypeError, KeyError):
+                        status["status"] = "invalid_collector_status"
+                        report["complete"] = False
+                report["commands"].append(status)
                 if result.returncode:
                     report["complete"] = False
             stats = subprocess.run([sys.executable, str(ROOT / "scripts/archive.py"), "--root", str(archive), "stats"],

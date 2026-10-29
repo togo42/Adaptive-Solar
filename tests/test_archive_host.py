@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from scripts import archive_host as host
+from scripts import archive as collector
 
 
 @pytest.fixture
@@ -29,7 +30,11 @@ def mock_process(monkeypatch, returncodes):
             values = {key: 0 for key in ("batches", "events", "compressed_bytes", "index_bytes",
                       "observation_days", "compressed_bytes_per_day", "projected_24_month_compressed_bytes")}
             return subprocess.CompletedProcess(command, 0, json.dumps(values), "")
-        return subprocess.CompletedProcess(command, next(returncodes), "private provider output", "private failure")
+        body = {"complete": True, "collection_end_confirmed": True, "page_limit_reached": False,
+                "pages": 1, "events": 0, "gaps": [], "failures": [],
+                "producer": collector.producer_status({"enabled": True, "state": "active", "last_error": None,
+                    "dropped_events": 0, "pending_events": 0, "inflight_events": 0})}
+        return subprocess.CompletedProcess(command, next(returncodes), json.dumps(body), "private failure")
 
     monkeypatch.setattr(host.subprocess, "run", process)
     return commands
@@ -136,4 +141,69 @@ def test_writer_lock_covers_children_and_timeouts_do_not_block_other_entries(con
     report = host.run("ha", config)
     assert calls == 3 and process[0][0][-1] == "entry-two"
     assert not report["complete"]
-    assert report["commands"] == [{"returncode": None, "status": "failed_or_timed_out"}, {"returncode": 0}]
+    assert report["commands"][0] == {"returncode": None, "status": "failed_or_timed_out"}
+    assert report["commands"][1]["returncode"] == 0 and report["commands"][1]["collector"]["complete"]
+
+
+@pytest.mark.parametrize("case", ["cursor_gap", "page_limit", "producer_error", "producer_pending", "producer_unavailable", "normal_retention"])
+def test_real_collector_cli_reaches_host_exit_status_without_private_messages(config, monkeypatch, tmp_path, case, capsys):
+    from contextlib import redirect_stdout, redirect_stderr
+    from io import StringIO
+    from datetime import UTC, datetime
+    from custom_components.adaptive_solar.core.archive import ArchiveJournal, ArchiveStore
+
+    config["entries"] = config["entries"][:1]
+    journal = ArchiveJournal(tmp_path / "journal", max_events=1)
+    for n in range(3):
+        journal.append("event", {"n": n}, datetime(2026, 10, 29, tzinfo=UTC))
+    archive = tmp_path / "data/archive"
+    store = ArchiveStore(archive)
+    if case != "cursor_gap":
+        store.ingest_page("ha-one", journal.page())
+    if case == "page_limit":
+        journal.append("event", {"n": 4}, datetime(2026, 10, 29, tzinfo=UTC))
+    raw = {"enabled": True, "state": "gap", "last_error": None, "dropped_events": 2,
+           "pending_events": 0, "inflight_events": 0}
+    if case == "producer_error":
+        raw.update(state="error", last_error="private-endpoint-and-credential")
+    elif case == "producer_pending":
+        raw["pending_events"] = 1
+    async def fetch(_url, _token, _entry, cursor, **_):
+        return {"page": None if case == "producer_unavailable" else journal.page(cursor),
+                "producer": collector.producer_status(raw)}
+    monkeypatch.setattr(collector, "fetch_page", fetch)
+    monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
+    def process(command, **_):
+        stdout, stderr = StringIO(), StringIO()
+        args = command[2:]
+        if case == "page_limit" and "collect" in args:
+            args = [*args, "--max-pages", "1"]
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            code = collector.main(args)
+        return subprocess.CompletedProcess(command, code, stdout.getvalue(), stderr.getvalue())
+    monkeypatch.setattr(host.subprocess, "run", process)
+    cfg = tmp_path / "data/host.json"
+    cfg.write_text(json.dumps(config))
+    code = host.main(["ha", "--config", str(cfg)])
+    report = json.loads(capsys.readouterr().out)
+    summary = report["commands"][0]["collector"]
+    assert (code == 0) == (case == "normal_retention")
+    assert report["complete"] == summary["complete"] == (case == "normal_retention")
+    assert "private-endpoint-and-credential" not in json.dumps(report)
+    assert "ha-one" not in json.dumps(report)
+    assert store.checkpoint("ha-one") == journal.page(store.checkpoint("ha-one"))["next_cursor"]
+
+
+def test_success_exit_without_verified_collector_evidence_is_not_complete(config, monkeypatch):
+    monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
+    mock_process(monkeypatch, iter([0, 0]))
+    normal = host.subprocess.run
+    def process(command, **kwargs):
+        result = normal(command, **kwargs)
+        if "collect" in command:
+            return subprocess.CompletedProcess(command, 0, "private unstructured output", "")
+        return result
+    monkeypatch.setattr(host.subprocess, "run", process)
+    report = host.run("ha", config)
+    assert not report["complete"]
+    assert all(row["status"] == "invalid_collector_status" for row in report["commands"])

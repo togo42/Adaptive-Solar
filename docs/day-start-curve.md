@@ -106,3 +106,13 @@ und [vollstaendiger Unit-Scope](validierung.md#4-lokale-prüfung-und-review).
 nicht zum vorbereiteten HA-Deploy; dessen Umfang bleibt bei drei
 Komponentendateien und dem Consumer. Ein gueltiger Nachreview bleibt
 Voraussetzung fuer die Aktivierung.
+
+Der erste Nachreview bestaetigte die beiden Werkzeugkorrekturen, meldete
+aber einen weiteren bestehenden Befund zur Fehlerweitergabe des
+Collectors an den Archivhost. Die Korrektur uebernimmt einen bereinigten
+Producerstatus, bestaetigt den Abholabschluss explizit und laesst sowohl
+Collector als auch Hostrunner bei Luecken/Fehlern/unklarem Abschluss
+fehlschlagen. 45 gezielte Tests decken auch den vollstaendigen Weg von
+Collector-CLI bis Host-Exitcode ab. Normale Ringpufferretention ohne
+Cursorverlust wird separat geprueft und nicht als Fehler gemeldet.
+Diese Korrektur bleibt ebenfalls ausserhalb des HA-Deployumfangs.
