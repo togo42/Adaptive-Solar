@@ -115,6 +115,16 @@ Prognosegrenze geteilt. Verschiedene Ausgabezeitpunkte oder GHI-Regime,
 fehlende Forecastbereiche, `source_partial_at_issue` und mit dem aktuellen
 Schattenstand unvereinbare Quellbaselines sperren das zusätzliche Fenster.
 
+Der Sonnenazimut wird zyklisch aggregiert: `sun_azimuth_deg` folgt der Richtung
+des zeitgewichteten Sinus-/Kosinusmittels, sodass 359° und 1° nach Norden zeigen.
+Vorhandene Sinus-/Kosinusfeatures behalten ihre zeitgewichteten Mittelwerte;
+Gradwerte und Vektorrichtung bleiben konsistent. Bei reinen Gradfeatures werden
+die Vektoren vor der Mittelung daraus gebildet. Ein unvollständiger Vektor oder
+eine mittlere Vektorlänge von höchstens `1e-12` liefert keine definierte Richtung
+und sperrt das Endpunktfenster. Lücken erhalten auch bei den Winkelgewichten
+keine Dauer. Originalfeatures und gemessene Energiedifferenzen werden dabei
+nicht verändert; der Join wird aus den Originalzellen neu aufgebaut.
+
 Ausgabezeiten müssen vor Beginn der betreffenden Originalzellen und des neuen
 Messfensters liegen. Der Lead bezieht sich auf die Mitte des neuen Fensters.
 Ein Label gilt erst nach seinem tatsächlichen Endpunkt und Empfang; `as_of`

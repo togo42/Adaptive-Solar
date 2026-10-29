@@ -83,6 +83,13 @@ Momentanreferenz: Original-NWP-Strahlungsmittel mit [Ineichen-Klarhimmelform](ht
 
 ### Lernen und Archiv
 
+Bei zusätzlichen Endpunktfenstern aggregiert `core/measurement.py` den
+Sonnenazimut zyklisch über den gemessenen Support. Ein vorhandener Gradwert
+folgt dem zeitgewichteten Sinus-/Kosinusvektor; bei reinen Gradfeatures werden
+die Vektoren daraus gebildet. Ein unvollständiger Vektor oder eine mittlere
+Vektorlänge `<= 1e-12` sperrt das Fenster. Der Norddurchgang darf keine südliche
+Schattenzuordnung erzeugen. Details: [Messvertrag](measurement-learning.md#endpunktfenster-statt-erzwungener-voller-stunden).
+
 `core/learning.py`: `ResidualLearner().fit(samples, as_of)`, `.predict(...)` wie oben, Diagnose `.status`. Je Stufe getrennte NWP-/GHI-Baselinemodelle. Zusatzfeatures: `ghi_regime` 0/1, `ghi_nowcast_gain` (NWP 1), `ghi_observation_age_seconds` (NWP 0). Im Kern sind markerfreie Zeilen NWP, unvollständige alte GHI-Marker ungültig. Sensorausfall erlaubt kein GHI-Modell auf roher NWP-Baseline.
 
 Je Regime eigene chronologische Trainings-/Validierungs-/Kalibrierungs-Zieltage nach lokalem Intervallstart, auch über Mitternacht bei Teilstundenoffsets. Ganze frühere Zielzeilen mit `end > nächster Blockstart` werden an beiden Grenzen entfernt; Gleichheit ist zulässig. Historientage/-stunden danach erneut prüfen, Messenergie nie teilen. `purged_boundary_overlap_rows` nennt entfernte Zeilen. Je Regime: Future-Labels, Nacht, Abregelung, ungültige Daten/Duplikatgewichtung ausschließen. Aktivierung, LeadRange/Kalibrierung nicht aus dem anderen Regime leihen. Solar-Geometrie/Saison erlauben wiederkehrende Verschattung; Stufenzähler identifizieren keine Einzelstrings. Modelle aus Zeilen rekonstruieren, keine Pickles.

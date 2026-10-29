@@ -355,6 +355,48 @@ R8 ist keine positive Abnahme; die Standortkorrektur benötigt einen neuen
 hashgebundenen Vollreview. Keine produktive HA-/Hoständerung oder Aktivierung
 ist erfolgt.
 
+## Codex-Nachreview und zyklische Winkel bei Endpunktfenstern
+
+R9 prüfte `29ec05d` mit Codex GPT-6.1-Sol/high, CLI 0.166.0, vollständig:
+209 Originaltexte, 44 Quellblöcke plus Initialisierung und Abschluss,
+46 abgeschlossene Turns, keine Compaction oder nativen Tools. Der unabhängige
+Audit bestätigte erneut Quellen, Prompts, Antworten, Modellbindung und
+Treiber-/Transportpatchbindung. Payload-SHA256:
+`779299d4cfe2133094b77f04384de8f7ff5045829f76fd291a3295a9b952d143`;
+Receipt-SHA256:
+`144a2f10c3c38c5ba239323478d7e8adca664ae99e84e17eae3d18ecb66683eb`.
+Rohbelege: `reviews/private/continuous-quality-codex-r9/`; Audit:
+`artifacts/continuous-quality/codex-r9-closeout.json`.
+
+Das Urteil blieb `blocked` wegen eines mittleren Befunds R9/AS-001:
+`integrate_original` mittelte den Azimut in Grad linear. Am Norddurchgang
+konnten 359° und 1° so fälschlich 180° ergeben und der Vektorrichtung
+widersprechen. Der Gradwert wird nun aus dem zeitgewichteten Sinus-/Kosinusvektor
+abgeleitet; reine Gradfeatures werden vor der Mittelung in Vektoren überführt.
+Unvollständige Vektoren und mittlere Vektorlängen `<= 1e-12` sperren das Fenster.
+Die ursprünglichen Vektormittel, gemessene Dauer und Energiedifferenzen bleiben
+erhalten. Der Join und sein Fit werden aus Originalzellen neu aufgebaut;
+historische Archive werden nicht umgeschrieben.
+
+Die ersten 19 neuen Gegenproben ergaben am alten Stand **16 Fehler und drei
+gültige Vergleichsfälle**. Nach Korrektur bestanden alle 19; ergänzte Fälle
+prüfen nahezu aufgehobene Richtungen, fehlende Vektorkomponenten und das
+Ausschließen einer Messlücke aus Winkel- und Baselinegewichten. Die Regressionen
+umfassen außerdem zeitlich ungleiche Gewichte, reine Grad-/Vektorfeatures,
+Endpunktjoin, unveränderte Originale/Energie und die tatsächliche
+Schatten-Baselinekompatibilität im Lerner. Belege:
+`artifacts/continuous-quality/review-r9-before.log` und
+`review-r9-angle-targeted.log`. Messvertrag und Implementierungsvertrag wurden
+abgeglichen. Ruff bestand.
+Die breitere gezielte Suite bestand mit **210 Tests**, die finale Vollsuite mit
+**2.013 Tests ohne Skips**, **90,79 % kombinierter Abdeckung** und unverändertem
+90-%-Gate; weiterhin 23 SQLite-ResourceWarnings. Ausgaben/Coverage:
+`artifacts/continuous-quality/review-r9-fixes-targeted.log`,
+`review-r9-fixes-full-tests.log` und `review-r9-fixes-coverage.json`.
+
+R9 ist keine positive Abnahme. Die Winkelkorrektur benötigt erneut einen
+hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |
