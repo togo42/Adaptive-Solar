@@ -159,10 +159,9 @@ def _hours(snapshot) -> dict[datetime, float]:
         if not isinstance(key, str):
             raise CaptureError("Malformed forecast hour")
         try:
-            stamp = datetime.fromisoformat(key)
+            stamp = _utc(datetime.fromisoformat(key))
             if stamp.minute or stamp.second or stamp.microsecond:
                 raise CaptureError("Forecast keys must be complete hour starts")
-            stamp = _utc(stamp)
         except (ValueError, TypeError, OverflowError) as exc:
             raise CaptureError("Malformed forecast hour") from exc
         if (isinstance(energy, bool) or not isinstance(energy, (int, float))

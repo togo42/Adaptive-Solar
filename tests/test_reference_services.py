@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -41,6 +41,30 @@ async def test_bridge_returns_exact_native_wh_without_energy_preferences_or_refr
     assert before <= datetime.fromisoformat(result["private-entry"]["retrieved_at"]) <= after
     native.assert_awaited_once_with(hass, "private-entry")
     assert hass.services.supports_response("adaptive_solar", services.SERVICE) is SupportsResponse.ONLY
+
+
+@pytest.mark.parametrize("offset", [0, 330, 345, -210, 570, .5])
+async def test_reference_bridge_checks_absolute_utc_hour_and_preserves_offset_representation(hass, offset):
+    stamp = T.astimezone(timezone(timedelta(minutes=offset))).isoformat()
+    raw = {"wh_hours": {stamp: 100.25}}
+    services.async_register_reference_service(hass, "owner")
+    with patch.object(hass.config_entries, "async_get_entry", return_value=entry()), patch.object(
+            services, "async_get_energy_platforms", new=AsyncMock(return_value={"helios_forecast": AsyncMock(return_value=raw)})):
+        result = await call(hass, ["private-entry"])
+    assert result["private-entry"]["status"] == "available"
+    assert result["private-entry"]["forecast"] == raw
+    assert result["private-entry"]["forecast"] is not raw
+
+
+@pytest.mark.parametrize("offset", [330, 345, -210, 570, .5])
+def test_reference_validator_rejects_local_whole_hour_off_the_utc_grid(offset):
+    stamp = datetime(2026, 6, 1, 15, tzinfo=timezone(timedelta(minutes=offset))).isoformat()
+    assert services._validated_forecast({"wh_hours": {stamp: 100}}) is None
+
+
+def test_reference_validator_rejects_duplicate_absolute_hour_in_different_offsets():
+    assert services._validated_forecast({"wh_hours": {
+        T.isoformat(): 100, T.astimezone(timezone(timedelta(minutes=345))).isoformat(): 200}}) is None
 
 
 @pytest.mark.parametrize("configured,status", [(None, "not_found"),

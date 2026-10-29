@@ -58,9 +58,11 @@ def _validated_forecast(value):
             return None
         try:
             parsed = datetime.fromisoformat(stamp)
-            if parsed.tzinfo is None or parsed.utcoffset() is None or parsed.minute or parsed.second or parsed.microsecond:
+            if parsed.tzinfo is None or parsed.utcoffset() is None:
                 return None
             instant = parsed.astimezone(timezone.utc)
+            if instant.minute or instant.second or instant.microsecond:
+                return None
         except (ValueError, TypeError, OverflowError):
             return None
         if instant in normalized or isinstance(wh, bool) or not isinstance(wh, (int, float)) or not math.isfinite(wh) or wh < 0:

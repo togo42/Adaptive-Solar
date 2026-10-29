@@ -669,6 +669,45 @@ SQLite-ResourceWarnings. Finale Ausgabe/Coverage:
 R16 ist keine positive Abnahme. Die Strukturkorrektur benötigt erneut einen
 hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
 
+## Codex-Nachreview und absolutes UTC-Raster der Referenzstunden
+
+R17 prüfte `86c35c7` durch Codex GPT-6.1-Sol/high, CLI 0.166.0, vollständig:
+209 Originaltexte, 45 Quellblöcke plus Initialisierung und Abschluss,
+47 abgeschlossene Turns, keine Compaction oder nativen Tools. Der unabhängige
+Audit bestätigte Quellen-/Prompt-/Antwortbindung, native Modellbindung und
+Treiber-/Transportpatchbindung. Payload-SHA256:
+`59b1e2d155e8830d2376da0dee396b3189037efe6c5406b2aea527689429f1a9`;
+Receipt-SHA256:
+`8fb88d123134fe0261c825a70cf982de4f43482150d636039c3d9f6b57dcfd49`.
+Rohbelege: `reviews/private/continuous-quality-codex-r17/`; Audit:
+`artifacts/continuous-quality/codex-r17-closeout.json`.
+
+Das Urteil blieb `blocked` wegen eines mittleren Befunds R17/AS-001:
+Referenzservice und Forecastcollector prüften volle Stunden vor statt nach der
+UTC-Normalisierung. Beide prüfen jetzt erst den absoluten UTC-Stundenbeginn.
+Äquivalente Darstellungen bleiben gleichwertig, Originalsnapshotkeys und
+Energiewerte unverändert. Doppelte absolute Stunden werden weiter abgelehnt.
+Die übrigen Stunden-/Viertelstundenprüfungen wurden auf diese Reihenfolge
+abgeglichen; sie normalisieren bereits vor ihrer Rasterprüfung.
+
+Die 24 neuen Gegenproben ergaben am alten Stand **20 Fehler und vier gültige
+Vergleichsfälle**. Sie prüfen den nativen Antwortservice, den Collectorjoin
+gleichwertiger Darstellungen, positive/negative Halb- und Viertelstundenoffsets,
+einen Sekundenoffset, falsch ausgerichtete lokale Vollstunden und doppelte
+absolute Stunden. Die gezielte Suite bestand mit **195 Tests**. Belege:
+`artifacts/continuous-quality/review-r17-before.log` und
+`review-r17-fixes-targeted.log`. Aufnahmeleitfaden und Implementierungsvertrag
+wurden abgeglichen; Ruff bestand.
+
+Die finale Vollsuite bestand mit **2.185 Tests ohne Skips**, **90,88 %
+kombinierter Abdeckung** und unverändertem 90-%-Gate; weiterhin 23
+SQLite-ResourceWarnings. Finale Ausgabe/Coverage:
+`artifacts/continuous-quality/review-r17-fixes-full-tests.log` und
+`review-r17-fixes-coverage.json`.
+
+R17 ist keine positive Abnahme. Die UTC-Rasterkorrektur benötigt erneut einen
+hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |

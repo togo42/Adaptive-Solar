@@ -34,6 +34,32 @@ def snapshot(values=None):
     return {"wh_hours": values if values is not None else {T.isoformat(): 100.0, (T + timedelta(hours=2)).isoformat(): 0.0}}
 
 
+@pytest.mark.parametrize("offset", [0, 330, 345, -210, 570, .5])
+def test_collector_joins_equivalent_utc_hours_across_offset_representations(offset):
+    original = {"wh_hours": {T.astimezone(timezone(timedelta(minutes=offset))).isoformat(): 100.25}}
+    inputs = {"first": original, "second": {"wh_hours": {T.isoformat(): 200.75}}}
+    result = capture.build_capture(inputs, mapping(), T)
+    group, = result["groups"]
+    assert group["status"] == "available" and len(group["records"]) == 1
+    assert group["records"][0]["start"] == T.isoformat()
+    assert group["records"][0]["end"] == (T + timedelta(hours=1)).isoformat()
+    assert group["records"][0]["energy_wh"] == 301
+    assert result["snapshots"] == inputs
+
+
+@pytest.mark.parametrize("offset", [330, 345, -210, 570, .5])
+def test_collector_rejects_local_whole_hour_off_the_utc_grid(offset):
+    stamp = datetime(2026, 6, 1, 15, tzinfo=timezone(timedelta(minutes=offset))).isoformat()
+    with pytest.raises(capture.CaptureError):
+        capture._hours({"wh_hours": {stamp: 100}})
+
+
+def test_collector_rejects_duplicate_absolute_hour_in_different_offsets():
+    with pytest.raises(capture.CaptureError):
+        capture._hours({"wh_hours": {T.isoformat(): 100,
+                       T.astimezone(timezone(timedelta(minutes=345))).isoformat(): 200}})
+
+
 class FakeWS:
     def __init__(self, result, states=None, *, auth_ok=True, fail_request=False, block=False):
         self.responses = [{"type": "auth_required", "ha_version": "2026.10.3"},

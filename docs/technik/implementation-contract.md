@@ -297,6 +297,10 @@ AC-JSON behält unverändert Serialisierung/Fingerprint, neue DC-Stufen ändern 
 Qualität: `SensorDeviceClass.ENUM`, keine Genauigkeits-/Konfidenzklasse. Priorität: aktive Abregelung → partielle Resttagabdeckung → beeinträchtigte konfigurierte Eingaben/unbekannte Abregelung, Residualfitfehler oder verwendeter alter Wettercache nach Abruffehler → Physik, teilweise (`mixed`) oder vollständige Residualanwendung. Tatsächlicher Ausgabestatus gilt horizonweit; inaktives Gegenregime/Nacht-/Nullzellen verdecken aktive Tageskorrekturen nicht. `learning_horizon`: globaler Scope, Rohstatus, NWP-/GHI-Validierungsranges; `coverage_scope`: Resttag. Horizonweite Wetter-/Physikdiagnosen und letzter Abruffehler bleiben Attribute: Zusatzproviderausfall/ferne Lücke degradieren gültige heutige Ausgabe nicht; echte Resttagslücken bleiben `partial`.
 
 Native `wh_hours`: nur vollständige UTC-Stunden **aller** Stufen homogener AC-/DC-Entries; kleinere Zellen nach Dauer integrieren. Angefangene Stunden fehlen, Resttag/Qualitätskurve behalten verbleibende Teilenergie. Keine Minutenkeys als Stunden-Wh/erfundene Vorenergie; DST behält 23/25 UTC-Stunden.
+Beim Lesen fremder `wh_hours` normalisieren Referenzservice und Collector zuerst
+nach UTC und prüfen erst danach Minuten/Sekunden/Mikrosekunden. Äquivalente
+Offsetdarstellungen belegen denselben Zeitpunkt, doppelte absolute Stunden
+bleiben ungültig; Originalkeys und Wh-Werte werden im Snapshot nicht umgeschrieben.
 
 Mixed-Entries behalten Stufensensoren und `mixed_output_generation_sum` verschiedener Messpunkte, ohne AC-Netz-/Batteriefluss oder nativen Gesamtforecast einer Messgrenze. `native_energy_eligible=False` gilt der Entry-Schnittstelle, nicht fehlenden Stufenprognosen. `output_type`, `output_types`, `measurement_boundary`, `measurement_boundaries`, `output_stage_boundaries` bleiben auch ohne Zustände verfügbar. CLI nennt Stufe/nominelle W-Grenze ohne Sensorbindungen/Standort.
 

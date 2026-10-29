@@ -29,6 +29,15 @@ Alle drei Anbieter müssen dieselben Module, Ausgabestufen, nominellen Grenzen u
 
 `capture_ha.py` liest `energy/solar_forecast`, `get_states` und optional `adaptive_solar.get_reference_forecasts`. Es archiviert nur ausgewählte native Wh/Kurvenattribute und aktualisiert weder Anbieterwetter noch Einstellungen. Energy liefert bereits verknüpfte Anbieter; HA 2026.10.2/.3 akzeptiert dort kein `config_entry_ids`, daher lokale Auswahl. Nach regulärer Adaptive-Einrichtung kann die reine Antwortaktion geladene Helios-/Open-Meteo-Entries ohne Energy-Umschaltung lesen. Fehlende Installation/Service bleibt fehlend.
 
+Der Antwortservice und der Collector prüfen `wh_hours` auf vollständige
+**UTC-Stundenbeginne nach der Zeitzonennormalisierung**. Beispielsweise ist
+`2026-06-01T15:30:00+05:30` derselbe gültige Stundenbeginn wie `10:00:00Z`;
+`15:00:00+05:30` liegt dagegen außerhalb des UTC-Stundenrasters. Gleichwertige
+Offsetdarstellungen dürfen zusammengeführt werden, doppelte absolute Stunden
+innerhalb derselben Quelle bleiben ungültig. Die ursprünglichen Snapshotkeys
+bleiben erhalten; normalisierte Records verwenden UTC. Energie wird dadurch
+nicht verschoben, geteilt oder ergänzt.
+
 ## 2. Private Zuordnung erstellen
 
 `data/benchmark-map.json`, ausschließlich fiktive Platzhalter:
