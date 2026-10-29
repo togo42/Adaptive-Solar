@@ -1,6 +1,6 @@
 # Entwicklungsstand und offene Nachweise
 
-## Releasevorbereitung 0.2.18 am 29.10.2026
+## Veröffentlichter und installierter Stand 0.2.18
 
 `codex/day-start-curve` ist auf `658d939` geprüft. Der vollständige
 Codex-Review akzeptiert die Implementierung `70966fc` ohne Findings;
@@ -16,8 +16,7 @@ Geräte, gültige Konfiguration und keine aktiven Repairs. Installiert war
 0.2.17 mit dem früher separat aktivierten Drei-Dateien-Tagesbeginnpatch;
 dies wird nicht als bereits installiertes 0.2.18 gewertet. Ein geschütztes
 natives Konfigurationsbackup ohne Recorder-Datenbank und eine genaue
-Komponenten-/Historienkopie sind vor dem Update erstellt. Veröffentlichung
-und Laufzeitabnahme von 0.2.18 werden nach erfolgreicher Prüfung ergänzt.
+Komponenten-/Historienkopie sind vor dem Update erstellt.
 
 Die frische vollständige Suite besteht **1.727 Tests ohne Skips**; Ruff,
 `pip check` und Diffprüfung bestehen. Wheel, Sdist und Integrations-ZIP sind
@@ -27,7 +26,57 @@ Review-Kontextaudit ist erneut aus den Originalprompts und Sitzungsereignissen
 bestätigt: 43 abgeschlossene Turns, keine Kontextverkürzung oder Tools.
 Seit dem Review ändern sich nur Releaseversionsmetadaten und Dokumentation.
 Private Nachweise: `artifacts/release-0.2.18/` und
-`data/release-0.2.18-20261029/`. CI und produktive Abnahme stehen noch aus.
+`data/release-0.2.18-20261029/`.
+
+### Veröffentlichung und begrenzte Laufzeitabnahme am 29.10.2026
+
+`codex/day-start-curve` ist über den Releasecommit
+`9059bc3b69ec6f123c4293babb419b56afb2cfff` nach `main` übernommen und als
+[v0.2.18](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.18)
+veröffentlicht. Wheel, Sdist, Integrations-ZIP und Prüfsummen sind nach dem
+Download bytegleich geprüft. Die heruntergeladenen Berichte der
+[Main-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40880732342)
+und [Tag-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40880732880)
+bestätigen jeweils 1.727 Tests ohne Skips; kombinierte Abdeckung 90,86 %
+beziehungsweise 90,88 %. Beide Archivhost-CI-Jobs bestehen ebenfalls.
+
+Installation über natives HACS, danach genau ein Core-Neustart. Core bleibt
+2026.10.4; alle 38 Komponentendateien stimmen mit dem Tag überein. Vier Einträge
+sind mit 0.2.18 geladen; neue Originalprognosen tragen die erwartete
+Quellprovenienz und unveränderten Bibliothekspins. Alle Optionen, 80 Entity-/
+Unique-IDs samt Benutzereinstellungen, vier Geräte, Energy-/Dashboardzuordnungen,
+heutige Tageswerte samt Provenienz, Historienfingerprints und sämtliche zuvor
+abgeschlossenen Messintervalle sind erhalten. Forecast- und Messzeilenzahlen
+sind nicht zurückgegangen. Drei vollständige Folgetage je Einzelanlage und
+gültige Temperatur-/Wind-/GHI-Eingänge sind geprüft; Konfiguration gültig,
+keine aktiven Repairs, keine Adaptive-Solar-Laufzeitfehler oder blockierenden
+Startupmeldungen im geprüften Log.
+
+Für den 30.10.2026 sind vier vollständige Kurven mit je 24 Zellen gespeichert;
+Summen, Originalausgabezeit und Provenienz sind mit dem Snapshotvalidator
+geprüft. Die tatsächliche Umschaltung dieses Zieltags zum heutigen Tag 0 ist
+zum Prüfzeitpunkt noch nicht beobachtet. Alte heutige Tageswerte bleiben ohne
+nachträglich rekonstruierte Kurve erhalten.
+
+Die vier Exportjournale behalten ihre Generationen und unveränderte Bytes
+aller noch aufbewahrten bisherigen Ereignisse. Regulär entfernte Ereignisse
+liegen ausschließlich vor dem neuen Ringpufferanfang. Bereits vor dem Update
+meldeten alle Exporte wegen kumulativer Ringpufferretention `state: gap`;
+dies ist kein Nachweis eines neuen Collectorverlusts. Die vorab separat
+gelesenen Hostcheckpoints hatten den erfassten Journalstand vollständig
+übernommen und lagen im aufbewahrten Bereich. Nach Neustart bestehen vier
+native Exportabrufe mit unveränderter Generation, ohne Cursorgap, Producerfehler
+oder ausstehende Ereignisse. Das ist keine neue Vollabnahme des externen
+Archivs. Hostdienste und Dashboardressourcen wurden in diesem Releaseauftrag
+nicht verändert.
+
+Das native geschützte Backup umfasst Konfiguration und SSL ohne
+Recorder-Datenbank; Entschlüsselung und vollständige Wiederherstellung sind
+nicht geprüft. Für den gezielten Code-Rückweg ist die vorherige gepatchte
+Komponente separat gesichert; die Storekopien dienen als Nachweis und werden
+nicht direkt zurückgeschrieben. Die kurze Laufzeitabnahme belegt weder
+mehrmonatige Stabilität noch Prognoseüberlegenheit. Dieser Betriebsnachtrag
+liegt außerhalb des unveränderten Release-Tags.
 
 ## HA-freier Archivhost ab 29.10.2026
 
@@ -48,7 +97,9 @@ neue Aufnahmen, Indexwiederaufbau und vier exakte Originalreplays sind geprüft.
 die Änderung getrennt von der weiterhin veröffentlichten HA-Version 0.2.17.
 Historische Releaseprüfungen unten gelten für ihre ursprünglichen Quellstände.
 
-## Historischer Veröffentlichungs- und Installationsnachweis 0.2.17
+## Veröffentlichter und installierter Stand 0.2.17
+
+Historischer Nachweis vom 28.10.2026; aktueller HA-Stand siehe 0.2.18 oben.
 
 Der reale 0.2.16-Replaybefund wurde auf kleinste Unterschiede berechneter
 Gleitkommawerte eingegrenzt: gleiche Intervallunterstützung, Originaldaten und

@@ -156,3 +156,15 @@ bleibt separat dokumentiert. Dieser Dokumentationsabschluss aendert keine
 reviewten Codebytes und ist kein HACS-Release. Produktive Aktivierung und
 deren begrenzte Laufzeitbelege werden installationsspezifisch dokumentiert;
 Review und Tests beweisen keinen Prognosevorsprung.
+
+## Release und HA-Installation
+
+Der Branch ist am 29.10.2026 als 0.2.18 nach `main` übernommen,
+veröffentlicht und über HACS installiert. Vier Einträge sind geladen;
+Optionen, bestehende Tageswerte und kompatible Historie sind erhalten.
+Für den 30.10. sind vier vollständige Stundenkurven gespeichert und validiert.
+Die [Releasehinweise](release-0.2.18.md) und der
+[Betriebsnachweis](entwicklungsstand.md#veröffentlichter-und-installierter-stand-0218)
+grenzen den früheren Drei-Dateien-Patch vom vollständigen Release sowie
+lokale Tests, CI und die kurze Laufzeitprüfung ab. Externe Archivhostdienste
+und Dashboardressourcen wurden in diesem Releaseauftrag nicht verändert.

@@ -51,3 +51,17 @@ werden im [Entwicklungsstand](entwicklungsstand.md) dokumentiert.
 
 Tests, Review und kurze Laufzeitprüfung belegen keine höhere reale
 Prognosegenauigkeit und ersetzen keinen prospektiven Anlagenvergleich.
+
+## Veröffentlichungs- und Installationsnachweis
+
+Veröffentlicht aus `9059bc3b69ec6f123c4293babb419b56afb2cfff` und über
+natives HACS auf HA Core 2026.10.4 installiert, mit genau einem Core-Neustart.
+Main-/Tag-CI bestehen mit jeweils 1.727 Tests ohne Skips und mindestens
+90,85 % kombinierter Abdeckung; beide Archivhostjobs bestehen ebenfalls.
+Vier veröffentlichte Artefakte sind nach Download bytegleich geprüft.
+Vier Einträge, 80 Entity-/Unique-IDs, vier Geräte, Optionen, Energy, Dashboard,
+Tageswerte und abgeschlossene Messintervalle sind erhalten. Für den 30.10.
+sind vier vollständige Kurven mit je 24 Zellen gespeichert und validiert.
+Keine aktiven Repairs oder Adaptive-Solar-Laufzeitfehler im geprüften Stand.
+[Vollständiger Betriebsnachweis und Grenzen](entwicklungsstand.md#veröffentlichter-und-installierter-stand-0218).
+Dieser Nachtrag verändert das Release-Tag nicht.
