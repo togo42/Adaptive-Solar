@@ -84,7 +84,7 @@ geprueft. Die optionale Kurve liegt deshalb neben dem unveraenderten alten
 Snapshotformat. Die drei Codeaenderungen sind unabhaengig von Anlagenoptionen,
 Feature-/Messvertraegen und Physik-/Lernberechnung.
 
-Externer Integrationsreview und Aktivierung sind **offen**. Grok meldete
+Historischer Zwischenstand vor dem freigegebenen Nachreview: Grok meldete
 `402 Payment Required` (Nutzungsguthaben erschoepft). Der Gemini-Lauf wurde
 wegen einer Kontextverkuerzung korrekt verworfen. Auch die Codex-Versuche
 erbrachten keinen gueltigen Abschluss; ein weiterer Aufruf wurde durch die
@@ -136,3 +136,23 @@ meldet keine Abhaengigkeitsfehler. Der aktive Self-Review hat alle produktiven
 Wettertransfer-Aufrufstellen sowie die echten Installations- und Importpfade
 abgeglichen. Diese Werkzeugkorrekturen bleiben ausserhalb des HA-Deploys;
 der abschliessende Integrationsreview steht noch aus.
+
+## Abgeschlossener Integrationsreview am 29.10.2026
+
+Der vollstaendige Codex-Nachreview akzeptiert Quellcommit
+`70966fcda17d92ada852e77097a3707d226b5db2` mit `verdict=mergeable` und
+ohne Findings. Modell `gpt-6.1-sol`, Effort `high`; Payload-SHA256
+`572529575cf2fb199e97617a67dab96a6f13beafd5cf0e23ab6ec2977aa312c1`
+bei 2.467.285 Originalbytes. Der native Audit bestaetigt 42 Quellchunks
+und den unabhaengigen Abschlussturn, 43 abgeschlossene Turns und keinerlei
+Kontextverkuerzung, Werkzeugaufrufe oder Hintergrundaufgaben. Receipt und
+Bericht liegen lokal ignoriert unter
+`reviews/private/day-start-codex-weather-pip-fixed/`.
+
+Alle oben beschriebenen Zwischenbefunde sind damit nachgeprueft. Die
+Suite besteht 1.727 Tests ohne Skips; die auf die installierte 0.2.17-Basis
+begrenzte Pruefung der drei Komponentendateien und des alten Store-Lesers
+bleibt separat dokumentiert. Dieser Dokumentationsabschluss aendert keine
+reviewten Codebytes und ist kein HACS-Release. Produktive Aktivierung und
+deren begrenzte Laufzeitbelege werden installationsspezifisch dokumentiert;
+Review und Tests beweisen keinen Prognosevorsprung.
