@@ -1,6 +1,6 @@
 """Whole counter deltas, fixed alignment gates and real HA report boundaries."""
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 from freezegun import freeze_time
 from homeassistant.core import Event, State
@@ -203,6 +203,73 @@ async def test_bad_or_restored_counter_report_never_bridges_into_zero_labels(has
         hass.states.async_set("sensor.energy", "0", UNIT)
         await hass.async_block_till_done()
     assert all(datetime.fromisoformat(row["start"]) >= NOW + timedelta(minutes=10) for row in instance.intervals)
+    await instance.async_close()
+
+
+@pytest.mark.parametrize("bad_kind", ["unknown", "unavailable", "nan", "unit", "restored", "removed"])
+@pytest.mark.parametrize("depth", [1, 3])
+@pytest.mark.parametrize("positive", [False, True])
+async def test_native_event_queue_prevents_reentrant_counter_recovery_from_bridging_invalidity(hass, bad_kind, depth, positive):
+    from homeassistant.core import callback
+    from homeassistant.helpers.event import async_track_state_change_event, async_track_state_report_event
+
+    instance = coordinator(hass)
+    instance.export.enabled = True
+    instance.export.record = recorded = Mock()
+    remaining = 0
+
+    @callback
+    def recover_before_tracker(event):
+        nonlocal remaining
+        if remaining and event.data["entity_id"] == "sensor.energy":
+            remaining -= 1
+            clock.tick(delta=timedelta(minutes=1))
+            value = 10 + (depth - remaining) * .01 if positive else 10
+            hass.states.async_set("sensor.energy", str(value), UNIT,
+                                  force_update=bad_kind in {"unit", "restored"} and remaining == depth - 1)
+    changed = async_track_state_change_event(hass, ["sensor.energy"], recover_before_tracker)
+    reported = async_track_state_report_event(hass, ["sensor.energy"], recover_before_tracker)
+    with freeze_time(NOW):
+        hass.states.async_set("binary_sensor.curtailed", "off")
+        instance.async_start_tracking()
+        hass.states.async_set("sensor.energy", "10", UNIT)
+        await hass.async_block_till_done()
+    assert instance.tracker.anchors["i"] == (NOW, 10)
+    recovery = NOW + timedelta(minutes=depth + 1)
+    with freeze_time(NOW + timedelta(minutes=1), real_asyncio=True) as clock:
+        remaining = depth
+        if bad_kind == "removed":
+            hass.states.async_remove("sensor.energy")
+        else:
+            state = bad_kind if bad_kind in {"unknown", "unavailable", "nan"} else "10"
+            attrs = {"unit_of_measurement": "W"} if bad_kind == "unit" else {**UNIT, "restored": True} if bad_kind == "restored" else UNIT
+            hass.states.async_set("sensor.energy", state, attrs)
+        await hass.async_block_till_done()
+        changed()
+        reported()
+    first_recovery = NOW + timedelta(minutes=2)
+    reports = [call.args[1] for call in recorded.call_args_list
+               if call.args[0] == "source_report" and call.args[1]["entity_id"] == "sensor.energy"]
+    times = [row["event_received_at"] for row in reports]
+    assert times == sorted(times)
+    assert times[1] == NOW + timedelta(minutes=1)
+    assert times[2] == first_recovery
+    assert all(datetime.fromisoformat(row["start"]) >= first_recovery for row in instance.intervals)
+    exported_before = [call.args[1] for call in recorded.call_args_list if call.args[0] == "qualified_interval"]
+    assert all(datetime.fromisoformat(row["start"]) >= first_recovery for row in exported_before)
+    if depth == 1:
+        assert not instance.intervals and not exported_before
+    assert instance.tracker.anchors["i"][0] == recovery
+    value = 10 + depth * .01 if positive else 10
+    prior_energy = sum(row["energy_kwh"] for row in instance.intervals)
+    with freeze_time(recovery + timedelta(minutes=1)):
+        hass.states.async_set("sensor.energy", str(value + .01 if positive else value), UNIT)
+        await hass.async_block_till_done()
+    assert len(instance.intervals) == 1
+    assert datetime.fromisoformat(instance.intervals[0]["start"]) >= first_recovery
+    assert sum(row["energy_kwh"] for row in instance.intervals) - prior_energy == pytest.approx(.01 if positive else 0)
+    exported = [call.args[1] for call in recorded.call_args_list if call.args[0] == "qualified_interval"]
+    assert len(exported) == len(exported_before) + 1 and exported[-1]["start"] == recovery.isoformat()
     await instance.async_close()
 
 

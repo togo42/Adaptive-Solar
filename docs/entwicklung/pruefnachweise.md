@@ -571,6 +571,64 @@ Die gezielte Suite bestand mit **226 Tests**, die finale Vollsuite mit
 R14 ist keine positive Abnahme. Die Observation-Exportkorrektur benötigt erneut
 einen hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
 
+## Codex-Nachreview und native Gegenprüfung des Kontinuitätsbefunds
+
+R15 prüfte `e07d636` durch Codex GPT-6.1-Sol/high, CLI 0.166.0, vollständig:
+209 Originaltexte, 45 Quellblöcke plus Initialisierung und Abschluss,
+47 abgeschlossene Turns, keine Compaction oder nativen Tools. Der unabhängige
+Audit bestätigte Quellen-/Prompt-/Antwortbindung, native Modellbindung und
+Treiber-/Transportpatchbindung. Payload-SHA256:
+`f924d6dc5c02887e98fdf605ba2d924af42cff48d6909e902e6eb9137c9e4b45`;
+Receipt-SHA256:
+`bdccf36aa7d1ae6155333ceba6fc4fea697a1c78f5c99cf62b314eec7ad70b7e`.
+Rohbelege: `reviews/private/continuous-quality-codex-r15/`; Audit:
+`artifacts/continuous-quality/codex-r15-closeout.json`.
+
+Das statische Urteil war `blocked` wegen R15/AS-001 (mittel): Ein früherer
+HA-Listener könne aus einem ungültigen Zählerzustand synchron einen numerischen
+Folgebericht erzeugen, dessen Callback vor dem ungültigen Eltern-Callback ein
+Delta freigebe. **Dieser Ablauf ist für die geprüften Core-Versionen widerlegt.**
+Die native Core-Implementierung `EventBus.async_fire_internal` stellt beim
+gesetzten `_dispatching` verschachtelte Ereignisse in `_event_queue` und liefert
+sie erst nach Abschluss des laufenden Dispatchs aus. Der aktuelle HA-State kann
+schon weiter sein; die Integration verarbeitet trotzdem den ungültigen Bericht
+vor seinem Folgeereignis. Der ungültige Bericht bricht die Kontinuität;
+der erste gültige Folgebericht ankert neu.
+
+Alle **24 nativen Gegenproben bestehen bereits mit dem unveränderten
+Coordinator aus `e07d636`**: `unknown`, `unavailable`, NaN, falsche Einheit,
+`restored` und Entfernung, jeweils Null-/Positivenergie und eine/drei
+verschachtelte Wiederkehr. Ein zuerst registrierter nativer Entity-Listener
+erzeugt die Folgeereignisse. Die Tests prüfen Callback-Reihenfolge, Zähleranker,
+erhaltene gültige spätere Deltas und die wirklich an `qualified_interval`
+übergebenen Grenzen. Keine Zeile darf die ungültige Phase überbrücken.
+Eine vorsorgliche zusätzliche Coordinator-Sperre wurde deshalb verworfen;
+die Produktionsdatei ist bytegleich zum geprüften Stand. Beibehalten sind die
+Regressionen und diese Entscheidungsbegründung.
+
+Die installierte native Laufzeit ist Core 2026.10.4; zusätzlich wurden die
+unveränderten Wheels 2026.10.2 (deklarierte Mindestversion) und .3 ausschließlich
+auf diesen Quellpfad geprüft. Alle drei `homeassistant/core.py` sind bytegleich
+und stimmen mit ihren Paket-`RECORD`-Hashes überein:
+SHA256 `1fe2fcfb91fbb6edfb4450dad3ae5ebc4e325664770fedbd607d103d91ce4f19`.
+Der Quellabschnitt `EventBus.async_fire_internal` hat SHA256
+`cb5835817a5abc803f9bbb1992e1de1840cb0c820c6c9ccd832f3d1749d509bf`.
+Das ist keine erneute vollständige native Testqualifikation von Core .2/.3.
+Lokale Gegenbelege:
+`artifacts/continuous-quality/codex-r15-native-counterevidence.json`,
+`review-r15-before.log` und `review-r15-fixes-targeted.log`.
+Die breitere native Suite bestand mit **159 Tests**; Ruff bestand.
+Die finale Vollsuite bestand mit **2.122 Tests ohne Skips**, **90,86 %
+kombinierter Abdeckung** und unverändertem 90-%-Gate; weiterhin 23
+SQLite-ResourceWarnings. Finale Ausgabe/Coverage:
+`artifacts/continuous-quality/review-r15-final-full-tests.log` und
+`review-r15-final-coverage.json`.
+
+R15 wird nicht nachträglich zu einer positiven Abnahme umgedeutet. Der Befund
+wird anhand der nativen Gegenbelege zurückgewiesen; Regressionen und
+Dokumentation benötigen einen frischen Vollreview. Keine produktive Änderung
+oder Aktivierung ist erfolgt.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |

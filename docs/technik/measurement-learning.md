@@ -132,6 +132,20 @@ filtert auch verspätete Labels. Chronologische Trainings-/Validierungs-/
 Kalibrierungsgrenzen, Ausgangskappen und sonstige Datenleck-Gates bleiben aktiv.
 Alle Dauern verwenden UTC, auch bei beiden Zeitumstellungen.
 
+### Verschachtelte native Zustandsereignisse
+
+Die geprüften Core-Pakete 2026.10.2/.3/.4 stellen verschachtelte Ereignisse in
+`EventBus.async_fire_internal` in eine Warteschlange. Ein früherer Listener
+kann den aktuellen HA-State schon weiter verändern; die neu ausgelösten
+Zustandsereignisse werden jedoch erst nach allen Listenern des laufenden
+Ereignisses verarbeitet. Ein beobachtetes `unknown`/`unavailable` wird deshalb
+vor seinem so erzeugten numerischen Folgeereignis verarbeitet. Der erste
+gültige Folgebericht ankert neu. Native Regressionen unter Core 2026.10.4 prüfen
+auch Nullenergie, positive Deltas, ungültige Einheiten, `restored`, Entfernung
+und mehrfach verschachtelte Wiederkehr sowie die tatsächlich exportierten
+Intervallgrenzen. Dies gilt für diese geprüfte native Ereignisfolge;
+beliebig manuell rückdatierte Ereignisse werden damit nicht zertifiziert.
+
 ## Gemeinsame archivierte Ausgabezeitpunkte
 
 Die Auswahl gemeinsamer Origins muss bereits bei der Archivverdichtung erhalten
