@@ -19,6 +19,7 @@ from custom_components.adaptive_solar.core.archive import ArchiveStore, canonica
 from custom_components.adaptive_solar.core.replay import hydrate_forecast, timestamp
 from custom_components.adaptive_solar.core.shade_learning import ShadeLearningPolicy
 from custom_components.adaptive_solar.core.shade_replay import ShadeCandidate, replay_shading_stream
+from scripts.replay_paths import publish_output, validate_output
 
 
 
@@ -129,6 +130,8 @@ def main():
     args = parser.parse_args()
     temporary_output = None
     try:
+        inputs = (Path(__file__),)
+        validate_output(args.output, args.archive, inputs)
         if args.max_decoded_mib <= 0:
             raise ValueError("max-decoded-mib must be positive")
         max_decoded_bytes = args.max_decoded_mib * 1024 * 1024
@@ -155,6 +158,7 @@ def main():
                             digest.update(canonical_bytes({"event": event["sha256"], "dependencies": sorted(row["sha256"] for row in dependencies)}))
                             yield event, dependencies
 
+                    validate_output(args.output, args.archive, inputs)
                     args.output.parent.mkdir(parents=True, exist_ok=True)
                     descriptor, name = tempfile.mkstemp(prefix=f".{args.output.name}.", suffix=".tmp", dir=args.output.parent)
                     temporary_output = Path(name)
@@ -173,7 +177,7 @@ def main():
                     if summary is None:
                         raise ValueError("shade stream lacks completion summary")
         # Pin validation in every reference context must finish first.
-        temporary_output.replace(args.output)
+        publish_output(temporary_output, args.output, args.archive, inputs)
         temporary_output = None
         accepted = summary["baseline"]["accepted"]
         print(json.dumps({"status": "accepted" if accepted else "baseline_mismatch", "steps": summary["step_count"],

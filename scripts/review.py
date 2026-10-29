@@ -30,7 +30,7 @@ MAX_SINGLE_PAYLOAD_BYTES = 1250000
 REVIEW_CONTEXT_WINDOW_TOKENS = 500000
 CODEX_REVIEW_CONTEXT_WINDOW_TOKENS = 800000
 CODEX_REFERENCE_CONTEXT_WINDOWS = (500000, 800000)
-SUFFIXES = {".py", ".json", ".md", ".toml", ".txt", ".yml", ".yaml", ".sh"}
+SUFFIXES = {".py", ".json", ".md", ".toml", ".txt", ".yml", ".yaml", ".sh", ".service", ".timer"}
 RESEARCH_FILES = frozenset({
     "solar-prognose-ml-recherche.md", "solar-prognosemodelle-zusammenfassung.md",
     "solar_ml_research.md", "ensemble_hybrid_solar_forecasting.md",

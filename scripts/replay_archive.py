@@ -22,6 +22,7 @@ from custom_components.adaptive_solar.core.replay import (
     Candidate, hydrate_forecast, member_results, physics_candidate, replay_forecast, timestamp,
 )
 from scripts.capture_weather import reconstruct_response
+from scripts.replay_paths import validate_output, write_output
 
 
 def weather_probabilities(manifests, dependency_events, site, cutoff, start, end, *, quorum=1.0,
@@ -130,6 +131,8 @@ def main():
     parser.add_argument("--actual-kwh", type=float, help="Explicit qualified actual for offline scoring only")
     args = parser.parse_args()
     try:
+        inputs = (args.site_json, args.calibration_json, Path(__file__))
+        validate_output(args.output, args.archive, inputs)
         store = ArchiveStore(args.archive)
         if args.probabilities:
             if args.site_json is None or args.start is None or args.end is None:
@@ -178,8 +181,8 @@ def main():
         report["replay_script_sha256"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
         report["selected_envelopes_sha256"] = hashlib.sha256(canonical_bytes(sorted(
             event["sha256"] for event in [*selected, *dependencies]))).hexdigest()
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(json_value(report), sort_keys=True, indent=2, allow_nan=False) + "\n")
+        write_output(json.dumps(json_value(report), sort_keys=True, indent=2, allow_nan=False) + "\n",
+                     args.output, args.archive, inputs)
         print(json.dumps({"status": "accepted" if accepted else "unavailable_or_mismatch", "output": str(args.output)}))
         return 0 if accepted else 1
     except (ValueError, OSError, KeyError) as err:

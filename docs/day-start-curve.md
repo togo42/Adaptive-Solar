@@ -93,3 +93,16 @@ freigabe fuer diesen Empfaenger abgelehnt. Keine dieser Teilpruefungen ist
 ein abgeschlossener externer Fachreview. Vor einer produktiven Uebernahme
 muss ein zulaessiger Reviewer den finalen Quellstand gueltig abschliessen.
 Der HA-Consumer ist separat durch Gemini ohne Findings geprueft.
+
+Der vom Nutzer anschliessend ausdruecklich freigegebene Codex-Review
+(`gpt-6.1-sol/high`, vollstaendige Originalbytes per Chunktransport,
+keine Kontextverkuerzung oder Werkzeugaufrufe) wurde mit zwei mittleren
+Befunden abgeschlossen. Sie betreffen die bestehenden Replay-Ausgabepfade
+und ausgelassene systemd-Units im Reviewumfang, nicht die drei
+Tagesbeginn-Aenderungen. Beide Punkte sind vor dem Nachreview korrigiert:
+[Schutz der Replayeingaben](archivbetrieb.md#5-eingefrorene-daten-und-exakter-replay)
+und [vollstaendiger Unit-Scope](validierung.md#4-lokale-prüfung-und-review).
+245 gezielte Regressionen bestanden. Diese Werkzeugkorrekturen gehoeren
+nicht zum vorbereiteten HA-Deploy; dessen Umfang bleibt bei drei
+Komponentendateien und dem Consumer. Ein gueltiger Nachreview bleibt
+Voraussetzung fuer die Aktivierung.

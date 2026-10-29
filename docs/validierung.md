@@ -46,6 +46,14 @@ Diese Approximation setzt austauschbare, repräsentative Tagesblöcke voraus, mo
 
 ## 4. Lokale Prüfung und Review
 
+Seit der Korrektur vom 29.10.2026 gehoeren auch ausgelieferte `.service`-
+und `.timer`-Dateien ausdruecklich zum oeffentlichen Textscope. Alle acht
+systemd-Vorlagen unter `deploy/` werden vollstaendig samt Hash/Byteoffsets
+eingebettet und bis zum Abschluss auf Aenderungen geprueft. Aeltere
+Receipts mit Endungs-Allowlist ohne diese Dateien bleiben historische
+Textpruefungen; sie belegen keine vollstaendige Pruefung der ausgelieferten
+systemd-Konfiguration. Kontext-, Modell- und Abschlussgates bleiben gleich.
+
 Normale Paketinstallation/Testbefehle: [README](../README.md#entwicklung). PEP660-Editable kann HAs Namespace-Loader abbrechen; `pythonpath=["."]` nutzt Repositoryquellen, Paketbytes separat prüfen. Der vollständige öffentliche Quellumfang von 0.2.12 überschreitet die Single-Grenze von 1.250.000 Bytes. Für die lokale Exportvorprüfung daher den vorhandenen Chunktransport ausdrücklich auswählen (Grok 4.7 als Standard oder alternativ Codex mit GPT-6.1-Sol):
 
 ```bash

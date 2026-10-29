@@ -151,6 +151,16 @@ Revisionen und Qualitätsausschlüssen bleiben für die bestehenden Auswerter er
 
 ## 5. Eingefrorene Daten und exakter Replay
 
+Replay-Ausgaben muessen ausserhalb des gelesenen Archivs liegen und duerfen
+weder Anlagen-/Kalibrierungseingaben noch das ausgefuehrte Replay-Skript
+ersetzen. Beide Replaywerkzeuge pruefen den Pfad vor dem Oeffnen des Archivs
+und erneut vor der Veroeffentlichung. Aufgeloeste Pfade sowie bestehende
+Symlink-/Hardlinkaliase werden geprueft; auch Pins, Index und Originalpakete
+sind geschuetzt. Berichte werden in einer temporaeren Datei neben dem
+Ausgabeziel geschrieben und erst nach erfolgreicher Berechnung und
+abschliessender Eingangspruefung atomar ersetzt. Vorhandene unabhaengige
+Berichte ausserhalb des Archivs duerfen weiterhin ersetzt werden.
+
 ```bash
 .venv/bin/python scripts/archive.py --root data/archive pin pilot-01
 .venv/bin/python scripts/archive.py --root data/archive export-dataset \

@@ -271,6 +271,24 @@ def test_snapshot_includes_extensionless_licenses_without_private_files(tmp_path
     assert files["data/LICENSE"] not in payload
 
 
+@pytest.mark.parametrize("suffix", ["service", "timer"])
+def test_systemd_units_are_in_payload_and_cannot_drift_during_review(transport_workspace, suffix):
+    root, _ = transport_workspace
+    path = root / "deploy" / f"collector.{suffix}"
+    path.parent.mkdir()
+    original = b"[Unit]\nDescription=Original unit\n"
+    path.write_bytes(original)
+    # Untracked public text is included too, as for new implementation files.
+    run, receipt, output = run_fake(transport_workspace, "success", transport="single",
+        extra_env={"FAKE_DRIFT_PATH": str(path)})
+    assert run.returncode != 0
+    assert receipt["status"] == "failed"
+    assert "Source scope changed" in receipt["error"]
+    relative = f"deploy/collector.{suffix}"
+    assert receipt["files"][relative] == review.digest(original)
+    assert original in (output / "payload.md").read_bytes()
+
+
 def test_raw_payload_preserves_all_bytes_and_documents_exact_offsets(tmp_path, monkeypatch):
     monkeypatch.setattr(review, "ROOT", tmp_path)
     originals = {"unicode.py": "# Grüße ☀️\r\nprint('🙂')".encode(), "empty.md": b"",
