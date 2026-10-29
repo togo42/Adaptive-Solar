@@ -181,6 +181,11 @@ ausgewiesen; gültige Forecasts werden weiterhin veröffentlicht.
 
 `weather_response` bindet die tatsächliche ursprüngliche Antwort, Anfrageparameter,
 Modell, Empfang, HTTP-/Parserstatus und Normalisierungsbeleg an eine stabile ID.
+Auch gültiges JSON mit falscher Objektstruktur (`null`, Liste oder ungültige
+`hourly_units`-/`hourly`-Container) wird als Parserfehler erfasst. Bei aktiviertem
+Export bleiben die unveränderten JSON-Werte mit `status=failed`, HTTP-Status und
+`error_type=WeatherError` erhalten. Diese Antwort wird nicht als neue verfügbare
+Wetterquelle veröffentlicht; ein erlaubter Altcache behält seinen alten Empfang.
 Ein Cachehit behält deren ID und ursprünglichen Empfang; eine unbekannte
 Providerlaufzeit bleibt unbekannt. `forecast_issued` bewahrt alle ausgegebenen
 Zellen einschließlich Nacht/Teilstunden, ursprüngliche normalisierte Wetterzellen

@@ -81,6 +81,13 @@ Fehler. Archivprobleme stoppen die Prognose nicht. Große Wetter-, Zustands- und
 Prognoseobjekte werden komprimiert in referenzierte Teile zerlegt; alle Teile
 müssen für einen Replay vorhanden sein. Ein Datenpin allein garantiert dies nicht.
 
+Fehlerhaft strukturierte, aber syntaktisch gültige Wetter-JSON-Antworten werden
+ebenfalls als fehlgeschlagene `weather_response` aufgenommen: JSON-Werte,
+HTTP- und Parserstatus bleiben erhalten. Ein dabei weiter verwendeter gültiger
+Altcache wird nicht rückdatiert oder durch diese fehlerhafte Antwort ersetzt.
+Erfolgreiche Aufnahme eines Wetterfehlers ist kein Exportfehler; Wetter- und
+Exportdiagnose sind getrennt zu lesen.
+
 ## 3. Zusätzliche Wettermodelle und Ensembles
 
 ```bash

@@ -18,6 +18,20 @@ def payload(start=NOW - timedelta(hours=1), count=3):
         **{key: [value] * count for key, value in zip(VARIABLES, [500, 600, 100, 20, 3, 40], strict=True)}}}
 
 
+MALFORMED_RESPONSES = (None, [], "", 42, True,
+                       {"hourly_units": None}, {"hourly_units": []}, {"hourly_units": 42},
+                       {"hourly_units": dict(UNITS), "hourly": None},
+                       {"hourly_units": dict(UNITS), "hourly": []},
+                       {"hourly_units": dict(UNITS), "hourly": "invalid"},
+                       {}, {"hourly_units": dict(UNITS), "hourly": {"time": []}})
+
+
+@pytest.mark.parametrize("data", MALFORMED_RESPONSES)
+def test_malformed_json_shapes_raise_weather_error_instead_of_escaping_parser(data):
+    with pytest.raises(WeatherError):
+        parse_forecast(data, "best_match", NOW)
+
+
 def test_radiation_is_preceding_hour_mean_and_issue_is_receipt():
     result = parse_forecast(payload(), "best_match", NOW)
     assert result.issued_at == NOW

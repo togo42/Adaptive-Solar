@@ -53,10 +53,14 @@ def parse_forecast(payload: dict[str, Any], model: str, issued_at: datetime,
     """
     if issued_at.tzinfo is None or issued_at.utcoffset() is None:
         raise ValueError("issued_at must be timezone aware")
+    if not isinstance(payload, dict):
+        raise WeatherError("Malformed Open-Meteo response object")
     units = payload.get("hourly_units", {})
-    if any(units.get(key) != value for key, value in UNITS.items()):
+    if not isinstance(units, dict) or any(units.get(key) != value for key, value in UNITS.items()):
         raise WeatherError("Unexpected Open-Meteo units")
     hourly = payload.get("hourly", {})
+    if not isinstance(hourly, dict):
+        raise WeatherError("Malformed Open-Meteo hourly object")
     times = hourly.get("time", [])
     if not isinstance(times, list) or any(
         not isinstance(hourly.get(key), list) or len(hourly[key]) != len(times)

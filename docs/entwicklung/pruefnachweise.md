@@ -629,6 +629,46 @@ wird anhand der nativen Gegenbelege zurückgewiesen; Regressionen und
 Dokumentation benötigen einen frischen Vollreview. Keine produktive Änderung
 oder Aktivierung ist erfolgt.
 
+## Codex-Nachreview und fehlerhafte Wetter-JSON-Strukturen
+
+R16 prüfte `8d32af9` durch Codex GPT-6.1-Sol/high, CLI 0.166.0, vollständig:
+209 Originaltexte, 45 Quellblöcke plus Initialisierung und Abschluss,
+47 abgeschlossene Turns, keine Compaction oder nativen Tools. Der unabhängige
+Audit bestätigte Quellen-/Prompt-/Antwortbindung, native Modellbindung und
+Treiber-/Transportpatchbindung. Payload-SHA256:
+`d1ff105fa1dbcfcfbdf723cbae2adebb9be3e7050a52422b24617b58f911a5eb`;
+Receipt-SHA256:
+`a9a64cb28462651affe9c0d8593df5ca9128d929a8448e45683eab7c5f3fb456`.
+Rohbelege: `reviews/private/continuous-quality-codex-r16/`; Audit:
+`artifacts/continuous-quality/codex-r16-closeout.json`.
+
+Das Urteil blieb `blocked` wegen eines mittleren Befunds R16/AS-001:
+Falsche Container bei syntaktisch gültigem Provider-JSON konnten als
+`AttributeError` den vorgesehenen Parserfehler-/Archivpfad verlassen. Der Parser
+verlangt nun ein Antwortobjekt sowie Objektstrukturen für `hourly_units` und
+`hourly`; falsche Formen lösen `WeatherError` aus. Der bestehende Fehlerpfad
+bewahrt damit auch diese unveränderten JSON-Werte mit HTTP-/Fehlerstatus.
+Cachefreigabe, ursprünglicher Empfang und Modellverfügbarkeit bleiben getrennt.
+
+Die 39 neuen Gegenproben ergaben am alten Stand **33 Fehler und sechs bereits
+korrekt behandelte Vergleichsfälle**. Sie umfassen Parserfehler sowie tatsächliche
+Journalaufnahme unter nativem HA mit/ohne zulässigen Altcache. Geprüft werden
+unveränderte JSON-Werte, HTTP 200 mit `status=failed`, expliziter Parserfehler,
+keine neue verfügbare Receipt-ID und aktiver Export ohne Drops/Schreibfehler.
+Die gezielte Suite bestand mit **178 Tests**. Belege:
+`artifacts/continuous-quality/review-r16-before.log` und
+`review-r16-fixes-targeted.log`. Implementierungsvertrag und Betriebsleitfaden
+wurden abgeglichen; Ruff bestand.
+
+Die finale Vollsuite bestand mit **2.161 Tests ohne Skips**, **90,87 %
+kombinierter Abdeckung** und unverändertem 90-%-Gate; weiterhin 23
+SQLite-ResourceWarnings. Finale Ausgabe/Coverage:
+`artifacts/continuous-quality/review-r16-fixes-full-tests.log` und
+`review-r16-fixes-coverage.json`.
+
+R16 ist keine positive Abnahme. Die Strukturkorrektur benötigt erneut einen
+hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |
