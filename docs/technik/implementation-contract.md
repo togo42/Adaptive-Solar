@@ -194,7 +194,15 @@ bewahrt Original-Zähler-/Gültigkeits-/Abregelungsberichte sowie bei aktivierte
 Export alle konfigurierten Leistungs-/GHI-/Temperatur-/Windberichte mit Quell-
 und Empfangszeiten. Unveränderte, ungültige, restaurierte und entfernte Zustände
 bleiben erhalten; die Attribute sind auf Einheit, State-Class und `restored`
-beschränkt. Die deduplizierte Subscriptionmenge ändert keine Zählerverarbeitung
+beschränkt. Bei `state_changed` wird der ursprüngliche Berichtszeitpunkt aus
+dem unveränderlichen `new_state.last_updated` übernommen; `new_state.last_reported`
+kann durch weitere Berichte bereits verändert sein. Bei `state_reported` gilt
+weiterhin der im Ereignis eingefrorene `last_reported`-Wert. Das gilt auch, wenn
+ein früher registrierter nativer Listener synchron weitere Berichte auslöst,
+bevor der Eltern-Callback diese Integration erreicht. Journalreihenfolge und
+ursprüngliche Ereigniszeit können dann voneinander abweichen; Originalzeiten
+werden nicht auf den späteren veränderlichen Zustand umgebogen. Bei Entfernung
+bleiben die fehlenden Zustandszeitstempel leer. Die deduplizierte Subscriptionmenge ändert keine Zählerverarbeitung
 und erzwingt keine Quellenaktualisierung. `qualified_interval` ist ein getrenntes abgeleitetes Messergebnis,
 kein unabhängiger Beweis physischer Quellenqualität. Der Entwicklungskandidat
 ergänzt am exportierten Originaldelta `source_binding` (`schema: 1`,

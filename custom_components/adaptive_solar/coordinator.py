@@ -1049,7 +1049,13 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         if not self.export.enabled:
             return
         state = event.data.get("new_state")
-        payload = {**self._raw_state(state, event.data["entity_id"], reported_at=event.data.get("last_reported")),
+        reported_at = event.data.get("last_reported")
+        if reported_at is None and state is not None:
+            # HA may mutate last_reported before a state_changed listener runs.
+            # last_updated freezes that original update; state_reported carries
+            # its own immutable report boundary in the event data above.
+            reported_at = state.last_updated
+        payload = {**self._raw_state(state, event.data["entity_id"], reported_at=reported_at),
                    "event_type": event.event_type, "event_received_at": received}
         try:
             self.export.record("source_report", payload, received)

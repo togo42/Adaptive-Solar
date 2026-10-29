@@ -224,6 +224,11 @@ wird im Executor ermittelt und für die Coordinatorlaufzeit beibehalten.
 Softwarewechsel benötigen einen regulären Reload/Neustart; ein Austausch von
 Dateien unter einem laufenden Coordinator ist kein unterstützter Nachweis.
 Die Bindung ergänzt nur das Archivereignis, keine Lernintervalle oder Gates.
+Der spätere Rohbericht-Fix friert `state_changed` separat an `last_updated` ein;
+`state_reported` behält seinen Ereigniszeitpunkt. Er korrigiert neue Exporte,
+keine alten Originale. Historische Rohbericht-Replays müssen daher auch den
+Producerstand und mögliche Berichtsbursts berücksichtigen. Der Energiepfad
+verwendete bereits seine gesondert eingefrorenen Berichtszeiten.
 
 Für fortlaufende Aufnahmen gibt es den ausdrücklich optierten Vertrag
 `adaptive-solar-actual-quality-bindings-v2`. Er hat dieselben Felder wie v1,

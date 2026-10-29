@@ -265,6 +265,47 @@ Veröffentlichung ohne Überschreiben bestehender Ziele.
 Auch R5 ist keine positive Abnahme; die letzte Korrektur benötigt einen frischen
 hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
 
+## Codex-Nachreview der Haupt-CLI-Korrektur
+
+R6 prüfte `1723f2227e184fc2b3e6a87bfb787c77c2c73d41` vollständig durch
+Codex GPT-6.1-Sol/high: 209 öffentliche Texte, 44 Quellblöcke sowie Initialisierung
+und Abschluss, 46 abgeschlossene Turns, keine Compaction oder nativen Tools.
+Die native/API-/Quellenprüfung einschließlich unabhängigem Replay bestand.
+Payload-SHA256:
+`d1c5ccba1dbfcb1b1589fd93df037c1db359951a3d4f77d2da50fdb24e0b37eb`;
+Receipt-SHA256:
+`674d5fe997cb04304b6ea3969330ce04a00b4c63497ffed5cc49115bbf0aaf4b`.
+Rohbelege: `reviews/private/continuous-quality-codex-r6/`; Audit:
+`artifacts/continuous-quality/codex-r6-closeout.json`.
+
+Das Urteil war `blocked` wegen eines mittleren Befunds R6/AS-001: Die
+Rohbericht-Aufnahme las bei `state_changed` das mutable `new_state.last_reported`.
+Der Code übernimmt nun `last_updated` für diesen Originalbericht; unveränderte
+`state_reported` behalten weiterhin den expliziten Ereigniswert. Fehlende
+Zustände bleiben fehlend. Energieverarbeitung und Lerngates ändern sich nicht.
+
+Der gewöhnliche synchrone Burst reproduzierte den Befund in HA Core 2026.10.4
+zunächst nicht: Diese Callbackpfade werden sofort ausgeführt. Ein früher
+registrierter nativer Listener kann jedoch vor dem Eltern-Callback synchron
+weitere Berichte auslösen und dessen Stateobjekt verändern. Alle 15 entsprechenden
+Regressionen scheiterten am alten Code mit zwei Sekunden zu spätem Originalbericht.
+Nach Korrektur bestehen sowohl diese Fälle als auch 15 gewöhnliche Burstfälle
+für Power, Energie, GHI, Temperatur und Wind, jeweils Initial-, Attribut- und
+erzwungene Änderungen. Zusammen mit vorhandenen Export-, Messfenster- und
+Gültigkeitstests bestanden 128 gezielte native Tests. Die installierte native
+`State.last_reported`-Dokumentation bestätigt die verwendete Semantik.
+Vorher-/Nachher-Belege liegen unter
+`artifacts/continuous-quality/review-r6-before-reentrant.log` und
+`review-r6-fixes-targeted.log`. Die finale Vollsuite bestand mit **1.957 Tests
+ohne Skips** und **90,78 % kombinierter Abdeckung**, unverändertes 90-%-Gate;
+weiterhin 23 SQLite-ResourceWarnings. Ruff und der Dokuabgleich bestanden.
+Finale Testausgabe/Coverage: `artifacts/continuous-quality/review-r6-fixes-full-tests.log`
+und `review-r6-fixes-coverage.json`.
+
+R6 ist keine positive Abnahme. Historische Archive werden nicht umgeschrieben;
+der neue Producerstand benötigt erneut einen hashgebundenen Vollreview.
+Keine produktive HA-/Hoständerung oder Aktivierung ist erfolgt.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |
