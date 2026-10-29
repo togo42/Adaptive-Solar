@@ -202,6 +202,32 @@ async def test_coordinator_archives_all_arms_in_separate_fixed_store(hass):
     assert instance._comparison_store.async_save.await_count == 1
 
 
+async def test_comparison_keeps_real_nwp_arm_when_all_operative_ghi_cells_fail(hass):
+    from tests.test_engine import T, config, forecast, weather
+    from custom_components.adaptive_solar.core.engine import ForecastEngine
+    from custom_components.adaptive_solar.core.models import Observation
+
+    cfg = replace(config(models=("best_match",)), physics_substeps=4, timezone="Pacific/Auckland")
+    source = replace(weather(ghi=1000), dni_w_m2=1700)
+    result = ForecastEngine(cfg).forecast((forecast("best_match", (source,)),), T,
+                                          (Observation(T, "i", ghi_w_m2=1600),))
+    assert not result.points
+    instance = coordinator(hass)
+    instance.site = cfg
+    instance._comparison_archive = ComparisonArchive("a" * 64, "b" * 64, {"i": 5000}, cfg.timezone)
+    with freeze_time(T):
+        instance._capture_comparison(result, received_at=T)
+        stored = instance._comparison_archive.to_dict()
+        restored = ComparisonArchive.from_dict(stored, as_of=T)
+    sources = {row["source"]: row for row in restored.snapshots}
+    assert sources["adaptive"]["points"] == [] and sources["operative_baseline"]["points"] == []
+    nwp = sources["nwp:best_match"]
+    assert len(nwp["points"]) == 1 and nwp["points"][0][4] > 0
+    assert nwp["weather_issued_at"]["best_match"] == T.isoformat()
+    assert not instance.archive and not instance.intervals
+    await instance.async_close()
+
+
 @pytest.mark.parametrize("bad", ["invalid_json", "unknown_schema", "unknown_envelope"])
 async def test_corrupt_comparison_store_is_preserved_without_blocking_meters(hass, bad):
     from pathlib import Path

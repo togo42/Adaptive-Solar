@@ -540,6 +540,10 @@ class ForecastEngine:
                         status[f"physics:{model}:{inverter.id}:{start.isoformat()}/{end.isoformat()}"] = f"unavailable:{exc}"
                 continue
             season = 2 * pi * midpoint.astimezone(ZoneInfo(config.timezone)).timetuple().tm_yday / 365.2425
+            geometry_features = {"sun_elevation_deg": sun.elevation_deg,
+                "sun_azimuth_deg": sun.azimuth_deg,
+                "sun_azimuth_sin": sin(sun.azimuth_deg * pi / 180), "sun_azimuth_cos": cos(sun.azimuth_deg * pi / 180),
+                "day_of_year_sin": sin(season), "day_of_year_cos": cos(season), "lead_hours": lead}
             weight = _irradiance_weight(start, end, issued_at, ghi_observation.time) if ghi_observation is not None and sun.elevation_deg >= 10 else 0.0
             prepared = []
             for model, point in members:
@@ -555,6 +559,19 @@ class ForecastEngine:
                         wind_m_s=point.wind_m_s if wind is None else point.wind_m_s * (1 - blend) + wind * blend)
                 prepared.append((model, adjusted))
             for inverter in config.inverters:
+                cap = inverter.output_cap_w
+                # This arm depends only on original NWP, before any optional
+                # local correction can remove the operative cell or cohort.
+                pure_members = _physical_members(config, members, inverter.id, start, end, status)
+                for model, source, member_power, _ in pure_members:
+                    member_features = {**geometry_features, "baseline_w": member_power,
+                        "temperature_c": source.temperature_c, "wind_m_s": source.wind_m_s,
+                        "cloud_cover_pct": source.cloud_cover_pct, "ghi_regime": 0.0,
+                        "ghi_nowcast_gain": 1.0, "ghi_observation_age_seconds": 0.0,
+                        "beam_shade_factor": 1.0, "output_cap_w": float(cap),
+                        "source_partial_at_issue": float(source.start < issued_at)}
+                    archived_members.setdefault(model, []).append(ForecastPoint(
+                        start, end, inverter.id, member_power, member_power, features=member_features))
                 # Determine this stage's valid cohort before choosing its
                 # atomic regime. Another stage may retain different members.
                 shade_factor = 1.0 if active_shading is None else active_shading.transmittance(
@@ -581,34 +598,17 @@ class ForecastEngine:
                 member_weather = [point for _, point, _, _ in evaluated]
                 applied_gains = [gain for _, _, _, gain in evaluated if gain is not None]
                 row_models[start, end, inverter.id] = available_models
-                cap = inverter.output_cap_w
                 baseline = fmean(power for _, _, power, _ in evaluated)
-                features = {"baseline_w": baseline, "sun_elevation_deg": sun.elevation_deg,
-                    "sun_azimuth_deg": sun.azimuth_deg,
-                    "sun_azimuth_sin": sin(sun.azimuth_deg * pi / 180), "sun_azimuth_cos": cos(sun.azimuth_deg * pi / 180),
-                    "day_of_year_sin": sin(season), "day_of_year_cos": cos(season),
+                features = {**geometry_features, "baseline_w": baseline,
                     "temperature_c": fmean(p.temperature_c for p in member_weather),
                     "wind_m_s": fmean(p.wind_m_s for p in member_weather),
-                    "cloud_cover_pct": fmean(p.cloud_cover_pct for p in member_weather), "lead_hours": lead,
+                    "cloud_cover_pct": fmean(p.cloud_cover_pct for p in member_weather),
                     "source_partial_at_issue": float(start == issued_at and any(point.start < issued_at for model, point in members if model in available_models)),
                     "ghi_regime": 1.0 if applied_gains else 0.0,
                     "ghi_nowcast_gain": fmean(applied_gains) if applied_gains else 1.0,
                     "ghi_observation_age_seconds": (issued_at - ghi_observation.time).total_seconds() if applied_gains else 0.0,
                     "beam_shade_factor": float(shade_factor),
                     "output_cap_w": float(cap)}
-                # Standalone source-model physics arm: original NWP only,
-                # with neither observations, learned shade nor residual/nowcast.
-                # Gaps remain gaps and no unrequested weather model is invented.
-                pure_members = _physical_members(config, members, inverter.id, start, end, status)
-                for model, source, member_power, _ in pure_members:
-                    member_features = {**features, "baseline_w": member_power,
-                        "temperature_c": source.temperature_c, "wind_m_s": source.wind_m_s,
-                        "cloud_cover_pct": source.cloud_cover_pct, "ghi_regime": 0.0,
-                        "ghi_nowcast_gain": 1.0, "ghi_observation_age_seconds": 0.0,
-                        "beam_shade_factor": 1.0,
-                        "source_partial_at_issue": float(source.start < issued_at)}
-                    archived_members.setdefault(model, []).append(ForecastPoint(
-                        start, end, inverter.id, member_power, member_power, features=member_features))
                 if applied_gains:
                     features.update({"ghi_observation_w_m2": ghi_observation.ghi_w_m2,
                         "ghi_observation_age_seconds": (issued_at - ghi_observation.time).total_seconds(),

@@ -397,6 +397,48 @@ Die breitere gezielte Suite bestand mit **210 Tests**, die finale Vollsuite mit
 R9 ist keine positive Abnahme. Die Winkelkorrektur benötigt erneut einen
 hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
 
+## Codex-Nachreview und unabhängig verfügbare NWP-Vergleichsarme
+
+R10 prüfte `7c3a45c` vollständig durch Codex GPT-6.1-Sol/high, CLI 0.166.0:
+209 Originaltexte, 44 Quellblöcke plus Initialisierung und Abschluss,
+46 abgeschlossene Turns, keine Compaction oder nativen Tools. Der unabhängige
+Audit bestätigte erneut Quellen-/Prompt-/Antwortbindung, native Modellbindung
+und Treiber-/Transportpatchbindung. Payload-SHA256:
+`1738b7277c11ba7bf1ee2a697348ce24c22e2a99b96a136b6edf5f670f1d9faa`;
+Receipt-SHA256:
+`655af8a3b5e03c381e9a1a88e45817ab4468d175bd5f70aae5634a451ae54531`.
+Rohbelege: `reviews/private/continuous-quality-codex-r10/`; Audit:
+`artifacts/continuous-quality/codex-r10-closeout.json`.
+
+Das Urteil blieb `blocked` wegen eines mittleren Befunds R10/AS-001:
+Der reine NWP-Arm wurde erst nach dem Erfolg der operativen Physik archiviert.
+Wenn alle GHI-korrigierten Teilintervall-Proxys ausfielen, fehlten dadurch auch
+weiterhin berechenbare Original-NWP-Mitglieder. Die Engine berechnet und
+archiviert diese jetzt vor den operativen Abbruchstellen mit eigenen
+Originalwetterfeatures. Die operative Lücke und echte NWP-Physiklücken bleiben
+erhalten; historische Ausgaben werden nicht ergänzt.
+
+Die bereinigten 17 Gegenproben scheitern am unveränderten Enginecode aus
+`7c3a45c`. Sie verwenden synthetische Wetterwerte mit echter Physik ohne
+Ausfallmock, alle unterstützten
+Mehrschrittauflösungen 2/4/6/12, ein/zwei Wettermodelle und ein/zwei Stufen.
+Ein nativer Coordinatorfall prüft zusätzlich getrennte leere operative Arme,
+vorhandenen NWP-Arm, Original-Wetterausgabezeit und Archiv-Roundtrip ohne
+Trainings-/Messzeilen. Die erste Testmatrix hatte vier unzulässige
+8-Schritt-Konfigurationen enthalten; diese sind kein Fehlernachweis.
+Vorher-Beleg: `artifacts/continuous-quality/review-r10-before.log`.
+Die bestehende Schattenkohortenprüfung zählt nun ausdrücklich nur ihre
+operativen/Schattenschritte, ohne den unabhängig vorgezogenen NWP-Arm.
+Die Modellarmverträge wurden abgeglichen; Ruff bestand.
+Die gezielte Suite bestand mit **185 Tests**, die finale Vollsuite mit
+**2.030 Tests ohne Skips**, **90,85 % kombinierter Abdeckung** und unverändertem
+90-%-Gate; weiterhin 23 SQLite-ResourceWarnings. Ausgaben/Coverage:
+`artifacts/continuous-quality/review-r10-fixes-targeted.log`,
+`review-r10-fixes-full-tests.log` und `review-r10-fixes-coverage.json`.
+
+R10 ist keine positive Abnahme. Die Korrektur benötigt erneut einen
+hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |
