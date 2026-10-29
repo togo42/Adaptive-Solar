@@ -41,6 +41,11 @@ import uuid
 import aiohttp
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.replay_paths import validate_append_output  # noqa: E402
+
 SOURCES = {"adaptive", "helios", "open_meteo"}
 BOUNDARIES = {"ac_inverter_output", "dc_charge_controller_output", "mixed_output_generation_sum"}
 
@@ -644,11 +649,19 @@ async def capture_forecasts(ha_url: str, token: str, mappings: tuple[dict, ...],
         raise CaptureError("HA capture transport failed or exceeded its deadline") from exc
 
 
-def append_capture(output: Path, capture: dict) -> None:
-    """Atomically append one capture under a nonblocking exclusive file lock."""
+def _validate_output(output, inputs=(), *, descriptor=None, protected_identities=()):
+    try:
+        return validate_append_output(output, inputs, descriptor=descriptor, protected_identities=protected_identities)
+    except ValueError as exc:
+        raise CaptureError("Capture output must be separate from inputs, programs and hardlink aliases") from exc
+
+
+def append_capture(output: Path, capture: dict, *, inputs=(), protected_identities=()) -> None:
+    """Append one capture under a nonblocking exclusive file lock."""
+    protected = _validate_output(output, inputs, protected_identities=protected_identities)
     encoded = (json.dumps(capture, ensure_ascii=False, allow_nan=False) + "\n").encode("utf-8")
     output.parent.mkdir(parents=True, exist_ok=True)
-    descriptor = os.open(output, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+    descriptor = os.open(output, os.O_RDWR | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
     try:
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -660,10 +673,9 @@ def append_capture(output: Path, capture: dict) -> None:
         if metadata.st_size:
             # Append only to complete JSONL, preserving a partial prior write
             # as evidence instead of joining the new record to it.
-            with output.open("rb") as existing:
-                existing.seek(-1, os.SEEK_END)
-                if existing.read(1) != b"\n":
-                    raise CaptureError("Existing capture file ends with an incomplete record")
+            if os.pread(descriptor, 1, metadata.st_size - 1) != b"\n":
+                raise CaptureError("Existing capture file ends with an incomplete record")
+        _validate_output(output, inputs, descriptor=descriptor, protected_identities=protected)
         written = 0
         while written < len(encoded):
             count = os.write(descriptor, encoded[written:])
@@ -695,6 +707,7 @@ def main() -> int:
         config, output = _private_path(args.config), _private_path(args.output)
         if config == output or output.exists() and os.path.samefile(config, output):
             raise CaptureError("Configuration and output paths must differ")
+        protected = _validate_output(output, (config,))
         mappings = parse_mapping(json.loads(config.read_text(encoding="utf-8")))
         try:
             cutoff = _utc(datetime.fromisoformat(args.cutoff)) if args.cutoff else None
@@ -708,7 +721,7 @@ def main() -> int:
             return 0 if plan["forecast_capture_ready"] else 1
         capture = asyncio.run(capture_forecasts(os.environ.get("HA_URL", ""), os.environ.get("HA_TOKEN", ""), mappings,
                                                timeout=args.timeout, cutoff=cutoff))
-        append_capture(output, capture)
+        append_capture(output, capture, inputs=(config,), protected_identities=protected)
     except (CaptureError, OSError, json.JSONDecodeError) as exc:
         # Do not echo path, URL, token, snapshots or transport exception details.
         message = str(exc) if isinstance(exc, CaptureError) else "Capture input/output failed"

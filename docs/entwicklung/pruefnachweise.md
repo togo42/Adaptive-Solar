@@ -439,6 +439,51 @@ Die gezielte Suite bestand mit **185 Tests**, die finale Vollsuite mit
 R10 ist keine positive Abnahme. Die Korrektur benötigt erneut einen
 hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
 
+## Codex-Nachreview und Inodeschutz der Append-Collector
+
+R11 prüfte `3f7ad68` vollständig durch Codex GPT-6.1-Sol/high, CLI 0.166.0:
+209 Originaltexte, 44 Quellblöcke plus Initialisierung und Abschluss,
+46 abgeschlossene Turns, keine Compaction oder nativen Tools. Der unabhängige
+Audit bestätigte Quellen-/Prompt-/Antwortbindung, native Modellbindung und
+Treiber-/Transportpatchbindung. Payload-SHA256:
+`8cfa497924ca238ee61b96a58bbda454ba81256b6b77f4634d883a456b1111a4`;
+Receipt-SHA256:
+`6422c0a1de965d33b5febee6053c1880aee8b38e785102e98a768a55e8b74b0d`.
+Rohbelege: `reviews/private/continuous-quality-codex-r11/`; Audit:
+`artifacts/continuous-quality/codex-r11-closeout.json`.
+
+Das Urteil blieb `blocked` wegen eines mittleren Befunds R11/AS-001:
+Die Append-Collector `capture_actuals.py` und `capture_ha.py` konnten einen
+Programm-Inode über Hardlinks unter `data/` verändern. Sie verwenden jetzt den
+gemeinsamen Programmschutz vor Netzabruf und Append; unmittelbar vor dem Schreiben
+prüfen sie zusätzlich den geöffneten Deskriptor gegen alle Eingaben sowie
+Programm-/Ressourcendateien. Zielpfad und Deskriptor müssen denselben Inode
+bezeichnen; Appendziele brauchen genau einen Link. Die Vollständigkeitsprüfung
+des Prognosecollectors liest nun ebenfalls den bereits gesperrten Deskriptor.
+Lock, bestehende Rohzeilen und unvollständige letzte Zeilen behalten ihre Regeln.
+
+Alle ersten **24 Gegenproben scheiterten am alten Stand**: beide Collector,
+Programm-/Komponenten-/Ressourcendateien, Aliase vor/während des Abrufs sowie
+geöffnete geschützte Inodes trotz anschließend harmlos aussehendem Zielpfad.
+Mapping- und Qualitätsdateien sind ebenfalls abgedeckt. Zwei weitere Fälle
+prüfen den Pfadaustausch bei einem unbeteiligten Inode mit nur einem Link.
+Neun ergänzte Fälle prüfen verschobene Programm-/Ressourcen-/Eingabe-Inodes:
+Vor dem Abruf erfasste Geräte-/Inode-Identitäten bleiben über den Abruf hinweg
+geschützt, auch wenn der ursprüngliche Pfad durch eine neue Datei ersetzt wurde.
+Die Proben verwenden ausschließlich wegwerfbare lokale Dateien; keine
+Produktivdatei wurde angehängt oder ein Netzabruf ausgeführt. Beleg:
+`artifacts/continuous-quality/review-r11-before.log`.
+Der Leitfaden nennt die gemeinsame Helferabhängigkeit; isolierte CLI-Testkopien
+enthalten diese jetzt mit. Ruff bestand.
+Die gezielte Suite bestand mit **300 Tests**, die finale Vollsuite mit
+**2.065 Tests ohne Skips**, **90,85 % kombinierter Abdeckung** und unverändertem
+90-%-Gate; weiterhin 23 SQLite-ResourceWarnings. Ausgaben/Coverage:
+`artifacts/continuous-quality/review-r11-fixes-targeted.log`,
+`review-r11-fixes-full-tests.log` und `review-r11-fixes-coverage.json`.
+
+R11 ist keine positive Abnahme. Die Schreibschutzkorrektur benötigt erneut einen
+hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |

@@ -10,6 +10,19 @@ verlustfrei im gemeinsamen Archiv ab; `archive.py export-observations` erzeugt
 wieder die Capture-JSONL für vorhandene Auswerter. Bestehende Qualitäts- und
 Verfügbarkeitsregeln gelten weiter.
 
+`capture_ha.py` und `capture_actuals.py` benötigen den gemeinsamen Helfer
+`scripts/replay_paths.py`; sie werden aus dem vollständigen Checkout ausgeführt.
+Ihre Appendziele müssen eigene Dateien ohne Hardlink-Aliase unter `data/` sein.
+Eingaben sowie Programm-/Ressourcendateien sind vor dem Netzabruf und nochmals
+unmittelbar vor dem Schreiben geschützt. Die spätere Prüfung verwendet den
+geöffneten Dateideskriptor samt Geräte-/Inode-Identität; ein nachträglich
+ausgetauschter Zielpfad wird abgelehnt. Vor dem Abruf erfasste geschützte
+Inodes bleiben auch nach Verschieben/Ersetzen ihrer ursprünglichen Pfade
+gesperrt. Lock und Vollständigkeitsprüfung lesen
+denselben Deskriptor. Ein fehlgeschlagener Append kann eine unvollständige letzte
+Zeile hinterlassen; sie wird beim nächsten Lauf nicht fortgeschrieben oder
+automatisch repariert. Die Datei bleibt als Fehlernachweis erhalten.
+
 ## 1. Vergleichbare Messgrenze wählen
 
 Alle drei Anbieter müssen dieselben Module, Ausgabestufen, nominellen Grenzen und dieselbe AC-/DC-Messgrenze abbilden. Keine Aufteilung eines Anlagenwerts auf Einzelstufen. Native Adaptive-Energy-Prognosen gelten für homogene Entries; Stufen liefern eigene Qualitätskurven, Mixed-Entries keinen Gesamtforecast einer einzelnen Messgrenze.

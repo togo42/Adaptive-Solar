@@ -47,6 +47,11 @@ import uuid
 import aiohttp
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.replay_paths import validate_append_output  # noqa: E402
+
 COMMAND = "recorder/statistics_during_period"
 ENERGY_FACTORS = {"Wh": 0.001, "kWh": 1.0, "MWh": 1000.0}
 # HA EnergyConverter units describe metadata dimensions, not response scaling.
@@ -496,7 +501,15 @@ async def capture_actuals(ha_url, token, mappings, start, end, *, timeout=30, se
         raise CaptureError("HA actual capture transport failed or exceeded its deadline") from exc
 
 
-def append_capture(output: Path, capture: dict) -> None:
+def _validate_output(output, inputs=(), *, descriptor=None, protected_identities=()):
+    try:
+        return validate_append_output(output, inputs, descriptor=descriptor, protected_identities=protected_identities)
+    except ValueError as exc:
+        raise CaptureError("Actual capture output must be separate from inputs, programs and hardlink aliases") from exc
+
+
+def append_capture(output: Path, capture: dict, *, inputs=(), protected_identities=()) -> None:
+    protected = _validate_output(output, inputs, protected_identities=protected_identities)
     encoded = (json.dumps(capture, ensure_ascii=False, allow_nan=False) + "\n").encode()
     output.parent.mkdir(parents=True, exist_ok=True)
     descriptor = os.open(output, os.O_RDWR | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
@@ -510,6 +523,7 @@ def append_capture(output: Path, capture: dict) -> None:
             raise CaptureError("Actual capture output must be a regular file")
         if metadata.st_size and os.pread(descriptor, 1, metadata.st_size - 1) != b"\n":
             raise CaptureError("Existing actual capture ends with an incomplete record")
+        _validate_output(output, inputs, descriptor=descriptor, protected_identities=protected)
         position = 0
         while position < len(encoded):
             count = os.write(descriptor, encoded[position:])
@@ -543,6 +557,8 @@ def main() -> int:
         for source in (config, quality_path):
             if source is not None and (source == output or source.exists() and output.exists() and os.path.samefile(source, output)):
                 raise CaptureError("Actual capture output must differ from every input")
+        inputs = (config, quality_path)
+        protected = _validate_output(output, inputs)
         mappings = parse_mapping(json.loads(config.read_text(encoding="utf-8")))
         quality = json.loads(quality_path.read_text(encoding="utf-8")) if quality_path else None
         capture = asyncio.run(capture_actuals(os.environ.get("HA_URL", ""), os.environ.get("HA_TOKEN", ""), mappings, args.start, args.end, timeout=args.timeout))
@@ -551,7 +567,7 @@ def main() -> int:
         token = os.environ.get("HA_TOKEN", "")
         if token and token in encoded:
             raise CaptureError("Private credentials must not occur in capture or quality evidence")
-        append_capture(output, normalized)
+        append_capture(output, normalized, inputs=inputs, protected_identities=protected)
     except (CaptureError, OSError, json.JSONDecodeError) as exc:
         print(str(exc) if isinstance(exc, CaptureError) else "Actual capture input/output failed", file=sys.stderr)
         return 2

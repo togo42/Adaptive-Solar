@@ -222,6 +222,7 @@ def test_cli_missing_token_and_outside_private_scope_fail_without_secret_logs(tm
     (root / "scripts").mkdir(parents=True)
     (root / "data").mkdir()
     shutil.copyfile(SCRIPT, root / "scripts/capture_ha.py")
+    shutil.copyfile(SCRIPT.with_name("replay_paths.py"), root / "scripts/replay_paths.py")
     config = root / "data/map.json"
     config.write_text(json.dumps({"mappings": list(mapping(("first",)))}))
     env = {**os.environ, "HA_URL": "https://private-ha.invalid"}
@@ -570,6 +571,7 @@ def test_real_cli_preflight_needs_no_credentials_and_never_appends(tmp_path):
     (root / "scripts").mkdir(parents=True)
     (root / "data").mkdir()
     shutil.copyfile(SCRIPT, root / "scripts/capture_ha.py")
+    shutil.copyfile(SCRIPT.with_name("replay_paths.py"), root / "scripts/replay_paths.py")
     config, output = root / "data/map.json", root / "data/capture.jsonl"
     config.write_text(json.dumps({"mappings": list(dc_mapping())}))
     env = dict(os.environ)

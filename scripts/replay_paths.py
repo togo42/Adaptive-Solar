@@ -22,9 +22,23 @@ def validate_output(output: Path, archive: Path, inputs=()):
     if (lexical.is_relative_to(archive_lexical)
             or output.resolve().is_relative_to(archive.resolve())):
         raise ValueError("replay output must be outside the source archive")
+    _validate_program_output(output, inputs)
+    if output.exists() and output.stat().st_nlink > 1 and archive.exists():
+        identity = output.stat()
+        for source in archive.rglob("*"):
+            info = source.stat()
+            if (info.st_dev, info.st_ino) == (identity.st_dev, identity.st_ino):
+                raise ValueError("replay output is a hardlink to the source archive")
+
+
+def _validate_program_output(output, inputs, *, descriptor=None, protected_identities=()):
+    """Check the actual opened inode too; the pathname may have been replaced."""
+    lexical = Path(os.path.abspath(output))
     if output.is_symlink():
         raise ValueError("replay output must not be a symlink")
     resolved = output.resolve()
+    identity = os.fstat(descriptor) if descriptor is not None else output.stat() if output.exists() else None
+    protected = set(protected_identities)
     for name in ("scripts", "custom_components"):
         folder = SOURCE_ROOT / name
         if lexical.is_relative_to(folder.absolute()) or resolved.is_relative_to(folder.resolve()):
@@ -33,14 +47,30 @@ def validate_output(output: Path, archive: Path, inputs=()):
         if source is None:
             continue
         source = Path(source)
-        if resolved == source.resolve() or (output.exists() and source.exists() and output.samefile(source)):
+        info = source.stat() if source.exists() else None
+        if info is not None:
+            protected.add((info.st_dev, info.st_ino))
+        if resolved == source.resolve():
             raise ValueError("replay output aliases an input file")
-    if output.exists() and output.stat().st_nlink > 1 and archive.exists():
-        identity = output.stat()
-        for source in archive.rglob("*"):
-            info = source.stat()
-            if (info.st_dev, info.st_ino) == (identity.st_dev, identity.st_ino):
-                raise ValueError("replay output is a hardlink to the source archive")
+    if identity is not None and (identity.st_dev, identity.st_ino) in protected:
+        raise ValueError("replay output aliases an input file")
+    return identity, frozenset(protected)
+
+
+def validate_append_output(output: Path, inputs=(), *, descriptor=None, protected_identities=()):
+    """Append mutates an inode: require a dedicated target and intact inputs."""
+    for source in inputs:
+        if source is not None:
+            Path(source).stat()
+    identity, protected = _validate_program_output(output, inputs, descriptor=descriptor,
+                                                  protected_identities=protected_identities)
+    if descriptor is not None:
+        current = output.stat()
+        if (identity.st_dev, identity.st_ino) != (current.st_dev, current.st_ino):
+            raise ValueError("append output path changed after opening")
+    if identity is not None and identity.st_nlink != 1:
+        raise ValueError("append output must be a dedicated file without hardlink aliases")
+    return protected
 
 
 def publish_output(temporary: Path, output: Path, archive: Path, inputs=()):

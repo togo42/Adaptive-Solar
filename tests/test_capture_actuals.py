@@ -231,7 +231,7 @@ def test_append_refuses_locked_symlink_and_partial_record(tmp_path):
             actuals.append_capture(output, normalize())
     linked = tmp_path / "linked"
     linked.symlink_to(output)
-    with pytest.raises(OSError):
+    with pytest.raises(actuals.CaptureError):
         actuals.append_capture(linked, normalize())
 
 

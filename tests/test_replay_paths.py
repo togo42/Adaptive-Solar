@@ -1,8 +1,148 @@
 """Replay reports cannot destroy original inputs, including filesystem aliases."""
+import json
+import os
+from pathlib import Path
+from unittest.mock import AsyncMock
+
 import pytest
 
 from scripts import replay_archive, replay_shading
 from scripts.replay_paths import publish_output, validate_output, write_output
+
+
+def collector_case(tmp_path, monkeypatch, collector):
+    from scripts import capture_actuals, capture_ha, replay_paths
+    from tests.test_capture_actuals import START, END, capture
+
+    command = capture_actuals if collector == "actuals" else capture_ha
+    monkeypatch.setattr(command, "ROOT", tmp_path)
+    monkeypatch.setattr(replay_paths, "SOURCE_ROOT", tmp_path)
+    private = tmp_path / "data"
+    private.mkdir()
+    config, output = private / "mapping.json", private / "capture.jsonl"
+    mapping = ({"inverter_id": "roof", "statistic_ids": ["sensor.energy"]} if collector == "actuals"
+               else {"inverter_id": "roof", "source": "adaptive", "entry_ids": ["entry"]})
+    config.write_text(json.dumps({"mappings": [mapping]}) + "\n")
+    args = [collector, "--config", str(config), "--output", str(output)]
+    if collector == "actuals":
+        args.extend(["--start", START.isoformat(), "--end", END.isoformat()])
+    monkeypatch.setattr("sys.argv", args)
+    payload = capture() if collector == "actuals" else {"groups": []}
+    mock = AsyncMock(return_value=payload)
+    monkeypatch.setattr(command, "capture_actuals" if collector == "actuals" else "capture_forecasts", mock)
+    return command, config, output, mock
+
+
+@pytest.mark.parametrize("collector", ["actuals", "forecasts"])
+@pytest.mark.parametrize("target", ["scripts/collector.py", "custom_components/adaptive_solar/core/models.py",
+                                   "custom_components/adaptive_solar/manifest.json"])
+@pytest.mark.parametrize("phase", ["before_request", "during_request", "opened_descriptor", "moved_program"])
+def test_append_collectors_never_write_program_inodes(tmp_path, monkeypatch, collector, target, phase):
+    command, _, output, mock = collector_case(tmp_path, monkeypatch, collector)
+    source = tmp_path / target
+    source.parent.mkdir(parents=True, exist_ok=True)
+    before = b'{"original":"program-or-resource"}\n'
+    source.write_bytes(before)
+
+    def alias():
+        output.unlink(missing_ok=True)
+        output.hardlink_to(source)
+
+    if phase == "before_request":
+        alias()
+    elif phase in {"during_request", "moved_program"}:
+        async def captured(*_, **__):
+            if phase == "moved_program":
+                source.replace(output)
+                source.write_bytes(before)
+            else:
+                alias()
+            return mock.return_value
+        mock.side_effect = captured
+    else:
+        native_open = os.open
+
+        def raced_open(path, flags, *args, **kwargs):
+            if Path(path) != output:
+                return native_open(path, flags, *args, **kwargs)
+            alias()
+            descriptor = native_open(path, flags, *args, **kwargs)
+            # The pathname is now innocent and the protected FD has only one link.
+            output.unlink()
+            output.write_bytes(b"{}\n")
+            return descriptor
+        monkeypatch.setattr(os, "open", raced_open)
+    assert command.main() == 2
+    assert source.read_bytes() == before
+    if phase == "moved_program":
+        assert output.read_bytes() == before
+    assert mock.await_count == (0 if phase == "before_request" else 1)
+
+
+@pytest.mark.parametrize("collector,source_kind", [("actuals", "mapping"), ("actuals", "quality"),
+                                                   ("forecasts", "mapping")])
+@pytest.mark.parametrize("phase", ["during_request", "opened_descriptor", "moved_input"])
+def test_append_collectors_recheck_explicit_input_inodes(tmp_path, monkeypatch, collector, source_kind, phase):
+    command, config, output, mock = collector_case(tmp_path, monkeypatch, collector)
+    if source_kind == "quality":
+        source = tmp_path / "data/quality.json"
+        source.write_bytes(b"null\n")
+        import sys
+        monkeypatch.setattr("sys.argv", [*sys.argv, "--quality", str(source)])
+    else:
+        source = config
+    before = source.read_bytes()
+
+    def alias():
+        output.unlink(missing_ok=True)
+        output.hardlink_to(source)
+
+    if phase in {"during_request", "moved_input"}:
+        async def captured(*_, **__):
+            if phase == "moved_input":
+                source.replace(output)
+                source.write_bytes(before)
+            else:
+                alias()
+            return mock.return_value
+        mock.side_effect = captured
+    else:
+        native_open = os.open
+
+        def raced_open(path, flags, *args, **kwargs):
+            if Path(path) != output:
+                return native_open(path, flags, *args, **kwargs)
+            alias()
+            descriptor = native_open(path, flags, *args, **kwargs)
+            output.unlink()
+            output.write_bytes(b"{}\n")
+            return descriptor
+        monkeypatch.setattr(os, "open", raced_open)
+    assert command.main() == 2
+    assert source.read_bytes() == before
+    if phase == "moved_input":
+        assert output.read_bytes() == before
+    assert mock.await_count == 1
+
+
+@pytest.mark.parametrize("collector", ["actuals", "forecasts"])
+def test_append_collectors_refuse_replaced_path_even_for_unrelated_single_link_inode(tmp_path, monkeypatch, collector):
+    command, _, output, _ = collector_case(tmp_path, monkeypatch, collector)
+    old_output = tmp_path / "data/old-capture.jsonl"
+    old_output.write_bytes(b"{}\n")
+    native_open = os.open
+
+    def raced_open(path, flags, *args, **kwargs):
+        if Path(path) != output:
+            return native_open(path, flags, *args, **kwargs)
+        output.hardlink_to(old_output)
+        descriptor = native_open(path, flags, *args, **kwargs)
+        output.unlink()
+        output.write_bytes(b"{}\n")
+        return descriptor
+    monkeypatch.setattr(os, "open", raced_open)
+    assert command.main() == 2
+    assert old_output.read_bytes() == b"{}\n" and output.read_bytes() == b"{}\n"
 
 
 @pytest.mark.parametrize("filename", ["pins.json", "index.sqlite3", "originals/sha256/aa/bundle.json.gz", "new/report.json"])
