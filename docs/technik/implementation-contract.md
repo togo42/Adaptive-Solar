@@ -277,6 +277,13 @@ Mixed-Entries behalten Stufensensoren und `mixed_output_generation_sum` verschie
 
 ## Nachweis
 
+Der [Offline-Qualitätsadapter](../archiv/istwert-qualitaetsadapter.md) ergänzt im
+Entwicklungsstand eine separate Ableitung aus nativen Originalintervallen und
+explizit attestierten Quellen-/Konfigurationszeiträumen. Er benötigt vollständig
+belegte Stunden, bewahrt die ganze Recorderenergie und datiert neue positive
+oder ausdrücklich negative Qualitätsrevisionen auf den tatsächlichen Prüflauf.
+Unbestätigte Zuordnungen erlauben nur Diagnose; es erfolgt keine HA-Aktivierung.
+
 `services.py` liest native Helios-/Open-Meteo-Wh mit Domain-Allowlist/Timeout, ohne Energy-Preferences-Write. `capture_ha.py`/`capture_actuals.py` bewahren Empfang, Rohrevision, Einheiten/Qualitätsprovenienz; spät geprüfte Altstände verdecken keine neuere Invalidierung und erzeugen keine rückdatierten Labels. Positive Recorderfreigabe braucht weiterhin vollständige Stundenabdeckung;
 negative oder ausdrücklich unbestätigte Qualitätsmasken invalidieren jede
 zeitlich überlappte unteilbare Stunde, auch angenommene Stunden außerhalb der

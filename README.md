@@ -84,6 +84,8 @@ Synthetische Offline-Demo:
 Der Entwicklungsstand enthält außerdem einen separaten
 [Offline-Kandidaten zur Prüfung der Trainingsabdeckung](docs/technik/learning-support-guard.md)
 des Residual-Lerners. Er verändert keine produktiven HA-Prognosen.
+Ein weiterer [Offline-Adapter qualifiziert Recorder-Iststunden](docs/archiv/istwert-qualitaetsadapter.md)
+aus Originalintervallen und belegten Quellenbindungen; ungeprüfte Quellen bleiben Diagnose.
 [Datenverträge](docs/technik/implementation-contract.md),
 [Vergleichsaufnahme](docs/entwicklung/benchmark-aufnahme.md) und
 [Reviewablauf](docs/entwicklung/validierung.md#4-lokale-prüfung-und-review)

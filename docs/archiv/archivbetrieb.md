@@ -136,6 +136,12 @@ Intervall. HA-Quellberichte und qualifizierte Intervalle werden zusätzlich im
 HA-Export bewahrt; ihre Zuordnung zu externen Recorder-Messgrenzen muss der
 Vergleich ausdrücklich prüfen.
 
+Im Entwicklungsstand ergänzt der
+[Offline-Qualitätsadapter](istwert-qualitaetsadapter.md) diese Zuordnung:
+Er prüft Originalintervalle gegen explizit belegte Quellenbindungen und erzeugt
+Stundenmasken samt Ausschlussbericht. Ungeprüfte Bindungen liefern nur
+Abdeckungsdiagnosen. Der Adapter ist noch nicht in den Timern aktiviert.
+
 Referenzfristen mit `--cutoff ISO_ZEIT_MIT_OFFSET` vorgeben. Der tatsächliche
 Gruppenempfang entscheidet über Rechtzeitigkeit. Zu spät gelieferte Daten werden
 aufbewahrt und als spät gemeldet. Für regelmäßige feste Entscheidungszeitpunkte

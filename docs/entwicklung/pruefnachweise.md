@@ -49,6 +49,33 @@ Auswertung und Datenlücken. Sie belegen weder bessere reale Prognosen noch eine
 produktive Aktivierung oder die Kalibrierung der festgelegten Supportschwellen.
 Es erfolgte kein Release oder HA-Deployment dieses Kandidaten.
 
+## Offline-Qualitätsadapter im Entwicklungsstand
+
+Lokale Prüfung vom 29.10.2026, ausgehend von `a1e3fb8`, für den
+[Adapter für Recorder-Iststunden](../archiv/istwert-qualitaetsadapter.md).
+Quellhash von `core/actual_quality.py`:
+`9109ac44d3f00b687c9a0fb685ab693f90e7b86b6d9fd9433eb8e47b0e79327c`.
+Die vollständige Suite bestand mit **1.856 Tests, null Fehlern und null Skips**;
+kombinierte Coverage **90,68 %**, Statement-Coverage 93,16 % und Branch-Coverage
+84,83 %. Ruff, `pip check` und der CLI-Smoke mit ausdrücklich gesperrten
+HA-Imports bestanden. Der zusätzliche HA-freie CI-Aufruf ist konfiguriert;
+ein neuer GitHub-CI-Lauf wurde in diesem Auftrag nicht ausgeführt. Die lokale
+Suite meldete 23 ResourceWarnings zu ungeschlossenen SQLite-Verbindungen.
+
+Ein unabhängiger Subagent prüfte Core, neue Verhaltenstests und die bestehenden
+Producer-/Qualitätsverträge. Korrigiert wurden insbesondere Quellen-/Generations-
+widersprüche, unbekannte Intervallfelder, Ankerzeitordnung, widersprüchliche
+Abregelungsbindung und explizite negative Qualitätsrevisionen. Die reale
+Offlineauswertung deckte zusätzlich Rundung bei der Addition kurzer Intervalle
+auf: Zwei neue Regressionen scheiterten zuvor; exakte Zeitdauern erhalten nun
+volle Abdeckung und schließen zugleich eine echte Mikrosekundenlücke aus.
+Der Nachreview dieses Fixes ist abgeschlossen; keine offenen konkreten Befunde
+im geprüften Coreumfang. Dies ist kein vollständiger externer Providerreview.
+
+Die Nachweise betreffen Ableitung, Originalerhalt, Revisionen und nachvollziehbare
+Ausschlüsse. Sie ersetzen keine Quellenattestierung oder Prognosegütemessung.
+Es erfolgten kein Release, keine Timeranbindung und keine produktive Aktivierung.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |
