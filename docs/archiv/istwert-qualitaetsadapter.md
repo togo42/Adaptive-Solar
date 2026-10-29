@@ -98,6 +98,53 @@ Bindungen desselben Scopes dürfen sich zeitlich nicht überlappen. Sie müssen
 abgelaufene Zeiträume beschreiben und die gesamten verwendeten Originaldeltas
 einschließlich deren Stundenrandüberschreitungen abdecken.
 
+### Historische Bindungen nachträglich prüfen
+
+Eine belastbare Nachprüfung kann vorhandene Stunden freigeben, ohne die
+ursprünglichen Recorderwerte oder deren Empfangszeit zu ändern. Dafür sind
+getrennte, zeitlich begrenzte Nachweise erforderlich:
+
+1. **Originalbestand einfrieren.** Capture, vollständige ausgewählte Ereignisse
+   und Konfigurationshistorie mit Dateihashes erhalten. Die Auswahl und ihre
+   Grenzen dokumentieren; widersprechende Ereignisse bleiben Teil der Prüfung.
+2. **Historische Zuordnung belegen.** Original-Zählerberichte an beiden
+   Intervallenden mit Entity, Generation, Zeit und Delta verknüpfen. Für eine
+   Zuordnung über `continuity_id` zusätzlich den tatsächlich eingesetzten Code
+   prüfen: Entsteht die Kennung neu, wird sie nicht wiederhergestellt, und
+   erzwingen Konfigurationswechsel einen neuen Tracker? Nur dann kann eine
+   durch Originalintervalle beidseitig umschlossene Konfigurationsaufnahme
+   zusammen mit belegten Installationsständen eine begrenzte Attestierung
+   stützen. Das ist eine externe Prüfung, keine automatische Eigenschaft des
+   Adapters. Gleiche Snapshots oder Journalgenerationen allein genügen nicht.
+3. **Messquelle und Betrieb getrennt prüfen.** Einheiten, echte Quellberichte,
+   Frische, Reset-/Recoverygrenzen und gegebenenfalls Integrationsverhalten für
+   genau die beanspruchten Intervalle prüfen. Referenzvergleiche müssen dieselbe
+   Messgrenze betreffen. Summenkonsistenz ersetzt keine Prüfung einzelner Stufen;
+   ein Abgleich von Eingangsleistung und Ausgangsenergie liefert ohne weitere
+   Annahmen keine Fehlergrenze. Betreiberangaben bleiben erkennbare Annahmen.
+4. **Nur belegte Supports binden.** Eine Stundenfreigabe muss auch die vollständigen
+   Originaldeltas vor und nach ihrer Stundengrenze einschließen. Überlappende
+   Supports benachbarter Stunden dürfen nur bei gleicher Quelle, Generation,
+   Kontinuität, Konfiguration, Software und passender Qualifikation vereinigt
+   werden. Lücken dürfen dabei nicht überbrückt werden. Eine bestandene
+   Einzelstunde qualifiziert weder den ganzen Tag noch künftige Stunden.
+5. **Neue Revision zeitlich ehrlich auswerten.** Facetten erhalten ihren echten
+   Prüfzeitpunkt; `as_of` muss die verwendeten späteren Nachweise einschließen.
+   Die erzeugte Maske wird erst mit ihrem neuen `validated_at` verfügbar.
+   Kontrollieren, dass eine Auswertung zum ursprünglichen Capturezeitpunkt
+   weiterhin keine nachträglich freigegebenen Labels erhält.
+
+Als zusätzlicher Konsistenzcheck lässt sich die Recorder-Stundenenergie mit
+zwei Grenzen vergleichen: der Summe aller vollständig enthaltenen nichtnegativen
+Originaldeltas und der Summe aller die Stunde berührenden Originaldeltas. Dabei
+wird kein Delta aufgeteilt. Ein Wert innerhalb dieser Grenzen widerspricht
+der Zählerfolge nicht; das ist noch kein unabhängiger Genauigkeitsnachweis.
+
+Prüfergebnis und Masken sollten die übernommenen Betriebsannahmen sowie die
+weiterhin ausgeschlossenen Stunden nennen. Technisch geeignete Messwerte sind
+keine Kalibrierbescheinigung und ergeben allein noch keine vollständigen
+gepaarten Tage für einen Prognosevergleich.
+
 ## 3. Lokalen Prüflauf ausführen
 
 Eingaben sind Arrays vollständiger nativer Envelopes mit zusätzlichem `source`,
