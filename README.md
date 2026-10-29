@@ -17,9 +17,10 @@ Temperatur, Wind, horizontale Globalstrahlung und PV-Leistung unterstützen
 kurzfristige Korrekturen. Ohne qualifizierte Lernhistorie bleibt die Physik aktiv.
 Ein gemeinsamer Zähler kann keine Einzelstringverluste identifizieren.
 
-**Dokumentierter Release: 0.2.18, Stand 29.10.2026.** Neu sind gespeicherte
-[Stundenkurven der Tagesbeginnprognose](docs/technik/day-start-curve.md).
-[Änderungen und Upgrade](docs/releases/release-0.2.18.md),
+**Dokumentierter Release: 0.2.19, Stand 29.10.2026.** Die HA-Gerätebereinigung
+verwendet die aktuelle Eigentümer-API; Services importieren Probatio direkt
+und initialisieren ihre Empfangszeit explizit.
+[Änderungen und Upgrade](docs/releases/release-0.2.19.md),
 [historische Quell- und Testnachweise](docs/entwicklung/pruefnachweise.md).
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
@@ -27,7 +28,7 @@ Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/valid
 ## Installation und Bedienung
 
 1. [Plattform und Abhängigkeiten prüfen](docs/anwendung/installation.md).
-   HACS-Mindestversion ist Core **2026.10.2**; die vollständige Suite für 0.2.18
+   HACS-Mindestversion ist Core **2026.10.2**; die vollständige Suite für 0.2.19
    wurde unter **2026.10.4 / Python 3.14** geprüft. Frühere Nachweise für .2/.3
    sind historisch. Für HAOS ist bislang nur **amd64 / CPython 3.14 / Musl**
    mit separat bereitgestellter Binärbasis qualifiziert;

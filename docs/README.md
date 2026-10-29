@@ -1,7 +1,7 @@
 # Adaptive Solar: Dokumentation
 
 Die [Projektübersicht](../README.md) beschreibt Zweck und Einstieg. Die aktuellen
-Anleitungen und Datenverträge beziehen sich auf **0.2.18**. Veröffentlichte
+Anleitungen und Datenverträge beziehen sich auf **0.2.19**. Veröffentlichte
 Versionen und historische Prüfungen stehen getrennt unter
 [Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).
 

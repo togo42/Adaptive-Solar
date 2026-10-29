@@ -7,6 +7,15 @@ Integrationsreview noch eine erneute Laufzeitprüfung.
 
 ## Aktueller Releasebezug
 
+[0.2.19](../releases/release-0.2.19.md) aktualisiert die HA-Geräte-API und
+die Serviceimplementierung. Implementierungscommit `8dbf980` bestand lokal
+**1.729 Tests ohne Skips** unter Python 3.14 / HA Core 2026.10.4, Ruff und
+`pip check`. Eine neue Coveragezahl oder ein externer Review wird aus diesem
+Lauf nicht abgeleitet. Release-CI, Artefakte und Installation benötigen eigene
+Nachweise; frühere Receipts gelten nicht automatisch für diesen Stand.
+
+## Vorheriger Release 0.2.18
+
 [0.2.18](../releases/release-0.2.18.md) wurde aus
 `9059bc3b69ec6f123c4293babb419b56afb2cfff` veröffentlicht. Die damalige
 Main-/Tag-CI bestand mit jeweils **1.727 Tests ohne Skips**, mindestens

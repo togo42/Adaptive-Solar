@@ -1,6 +1,6 @@
 # Adaptive Solar installieren und aktualisieren
 
-Stand: 29.10.2026; Releaseanleitung für 0.2.18. Veröffentlichungs- und
+Stand: 29.10.2026; Releaseanleitung für 0.2.19. Veröffentlichungs- und
 historische Testangaben stehen in den [Prüfnachweisen](../entwicklung/pruefnachweise.md). Die hier beschriebenen Schritte
 werden vom Betreiber auf der eigenen Installation ausgeführt. Projektprüfungen und
 ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
@@ -17,7 +17,7 @@ ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 | ARM/aarch64, Raspberry Pi, andere Python-ABIs | Bisher nicht qualifiziert; kein passender Build-/Installationsnachweis im Projekt |
 
 Die HACS-Untergrenze 2026.10.2 entspricht dem ältesten geprüften Core. Sie ist keine
-Zusage für alle späteren Versionen. Die vollständige Release-Suite für 0.2.18 prüft Core 2026.10.4;
+Zusage für alle späteren Versionen. Die vollständige Release-Suite für 0.2.19 prüft Core 2026.10.4;
 die Nachweise für .2/.3 stammen aus früheren Releases. Versionsdetails stehen in den [Prüfnachweisen](../entwicklung/pruefnachweise.md). Runtimepins stehen im
 [Manifest](../../custom_components/adaptive_solar/manifest.json): pvlib 0.16.1 und
 scikit-learn 1.9.1. Ein früherer erfolgreicher Import anderer Versionen reicht nicht.
@@ -143,6 +143,11 @@ Abhängigkeitspins, Physik- und Lerngates ändern sich nicht. Ein Rückweg zu
 0.2.17 kann die unverändert gespeicherten Tageswerte und Historie weiter lesen.
 Archivhost-Helfer werden separat installiert; ein HACS-Update aktualisiert
 weder Archivhostdienste noch Dashboardressourcen.
+
+[Version 0.2.19](../releases/release-0.2.19.md) aktualisiert die interne
+Geräte-Eigentümerabfrage und die Serviceimplementierung. Der Upgradepfad ist
+unverändert: HACS-Download und ein Core-Neustart. Konfiguration, Lernhistorie,
+Entity-IDs, Prognoseverfahren und Abhängigkeitspins bleiben erhalten.
 
 Historisch für 0.2.13: Featurevertrag, passende Forecast-/Messhistorie,
 Schattentabellen und echte Tagesbeginn-Snapshots erhalten. Die
