@@ -62,6 +62,13 @@ Software auf dieser Kopie ausführen. Die alte Releaseumgebung bleibt beim
 Hostupgrade erhalten. Für neue Werkzeuge bleibt der hierarchische Datasetexport
 der Standard. Die Replaytoleranzen werden nicht verändert.
 
+**Änderung ab 29.10.2026:** Auf ausdrücklichen Nutzerauftrag wird HA Core auch
+aus den bisherigen Archivhost-Umgebungen entfernt. Der historische Prüfstand
+unten beschreibt die damalige Umgebung mit HA. Die strenge Originalabnahme
+alter HA-Aufnahmen meldet nach der Entfernung eine Versionsabweichung;
+numerisch passende Ergebnisse werden dadurch nicht rückwirkend formal akzeptiert.
+[HA-freier Runtimevertrag und aktueller Nachweis](archiv-runtime-ohne-ha.md).
+
 ## Validierung
 
 Verhaltenstests prüfen neue Aufnahmen, gemischte Bestände, Migration in beide
@@ -76,7 +83,7 @@ Ein danach ergänzter Gegenfall für zwei gültige, aber unterschiedlich komprim
 Kopien bestand ebenfalls; alle **15 Migrationstests** sind erfolgreich. Ruff für
 Komponente, Skripte und Tests, `pip check` sowie Diffprüfung bestanden.
 
-## Installierter Stand auf dem Archivhost
+## Historischer Installationsnachweis vom 28.10.2026
 
 Die Hostinstallation vom 28.10.2026 verwendet Commit
 `ce6173a9baeec2504861287e14b431e6c9ad0ebc`. Der öffentliche Transferumfang

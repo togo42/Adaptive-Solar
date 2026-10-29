@@ -61,6 +61,21 @@ def test_exact_forecast_baseline_reconstructs_observations_state_and_numerics(tm
     assert report["input_sha256"]
 
 
+def test_ha_removal_does_not_forge_historical_environment_acceptance(tmp_path, monkeypatch):
+    from custom_components.adaptive_solar import archive_export
+
+    event, rows, _ = forecast_bundle(tmp_path)
+    archived = event["payload"]["software"]
+    assert archived["libraries"]["homeassistant"] is not None
+    actual = {**archived, "libraries": {**archived["libraries"], "homeassistant": None}}
+    monkeypatch.setattr(archive_export, "software_provenance", lambda: actual)
+    report = replay_forecast(event, rows)
+    assert report["baseline"]["matched"]
+    assert not report["baseline"]["software_match"]
+    assert not report["baseline"]["accepted"]
+    assert event["payload"]["software"] == archived
+
+
 def test_replay_refuses_missing_or_cross_source_state_and_asof_before_receipt(tmp_path):
     event, rows, _ = forecast_bundle(tmp_path)
     with pytest.raises(ValueError, match="missing"):

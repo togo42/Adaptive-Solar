@@ -1,5 +1,12 @@
 # Entwicklungsstand und offene Nachweise
 
+## HA-freier Archivhost ab 29.10.2026
+
+Der [Runtimevertrag](archiv-runtime-ohne-ha.md) beschreibt die beauftragte
+Entfernung des lokalen HA-Core und die Installationssperre für Updates.
+Die strengen Herkunftsgates historischer Replays bleiben unverändert;
+eine entfernte HA-Version ist künftig eine ausgewiesene Umgebungsabweichung.
+
 ## Archivhost-Erweiterung: hierarchische Hashablage
 
 Die auf dem Archivhost installierte Erweiterung `ce6173a` nach 0.2.17 verwendet

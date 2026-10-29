@@ -1,6 +1,6 @@
 # Archivhost dauerhaft betreiben
 
-Stand: 28.10.2026. Die Vorlagen unter `deploy/` und der Runner
+Stand: 29.10.2026. Die Vorlagen unter `deploy/` und der Runner
 `scripts/archive_host.py` bereiten den Hostbetrieb vor. Ihre Existenz bedeutet
 keine Aktivierung. HA-Exportoptionen und produktive Hoständerungen benötigen den
 konkreten Inbetriebnahmeauftrag. Grundlagen und Datenvertrag stehen in
@@ -20,12 +20,34 @@ Auf dem Archivhost eine eigene Installation verwenden:
 
 Jede Releasekopie erhält `data -> ../../data`. Der Pfad `data/` muss ignoriert
 bleiben. Den vollständigen Quellcommit vor dem Transfer festhalten und danach
-Dateihashes prüfen. Die Umgebung regulär installieren, beispielsweise mit
-`.venv/bin/python -m pip install . 'pvlib==0.16.1' 'scikit-learn==1.9.1'`.
+Dateihashes prüfen. Für Erstinstallation und Updates ausschließlich den
+Hostinstaller mit Python ab 3.13 verwenden:
+
+```bash
+python3 scripts/install_archive_host.py --venv .venv
+```
+
+Er installiert das reguläre Paket und die Versionspins aus dem HA-Manifest,
+ohne Entwicklungs-/HA-Extras. Die verpflichtenden
+`deploy/archive-host-constraints.txt` schließen HA Core und dessen Testharness
+auch als versehentliche transitive Abhängigkeit aus. Vor und nach der Installation
+prüft der Installer die isolierte Umgebung und die Abwesenheit von HA;
+`pip check` ist Pflicht. Eine bereits mit HA bestückte Umgebung wird abgelehnt.
+Bei einem Release mit `.venv`-Symlink den tatsächlichen, privaten Umgebungspfad
+an `--venv` übergeben. Gemeinsame Umgebungen nur bei pausierten Archivschreibern
+aktualisieren; einen neuen Stand bevorzugt in einer separaten Umgebung vorbereiten.
+
+`--constraints data/runtime-pins.txt` bindet zusätzliche numerische
+Laufzeitversionen. Diese Datei darf keine HA-Installation verlangen.
+Die CI baut separat eine echte HA-freie Archivumgebung und importiert sämtliche
+Collector-/Replay-CLIs; native HA-Tests bleiben in ihrer Entwicklungsumgebung.
 Für einen exakten Replay außerdem die vollständigen numerischen Laufzeitversionen
 mit der ursprünglichen HA-Umgebung abgleichen und protokollieren; zwei direkte
-Pins allein beweisen keine identische Umgebung. Tests mit HA Core gehören in
-die Entwicklungsumgebung, nicht in die Collectorinstallation.
+Pins allein beweisen keine identische Umgebung. Die unveränderte strenge
+Replayprüfung vergleicht zusätzlich die aufgezeichnete HA-Version. Für alte
+HA-Aufnahmen fehlt nach deren bewusster Entfernung diese Versionsgleichheit:
+Numerische Reproduzierbarkeit und formale Originalabnahme bleiben getrennt.
+[Umstellung und Nachweis](archiv-runtime-ohne-ha.md).
 
 `deploy/archive-host.example.json` als private `data/host.json` übernehmen und
 Standort, Messgrenzen, Referenzen und eindeutige dauerhafte Quellen eintragen.

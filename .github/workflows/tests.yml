@@ -8,6 +8,24 @@ permissions:
   contents: read
 
 jobs:
+  archive-host:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Install archive runtime without Home Assistant
+        run: python scripts/install_archive_host.py --venv .archive-venv
+      - name: Import archive tools without HA
+        run: |
+          .archive-venv/bin/python scripts/archive_host.py --help
+          .archive-venv/bin/python scripts/archive.py --help
+          .archive-venv/bin/python scripts/capture_weather.py --help
+          .archive-venv/bin/python scripts/archive_observations.py --help
+          .archive-venv/bin/python scripts/replay_archive.py --help
+          .archive-venv/bin/python scripts/replay_shading.py --help
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20

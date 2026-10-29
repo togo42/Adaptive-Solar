@@ -1,0 +1,4 @@
+# Archive hosts must never install HA Core or its native test harness.
+# An accidental direct or transitive requirement must fail dependency resolution.
+homeassistant<0
+pytest-homeassistant-custom-component<0

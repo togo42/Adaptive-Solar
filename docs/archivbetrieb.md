@@ -19,12 +19,15 @@ Der Archivhost sammelt diese Ereignisse, zusätzliche Wettermodelle einschließl
 echter Ensembles sowie Recorder-/Referenzaufnahmen. Aus eingefrorenen Originalen
 können Baseline und spätere Kandidaten mit identischen Eingaben gerechnet werden.
 
-Auf dem Host denselben Repositorycommit und die Laufzeitpins in einer separaten
-Python-Umgebung installieren; [Entwicklung](entwicklung.md) beschreibt die
-reproduzierbare Installation. Quellcommit und Bibliotheksversionen zusammen mit
+Auf dem Host mit dem [Hostinstaller](archiv-host-installation.md) eine separate
+HA-freie Python-Umgebung installieren. Quellcommit und Bibliotheksversionen zusammen mit
 jedem Versuch sichern. Datenpins enthalten Originaldaten und Hashes, keine
 vollständige Kopie der ausführbaren Softwareumgebung. Ein abweichender Codehash
 kann explorativ gerechnet werden, besteht aber keine exakte Baseline-Abnahme.
+Dasselbe gilt für eine abweichende HA-Versionsprovenienz: Nach der bewussten
+Entfernung von HA Core auf dem Archivhost ist die formale Originalabnahme alter
+HA-Aufnahmen nicht mehr quellen-/bibliotheksgleich, auch wenn die Numerik passt.
+Die Herkunftsprüfung wird dafür nicht gelockert; [aktueller Runtimevertrag](archiv-runtime-ohne-ha.md).
 
 Private Standortdateien, Zuordnungen, Ausgaben und Archive gehören unter
 ignorierte `data/`-Pfade. Eine Standortdatei hat das Schema von
