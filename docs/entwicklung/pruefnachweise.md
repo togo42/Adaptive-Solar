@@ -112,6 +112,59 @@ Installation und Timeraktivierung wurden in diesem Auftrag nicht ausgeführt.
 Der reale Probelauf benötigt separat qualifizierte Quellen und Originaldeltas
 des neuen Producers; Laufzeit und Ankererhalt sind am tatsächlichen Archiv zu prüfen.
 
+## Codex-Abnahme: erster Lauf und Befundkorrekturen
+
+Der Vollreview von `f2c41ece343ed52198ba743aab7f71afab741e81` durch
+**Codex GPT-6.1-Sol/high**, CLI 0.165.0, endete am 29.10.2026 mit zwei mittleren
+Befunden und Urteil `blocked`. Alle 209 öffentlichen Originaltexte einschließlich
+acht systemd-Vorlagen wurden vollständig in 43 Blöcken übertragen. Ein
+zusätzlicher Initialisierungsturn und der Abschlussturn ergeben 45 vollständig
+abgeschlossene Turns. Der unabhängige Nachweisaudit bestand: exakte Quellen-/
+Prompt-/Antwortbytes, native Identität, keine Compaction oder nativen Tools,
+vollständiger API-Guard und unveränderter geprüfter Quellstand. Ein gültiger
+Review mit Befunden ist keine positive Abnahme.
+
+- AS-001: Der native Supportimport verlor vollständig leere Ausgaben und fehlende
+  Stufen. Das neue Versuchsverzeichnis bewahrt jede konfigurierte Stufe je
+  Ausgabe-/Empfangsstand. Die jüngste verfügbare Ausgabe wird vor der
+  Zielabdeckungsprüfung gewählt; Gesamtkennzahlen, Strata und Banddiagnose
+  verwenden denselben Stand. Frühere Cutoffs dürfen frühere Erfolge weiterhin
+  sehen, spätere Ausfälle werden nicht durch diese verdeckt.
+- AS-002: Das Ausgabeziel des lokalen Qualitätshelfers konnte seine eigenen
+  Programmdateien überschreiben. Helfer und verwendete Implementierungsdateien
+  sind nun in beiden Pfadprüfungen geschützte Eingaben; Regressionen prüfen
+  gleiche Pfade, Symlink-/Hardlink-Aliase sowie einen nach der Ableitung
+  entstandenen Alias.
+
+Der geprüfte Payload hat SHA256
+`09c63e24372e33ee0603ea294919d72baadf0d58505ecee523254f1692f460e1`,
+das erste Receipt SHA256
+`006dca7620b01804674cff0f26f27c686d606979d55edd58d11520f8a6ae851e`.
+Die Rohbelege liegen lokal unter `reviews/private/continuous-quality-codex-r1/`,
+der unabhängige Audit unter `artifacts/continuous-quality/codex-closeout.json`.
+Sie sind keine öffentlichen Downloads. Für die aktuelle CLI wurde der isolierte
+Reviewtreiber aus Toolingcommit `4ba01bb` verwendet; seine Originalbytes wurden
+per Git geprüft und separat gehasht. Nur Zielrepository, die zusätzlichen
+Endungen `.service`/`.timer` und das im Kandidaten festgelegte Kontextbudget
+800.000 wurden gebunden; sein Dateiscope wurde vor Start exakt mit dem
+Kandidatenhelfer abgeglichen. Keine globale CLI-Konfiguration wurde verändert.
+
+Beide Befunde wurden an isolierten Kopien des alten Stands reproduziert:
+Bei einem deklarierten jüngeren leeren Versuch zählte der alte Auswerter ein
+Erfolgspaar, der korrigierte keines. Der alte Qualitätshelfer ersetzte seine
+wegwerfbare Programmkopie durch Ergebnis-JSON und meldete Erfolg. Die neuen
+Regressionen lassen weder diese Überschreibung noch ihre Link-Aliase zu.
+100 gezielte Tests und die finale Vollsuite mit **1.893 Tests ohne Skips**
+bestanden; die kombinierte Abdeckung beträgt **90,74 %** bei unverändertem
+90-%-Gate. Weiterhin 23 SQLite-ResourceWarnings. Ruff und der Dokuabgleich
+bestanden. Vollsuite und Coverage liegen unter
+`artifacts/continuous-quality/review-fixes-full-tests.log` beziehungsweise
+`review-fixes-coverage.json`; der lokale Vorher-/Nachher-Beleg liegt unter
+`artifacts/continuous-quality/prior-findings-reproduction/`.
+
+Die Korrekturen benötigen einen frischen hashgebundenen Nachreview. Es erfolgten
+keine HA-/Hostinstallation, Timeraktivierung oder produktive Modellfreigabe.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |

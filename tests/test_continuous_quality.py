@@ -207,3 +207,54 @@ async def test_oversized_quality_report_preserves_smaller_raw_capture(tmp_path, 
     monkeypatch.setattr(archive_observations, "MAX_CAPTURE_BYTES", original_limit)
     archived, = archive_observations.captures_from_archive(store, source="test:actuals", kind="actuals")
     assert archived["raw"] == raw["raw"] and "quality_derivation" not in archived
+
+
+@pytest.mark.parametrize("alias", ["same", "symlink", "hardlink"])
+@pytest.mark.parametrize("module", [continuous_quality, continuous_quality.actual_quality, capture_actuals, continuous_quality.qualify_actuals])
+def test_rehearsal_cannot_overwrite_implementation_files(tmp_path, monkeypatch, alias, module):
+    import json
+    import os
+
+    case = continuous_case()
+    store = store_case(tmp_path, case)
+    policy, raw = tmp_path / "policy.json", tmp_path / "raw.json"
+    policy.write_text(json.dumps(case[1]))
+    raw.write_text(json.dumps(capture(start=case[3], end=case[4], received=case[-1])))
+    # Substitute a disposable program file; a regression must never damage the real helper.
+    protected = tmp_path / "program.py"
+    protected.write_text("# original program bytes\n")
+    monkeypatch.setattr(module, "__file__", str(protected))
+    output = protected if alias == "same" else tmp_path / "output.json"
+    if alias == "symlink":
+        output.symlink_to(protected)
+    elif alias == "hardlink":
+        os.link(protected, output)
+    monkeypatch.setattr(continuous_quality, "derive", lambda *args: pytest.fail("aliased output must fail before derivation"))
+    assert continuous_quality.main(["--archive", str(store.root), "--bindings", str(policy),
+                                   "--actual-capture", str(raw), "--output", str(output)]) == 2
+    assert protected.read_text() == "# original program bytes\n"
+
+
+def test_rehearsal_rechecks_program_alias_after_derivation(tmp_path, monkeypatch):
+    import json
+    import os
+
+    case = continuous_case()
+    store = store_case(tmp_path, case)
+    policy, raw, output = (tmp_path / name for name in ("policy.json", "raw.json", "output.json"))
+    policy.write_text(json.dumps(case[1]))
+    raw.write_text(json.dumps(capture(start=case[3], end=case[4], received=case[-1])))
+    protected = tmp_path / "program.py"
+    protected.write_text("# protected bytes\n")
+    monkeypatch.setattr(continuous_quality, "__file__", str(protected))
+    original_derive = continuous_quality.derive
+
+    def derive_then_alias(*args):
+        result = original_derive(*args)
+        os.link(protected, output)
+        return result
+
+    monkeypatch.setattr(continuous_quality, "derive", derive_then_alias)
+    assert continuous_quality.main(["--archive", str(store.root), "--bindings", str(policy),
+                                   "--actual-capture", str(raw), "--output", str(output)]) == 2
+    assert protected.read_text() == "# protected bytes\n"

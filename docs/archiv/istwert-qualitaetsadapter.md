@@ -298,7 +298,10 @@ Bestehende negative Masken werden auch beim lokalen Probelauf nicht freigegeben.
 
 Dieser Befehl stellt keine Netzwerkverbindung her und ändert keine Originale.
 Die Ausgabe ist ein separat auswertbarer Capture einschließlich Prüfbericht;
-Ausgabealias auf Eingaben oder ein Ziel innerhalb des Originalarchivs ist gesperrt.
+Ausgabealias auf Eingaben, den Helfer selbst oder die verwendeten
+Implementierungsdateien sowie ein Ziel innerhalb des Originalarchivs ist gesperrt.
+Gleiche Pfade und Symlink-/Hardlink-Aliase werden vor der Ableitung und erneut
+vor der Veröffentlichung geprüft.
 Erfolg des Befehls bestätigt die Durchführung, auch bei null freigegebenen Stunden.
 
 4. `quality_derivation.summary`, Ausschlussgründe, Rohdatenhash und echte

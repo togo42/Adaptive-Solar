@@ -100,7 +100,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     os.umask(0o077)
     try:
-        inputs = (args.bindings, args.actual_capture)
+        inputs = (args.bindings, args.actual_capture, Path(__file__), Path(actual_quality.__file__),
+                  Path(capture_actuals.__file__), Path(qualify_actuals.__file__))
         validate_output(args.output, args.archive, inputs)
         if not (args.archive / "index.sqlite3").is_file():
             raise ValueError("An existing local archive is required")
