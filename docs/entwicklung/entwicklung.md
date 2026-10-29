@@ -68,6 +68,13 @@ Migrationen unter den normalen Setup-/Close-Gates prüfbar.
 
 ## 2. Änderungen und Beiträge
 
+Die HA-Schicht und ihre Servicetests importieren den Validator direkt als
+`probatio as vol`. Die Gerätebereinigung liest die einzelne Eigentümerbindung
+über `DeviceEntry.config_entry_id`; Geräte werden weiterhin nur bei passender
+Integrationskennung und ohne verbliebene Entitäten entfernt. Der Referenzdienst
+setzt `retrieved_at` direkt nach der Providerantwort vor deren Validierung.
+Ohne Antwort erhält auch der Fehlerstatus einen eigenen UTC-Zeitstempel.
+
 Vor Änderungen aktuellen Code und zugehörige Dokumentation lesen. Fehlerfälle mit
 synthetischen Anlagen oder gemockten Providerantworten reproduzieren; echte private
 Standorte/Entitäten nicht in Testfixtures übernehmen. Bei Prognoseänderungen Zeit-,

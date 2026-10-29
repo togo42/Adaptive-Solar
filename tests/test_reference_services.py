@@ -10,7 +10,7 @@ import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
-import voluptuous as vol
+import probatio as vol
 
 from custom_components.adaptive_solar import services
 

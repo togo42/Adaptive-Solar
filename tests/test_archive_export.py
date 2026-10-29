@@ -14,7 +14,7 @@ from homeassistant.core import Context
 from homeassistant.exceptions import HomeAssistantError, Unauthorized
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-import voluptuous as vol
+import probatio as vol
 
 from custom_components.adaptive_solar import services
 from custom_components.adaptive_solar.archive_export import ArchiveExport, encoded, replay_events
