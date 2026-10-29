@@ -31,6 +31,14 @@ Originaldatenexport. [Versionshinweise](../releases/README.md) und
 den heutigen Stand. Fachliche Abnahmekriterien und prospektiver Vergleich
 bleiben von der Implementierung getrennt.
 
+Nachtrag zum Entwicklungsstand vom 29.10.2026: Der separate
+[Offline-Support-Guard](../technik/learning-support-guard.md) ergänzt die
+Messbestandsaufnahme und den Vergleich der Residualstufe. Er verändert keine
+produktiven Prognosen und schließt keine der hier beschriebenen fachlichen
+Abnahmen ab. Seine Trainingsabdeckung und die spätere Fehlerüberwachung sind
+zusätzliche Prüfaufgaben; Gewichte, Strahlungszerlegung und Unsicherheitsmodelle
+bleiben davon getrennt.
+
 ## 1 Änderungen seit der ersten Bewertung
 
 | Bereich | Bestätigter neuer Stand | Konsequenz für die Planung |

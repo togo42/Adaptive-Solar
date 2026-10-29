@@ -27,6 +27,7 @@ Versionen und historische Prüfungen stehen getrennt unter
 | [Direktstrahl-Verschattung](technik/adaptive-solar-verschattung.md) | Ursprüngliche Spezifikation mit späteren Vertragsverweisen |
 | [Physik-/Schatten-/Nowcastoptionen](technik/physics-learning-options.md) | Aktuelle Kandidatenparameter und zeitliche Freigaben |
 | [Früher Bias im Shadow](technik/early-bias-shadow.md) | Beobachteter Kandidat mit eigenen Gates |
+| [Trainingsabdeckung offline prüfen](technik/learning-support-guard.md) | Separater Support-Guard-Kandidat im Entwicklungsstand; keine HA-Aktivierung |
 | [Prognosereparaturen](technik/forecast-repairs.md) | Nachtstrahlung, Tagesstartprovenienz und Originalimport |
 | [Fehlerbehandlung und Ressourcen](technik/forecast-resilience.md) | Fit-/Wetterfallback und geschützte Historie |
 | [Modellvergleichsarchiv](technik/model-comparison-archive.md) | Prospektiv ausgegebene Modellarme und Auswertung |

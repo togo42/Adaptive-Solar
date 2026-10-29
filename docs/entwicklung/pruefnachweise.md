@@ -23,6 +23,32 @@ Payload-SHA256 `572529575cf2fb199e97617a67dab96a6f13beafd5cf0e23ab6ec2977aa312c1
 Releaseversionsnummern und spätere Dokumentation sind davon getrennte Änderungen.
 Der heutige Dateibaum übernimmt diesen Reviewstatus nicht automatisch.
 
+## Offline-Support-Guard im Entwicklungsstand
+
+Lokale Prüfung vom 29.10.2026, ausgehend von `dac9b8e1`, für den separaten
+[Support-Guard-Kandidaten](../technik/learning-support-guard.md).
+Komponenten-Quellhash:
+`07c78d5883686e251fcc8b9e66b11682ca2500c72d4ed443553de821e71f3728`.
+Die vollständige Suite bestand mit **1.784 Tests, null Fehlern und null Skips**;
+kombinierte Statement-/Branch-Coverage **90,82 %**, Statement-Coverage 93,26 %,
+Branch-Coverage 84,99 %. Ruff, `pip check` und die lokale CLI-Importprüfung mit
+gesperrten HA-Imports bestanden ebenfalls. Der neue CI-Importaufruf für die
+HA-freie Archivhostumgebung ist konfiguriert, aber damit noch kein neuer
+erfolgreicher GitHub-CI-Lauf. Die lokale Suite meldete 23 ResourceWarnings zu
+nicht geschlossenen SQLite-Verbindungen; es gab keinen Testabbruch.
+
+Ein unabhängiger Subagent prüfte den geänderten öffentlichen Umfang und
+reproduzierte eine Quellenvermischung beim Import gleicher Standortkonfigurationen.
+Die Korrektur bindet zusätzlich die Archivquelle beziehungsweise bei unbekannter
+Quelle die Originalgeneration. Der Nachtest weist unterschiedliche Quellen
+zurück. Im geprüften Umfang blieben keine offenen blockierenden Befunde.
+Dieser begrenzte Subagent-Review ist kein vollständiger externer Providerreview.
+
+Die Nachweise betreffen Trainingsabdeckung, Zeit-/Quellenbindung, Fallback,
+Auswertung und Datenlücken. Sie belegen weder bessere reale Prognosen noch eine
+produktive Aktivierung oder die Kalibrierung der festgelegten Supportschwellen.
+Es erfolgte kein Release oder HA-Deployment dieses Kandidaten.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |

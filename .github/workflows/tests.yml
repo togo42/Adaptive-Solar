@@ -26,6 +26,7 @@ jobs:
           .archive-venv/bin/python scripts/archive_observations.py --help
           .archive-venv/bin/python scripts/replay_archive.py --help
           .archive-venv/bin/python scripts/replay_shading.py --help
+          .archive-venv/bin/python scripts/analyze_learning_support.py --help
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20

@@ -89,6 +89,11 @@ Je Regime eigene chronologische Trainings-/Validierungs-/Kalibrierungs-Zieltage 
 
 Standard: mindestens 28 Zieltage/240 Stunden vereinigter Messdauer, keine vollen Stunden aus Kurzfragmenten. Je aktivem Lead-Bin eigene ausreichende Trainings-/Validierungstage/-stunden, strikt mehr als 5 % MAE-Verbesserung gegen Physik und 60 % gewonnene Validierungstage. Unterstützter Lead: Schnittmenge der Trainings-/Validierungsbereiche; unbelegt/abgelehnt bedeutet Physik. Fehlergrenzen brauchen eigene Kalibrierungstage/-stunden im Bin, keine zertifizierten P10/P90.
 
+Der Entwicklungsstand ergänzt einen getrennten
+[Offline-Support-Guard](learning-support-guard.md). Nur dieser Kandidat prüft
+zusätzlich die Trainingsabdeckung der Merkmale. Der produktive Lerner und seine
+Freigaberegeln bleiben unverändert; ein Kalibrierradius ist kein Korrekturlimit.
+
 `training_quality.alignment.rejection_reasons` trennt `issued_after_target_start`, `target_shorter_than_minimum`, `source_partial_at_issue` und `stale_beam_shade_baseline` (wenn der zur Ausgabezeit archivierte `beam_shade_factor` eines Sonnenstandsfensters einer inkompatiblen Baselinephase angehört, d. h. Wechsel zwischen unverschattet `1,0` und verschattet `< 1,0` oder Abweichung über `SHADE_BASELINE_TOLERANCE = 0,10` gegenüber dem aktuellen Tabellenfaktor; ohne kompatible Trainings- und Validierungsstützung fällt sowohl die Holdout-Bewertung/Kalibrierung als auch `predict` für verschattete Baselines auf `physics_unvalidated_shade_baseline` zurück); mehrere Gründe können dieselbe Zielzelle betreffen. Die unveränderte Mindestdauer von 30 Minuten ist eine Historienanforderung, kein Leakage-Nachweis für kürzere, ansonsten prospektive Wetterzellen.
 
 HA verbindet vor Zielbeginn bekannte Features erst nach Intervallende mit echten Zählerdifferenzen. Positive Tages-Baselines ohne `source_partial_at_issue` je Zielzelle/Lead-Bin/Regime getrennt archivieren; Tagesenergie-Snapshots bleiben unabhängig. Mitte heißt Origin am nächsten zur festen Binmitte:

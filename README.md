@@ -81,6 +81,9 @@ Synthetische Offline-Demo:
 ```
 
 `--live` ruft Open-Meteo auf und ist nicht rückdatierbar.
+Der Entwicklungsstand enthält außerdem einen separaten
+[Offline-Kandidaten zur Prüfung der Trainingsabdeckung](docs/technik/learning-support-guard.md)
+des Residual-Lerners. Er verändert keine produktiven HA-Prognosen.
 [Datenverträge](docs/technik/implementation-contract.md),
 [Vergleichsaufnahme](docs/entwicklung/benchmark-aufnahme.md) und
 [Reviewablauf](docs/entwicklung/validierung.md#4-lokale-prüfung-und-review)
