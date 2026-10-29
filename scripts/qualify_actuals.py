@@ -127,9 +127,9 @@ def main():
         raw = capture["raw"]
         start, end = capture_actuals.target_bounds(raw["target_start"], raw["target_end"])
         mappings = list(capture_actuals.parse_mapping({"mappings": raw["mappings"]}))
-        generated_at = datetime.now(UTC)
         report = actual_quality.build_quality(events, bindings, mappings, start=start, end=end,
-                                              as_of=args.as_of, generated_at=generated_at)
+                                              as_of=args.as_of)
+        generated_at = capture_actuals.utc(report["generated_at"])
         quality = report["quality"]
         if capture_actuals.utc(quality["provenance"]["validated_at"]) != generated_at:
             raise ValueError("derived quality must use the actual generation time")

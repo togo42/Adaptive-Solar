@@ -130,7 +130,11 @@ Optional ergänzen `--actuals-json` und `--schedule-json` qualifizierte
 Istintervalle und den deklarierten Prüfplan. Ohne Istwerte bleibt die Diagnose
 ausführbar; Fehlerkennzahlen bleiben unbelegt. Ausgabe- und Eingabepfade müssen
 verschieden sein; die CLI schützt auch Symlink-/Hardlink-Aliase und veröffentlicht
-den Bericht atomar.
+den Bericht atomar. Die gemeinsame Ausgabeprüfung behandelt alle
+Python-Programmdateien unter `scripts/` und `custom_components/` als geschützte
+Eingaben. Dadurch kann ein Ausgabeziel auch keine indirekt verwendeten Module
+wie `core/learning_support.py` überschreiben. Die Prüfung wird vor dem Lesen
+und erneut vor der Veröffentlichung ausgeführt, einschließlich Link-Aliasen.
 
 Der eingefrorene JSON-Vertrag trägt
 `schema: "adaptive-solar-support-evaluation-v1"` und folgende Felder:

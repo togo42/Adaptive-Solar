@@ -71,9 +71,9 @@ def derive(store, raw, bindings):
         if ref:
             for part in store.resolve_events(ref["event_ids"], source=event["source"], generation=event["generation"]):
                 add(part)
-    generated = datetime.now(UTC)
     report = actual_quality.build_quality(events, bindings, mappings, start=start, end=end,
-                                          as_of=as_of, generated_at=generated)
+                                          as_of=as_of)
+    generated = timestamp(report["generated_at"])
     report.update(bindings=bindings, raw_capture_sha256=actual_quality.digest(raw),
                   implementation_sha256={path.name: hashlib.sha256(path.read_bytes()).hexdigest()
                                          for path in (Path(__file__), Path(actual_quality.__file__), Path(capture_actuals.__file__))})

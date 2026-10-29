@@ -295,3 +295,27 @@ runpy.run_path(script, run_name='__main__')
     result = subprocess.run([sys.executable, "-I", "-c", code, str(script)], capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stderr
     assert "--actual-capture" in result.stdout and "--quality-output" in result.stdout
+
+
+def test_slow_offline_quality_is_not_available_during_its_calculation(tmp_path, monkeypatch):
+    from custom_components.adaptive_solar.core import actual_quality
+
+    paths, args, raw, _ = cli_case(tmp_path)
+    original = actual_quality._hour
+    with freeze_time("2026-06-03T12:00:00Z") as clock:
+        started = datetime.now(UTC)
+
+        def slow_hour(*values):
+            result = original(*values)
+            clock.tick(delta=timedelta(seconds=10))
+            return result
+
+        monkeypatch.setattr(actual_quality, "_hour", slow_hour)
+        monkeypatch.setattr(sys, "argv", args)
+        assert qualify_actuals.main() == 0
+    result = json.loads(paths["normalized"].read_text())
+    finished = started + timedelta(seconds=20)
+    assert result["quality"]["provenance"]["validated_at"] == result["normalized_at"] == finished.isoformat()
+    assert capture_actuals.actual_records_from_captures([result], as_of=started + timedelta(seconds=15)) == []
+    assert len(capture_actuals.actual_records_from_captures([result], as_of=finished)) == 2
+    assert result["raw"] == raw["raw"] and result["retrieved_at"] == raw["retrieved_at"]

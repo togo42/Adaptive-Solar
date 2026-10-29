@@ -258,3 +258,53 @@ def test_rehearsal_rechecks_program_alias_after_derivation(tmp_path, monkeypatch
     assert continuous_quality.main(["--archive", str(store.root), "--bindings", str(policy),
                                    "--actual-capture", str(raw), "--output", str(output)]) == 2
     assert protected.read_text() == "# protected bytes\n"
+
+
+@pytest.mark.parametrize("phase", ["coverage", "hashing"])
+def test_slow_quality_derivation_is_only_available_after_it_completes(tmp_path, monkeypatch, phase):
+    case = continuous_case()
+    store = store_case(tmp_path, case)
+    raw = capture(start=case[3], end=case[4], received=case[-1])
+    original = continuous_quality.actual_quality._hour
+    with freeze_time(case[-1] + timedelta(hours=2)) as clock:
+        started = capture_actuals.utc(raw["retrieved_at"]) + timedelta(hours=2)
+
+        def slow_hour(*args):
+            result = original(*args)
+            clock.tick(delta=timedelta(seconds=10))
+            return result
+
+        if phase == "coverage":
+            monkeypatch.setattr(continuous_quality.actual_quality, "_hour", slow_hour)
+        else:
+            digest = continuous_quality.actual_quality.digest
+
+            def slow_digest(value):
+                result = digest(value)
+                if isinstance(value, list) and value and "event_id" in value[0]:
+                    clock.tick(delta=timedelta(seconds=20))
+                return result
+
+            monkeypatch.setattr(continuous_quality.actual_quality, "digest", slow_digest)
+        result = continuous_quality.derive(store, raw, case[1])
+        finished = capture_actuals.utc(result["normalized_at"])
+    assert finished == started + timedelta(seconds=20)
+    assert result["quality_derivation"]["generated_at"] == result["quality"]["provenance"]["validated_at"] == finished.isoformat()
+    assert capture_actuals.actual_records_from_captures([result], as_of=started + timedelta(seconds=15)) == []
+    assert len(capture_actuals.actual_records_from_captures([result], as_of=finished)) == 2
+
+
+def test_clock_moving_backwards_during_quality_derivation_fails_closed(tmp_path, monkeypatch):
+    case = continuous_case()
+    store = store_case(tmp_path, case)
+    raw = capture(start=case[3], end=case[4], received=case[-1])
+    original = continuous_quality.actual_quality._hour
+    with freeze_time(case[-1] + timedelta(hours=2)) as clock:
+        def backwards(*args):
+            result = original(*args)
+            clock.tick(delta=timedelta(seconds=-1))
+            return result
+
+        monkeypatch.setattr(continuous_quality.actual_quality, "_hour", backwards)
+        with pytest.raises(ValueError, match="clock moved backwards"):
+            continuous_quality.derive(store, raw, case[1])

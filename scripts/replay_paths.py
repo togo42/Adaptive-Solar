@@ -5,6 +5,14 @@ import os
 from pathlib import Path
 import tempfile
 
+SOURCE_ROOT = Path(__file__).resolve().parents[1]
+
+
+def implementation_inputs():
+    """Program files are never valid report destinations, including inode aliases."""
+    return tuple(path for name in ("scripts", "custom_components")
+                 for path in (SOURCE_ROOT / name).rglob("*.py") if path.is_file())
+
 
 def validate_output(output: Path, archive: Path, inputs=()):
     """Reject both lexical/resolved archive paths and existing inode aliases."""
@@ -16,7 +24,7 @@ def validate_output(output: Path, archive: Path, inputs=()):
     if output.is_symlink():
         raise ValueError("replay output must not be a symlink")
     resolved = output.resolve()
-    for source in inputs:
+    for source in (*inputs, *implementation_inputs()):
         if source is None:
             continue
         source = Path(source)

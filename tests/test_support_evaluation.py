@@ -312,3 +312,35 @@ def test_attempt_inventory_requires_known_stage_and_honest_availability(change):
     payload["attempts"] = [{"issued_at": task["issued_at"], "available_at": task["issued_at"], "inverter_id": "wr", **change}]
     with pytest.raises(ValueError, match="attempt"):
         evaluate_support(payload)
+
+
+@pytest.mark.parametrize("alias", ["same", "symlink", "hardlink", "after_calculation"])
+def test_support_cli_preserves_implementation_modules(tmp_path, monkeypatch, alias):
+    import os
+    from scripts import replay_paths, analyze_learning_support
+
+    source, output = tmp_path / "input.json", tmp_path / "output.json"
+    source.write_text(json.dumps(frozen(trained=False)))
+    root = tmp_path / "project"
+    module = root / "custom_components/adaptive_solar/core/learning_support.py"
+    module.parent.mkdir(parents=True)
+    module.write_text("# protected implementation\n")
+    monkeypatch.setattr(replay_paths, "SOURCE_ROOT", root)
+    if alias == "same":
+        output = module
+    elif alias == "symlink":
+        output.symlink_to(module)
+    elif alias == "hardlink":
+        os.link(module, output)
+    else:
+        evaluate = analyze_learning_support.evaluate_support
+
+        def calculate_then_alias(*args):
+            result = evaluate(*args)
+            os.link(module, output)
+            return result
+
+        monkeypatch.setattr(analyze_learning_support, "evaluate_support", calculate_then_alias)
+    monkeypatch.setattr("sys.argv", ["analyze_learning_support.py", "--input", str(source), "--output", str(output)])
+    assert main() == 2
+    assert module.read_text() == "# protected implementation\n"

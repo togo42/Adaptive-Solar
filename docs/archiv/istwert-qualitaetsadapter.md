@@ -268,7 +268,11 @@ Host-Probelauf am tatsächlichen Archivvolumen gemessen werden.
 Der archivierte Capture enthält die unveränderten Recorder-Rohdaten und deren
 ursprüngliche Empfangszeit, eine neue Normalisierung und `quality_derivation`
 mit Policykopie, Eingabe-/Programmhashes, Stundendiagnosen und Evidenzreferenzen.
-`validated_at` ist die tatsächliche Ableitungszeit. Vor diesem Zeitpunkt bleiben
+`validated_at` wird erst nach abgeschlossener Stundenprüfung, Evidenzsortierung
+und Hashberechnung erfasst. Beide Helfer übernehmen diese Abschlusszeit auch
+für Normalisierung und Labelverfügbarkeit; ein Cutoff während der Berechnung
+erhält die neuen Labels noch nicht. Eine rückwärts springende Uhr bricht die
+Ableitung ab. Vor diesem Zeitpunkt bleiben
 die neuen Labels für historische Auswertungen unsichtbar. Ein Bericht oberhalb der 32-MiB-Grenze für Beobachtungscaptures wird ebenfalls
 als Ableitungsfehler behandelt. Eine fehlgeschlagene
 Ableitung wird als fehlerhafter Job gemeldet, der Rohcapture dennoch bewahrt.
@@ -300,7 +304,9 @@ Dieser Befehl stellt keine Netzwerkverbindung her und ändert keine Originale.
 Die Ausgabe ist ein separat auswertbarer Capture einschließlich Prüfbericht;
 Ausgabealias auf Eingaben, den Helfer selbst oder die verwendeten
 Implementierungsdateien sowie ein Ziel innerhalb des Originalarchivs ist gesperrt.
-Gleiche Pfade und Symlink-/Hardlink-Aliase werden vor der Ableitung und erneut
+Die gemeinsame Ausgabeprüfung schützt zusätzlich alle Python-Programmdateien
+unter `scripts/` und `custom_components/`. Gleiche Pfade und
+Symlink-/Hardlink-Aliase werden vor der Ableitung und erneut
 vor der Veröffentlichung geprüft.
 Erfolg des Befehls bestätigt die Durchführung, auch bei null freigegebenen Stunden.
 

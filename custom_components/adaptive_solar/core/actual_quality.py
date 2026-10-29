@@ -272,6 +272,8 @@ def build_quality(events, bindings, mappings, *, start, end, as_of, generated_at
     as_of bounds available input evidence. generated_at is the actual validation
     time (injectable for tests), never the old measured hour or its receipt.
     Caller must verify the actual capture independently with capture_actuals.
+    Without an injected test timestamp, validation is dated after coverage and
+    evidence hashing finish; callers must use that returned completion time.
     """
     start, end, as_of = (utc_time(t) for t in (start, end, as_of))
     generated = utc_time(generated_at or datetime.now(UTC))
@@ -332,14 +334,23 @@ def build_quality(events, bindings, mappings, *, start, end, as_of, generated_at
         hour = stop
     for stat in summary.values():
         stat["reasons"] = dict(sorted(stat["reasons"].items()))
-    provenance = {"policy": POLICY, "bindings_sha256": digest(bindings), "mappings_sha256": digest(mappings),
-                  "event_set_sha256": digest(events), "as_of": as_of.isoformat(), "generated_at": generated.isoformat()}
+    binding_checks = [{"id": b["id"], "sha256": b["binding_sha256"], "unavailable": b["unavailable"],
+                       "configuration_conflicts": prepared[b["id"]][1]} for b in binding_rows]
+    evidence_events = sorted(used.values(), key=lambda e: (e["source"], e["event_id"]))
+    bindings_hash, mappings_hash, events_hash = digest(bindings), digest(mappings), digest(events)
+    # All decision work, including potentially large evidence hashing/sorting,
+    # precedes the actual availability timestamp. Injected times are for tests.
+    completed = utc_time(generated_at or datetime.now(UTC))
+    if completed < generated:
+        raise ValueError("clock moved backwards during quality derivation")
+    generated = completed
+    provenance = {"policy": POLICY, "bindings_sha256": bindings_hash, "mappings_sha256": mappings_hash,
+                  "event_set_sha256": events_hash, "as_of": as_of.isoformat(), "generated_at": generated.isoformat()}
     quality = {"schema_version": 1, "validated": True,
                "provenance": {"source": f"{POLICY}:sha256:{digest(provenance)}", "validated_at": generated.isoformat()},
                "intervals": masks}
     return {"schema": REPORT_SCHEMA, **provenance, "summary": summary, "hours": hours, "quality": quality,
-            "binding_checks": [{"id": b["id"], "sha256": b["binding_sha256"], "unavailable": b["unavailable"],
-                                "configuration_conflicts": prepared[b["id"]][1]} for b in binding_rows],
-            "evidence_events": sorted(used.values(), key=lambda e: (e["source"], e["event_id"])),
+            "binding_checks": binding_checks,
+            "evidence_events": evidence_events,
             "hash_semantics": "byte_integrity_not_authenticity_or_physical_source_certification",
             "energy_source": "unchanged_recorder_hourly_change", "operational_use": False}

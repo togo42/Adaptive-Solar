@@ -165,6 +165,49 @@ bestanden. Vollsuite und Coverage liegen unter
 Die Korrekturen benötigen einen frischen hashgebundenen Nachreview. Es erfolgten
 keine HA-/Hostinstallation, Timeraktivierung oder produktive Modellfreigabe.
 
+## Codex-Nachreview des ersten Korrekturstands
+
+Der vollständige neue Lauf auf `4c5cae0d59190a8ee46baa071a9380adbb2e9a34`
+endete am 29.10.2026 erneut mit `blocked`, zwei mittleren Befunden und gültigem
+unabhängig nachgeprüftem Kontext-/Transferaudit. Die ursprünglichen Befunde
+wurden nicht erneut beanstandet. Scope: 209 öffentliche Originaltexte,
+43 Quellblöcke plus Initialisierung und Abschluss, 45 vollständige Turns,
+keine Compaction oder nativen Tools. Payload-SHA256:
+`fbabd07e7516c31345e18a2cf93a3db3ef38ac14bc7a66891dea9b59663cca72`;
+Receipt-SHA256:
+`c7f2f472140af40cc1cac03a5845ee5770e3a29429461c15d95bc9e3c1f39e1a`.
+Rohbelege: `reviews/private/continuous-quality-codex-r2/`; unabhängiger Audit:
+`artifacts/continuous-quality/codex-r2-closeout.json`.
+
+- R2/AS-001: Die Qualitätszeit war vor Beginn der Berechnung erfasst. Der Core
+  finalisiert sie nun erst nach Stundenprüfung, Evidenzsortierung und Hashing;
+  `qualify_actuals.py` und `continuous_quality.py` übernehmen diese Abschlusszeit.
+  Regressionen stellen die Uhr während Abdeckung beziehungsweise Hashing vor:
+  ein Cutoff innerhalb der Berechnung erhält keine neuen Labels. Eine rückwärts
+  springende Uhr wird zurückgewiesen. Rohdaten und deren Empfang bleiben erhalten.
+- R2/AS-002: Der Support-CLI konnte indirekt verwendete Programmmodule
+  überschreiben. Die gemeinsame Ausgabeprüfung schützt jetzt alle Pythondateien
+  unter `scripts/` und `custom_components/` in sämtlichen nutzenden Berichthelfern.
+  Regressionen prüfen direkte Ziele, Symlink-/Hardlink-Aliase und nach der
+  Berechnung entstandene Aliase.
+
+Die Befunde wurden auch an isolierten Kopien des R2-Stands reproduziert:
+Zwei Labels waren während einer 20 Sekunden dauernden Ableitung bereits nach
+15 Sekunden auswählbar; der alte Supporthelfer überschrieb eine wegwerfbare
+Modulkopie. Der korrigierte Helfer weist dasselbe Ziel zurück und erhält deren
+Bytes. Lokaler Beleg: `artifacts/continuous-quality/r2-findings-reproduction/`.
+
+Die Korrekturen bestanden **204 gezielte Tests** und die finale Vollsuite mit
+**1.901 Tests ohne Skips**, **90,74 % kombinierter Abdeckung** und unverändertem
+90-%-Gate. Weiterhin 23 SQLite-ResourceWarnings. Ruff, `pip check`, fünf
+HA-gesperrte CLI-Smokes und der Dokuabgleich bestanden. Testausgabe/Coverage:
+`artifacts/continuous-quality/review-r2-fixes-full-tests.log` und
+`review-r2-fixes-coverage.json`.
+
+Auch dieser Nachlauf ist keine positive Abnahme. Der neue Korrekturstand
+benötigt einen weiteren frischen hashgebundenen Vollreview. Keine produktive
+HA-/Hoständerung oder Aktivierung ist umfasst.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |
