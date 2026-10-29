@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from custom_components.adaptive_solar.archive_export import json_value, software_provenance
 from custom_components.adaptive_solar.core.archive import ArchiveStore, canonical_bytes
 from custom_components.adaptive_solar.core.ensemble import parse_members
-from custom_components.adaptive_solar.core.models import SiteConfig
+from custom_components.adaptive_solar.core.models import SiteConfig, finite_number
 from custom_components.adaptive_solar.core.probability import (
     CalibrationCase, calibrate_bias, combine_families, probability_scores, window_distribution,
 )
@@ -23,6 +23,18 @@ from custom_components.adaptive_solar.core.replay import (
 )
 from scripts.capture_weather import reconstruct_response
 from scripts.replay_paths import validate_output, write_output
+
+
+def _validate_weather_location(payload, site):
+    """Bind original request coordinates, not the provider's rounded grid cell."""
+    request = payload.get("request")
+    params = request.get("params") if isinstance(request, dict) else None
+    if not isinstance(params, dict):
+        raise ValueError("archived request location missing")
+    for field, bound in (("latitude", 90), ("longitude", 180)):
+        coordinate = finite_number(params.get(field), f"archived request location {field}", -bound, bound)
+        if coordinate != getattr(site, field):
+            raise ValueError(f"archived request location {field} differs from site")
 
 
 def weather_probabilities(manifests, dependency_events, site, cutoff, start, end, *, quorum=1.0,
@@ -48,6 +60,7 @@ def weather_probabilities(manifests, dependency_events, site, cutoff, start, end
         try:
             if event["payload"]["status"] != "available":
                 raise ValueError("latest response failed")
+            _validate_weather_location(event["payload"], site)
             raw = reconstruct_response(event, dependency_events)
             archive = parse_members(json.loads(raw), product, timestamp(event["received_at"]), site)
             results = member_results(site, archive, cutoff)

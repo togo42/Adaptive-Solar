@@ -320,6 +320,17 @@ sie belegt keine gleichwertige Wahrscheinlichkeit. Pro Produkt zählt nur der
 jüngste bis zum Cutoff eingegangene Abruf. Ein neuer fehlgeschlagener Abruf wird
 nicht unbemerkt durch einen älteren ersetzt.
 
+Vor jeder Mitgliedsberechnung müssen die original archivierten
+`request.params.latitude` und `longitude` exakt zum übergebenen `--site-json`
+passen. Fehlende, ungültige oder abweichende Koordinaten schließen das Produkt
+mit Diagnose aus; fehlen danach verwendbare Produkte, endet die CLI mit Status
+`unavailable` und Fehlercode 1. Ein neuer Abruf mit falschem Standort erlaubt
+keinen Rückfall auf den älteren Abruf desselben Produkts. Nur Produkte mit
+passender Standortbindung können gemeinsam in die Familienmischung eingehen.
+Die vom Anbieter zurückgegebenen Rasterkoordinaten dürfen vom angefragten Punkt
+abweichen und ersetzen diese Bindung nicht. Ein geografischer Gegenversuch mit
+Wetterdaten eines anderen Standorts wird von diesem Replay nicht unterstützt.
+
 Für die IFS-Familie wird Europe bevorzugt, IFS025 ist Rückfall. Beide gehen nicht
 doppelt in die Familienmischung ein. ICON und IFS erhalten gleiche Familiengewichte,
 unabhängig von ihren 20 bzw. 51 Mitgliedern. Reicht ICON-D2 nicht über das gesamte

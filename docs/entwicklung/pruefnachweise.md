@@ -306,6 +306,55 @@ R6 ist keine positive Abnahme. Historische Archive werden nicht umgeschrieben;
 der neue Producerstand benötigt erneut einen hashgebundenen Vollreview.
 Keine produktive HA-/Hoständerung oder Aktivierung ist erfolgt.
 
+## Weiterer Codex-Nachreview und Standortbindung des EPS-Replays
+
+R7 auf `2e208a0884ffa16fa2736d3700f8ed6d34f62782` wurde beim
+Serverneustart vor dem Schlussurteil unterbrochen. 45 abgeschlossene Turns
+belegen keinen vollständigen Review. Das ursprüngliche Receipt blieb unverändert;
+der separate lokale Abbruchnachweis steht unter
+`artifacts/continuous-quality/codex-r7-interrupted.json`. Receipt-SHA256:
+`b0390eadfd37122d1a6c0ca5e646996438340bdd3f5c40ac30d2b4e3c86d2431`.
+
+R8 prüfte denselben unveränderten Quellstand mit der inzwischen installierten
+Codex-CLI **0.166.0**, weiterhin **GPT-6.1-Sol/high**: 209 öffentliche Originaltexte,
+44 Quellblöcke plus Initialisierung und Abschluss, 46 abgeschlossene Turns,
+keine Compaction oder nativen Tools. Der unabhängige Audit bestätigte vollständige
+Quellen-/Prompt-/Antwortbindung, native Modellbindung sowie die unveränderte
+Treiberbasis und den exakten lokalen Transportpatch. Payload-SHA256:
+`cb84713b78f981023697e4a67aa999261beb198f40ac0ec3fd4943c350d7ff9b`;
+Receipt-SHA256:
+`b25dd970e3fd1d650f266ba2eeff97b97cb45c47976dfac5108e7c36ca3489a2`.
+Rohbelege: `reviews/private/continuous-quality-codex-r8/`; Audit:
+`artifacts/continuous-quality/codex-r8-closeout.json`.
+
+Das Urteil blieb `blocked` wegen des mittleren Befunds R8/AS-001:
+Der Host-EPS-Replay prüfte die ursprünglichen Anfragekoordinaten nicht gegen
+die Standortdatei. Nun müssen beide Koordinaten vorhanden, endlich, gültig und
+exakt gleich sein, bevor die Mitgliedsphysik beginnt. Abweichende Produkte
+bleiben mit Diagnose ausgeschlossen; ohne verwendbares Produkt endet die CLI
+mit Fehlercode 1. Produkte verschiedener Standorte können keine Familienmischung
+bilden. Ein neuer unpassender Abruf erlaubt keinen Rückfall auf den älteren
+passenden Abruf desselben Produkts. Anbieter-Rasterkoordinaten ersetzen nicht
+die ursprünglichen Anfragekoordinaten.
+
+Die neuen Gegenproben ergaben am alten Stand **28 Fehler und einen gültigen
+Vergleichsfall**. Nach Korrektur bestanden **108 gezielte Tests** für Replay,
+Ensemblearchive, Wahrscheinlichkeiten und Ausgabepfade. Die Fälle umfassen
+fehlende/ungültige Koordinaten, falsche Standortdateien, gemischte Produktstandorte,
+jüngere unpassende Abrufe und einen gültigen CLI-Lauf trotz abweichender
+Anbieter-Rasterkoordinaten. Lokale Belege:
+`artifacts/continuous-quality/review-r8-before.log` und
+`review-r8-fixes-targeted.log`. Ruff bestand; der Betriebsleitfaden wurde abgeglichen.
+Die finale Vollsuite bestand mit **1.986 Tests ohne Skips**, **90,78 % kombinierter
+Abdeckung** und unverändertem 90-%-Gate; weiterhin 23 SQLite-ResourceWarnings.
+Finale Ausgabe und Coverage stehen unter
+`artifacts/continuous-quality/review-r8-fixes-full-tests.log` und
+`review-r8-fixes-coverage.json`.
+
+R8 ist keine positive Abnahme; die Standortkorrektur benötigt einen neuen
+hashgebundenen Vollreview. Keine produktive HA-/Hoständerung oder Aktivierung
+ist erfolgt.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |
