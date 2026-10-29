@@ -116,3 +116,12 @@ fehlschlagen. 45 gezielte Tests decken auch den vollstaendigen Weg von
 Collector-CLI bis Host-Exitcode ab. Normale Ringpufferretention ohne
 Cursorverlust wird separat geprueft und nicht als Fehler gemeldet.
 Diese Korrektur bleibt ebenfalls ausserhalb des HA-Deployumfangs.
+
+Der anschliessende Nachreview fand einen uebersehenen lokalen Aufrufer
+des geaenderten Collectorvertrags. `archive_observations.py` liefert nun
+eine explizite lokale Journalseite mit Producerstatus und prueft sowohl
+Recovery- als auch Abschlussstatus. Unvollstaendige Recovery ueberspringt
+eine neue Aufnahme des betroffenen Streams. 57 gezielte Tests pruefen
+normale und unvollstaendige Beobachtungsläufe bis zum Host-Exitcode.
+Alle produktiven Aufrufstellen von `scripts.archive.collect` wurden
+abgeglichen; die HA-Komponentendateien bleiben dabei unveraendert.

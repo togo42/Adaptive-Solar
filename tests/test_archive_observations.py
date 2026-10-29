@@ -94,6 +94,8 @@ async def test_unknown_quality_preserves_raw_but_does_not_invent_training_truth(
     result = await subject.archive_observations(store, source="ha", ha_url="http://example.invalid", token="test-token",
                                                actual_mappings=mapping, now=NOW, lookback_hours=1)
     assert result["complete"]
+    assert result["streams"]["actuals"]["complete"]
+    assert result["streams"]["actuals"]["current_capture_confirmed"]
     assert result["streams"]["actuals"]["accepted_intervals"] == 0
     captures = list(subject.captures_from_archive(store, source="ha:actuals", kind="actuals"))
     assert captures[0]["raw"] == raw["raw"]
@@ -132,3 +134,63 @@ async def test_credential_echo_is_never_stored(tmp_path, monkeypatch):
                                                reference_mappings=[{}])
     assert not result["complete"]
     assert list(store.iter_events(source="ha:references")) == []
+
+
+@pytest.mark.parametrize("phase", ["normal", "recovery", "final"])
+def test_local_collection_completion_reaches_observation_cli_and_host_exit(tmp_path, monkeypatch, capsys, phase):
+    import json
+    import subprocess
+    from contextlib import redirect_stdout, redirect_stderr
+    from io import StringIO
+    from types import SimpleNamespace
+    from scripts import archive_host as host
+
+    monkeypatch.setattr(subject, "ROOT", tmp_path)
+    monkeypatch.setattr(host, "ROOT", tmp_path)
+    (tmp_path / "data").mkdir()
+    refs = tmp_path / "data/references.json"
+    refs.write_text(json.dumps({"mappings": [{"inverter_id": "roof", "source": "helios", "entry_ids": ["entry"]}]}))
+    raw = {**capture(), "cutoff_check": {"late_group_count": 0}}
+    capture_mock = AsyncMock(return_value=raw)
+    monkeypatch.setattr(subject.capture_ha, "capture_forecasts", capture_mock)
+    normal_collect = subject.collect
+    calls = 0
+    async def collection(store, source, fetch, **kwargs):
+        nonlocal calls
+        calls += 1
+        # Exercise the real local journal callback and durable page commits.
+        result = await normal_collect(store, source, fetch, **kwargs)
+        if (phase == "recovery" and calls == 1) or (phase == "final" and calls == 2):
+            result.update(complete=False, collection_end_confirmed=False, page_limit_reached=True,
+                          failures=["incomplete_collection"])
+        return result
+    monkeypatch.setattr(subject, "collect", collection)
+    config = {"archive": "data/archive", "entries": [], "weather_source": "weather",
+              "observations_source": "measurements", "reference_config": "data/references.json",
+              "min_free_bytes": 20, "operation_reserve_bytes": 10, "max_archive_bytes": 1000000,
+              "min_free_percent": 15}
+    cfg = tmp_path / "data/host.json"
+    cfg.write_text(json.dumps(config))
+    monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
+    results = []
+    def process(command, **_):
+        if command[-1] == "stats":
+            values = {key: 0 for key in ("batches", "events", "compressed_bytes", "index_bytes",
+                "observation_days", "compressed_bytes_per_day", "projected_24_month_compressed_bytes")}
+            return subprocess.CompletedProcess(command, 0, json.dumps(values), "")
+        stdout, stderr = StringIO(), StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            code = subject.main(command[2:])
+        results.append(json.loads(stdout.getvalue()))
+        return subprocess.CompletedProcess(command, code, stdout.getvalue(), stderr.getvalue())
+    monkeypatch.setattr(host.subprocess, "run", process)
+    code = host.main(["observations", "--config", str(cfg)])
+    report = json.loads(capsys.readouterr().out)
+    assert (code == 0) == report["complete"] == results[0]["complete"] == (phase == "normal")
+    stream = results[0]["streams"]["references"]
+    assert stream["current_capture_confirmed"] == (phase == "normal")
+    if phase == "recovery":
+        assert stream["status"] == "recovery_incomplete"
+        capture_mock.assert_not_awaited()
+    elif phase == "final":
+        assert stream["status"] == "collection_incomplete"

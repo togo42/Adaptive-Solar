@@ -150,6 +150,14 @@ bleiben Sequenzlücke und strenge Prüfung fehlender fachlicher Referenzen nöti
 
 ## Seiten, Lücken und Wiederanlauf
 
+Lokale Beobachtungsjournale verwenden denselben expliziten Seiten-/Status-
+Vertrag. Da ihre Schreibaufrufe synchron abgeschlossen sind, melden sie
+nach erfolgreichem Journalread keine offene Producerqueue. Ein nicht
+bestaetigter Recoverylauf verhindert eine neue HA-Aufnahme fuer diesen
+Stream. Ein unvollstaendiger Abschluss nach der Aufnahme wird ebenfalls
+in Streamstatus, Gesamtstatus und CLI-Exit uebernommen. Der Hostrunner
+meldet damit auch unvollstaendige Beobachtungslaeufe als fehlgeschlagen.
+
 Der Collector uebernimmt neben der Seite einen bereinigten Producerstatus.
 Ein erfolgreicher Lauf verlangt eine bestaetigte leere Abschlussseite,
 keine tatsaechliche Cursorluecke, keinen Producerfehler und keine offenen

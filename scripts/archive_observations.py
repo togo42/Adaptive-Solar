@@ -20,7 +20,7 @@ if str(ROOT) not in sys.path:
 
 from custom_components.adaptive_solar.core.archive import ArchiveError, ArchiveJournal, ArchiveStore, canonical_bytes  # noqa: E402
 from scripts import capture_actuals, capture_ha  # noqa: E402
-from scripts.archive import collect  # noqa: E402
+from scripts.archive import collect, producer_status  # noqa: E402
 
 CHUNK_BYTES = 256 * 1024
 MAX_CAPTURE_BYTES = 32 * 1024 * 1024
@@ -146,10 +146,23 @@ async def archive_observations(store, *, source, ha_url, token, actual_mappings=
             journal = await asyncio.to_thread(ArchiveJournal, path)
 
             async def fetch(cursor):
-                return await asyncio.to_thread(journal.page, cursor)
+                def read():
+                    page = journal.page(cursor)
+                    stats = journal.stats()
+                    # Local append/read calls finish synchronously; unlike HA's
+                    # exporter there is no asynchronous producer queue.
+                    status = producer_status({"enabled": True, "state": "active", "last_error": None,
+                        "dropped_events": stats["dropped_events"], "pending_events": 0, "inflight_events": 0})
+                    return {"page": page, "producer": status}
+                return await asyncio.to_thread(read)
 
             # Recover a locally committed prior capture even when HA is now offline.
             recovered = await collect(store, producer, fetch)
+            if not recovered["complete"]:
+                report["streams"][kind] = {"status": "recovery_incomplete", "recovery": recovered,
+                                           "current_capture_confirmed": False}
+                report["complete"] = False
+                continue
             quality_error = False
             if kind == "actuals":
                 start, end = actual_window(now or datetime.now(UTC), lookback_hours=lookback_hours, lag_minutes=lag_minutes)
@@ -168,13 +181,15 @@ async def archive_observations(store, *, source, ha_url, token, actual_mappings=
 
             result = await collect(store, producer, fetch)
             late = capture.get("cutoff_check", {}).get("late_group_count", 0)
-            result.update(status="invalid_quality_or_raw" if quality_error else "late" if late else "archived",
-                          late_groups=late, recovered_events=recovered["events"])
+            result.update(status="collection_incomplete" if not result["complete"] else
+                          "invalid_quality_or_raw" if quality_error else "late" if late else "archived",
+                          late_groups=late, recovered_events=recovered["events"],
+                          current_capture_confirmed=result["complete"])
             if kind == "actuals" and not quality_error:
                 normalized = capture["normalization"]
                 result.update(accepted_intervals=len(normalized["records"]), excluded_intervals=len(normalized["excluded"]))
             report["streams"][kind] = result
-            if quality_error or late or result["gaps"] or result["page_limit_reached"] or recovered["gaps"]:
+            if quality_error or late or not result["complete"]:
                 report["complete"] = False
         except (ArchiveError, capture_actuals.CaptureError, capture_ha.CaptureError, OSError, TimeoutError, ValueError, sqlite3.Error):
             # Do not print raw exceptions, entity names, transport URLs or tokens.
