@@ -171,6 +171,12 @@ Ausgabeziel geschrieben und erst nach erfolgreicher Berechnung und
 abschliessender Eingangspruefung atomar ersetzt. Vorhandene unabhaengige
 Berichte ausserhalb des Archivs duerfen weiterhin ersetzt werden.
 
+Auch `export-dataset` benötigt ein neues Ziel außerhalb der gesamten
+Quellarchivwurzel. Interne Ziele, aufgelöste Aliase ins Archiv und lexikalisch
+interne Pfade mit einem Symlink nach außen werden abgelehnt. Die Prüfung läuft
+vor dem Export und erneut vor dem Anlegen des Zielbaums. So kann ein Export
+keine unbekannten Unterverzeichnisse in die Originalablage eintragen.
+
 ```bash
 .venv/bin/python scripts/archive.py --root data/archive pin pilot-01
 .venv/bin/python scripts/archive.py --root data/archive export-dataset \

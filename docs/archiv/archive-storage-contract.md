@@ -280,7 +280,10 @@ im Index; bei fehlenden Indexzeilen ist zuerst ein überprüfter Wiederaufbau
 nötig. Spätere Ereignisse gehören nicht zu diesem Dataset.
 `export_dataset(dataset, destination)` kopiert die Originale und ein Manifest
 mit Hashes, Quellen und den ursprünglichen Empfangszeitbereichen in ein neues
-Zielverzeichnis. Das Ziel lässt sich mit `ArchiveStore` unabhängig öffnen und
+Zielverzeichnis außerhalb des Quellarchivs. Sowohl lexikalischer als auch
+aufgelöster Zielpfad müssen außerhalb der gesamten Archivwurzel liegen;
+interne Ziele und Pfadaliase werden vor Beginn und erneut direkt vor dem
+Anlegen des Exportbaums abgelehnt. Das Ziel lässt sich mit `ArchiveStore` unabhängig öffnen und
 indexieren. Ein bereits existierendes Ziel wird nicht überschrieben. Bei einem
 abgebrochenen Export bleibt eventuell ein unvollständiges Ziel; das Quellarchiv
 bleibt erhalten. Die erfolgreiche vollständige Ausgabe enthält `dataset.json`.

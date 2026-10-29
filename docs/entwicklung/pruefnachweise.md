@@ -484,6 +484,53 @@ Die gezielte Suite bestand mit **300 Tests**, die finale Vollsuite mit
 R11 ist keine positive Abnahme. Die Schreibschutzkorrektur benötigt erneut einen
 hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
 
+## Weitere Codex-Läufe und geschütztes Dataset-Exportziel
+
+R12 auf `699e777e4f4dc74822f4e660c162ed54e59447d4` scheiterte im
+Schlussreview: Der native API-Guard wies einen unvollständigen Antwortstrom
+zurück. 46 abgeschlossene Vorabturns ersetzen kein Schlussurteil. Receipt-SHA256:
+`7cbb81142b88e0f407f45d24e03ce0d35655c838d1a8cd8d488a23230aa4f994`.
+Lokaler Fehlernachweis: `artifacts/continuous-quality/codex-r12-failure.json`.
+Kein Gate wurde gelockert.
+
+R13 prüfte denselben unveränderten Quellstand durch Codex GPT-6.1-Sol/high,
+CLI 0.166.0, vollständig: 209 Originaltexte, 45 Quellblöcke plus Initialisierung
+und Abschluss, 47 abgeschlossene Turns, keine Compaction oder nativen Tools.
+Der unabhängige Audit bestätigte Quellen-/Prompt-/Antwortbindung, native
+Modellbindung sowie Treiber-/Transportpatchbindung. Payload-SHA256:
+`294d8f21132e6f39d552f639eb3ab4be236399264b162f68699ea48c35f2cc71`;
+Receipt-SHA256:
+`f4a0c69af6994bcab8effd3f7e4ab73e5b92cb7ad930eba9dde2922b9b9624c8`.
+Rohbelege: `reviews/private/continuous-quality-codex-r13/`; Audit:
+`artifacts/continuous-quality/codex-r13-closeout.json`.
+
+Das Urteil blieb `blocked` wegen eines mittleren Befunds R13/AS-001:
+Ein neues Dataset-Exportverzeichnis innerhalb der Quelloriginale konnte deren
+strikte Verzeichnisprüfung blockieren. `ArchiveStore.export_dataset` verlangt
+nun ein lexikalisch und aufgelöst außerhalb der gesamten Quellarchivwurzel
+liegendes Ziel. Das wird vor Beginn und erneut unmittelbar vor dem Anlegen
+des Exportbaums geprüft. Bereits bestehende Ziele werden weiterhin abgelehnt.
+
+Alle **16 neuen Gegenproben scheiterten am alten Stand**. Sie prüfen beide
+Exportlayouts, interne Wurzel-/Original-/Präfixziele, normalisierte Pfade,
+Symlinkaliase ins Archiv, lexikalisch interne Ziele mit Symlink nach außen,
+einen während der Originalprüfung umgebogenen Zielparent und den echten CLI-Pfad.
+Nach Ablehnung müssen Originalbytes und Pins unverändert, Wiederöffnen und
+`verify` erfolgreich und weitere Collectoraufnahmen möglich sein. Die gezielte
+Suite bestand mit **137 Tests**. Belege:
+`artifacts/continuous-quality/review-r13-before.log` und
+`review-r13-fixes-targeted.log`. Speicherkontrakt und Betriebsleitfaden wurden
+abgeglichen. Ruff bestand.
+
+Die finale Vollsuite bestand mit **2.081 Tests ohne Skips**, **90,86 %
+kombinierter Abdeckung** und unverändertem 90-%-Gate; weiterhin 23
+SQLite-ResourceWarnings. Finale Ausgabe/Coverage:
+`artifacts/continuous-quality/review-r13-fixes-full-tests.log` und
+`review-r13-fixes-coverage.json`.
+
+R13 ist keine positive Abnahme. Die Exportkorrektur benötigt einen frischen
+hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |

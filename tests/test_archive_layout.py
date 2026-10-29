@@ -48,6 +48,72 @@ def test_new_writes_and_exports_use_hash_prefix(stored, tmp_path):
 
 
 @pytest.mark.parametrize("layout", ["hash-prefix", "flat"])
+@pytest.mark.parametrize("location", ["root", "originals", "prefix", "root_alias", "lexical_escape", "normalized"])
+def test_dataset_export_refuses_internal_paths_and_aliases_without_harming_archive(stored, tmp_path, layout, location):
+    if location == "root":
+        target = stored.root / "new-export"
+    elif location == "originals":
+        target = stored.originals / "export-copy"
+    elif location == "prefix":
+        target = next(stored.originals.glob("*/*.json.gz")).parent / "export-copy"
+    elif location == "root_alias":
+        alias = tmp_path / "alias"
+        alias.symlink_to(stored.root, target_is_directory=True)
+        target = alias / "originals/export-copy"
+    elif location == "lexical_escape":
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        alias = stored.root / "escape"
+        alias.symlink_to(outside, target_is_directory=True)
+        target = alias / "export-copy"
+    else:
+        target = stored.root / "originals/../new-export"
+    before, events = snapshot(stored), list(stored.iter_events())
+    pins = (stored.root / "pins.json").read_bytes()
+    with pytest.raises(ArchiveError, match="outside.*archive"):
+        stored.export_dataset("first", target, layout=layout)
+    assert not target.exists()
+    assert snapshot(stored) == before and (stored.root / "pins.json").read_bytes() == pins
+    assert stored.verify()
+    reopened = ArchiveStore(stored.root)
+    assert list(reopened.iter_events()) == events
+    journal = ArchiveJournal(tmp_path / "journal")
+    journal.append("part", {"index": 3}, NOW + timedelta(seconds=3))
+    reopened.ingest_page("ha", journal.page(reopened.checkpoint("ha")), stored_at=NOW)
+    assert reopened.verify() and len(list(reopened.iter_events())) == len(events) + 1
+
+
+@pytest.mark.parametrize("layout", ["hash-prefix", "flat"])
+def test_dataset_export_rechecks_resolved_parent_after_original_verification(stored, tmp_path, monkeypatch, layout):
+    parent = tmp_path / "export-parent"
+    parent.mkdir()
+    target = parent / "export-copy"
+    original_read = stored._read_original
+    before = snapshot(stored)
+
+    def redirect_parent(path):
+        value = original_read(path)
+        if not parent.is_symlink():
+            parent.rename(tmp_path / "old-parent")
+            parent.symlink_to(stored.originals, target_is_directory=True)
+        return value
+    monkeypatch.setattr(stored, "_read_original", redirect_parent)
+    with pytest.raises(ArchiveError, match="outside.*archive"):
+        stored.export_dataset("first", target, layout=layout)
+    assert not target.exists() and snapshot(stored) == before
+    assert ArchiveStore(stored.root).verify()
+
+
+@pytest.mark.parametrize("layout", ["hash-prefix", "flat"])
+def test_dataset_export_cli_rejects_original_tree_destination(stored, layout):
+    target = stored.originals / "export-copy"
+    before = snapshot(stored)
+    assert archive.main(["--root", str(stored.root), "export-dataset", "first", str(target), "--layout", layout]) == 1
+    assert not target.exists() and snapshot(stored) == before
+    assert ArchiveStore(stored.root).verify()
+
+
+@pytest.mark.parametrize("layout", ["hash-prefix", "flat"])
 def test_mixed_archive_migration_preserves_bytes_index_pins_and_references(stored, tmp_path, layout):
     flatten_one(stored)
     before = snapshot(stored)
