@@ -2,8 +2,11 @@
 
 ## HA-freier Archivhost ab 29.10.2026
 
-Der [Runtimevertrag](archiv-runtime-ohne-ha.md) beschreibt die beauftragte
-Entfernung des lokalen HA-Core und die Installationssperre für Updates.
+Der HA-freie Archivhost-Stand `770361b` ist installiert. Die bisherigen
+HA-Paketbäume sind gelöscht; beide Umgebungspfade nutzen dieselbe gepinnte
+Laufzeit mit rund 260 MiB statt zuvor rund 1,46 GiB.
+Der [Runtimevertrag](archiv-runtime-ohne-ha.md) dokumentiert den Installer mit
+Paketsperre, erfolgreiche Aufnahme-/Retentionläufe und die bisherigen Quellen.
 Die strengen Herkunftsgates historischer Replays bleiben unverändert;
 eine entfernte HA-Version ist künftig eine ausgewiesene Umgebungsabweichung.
 

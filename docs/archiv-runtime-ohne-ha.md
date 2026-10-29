@@ -63,4 +63,43 @@ Releasequellen bleiben getrennt erhalten. Neue oder abweichende numerische Pins
 benötigen eine eigene Laufzeit; gemeinsam genutzte Umgebungen nicht unbemerkt
 bei einem späteren Release verändern.
 
-Der Installationsnachweis wird nach Hostreadback ergänzt.
+## Installierter Stand und Betriebsnachweis
+
+Am 29.10.2026 ist Commit `770361b46fe342cf60e1e6e193d59f990835b88f` auf dem
+Archivhost aktiviert. 189 öffentliche Quelldateien wurden gegen das lokale
+Manifest geprüft; Transferarchiv-SHA256
+`6dce709c0428ebef97d5949cbe04e70ba2a91466db80959d9b822a9424c1a6ef`.
+Erstinstallation und anschließendes echtes Update derselben neuen Umgebung
+bestanden mit dem verpflichtenden Installer. Alle sechs Collector-/Replay-CLIs
+importieren ohne HA, `pip check` ist erfolgreich, die bisherigen numerischen
+Paketversionen sind erhalten.
+
+Die Paketversionen der alten 0.2.16-/0.2.17-Umgebungen unterschieden sich nur bei
+`adaptive-solar-ha` selbst; alle anderen waren gleich. Beide alten Umgebungspfade
+verweisen nun auf dieselbe neue Laufzeit. Die alten Paketverzeichnisse einschließlich
+HA Core wurden nach erfolgreichen Aufnahme-/Replayprüfungen gelöscht. Die
+ursprünglichen Releasequellen sind weiterhin getrennt verfügbar; ihre Skripte
+laden die Komponenten aus dem jeweiligen Quellbaum.
+
+Gemessener Umgebungsplatz vor der Umstellung: **1.562.250.240 Byte**; danach
+**272.081.920 Byte** (rund **260 MiB**), Ersparnis **1.290.168.320 Byte**
+(rund **1,20 GiB**). Das ist die gemessene Dateibelegung, keine Aussage über
+zusätzliche Poolbelegung durch historische Dateisystem-/PBS-Sicherungen.
+
+Alle vier Archivtimer sind aktiv; kontrollierte HA-, Wetter-, Beobachtungs- und
+Retentionläufe erfolgreich. Die acht neuesten Wetterprodukte sind verfügbar und
+tragen wahrheitsgemäß `libraries.homeassistant=null` für die Hostumgebung.
+Index und Pins waren beim Releasewechsel bytegleich; private Hostkonfiguration,
+Archivlayout und produktive HA-Einstellungen wurden nicht verändert.
+
+Vier eingefrorene Originalprognosen wurden mit den ursprünglichen Quellen in
+der neuen Laufzeit erneut gerechnet: alle numerisch passend, maximale Abweichung
+`9,095e-13 W`. Quellhash und alle bisher verglichenen numerischen Bibliotheken
+stimmen mit den Aufnahmen überein; einzige Bibliotheksabweichung ist die entfernte
+HA-Version. Alle vier Berichte melden deshalb korrekt `software_match=false`
+und `accepted=false`. Der historische positive Nachweis vom 28.10.2026 wird
+nicht auf diese veränderte Umgebung übertragen.
+
+Private Paketlisten und Prüfbelege liegen lokal unter
+`data/archive-no-ha-20261029/`. Der neue CI-Job ist implementiert; in diesem
+Arbeitsauftrag wurde kein externer CI-Lauf ausgelöst.

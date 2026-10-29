@@ -10,7 +10,7 @@ Wetterprognosen, PV-Physik und lokale Residualmodelle für bis zu sieben lokale 
 
 **Stand, 28.10.2026:** **0.2.17 veröffentlicht und auf HA sowie dem Archivhost installiert.** 1.634 Tests ohne Skips, 90,84 % kombinierte Abdeckung und erfolgreiche Main-/Tag-CI. Vier aktive Exporte und Hosttimer, vier Originalreplays, acht Schattenreplays sowie eine Archivwiederherstellung sind geprüft; Konfiguration und Historie sind erhalten. 0.2.17 korrigiert den Vergleich kleinster Rundungsunterschiede beim Original-/Schattenreplay. [Release und Upgrade](docs/release-0.2.17.md), [Betriebs- und Prüfstand](docs/entwicklungsstand.md), [Validierungsplan](docs/validierung.md).
 
-**Archivhost ohne lokales HA:** [Installation und Updates](docs/archiv-runtime-ohne-ha.md) verwenden einen eigenen Installer mit verpflichtender HA-Paketsperre. Historische Replayabnahmen behalten ihre strenge Versionsprüfung.
+**Archivhost ohne lokales HA, installiert am 29.10.2026:** [Installation und Updates](docs/archiv-runtime-ohne-ha.md) verwenden einen eigenen Installer mit verpflichtender HA-Paketsperre. Historische Replayabnahmen behalten ihre strenge Versionsprüfung.
 
 **Archivhost-Erweiterung nach 0.2.17 installiert:** Die [hierarchische Hashablage](docs/archiv-hashablage.md) verteilt Originalpakete auf Präfixverzeichnisse. Migration und Rückweg bewahren Bytes, Pins und Checkpoints; ältere Replayumgebungen erhalten flache Datasetkopien. Der Installationsnachweis steht im verlinkten Betriebsbericht.
 
