@@ -288,6 +288,14 @@ indexieren. Ein bereits existierendes Ziel wird nicht überschrieben. Bei einem
 abgebrochenen Export bleibt eventuell ein unvollständiges Ziel; das Quellarchiv
 bleibt erhalten. Die erfolgreiche vollständige Ausgabe enthält `dataset.json`.
 
+Auch `archive.py export-observations` verlangt ein neues Ausgabeziel außerhalb
+der gesamten Quellarchivwurzel und der Programmverzeichnisse. Die gemeinsame
+Pfadprüfung schützt lexikalische/aufgelöste Pfade sowie Eingabe- und Programmaliasen
+vor dem Öffnen des Archivs, vor der temporären Ausgabe und unmittelbar vor der
+Veröffentlichung. Ein interner Dateiname mit `.json.gz` darf nicht als vermeintliches
+Original in die Ablage gelangen. Bestehende Ausgabeziele werden nicht ersetzt;
+die JSONL-Veröffentlichung erfolgt ohne Überschreiben per Hardlink.
+
 Ein Pin bewahrt alle aufgenommenen Originale seiner gewählten Quellen, nicht
 bloß eine Ergebnisdatei. Fachliche Vollständigkeit und die Auflösung sämtlicher
 Referenzen einschließlich vor Aufnahmestart fehlender Chunks bleiben ein

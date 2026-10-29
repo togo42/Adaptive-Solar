@@ -48,6 +48,120 @@ def test_lossless_large_unicode_capture_survives_reopen_and_frozen_dataset(tmp_p
     assert len(reread) == 1 and reread[0]["data"] == "ä" * 600000
 
 
+@pytest.mark.parametrize("empty", [False, True])
+@pytest.mark.parametrize("location", ["root", "originals", "prefix", "alias", "lexical_escape"])
+def test_observation_export_refuses_archive_targets_and_preserves_further_collection(tmp_path, empty, location):
+    from scripts import archive
+
+    journal, store = ArchiveJournal(tmp_path / "journal"), ArchiveStore(tmp_path / "store")
+    if not empty:
+        subject.append_capture(journal, "actuals", capture())
+        ingest(journal, store)
+    if location == "root":
+        target = store.root / "capture.jsonl"
+    elif location == "originals":
+        target = store.originals / "export.json.gz"
+    elif location == "prefix":
+        parent = store.originals / "ab"
+        parent.mkdir(exist_ok=True)
+        target = parent / "export.json.gz"
+    elif location == "alias":
+        parent = tmp_path / "alias"
+        parent.symlink_to(store.originals, target_is_directory=True)
+        target = parent / "export.json.gz"
+    else:
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        parent = store.root / "escape"
+        parent.symlink_to(outside, target_is_directory=True)
+        target = parent / "export.json.gz"
+    before = {str(path.relative_to(store.root)): path.read_bytes() for path in store.originals.rglob("*.json.gz")}
+    assert archive.main(["--root", str(store.root), "export-observations", "--source", "test", "--kind", "actuals",
+                         "--output", str(target)]) == 1
+    assert not target.exists()
+    assert {str(path.relative_to(store.root)): path.read_bytes() for path in store.originals.rglob("*.json.gz")} == before
+    reopened = ArchiveStore(store.root)
+    assert reopened.verify()
+    subject.append_capture(journal, "actuals", {**capture(), "capture_id": "next-capture"})
+    ingest(journal, reopened)
+    assert reopened.verify()
+    assert len(list(subject.captures_from_archive(reopened, source="test", kind="actuals"))) == 1 + int(not empty)
+
+
+def test_observation_export_rejects_internal_target_before_opening_archive(tmp_path, monkeypatch):
+    from scripts import archive
+
+    root = tmp_path / "never-opened"
+    monkeypatch.setattr(archive, "ArchiveStore", lambda *_: pytest.fail("archive opened before target validation"))
+    assert archive.main(["--root", str(root), "export-observations", "--source", "test", "--kind", "actuals",
+                         "--output", str(root / "originals/export.json.gz")]) == 1
+    assert not root.exists()
+
+
+def test_observation_export_rechecks_parent_before_publication(tmp_path, monkeypatch):
+    from scripts import archive
+
+    store = ArchiveStore(tmp_path / "store")
+    parent = tmp_path / "output"
+    parent.mkdir()
+    target = parent / "export.json.gz"
+
+    def redirected_capture(*_, **__):
+        yield capture()
+        parent.rename(tmp_path / "old-output")
+        parent.symlink_to(store.originals, target_is_directory=True)
+    monkeypatch.setattr(subject, "captures_from_archive", redirected_capture)
+    monkeypatch.setattr(archive.os, "link", lambda *_: pytest.fail("publication attempted into source archive"))
+    assert archive.main(["--root", str(store.root), "export-observations", "--source", "test", "--kind", "actuals",
+                         "--output", str(target)]) == 1
+    assert not target.exists() and ArchiveStore(store.root).verify()
+
+
+def test_observation_export_rechecks_parent_before_temporary_creation(tmp_path, monkeypatch):
+    from scripts import archive
+
+    store = ArchiveStore(tmp_path / "store")
+    parent = tmp_path / "output"
+    parent.mkdir()
+
+    def open_then_redirect(root):
+        result = ArchiveStore(root)
+        parent.rename(tmp_path / "old-output")
+        parent.symlink_to(store.originals, target_is_directory=True)
+        return result
+    monkeypatch.setattr(archive, "ArchiveStore", open_then_redirect)
+    monkeypatch.setattr(archive.tempfile, "mkstemp", lambda **_: pytest.fail("temporary created inside source archive"))
+    assert archive.main(["--root", str(store.root), "export-observations", "--source", "test", "--kind", "actuals",
+                         "--output", str(parent / "export.json.gz")]) == 1
+    assert ArchiveStore(store.root).verify()
+
+
+@pytest.mark.parametrize("empty", [False, True])
+@pytest.mark.parametrize("alias_parent", [False, True])
+def test_observation_export_external_jsonl_roundtrip_never_overwrites(tmp_path, empty, alias_parent):
+    import json
+    from scripts import archive
+
+    journal, store = ArchiveJournal(tmp_path / "journal"), ArchiveStore(tmp_path / "store")
+    if not empty:
+        subject.append_capture(journal, "actuals", capture())
+        ingest(journal, store)
+    parent = tmp_path / "output"
+    parent.mkdir()
+    if alias_parent:
+        alias = tmp_path / "outside-alias"
+        alias.symlink_to(parent, target_is_directory=True)
+        parent = alias
+    target = parent / "capture.jsonl"
+    args = ["--root", str(store.root), "export-observations", "--source", "test", "--kind", "actuals",
+            "--output", str(target)]
+    assert archive.main(args) == 0
+    before = target.read_bytes()
+    assert [json.loads(line) for line in target.read_text().splitlines()] == ([] if empty else [capture()])
+    assert archive.main(args) == 1 and target.read_bytes() == before
+    assert ArchiveStore(store.root).verify()
+
+
 def test_missing_chunk_never_becomes_partial_usable_capture(tmp_path):
     journal = ArchiveJournal(tmp_path / "journal", max_events=2)
     store = ArchiveStore(tmp_path / "store")

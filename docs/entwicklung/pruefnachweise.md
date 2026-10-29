@@ -531,6 +531,46 @@ SQLite-ResourceWarnings. Finale Ausgabe/Coverage:
 R13 ist keine positive Abnahme. Die Exportkorrektur benötigt einen frischen
 hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
 
+## Codex-Nachreview und geschützter Observation-Export
+
+R14 prüfte `2b327f5` durch Codex GPT-6.1-Sol/high, CLI 0.166.0, vollständig:
+209 Originaltexte, 45 Quellblöcke plus Initialisierung und Abschluss,
+47 abgeschlossene Turns, keine Compaction oder nativen Tools. Der unabhängige
+Audit bestätigte Quellen-/Prompt-/Antwortbindung, native Modellbindung und
+Treiber-/Transportpatchbindung. Payload-SHA256:
+`547658ea107ae8faa19b7fab6a7fb87cc8313ac14d197e4d98d749d93b9b7dda`;
+Receipt-SHA256:
+`7a91397919e24f46bff73d2891551323fabf0f7cd32aa94db99f49f1c7c3824d`.
+Rohbelege: `reviews/private/continuous-quality-codex-r14/`; Audit:
+`artifacts/continuous-quality/codex-r14-closeout.json`.
+
+Das Urteil blieb `blocked` wegen eines mittleren Befunds R14/AS-001:
+Auch `archive.py export-observations` erlaubte neue interne Ziele. Ein Dateiname
+wie `originals/export.json.gz` blockierte danach die strikte Originalprüfung,
+selbst bei leerem Export. Dieser CLI-Pfad verwendet nun die gemeinsame
+Ausgabeprüfung vor Archivöffnung, vor temporärer Ausgabe und unmittelbar vor
+Veröffentlichung. Interne lexikalische/aufgelöste Ziele sowie Programm-/Eingabealiase
+bleiben gesperrt; bestehende Ziele werden weiterhin nicht überschrieben.
+
+Alle **13 Gegenproben scheiterten am alten Stand**. Sie prüfen leere und
+befüllte Archive, interne Wurzel-/Original-/Präfixziele, Aliase und lexikalisch
+interne Pfade mit Symlink nach außen, die Prüfung vor Archivöffnung sowie nach
+dem Öffnen beziehungsweise nach der Captureiteration umgebogene Zielparents.
+Nach Ablehnung müssen Originalbytes, Wiederöffnen, `verify` und weitere Aufnahme
+erhalten bleiben. Vier zusätzliche positive Fälle prüfen externe JSONL-Roundtrips
+mit/ohne Datensätze und externe Parentaliase samt Ablehnung bestehender Ziele.
+Vorher-Beleg: `artifacts/continuous-quality/review-r14-before.log`.
+Speicherkontrakt und Betriebsleitfaden wurden abgeglichen; Ruff bestand.
+
+Die gezielte Suite bestand mit **226 Tests**, die finale Vollsuite mit
+**2.098 Tests ohne Skips**, **90,86 % kombinierter Abdeckung** und unverändertem
+90-%-Gate; weiterhin 23 SQLite-ResourceWarnings. Ausgaben/Coverage:
+`artifacts/continuous-quality/review-r14-fixes-targeted.log`,
+`review-r14-fixes-full-tests.log` und `review-r14-fixes-coverage.json`.
+
+R14 ist keine positive Abnahme. Die Observation-Exportkorrektur benötigt erneut
+einen hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |

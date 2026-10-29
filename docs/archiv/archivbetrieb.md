@@ -176,6 +176,10 @@ Quellarchivwurzel. Interne Ziele, aufgelöste Aliase ins Archiv und lexikalisch
 interne Pfade mit einem Symlink nach außen werden abgelehnt. Die Prüfung läuft
 vor dem Export und erneut vor dem Anlegen des Zielbaums. So kann ein Export
 keine unbekannten Unterverzeichnisse in die Originalablage eintragen.
+`export-observations` prüft sein Dateiziel ebenfalls vor dem Öffnen des Archivs,
+vor der temporären Ausgabe und direkt vor der Veröffentlichung. Auch leere
+Observation-Exporte bleiben außerhalb von Quellarchiv und Programmverzeichnissen;
+bereits vorhandene Ziele werden nicht ersetzt.
 
 ```bash
 .venv/bin/python scripts/archive.py --root data/archive pin pilot-01
