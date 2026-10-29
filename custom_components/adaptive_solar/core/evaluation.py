@@ -79,6 +79,20 @@ class ForecastRecord:
 
 
 @dataclass(frozen=True)
+class ForecastAttempt:
+    """An issued source/stage attempt, including an entirely absent curve."""
+    source: str
+    issued_at: datetime
+    inverter_id: str
+
+    def __post_init__(self) -> None:
+        for value in (self.source, self.inverter_id):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("attempt source and inverter must be nonempty")
+        object.__setattr__(self, "issued_at", _utc(self.issued_at))
+
+
+@dataclass(frozen=True)
 class ActualRecord:
     start: datetime
     end: datetime
@@ -195,6 +209,7 @@ def evaluate_forecasts(
     windows: Iterable[EvaluationWindow],
     *,
     as_of: datetime,
+    forecast_attempts: Iterable[ForecastAttempt] = (),
     sources: tuple[str, ...] = ("adaptive", "physics", "helios", "open_meteo"),
     timezone_name: str = "UTC",
     min_coverage: float = 0.95,
@@ -210,6 +225,7 @@ def evaluate_forecasts(
     midnight/cutoff to the next local midnight, including known zero nighttime
     intervals. DST days therefore have their actual 23/24/25-hour duration.
     Interval scores can still be reported descriptively below the claim gate.
+    Explicit forecast_attempts retain empty newer curves in origin selection.
     An older valid issue never masks an unavailable newest archived issue.
     Lead groups use the declared common cutoff to the target-window midpoint,
     independent of each source's selected archived issue timestamp.
@@ -241,6 +257,9 @@ def evaluate_forecasts(
     for row in forecasts:
         if row.source in sources:
             forecast_index[row.source, row.inverter_id][row.issued_at].append(row)
+    for attempt in forecast_attempts:
+        if attempt.source in sources:
+            forecast_index[attempt.source, attempt.inverter_id][attempt.issued_at]
     source_issues = {key: sorted(issues) for key, issues in forecast_index.items()}
     actual_index: dict[str, list[ActualRecord]] = defaultdict(list)
     for row in actuals:

@@ -266,3 +266,49 @@ def test_cli_native_export_does_not_touch_input_directory(tmp_path, monkeypatch)
     report = json.loads(output.read_text())
     assert report["actual_counts"] == {}
     assert report["provenance"][0]["event_id"] == event["event_id"]
+
+
+@pytest.mark.parametrize("empty", [True, False])
+def test_native_failed_attempt_never_reuses_older_success_at_later_cutoff(tmp_path, empty):
+    """Keep an empty whole result, or one missing stage beside a healthy stage."""
+    event, events, _ = forecast_bundle(tmp_path)
+    site = event["payload"]["site"]
+    second = {**site["inverters"][0], "id": "other"}
+    site["inverters"].append(second)
+    site["strings"].append({**site["strings"][0], "id": "other-string", "inverter_id": "other"})
+    points = event["payload"]["result"]["points"]
+    points.extend({**deepcopy(point), "inverter_id": "other"} for point in list(points))
+    event["sha256"] = hashlib.sha256(canonical_bytes({k: v for k, v in event.items() if k != "sha256"})).hexdigest()
+    later = deepcopy(event)
+    later.update(event_id="later-missing-stage", sequence=event["sequence"] + 1,
+                 received_at=(datetime.fromisoformat(event["received_at"]) + timedelta(minutes=1)).isoformat())
+    later["payload"]["result"]["points"] = [] if empty else [p for p in later["payload"]["result"]["points"] if p["inverter_id"] == "other"]
+    later["sha256"] = hashlib.sha256(canonical_bytes({k: v for k, v in later.items() if k != "sha256"})).hexdigest()
+    events.append(later)
+    target = next(p for p in points if p["inverter_id"] == "i" and p["start"] > later["received_at"])
+    start, end = (datetime.fromisoformat(target[k]) for k in ("start", "end"))
+    actuals = [{"start": target["start"], "end": target["end"], "inverter_id": stage, "power_w": target["baseline_w"],
+                "observed_at": end.isoformat(), "qualified": True, "quality_source": "synthetic full interval"}
+               for stage in ("i", "other")]
+    schedule = [{"cutoff": receipt, "start": target["start"], "end": target["end"], "inverter_id": stage}
+                for receipt in (event["received_at"], later["received_at"]) for stage in ("i", "other")]
+    frozen_input = frozen_from_events(events, [event["event_id"], later["event_id"]],
+                                      as_of=end.isoformat(), actuals=actuals, schedule=schedule)
+    assert len(frozen_input["attempts"]) == 4
+    report = evaluate_support(frozen_input)
+    assert report["evaluation"]["expected_intervals"] == 4
+    assert report["evaluation"]["paired_intervals"] == (2 if empty else 3)
+    assert sum(row["scheduled_tasks"] for row in report["strata"].values()) == 4
+    unknown = [s for s in report["strata"].values() if s["regime"] == "unknown"]
+    assert sum(s["scheduled_tasks"] for s in unknown) == (2 if empty else 1)
+    assert all(s["available_tasks"] == s["paired_tasks"] == 0 for s in unknown)
+    assert all(s["calibration"]["residual"]["paired_bounded_tasks"] == 0 for s in unknown)
+
+
+@pytest.mark.parametrize("change", [{"inverter_id": "unknown"}, {"available_at": "2999-01-01T00:00:00+00:00"}, {"extra": True}])
+def test_attempt_inventory_requires_known_stage_and_honest_availability(change):
+    payload = frozen(trained=False)
+    task = payload["tasks"][0]
+    payload["attempts"] = [{"issued_at": task["issued_at"], "available_at": task["issued_at"], "inverter_id": "wr", **change}]
+    with pytest.raises(ValueError, match="attempt"):
+        evaluate_support(payload)

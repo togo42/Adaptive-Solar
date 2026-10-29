@@ -139,6 +139,7 @@ Der eingefrorene JSON-Vertrag trägt
 | --- | --- |
 | `timezone`, `as_of` | Anlagenzeitzone und tatsächlicher Auswertungs-/Labelverfügbarkeits-Cutoff |
 | `fits` | Liste mit `id`, `fit_as_of`, `learner_available`, `output_caps_w` je Stufe und originalen `fit_samples` im `TrainingSample`-Format |
+| `attempts` | Optionales Inventar aller Ausgabeversuche je konfigurierter Stufe: `issued_at`, tatsächliches `available_at`, `inverter_id`; der native Import füllt es auch für vollständig fehlende Kurven |
 | `tasks` | `fit_id`, `issued_at`, `available_at`, `start`, `end`, `inverter_id`, `baseline_w` und ursprüngliche `features` |
 | `actuals` | `start`, `end`, `inverter_id`, `power_w` als Intervallmittel, `observed_at`, `curtailed`, `qualified` und `quality_source` |
 | `schedule` | Optional vorab deklarierte `EvaluationWindow`-Liste mit `cutoff`, `start`, `end`, `inverter_id` und optionalem `daylight` |
@@ -148,12 +149,21 @@ ein fehlendes `available_at` die explizite Annahme, dass die Aufgabe bereits
 bei `issued_at` verfügbar war. Der native Import verwendet immer den echten
 Archivempfang. Ein nicht verfügbarer Lerner darf keine Fit-Samples oder einen
 Fit-Cutoff vortäuschen. Unveränderte Duplikate vermehren keine Aufgaben;
-widersprüchliche Aufgaben werden abgewiesen.
+widersprüchliche Aufgaben desselben Ausgabe-/Empfangsstands werden abgewiesen.
+Spätere Empfangsstände bleiben getrennte Versuche, auch bei identischem
+Berechnungsstichtag. `attempt_count` und `attempts` im Bericht zeigen deren
+Stufeninventar einschließlich fehlender Kurven. Ältere manuelle Eingaben ohne
+`attempts` können nur die in `tasks` enthaltenen Ausgaben belegen; vollständig
+fehlende Versuche werden daraus nicht rekonstruiert.
 
 Ein expliziter Prüfplan wählt je Cutoff die jüngste verfügbare Ausgabe. Er muss
 die unveränderten Zielintervalle verwenden; dieses Werkzeug erfindet keine
-Residualmerkmale für zusammengefügte oder geteilte Intervalle. Fehlende
-Prognoseaufgaben bleiben im Plan sichtbar. Ohne `schedule` ist der abgeleitete
+Residualmerkmale für zusammengefügte oder geteilte Intervalle. Die Auswahl berücksichtigt zuerst das vollständige Versuchs-/Stufeninventar;
+eine leere jüngere Ausgabe sperrt deshalb den Rückgriff auf ältere erfolgreiche
+Kurven. Das gilt für Gesamtfehler, Regime-/Vorlaufstrata und Bandabdeckung
+gleichermaßen. Fehlende Prognoseaufgaben bleiben im Plan sichtbar; ihr Regime
+ist `unknown`. Das Werkzeug erzeugt dafür keine Ersatz-Zielintervalle oder
+Merkmale. Ohne `schedule` ist der abgeleitete
 Plan ausdrücklich nachträglich (`posthoc_task_schedule`), auch wenn vollständige
 Tagesfenster rein deskriptiv auswertbar sind.
 

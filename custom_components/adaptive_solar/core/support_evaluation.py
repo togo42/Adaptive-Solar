@@ -14,7 +14,7 @@ import math
 from zoneinfo import ZoneInfo
 
 from .archive import canonical_bytes, validate_envelope
-from .evaluation import ActualRecord, EvaluationWindow, ForecastRecord, _interval_mean, evaluate_forecasts
+from .evaluation import ActualRecord, EvaluationWindow, ForecastAttempt, ForecastRecord, _interval_mean, evaluate_forecasts
 from .learning import LEAD_BIN_NAMES, feature_regime, lead_bin
 from .learning_support import SupportGuardLearner
 from .models import ForecastPoint, SiteConfig, TrainingSample, finite_number, midpoint_lead_hours
@@ -144,10 +144,29 @@ def _unique_tasks(rows):
             if name in raw:
                 raw[name] = timestamp(raw[name]).isoformat()
         raw.setdefault("available_at", raw["issued_at"])
-        key = tuple(raw[name] for name in ("issued_at", "inverter_id", "start", "end"))
+        key = tuple(raw[name] for name in ("issued_at", "available_at", "inverter_id", "start", "end"))
         if key in unique and canonical_bytes(unique[key]) != canonical_bytes(raw):
             raise ValueError("conflicting forecast task")
         unique[key] = raw
+    return list(unique.values())
+
+
+def _attempts(payload, rows, fits, as_of):
+    """Keep empty attempts without inventing target intervals or feature vectors."""
+    unique = {}
+    stages = {stage for fit in fits.values() for stage in fit["output_caps_w"]}
+    implicit = [_json_safe({key: row[key] for key in ("issued_at", "available_at", "inverter_id")}) for row in rows]
+    for raw in [*_list(payload.get("attempts", []), "attempts", MAX_TASKS), *implicit]:
+        if not isinstance(raw, dict) or set(raw) != {"issued_at", "available_at", "inverter_id"}:
+            raise ValueError("invalid forecast attempt")
+        issue, available = timestamp(raw["issued_at"]), timestamp(raw["available_at"])
+        stage = _identifier(raw["inverter_id"])
+        if stage not in stages or not issue <= available <= as_of:
+            raise ValueError("forecast attempt scope or chronology is invalid")
+        key = stage, available
+        if key in unique and unique[key]["issued_at"] != issue:
+            raise ValueError("ambiguous forecast attempt at one availability timestamp")
+        unique[key] = {"inverter_id": stage, "issued_at": issue, "available_at": available}
     return list(unique.values())
 
 
@@ -208,7 +227,7 @@ def _daily_wins(evaluation):
     return results
 
 
-def _scheduled_strata(rows, forecasts, windows, actuals, as_of, timezone_name):
+def _scheduled_strata(rows, forecasts, windows, actuals, as_of, timezone_name, attempts, forecast_attempts):
     """Use the exact same newest available issue and tasks as overall scoring.
 
     A missing task has an unknown regime; it remains visible rather than being
@@ -224,6 +243,8 @@ def _scheduled_strata(rows, forecasts, windows, actuals, as_of, timezone_name):
         if key in bucket:
             raise ValueError("ambiguous residual task at one availability timestamp")
         bucket[key] = row
+    for attempt in attempts:
+        indexed[attempt["inverter_id"], attempt["available_at"]]
     issues = defaultdict(list)
     for stage, available in indexed:
         issues[stage].append(available)
@@ -246,6 +267,7 @@ def _scheduled_strata(rows, forecasts, windows, actuals, as_of, timezone_name):
     for key, own_windows in sorted(grouped.items()):
         own = selected[key]
         score = evaluate_forecasts(forecasts, actuals, own_windows, as_of=as_of, sources=ARMS,
+                                   forecast_attempts=forecast_attempts,
                                    timezone_name=timezone_name)
         result["|".join(key)] = {"inverter_id": key[0], "regime": key[1], "lead_bin": key[2],
                                 "scheduled_tasks": len(own_windows), "available_tasks": len(own),
@@ -320,16 +342,21 @@ def evaluate_support(payload):
     declared = payload.get("schedule")
     if declared is not None:
         windows = [EvaluationWindow.from_dict(row) for row in _list(declared, "schedule", MAX_TASKS)]
+    attempts = _attempts(payload, rows, fits, as_of)
+    forecast_attempts = [ForecastAttempt(arm, attempt["available_at"], attempt["inverter_id"])
+                         for attempt in attempts for arm in ARMS]
     evaluation = evaluate_forecasts(forecasts, actuals, windows, as_of=as_of, sources=ARMS,
+                                    forecast_attempts=forecast_attempts,
                                     timezone_name=timezone_name)
-    strata = _scheduled_strata(rows, forecasts, windows, actuals, as_of, timezone_name)
+    strata = _scheduled_strata(rows, forecasts, windows, actuals, as_of, timezone_name, attempts, forecast_attempts)
     return {"schema": SCHEMA, "input_sha256": _digest(payload), "as_of": as_of.isoformat(),
             "scope": "residual_stage_before_power_nowcast", "operational_use": False,
             "statistical_acceptance": "not_evaluated", "supports_activation": False,
             "schedule_status": "caller_declared_not_independently_verified" if declared is not None else "posthoc_task_schedule",
             "schedule_sha256": _digest([w.to_dict() for w in sorted(set(windows), key=lambda w: (w.cutoff, w.inverter_id, w.start))]),
             "actual_qualification": "caller_asserted_whole_interval_quality", "actual_counts": actual_counts,
-            "fit_reports": fit_reports, "task_count": len(rows), "scoring_exclusions": dict(ignored),
+            "fit_reports": fit_reports, "task_count": len(rows), "attempt_count": len(attempts),
+            "attempts": _json_safe(attempts), "scoring_exclusions": dict(ignored),
             "strata": strata, "evaluation": evaluation, "daily_wins": _daily_wins(evaluation),
             "tasks": _json_safe(rows), "provenance": payload.get("provenance"),
             "limitations": ["No final HA forecast or power-nowcast comparison.",
@@ -358,7 +385,7 @@ def frozen_from_events(events, event_ids, *, as_of, actuals=(), schedule=None):
     event_ids = list(dict.fromkeys(event_ids))
     if not event_ids:
         raise ValueError("explicit forecast event IDs required")
-    fits, tasks, provenance, timezone_name, site_digest = {}, [], [], None, None
+    fits, tasks, attempts, provenance, timezone_name, site_digest = {}, [], [], [], None, None
     producer_identity = None
     as_of = timestamp(as_of) if isinstance(as_of, str) else as_of
     for identifier in event_ids:
@@ -400,6 +427,8 @@ def frozen_from_events(events, event_ids, *, as_of, actuals=(), schedule=None):
         fits[fit_id] = {"id": fit_id, **fit}
         if timestamp(payload["result"]["issued_at"]) != issue:
             raise ValueError("result issue differs from original calculation cutoff")
+        attempts.extend({"issued_at": issue.isoformat(), "available_at": receipt.isoformat(), "inverter_id": stage.id}
+                        for stage in site.inverters)
         for point in payload["result"]["points"]:
             tasks.append({"fit_id": fit_id, "issued_at": issue.isoformat(), "available_at": receipt.isoformat(),
                           **{key: point[key] for key in ("start", "end", "inverter_id", "baseline_w", "features")}})
@@ -408,7 +437,7 @@ def frozen_from_events(events, event_ids, *, as_of, actuals=(), schedule=None):
                            "archived_software": payload["software"], "verified_weather_receipts": verified_weather,
                            "exact_original_replay_acceptance": "not_evaluated"})
     result = {"schema": SCHEMA, "timezone": timezone_name, "as_of": as_of.isoformat(),
-              "fits": list(fits.values()), "tasks": tasks, "actuals": list(actuals), "provenance": provenance}
+              "fits": list(fits.values()), "tasks": tasks, "attempts": attempts, "actuals": list(actuals), "provenance": provenance}
     if schedule is not None:
         result["schedule"] = schedule
     return result
