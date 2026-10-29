@@ -5,6 +5,11 @@ versionierten Release- und Prüfberichten übernommen. Sie beschreiben damalige
 Prüfungen; die Dokumentationsneuordnung ist weder ein neuer vollständiger
 Integrationsreview noch eine erneute Laufzeitprüfung.
 
+Ergänzung vom **30.10.2026**: Der korrigierte Entwicklungskandidat für fortlaufende
+Quellenbindung und Qualitätsaufnahme hat die [Codex-Quellabnahme](#codex-quellabnahme-des-korrigierten-entwicklungskandidaten)
+auf `05f90ea49d1fb124c9f16e1382921d3726f76022` bestanden. Dies ist keine
+produktive Installation oder Betriebsfreigabe.
+
 ## Aktueller Releasebezug
 
 [0.2.18](../releases/release-0.2.18.md) wurde aus
@@ -707,6 +712,60 @@ SQLite-ResourceWarnings. Finale Ausgabe/Coverage:
 
 R17 ist keine positive Abnahme. Die UTC-Rasterkorrektur benötigt erneut einen
 hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
+
+## Codex-Quellabnahme des korrigierten Entwicklungskandidaten
+
+**R18 akzeptiert, ohne Befunde:** Codex **GPT-6.1-Sol/high**, installierte CLI
+**0.166.0**, Quellstand `05f90ea49d1fb124c9f16e1382921d3726f76022`.
+Die Abnahme umfasst 209 öffentliche Originaltexte einschließlich der acht
+Service-/Timervorlagen, 2.676.906 Payloadbytes, 45 Quellblöcke sowie
+Initialisierung und Abschluss: **47 vollständig abgeschlossene Turns**.
+Das endgültige Urteil lautet `mergeable`, `findings=[]`.
+
+Payload-SHA256:
+`eeec9aacfdc17c97097248de307232b30eb26ae9d99c783df2877c7eab1b14d1`.
+Receipt-SHA256:
+`79050525eae64e4f5126f3ba9a60bfaa8a496699b364a1df3cc3810e3da17a5d`.
+Review-JSON-SHA256:
+`652c9ae36855c89acde3d75590a3769f1b53b55c8e8e52a614f3cb33899a75e8`.
+
+Der nachgelagerte unabhängige Audit bestand: sämtliche Originaldateien waren
+zum Abschluss bytegleich zum lokalen Checkout, alle Quellblöcke wurden exakt
+rekonstruiert und native Prompts/Antworten, Modell, Effort, CLI sowie vollständige
+API-Abschlüsse verifiziert. **Keine Compaction, nativen Tools oder Hintergrundtasks.**
+Der Audit prüfte zusätzlich die eingefrorene Toolingbasis `4ba01bb` und den
+exakten lokalen I/O-Deadlinepatch des isolierten Treibers; dieser Patch wurde
+nicht Teil des öffentlichen Kandidaten. Rohbelege:
+`reviews/private/continuous-quality-codex-r18/`; unabhängiger Abschluss:
+`artifacts/continuous-quality/codex-r18-closeout.json`.
+
+In den vorangegangenen Läufen wurden **14 bestätigte mittlere Befunde behoben**
+und jeweils mit Regressionen und Dokumentation committed. R15/AS-001 wurde mit
+nativen Ereignisfolgen und identischen Core-Paketquellen zurückgewiesen; eine
+vorsorgliche Produktionsänderung blieb nicht bestehen. Technisch fehlgeschlagene
+oder unterbrochene Läufe behalten ihren negativen/unvollständigen Nachweisstatus.
+R18 ersetzt diese Historie nicht, sondern akzeptiert den neuen eingefrorenen
+Gesamtstand.
+
+Die finale lokale Vollsuite bestand mit **2.185 Tests ohne Skips**, **90,88 %
+kombinierter Abdeckung** und unverändertem 90-%-Gate. Ruff und Dokuabgleich
+bestanden; weiterhin 23 SQLite-ResourceWarnings. Testausgabe/Coverage:
+`artifacts/continuous-quality/review-r17-fixes-full-tests.log` und
+`review-r17-fixes-coverage.json`. Der erneut ausgeführte tatsächliche lokale
+CLI-Probelauf akzeptierte zwei synthetische Stunden bei bytegleich gebliebener
+Rohaufnahme: `artifacts/continuous-quality/rehearsal-accepted/manifest.json`.
+Diese synthetischen Quellenpins sind keine physische Quellenqualifikation.
+
+Die Prüfung ist statisch; Codex führte keine Tests aus. PNG-Rendering war nicht
+Teil des Textreviews. Die lokale QA und der synthetische Probelauf belegen weder
+Prognoseüberlegenheit noch qualifiziertes produktives Lernen oder reale
+Archivkapazität. Kein Push, Merge, Release, HA-/Hostdeployment, Neustart oder
+Timeraktivierung erfolgte. Der nächste betriebliche Schritt bleibt der separat
+vorbereitete, begrenzte Probelauf mit tatsächlich geprüften Quellenbindungen.
+
+Diese nachträgliche Statusdokumentation liegt ausdrücklich außerhalb des
+eingefrorenen Reviewumfangs. Implementierung, Tests und übrige Dokumentation
+bleiben bytegleich zum akzeptierten Quellstand.
 
 ## Ältere Quellenprüfungen
 
