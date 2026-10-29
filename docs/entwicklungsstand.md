@@ -1,5 +1,34 @@
 # Entwicklungsstand und offene Nachweise
 
+## Releasevorbereitung 0.2.18 am 29.10.2026
+
+`codex/day-start-curve` ist auf `658d939` geprüft. Der vollständige
+Codex-Review akzeptiert die Implementierung `70966fc` ohne Findings;
+alle Quellhashes sind erneut abgeglichen, nur der Dokumentationsabschluss
+weicht ab. [Reviewnachweis und Datenvertrag](day-start-curve.md).
+0.2.18 umfasst außerdem die bereits reviewte hierarchische Archivablage
+aus `main` und die Korrekturen der Collector-, Replay- und Installerhelfer.
+Die HA-Installation erfolgt als vollständiges Release; externe Hostdienste
+und Dashboardressourcen haben einen getrennten Installationsweg.
+
+Die frische HA-Vorprüfung fand vier geladene Einträge, 80 Entitäten und vier
+Geräte, gültige Konfiguration und keine aktiven Repairs. Installiert war
+0.2.17 mit dem früher separat aktivierten Drei-Dateien-Tagesbeginnpatch;
+dies wird nicht als bereits installiertes 0.2.18 gewertet. Ein geschütztes
+natives Konfigurationsbackup ohne Recorder-Datenbank und eine genaue
+Komponenten-/Historienkopie sind vor dem Update erstellt. Veröffentlichung
+und Laufzeitabnahme von 0.2.18 werden nach erfolgreicher Prüfung ergänzt.
+
+Die frische vollständige Suite besteht **1.727 Tests ohne Skips**; Ruff,
+`pip check` und Diffprüfung bestehen. Wheel, Sdist und Integrations-ZIP sind
+gebaut und in allen 38 Komponentendateien bytegleich geprüft. 19 HA-/Kernmodule
+importieren aus einer separaten regulären Wheelinstallation. Der native
+Review-Kontextaudit ist erneut aus den Originalprompts und Sitzungsereignissen
+bestätigt: 43 abgeschlossene Turns, keine Kontextverkürzung oder Tools.
+Seit dem Review ändern sich nur Releaseversionsmetadaten und Dokumentation.
+Private Nachweise: `artifacts/release-0.2.18/` und
+`data/release-0.2.18-20261029/`. CI und produktive Abnahme stehen noch aus.
+
 ## HA-freier Archivhost ab 29.10.2026
 
 Der HA-freie Archivhost-Stand `770361b` ist installiert. Die bisherigen
@@ -19,7 +48,7 @@ neue Aufnahmen, Indexwiederaufbau und vier exakte Originalreplays sind geprüft.
 die Änderung getrennt von der weiterhin veröffentlichten HA-Version 0.2.17.
 Historische Releaseprüfungen unten gelten für ihre ursprünglichen Quellstände.
 
-## Veröffentlichter und installierter Stand 0.2.17
+## Historischer Veröffentlichungs- und Installationsnachweis 0.2.17
 
 Der reale 0.2.16-Replaybefund wurde auf kleinste Unterschiede berechneter
 Gleitkommawerte eingegrenzt: gleiche Intervallunterstützung, Originaldaten und

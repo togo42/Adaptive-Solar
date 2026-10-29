@@ -8,7 +8,7 @@
 
 Wetterprognosen, PV-Physik und lokale Residualmodelle für bis zu sieben lokale Kalendertage einschließlich heute: Resttag und bis zu sechs Folgetage, abhängig von der Wetterabdeckung. Unterschiedliche Stringausrichtungen, gemeinsame AC-/DC-Ausgabestufen und wiederkehrende Verschattung werden berücksichtigt. Frische HA-Temperatur/Windwerte, optionale horizontale Globalstrahlung und geeignete PV-Leistung unterstützen den kurzfristigen Nowcast.
 
-**Stand, 28.10.2026:** **0.2.17 veröffentlicht und auf HA sowie dem Archivhost installiert.** 1.634 Tests ohne Skips, 90,84 % kombinierte Abdeckung und erfolgreiche Main-/Tag-CI. Vier aktive Exporte und Hosttimer, vier Originalreplays, acht Schattenreplays sowie eine Archivwiederherstellung sind geprüft; Konfiguration und Historie sind erhalten. 0.2.17 korrigiert den Vergleich kleinster Rundungsunterschiede beim Original-/Schattenreplay. [Release und Upgrade](docs/release-0.2.17.md), [Betriebs- und Prüfstand](docs/entwicklungsstand.md), [Validierungsplan](docs/validierung.md).
+**Stand, 29.10.2026:** **0.2.18 wird zur Veröffentlichung vorbereitet.** Der vollständige Codex-Integrationsreview für die Tagesbeginnkurve und Archivwerkzeugkorrekturen ist ohne Findings abgeschlossen. Veröffentlichung, CI und HA-Installation werden getrennt nachgewiesen. [Release und Upgrade](docs/release-0.2.18.md), [Betriebs- und Prüfstand](docs/entwicklungsstand.md), [Validierungsplan](docs/validierung.md). Der historische vollständige Release-/Archivnachweis für 0.2.17 bleibt erhalten.
 
 **Archivhost ohne lokales HA, installiert am 29.10.2026:** [Installation und Updates](docs/archiv-runtime-ohne-ha.md) verwenden einen eigenen Installer mit verpflichtender HA-Paketsperre. Historische Replayabnahmen behalten ihre strenge Versionsprüfung.
 
@@ -39,9 +39,9 @@ Herstellerunabhängige String-/Stufenkonfiguration, optionale HA-Sensoren: keine
 | [Bedienung](docs/bedienung.md) | Alle Einrichtungsfelder, Sensoren, Energy, Lernstatus und Fehlerbehebung |
 | [Datenschutz](docs/datenschutz.md) | Externe Datenflüsse, lokale Speicherung und Diagnoseweitergabe |
 
-HACS-Mindestversion ist **Core 2026.10.2**. Historische Kompatibilitätsprüfungen betreffen **2026.10.2/.3/.4** mit Python 3.14; die vollständige Suite für **0.2.17** läuft auf **2026.10.4**. Andere Versionen sind damit nicht automatisch neu geprüft. **HAOS ist bislang nur auf amd64 mit passender CPython-3.14-Musl-Binärbasis belegt.** ARM/Raspberry Pi und andere Python-ABIs sind nicht qualifiziert. Der HA-unabhängige Modellkern unterstützt Python ab 3.13.
+HACS-Mindestversion ist **Core 2026.10.2**. Historische Kompatibilitätsprüfungen betreffen **2026.10.2/.3/.4** mit Python 3.14; die vollständige Suite für **0.2.18** läuft auf **2026.10.4**. Andere Versionen sind damit nicht automatisch neu geprüft. **HAOS ist bislang nur auf amd64 mit passender CPython-3.14-Musl-Binärbasis belegt.** ARM/Raspberry Pi und andere Python-ABIs sind nicht qualifiziert. Der HA-unabhängige Modellkern unterstützt Python ab 3.13.
 
-Über HACS: **Benutzerdefinierte Repositories** öffnen, `https://github.com/togo42/Adaptive-Solar` als **Integration** hinzufügen und die gewünschte veröffentlichte Version herunterladen. Danach Home Assistant neu starten und **Adaptive Solar** unter **Einstellungen → Geräte & Dienste** hinzufügen beziehungsweise bestehende Einträge weiterverwenden. [Änderungen und Upgrade in 0.2.17](docs/release-0.2.17.md). Die benötigte HAOS-Binärbasis ist unten separat beschrieben; HACS ersetzt diese Abhängigkeit nicht.
+Über HACS: **Benutzerdefinierte Repositories** öffnen, `https://github.com/togo42/Adaptive-Solar` als **Integration** hinzufügen und die gewünschte veröffentlichte Version herunterladen. Danach Home Assistant neu starten und **Adaptive Solar** unter **Einstellungen → Geräte & Dienste** hinzufügen beziehungsweise bestehende Einträge weiterverwenden. [Änderungen und Upgrade in 0.2.18](docs/release-0.2.18.md). Die benötigte HAOS-Binärbasis ist unten separat beschrieben; HACS ersetzt diese Abhängigkeit nicht.
 
 Alternativ den vollständigen Ordner `custom_components/adaptive_solar` in das gleichnamige Verzeichnis der HA-Konfiguration kopieren; Details und Abhängigkeitsprüfung stehen in der Installationsanleitung.
 
@@ -58,7 +58,7 @@ Optional kann je Stufe ein [Messgültigkeitssignal](docs/measurement-validity.md
 Optionales GHI verlangt echte horizontale W/m², Frische und geeigneten Sonnenstand. Lücken bleiben fehlend; Modelle entstehen aus lokalen Zeilen, nicht ausführbaren Dateien.
 
 Resttag enthält die verbleibende Teilstunde; native Energy nur volle UTC-Stunden homogener Entries. Tagesbeginnprognose braucht einen vor Mitternacht eingefrorenen Snapshot. Historische Werte bleiben seit 0.2.14 mit Originalkonfiguration gekennzeichnet erhalten; [Wiederherstellung verlorener Originalwerte](docs/forecast-repairs.md#3-bereits-verlorenen-originalwert-gezielt-wiederherstellen).
-In Entwicklung (externer Integrationsreview noch offen): Die [Stundenkurve zu Tagesbeginn](docs/day-start-curve.md) wird zusammen mit neuen Tagesbeginn-Snapshots gespeichert und am Tag-0-Sensor bereitgestellt; vorhandene reine Tagessummen behalten eine leere Kurve.
+Ab 0.2.18 wird die [Stundenkurve zu Tagesbeginn](docs/day-start-curve.md) zusammen mit neuen Tagesbeginn-Snapshots gespeichert und am Tag-0-Sensor bereitgestellt; vorhandene reine Tagessummen behalten eine leere Kurve.
 
 ## Entwicklung
 
