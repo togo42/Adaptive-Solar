@@ -37,10 +37,38 @@ def provenance(site: SiteConfig, *, source="forecast_archive"):
             "output_caps_kw": {inv.id: inv.output_cap_w / 1000 for inv in site.inverters}, "source": source}
 
 
-def validate_snapshot(day, snapshot, metadata, site: SiteConfig):
+def make_snapshot(result, start, end, site: SiteConfig):
+    """Freeze full-precision native energies and their complete absolute-hour curve together."""
+    energies = {inv.id: result.energy_kwh(start, end, inv.id) for inv in site.inverters}
+    if any(value is None for value in energies.values()):
+        return None
+    curves = {inv.id: [] for inv in site.inverters}
+    cursor = start
+    while cursor < end:
+        stop = min(cursor + timedelta(hours=1), end)
+        for inverter in site.inverters:
+            curves[inverter.id].append({"start": cursor.isoformat(), "end": stop.isoformat(),
+                                        "energy_kwh": result.energy_kwh(cursor, stop, inverter.id)})
+        cursor = stop
+    return {"issued_at": result.issued_at.isoformat(), "energies": energies, "forecast": curves}
+
+
+def snapshot_curve(snapshot, inverter_ids):
+    """Combine aligned frozen cells without reconstructing missing legacy curves."""
+    curves = snapshot.get("forecast", {}) if snapshot else {}
+    ids = tuple(inverter_ids)
+    if not ids or any(key not in curves for key in ids):
+        return []
+    return [{"start": cell["start"], "end": cell["end"],
+             "energy_kwh": sum(curves[key][index]["energy_kwh"] for key in ids)}
+            for index, cell in enumerate(curves[ids[0]])]
+
+
+def validate_snapshot(day, snapshot, metadata, site: SiteConfig, *, strict_curve=True):
     """Validate original limits/timezone, never reinterpret old energy at new caps."""
     if (not isinstance(day, str) or date.fromisoformat(day).isoformat() != day
-            or not isinstance(snapshot, dict) or set(snapshot) != {"issued_at", "energies"}
+            or not isinstance(snapshot, dict) or set(snapshot) not in (
+                {"issued_at", "energies"}, {"issued_at", "energies", "forecast"})
             or not isinstance(metadata, dict) or type(metadata.get("schema")) is not int or metadata["schema"] != 1
             or set(metadata) != {"schema", "site_identity", "config_fingerprint", "history_fingerprint",
                                  "timezone", "output_caps_kw", "source"}
@@ -67,4 +95,37 @@ def validate_snapshot(day, snapshot, metadata, site: SiteConfig):
                 or isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)
                 or not 0 <= value <= cap * (end - start).total_seconds() / 3600 * 1.1):
             raise ValueError("invalid day-start energy")
-    return deepcopy(snapshot), deepcopy(metadata)
+    clean = deepcopy(snapshot)
+    if "forecast" in clean:
+        try:
+            _validate_curve(clean["forecast"], ids, start, end, caps, energies)
+        except (TypeError, ValueError, OverflowError):
+            if strict_curve:
+                raise ValueError("invalid day-start curve") from None
+            # A damaged optional display curve must not reset valid daily
+            # totals or unrelated meter/learning history on legacy-store load.
+            clean.pop("forecast")
+    return clean, deepcopy(metadata)
+
+
+def _validate_curve(curves, ids, start, end, caps, energies):
+    if not isinstance(curves, dict) or set(curves) != ids:
+        raise ValueError("invalid day-start curve stages")
+    for key, cells in curves.items():
+        if not isinstance(cells, list) or not 1 <= len(cells) <= 26:
+            raise ValueError("invalid day-start curve size")
+        cursor, total = start, 0.0
+        for cell in cells:
+            if not isinstance(cell, dict) or set(cell) != {"start", "end", "energy_kwh"}:
+                raise ValueError("invalid day-start curve cell")
+            begin = utc_time(datetime.fromisoformat(cell["start"]))
+            stop = utc_time(datetime.fromisoformat(cell["end"]))
+            value = cell["energy_kwh"]
+            expected_end = min(cursor + timedelta(hours=1), end)
+            if (begin != cursor or stop != expected_end or stop <= begin
+                    or isinstance(value, bool) or not isinstance(value, (int, float))
+                    or not math.isfinite(value) or not 0 <= value <= caps[key] * (stop - begin).total_seconds() / 3600 * 1.1):
+                raise ValueError("invalid day-start curve coverage or energy")
+            cursor, total = stop, total + value
+        if cursor != end or not math.isclose(total, energies[key], rel_tol=1e-12, abs_tol=1e-12):
+            raise ValueError("day-start curve does not match daily energy")

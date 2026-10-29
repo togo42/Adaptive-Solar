@@ -12,6 +12,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, NAME
 from .core.models import MAX_FORECAST_DAYS, MEASUREMENT_BOUNDARIES
+from .snapshots import snapshot_curve
 
 PARALLEL_UPDATES = 0
 FORECAST_SCOPE = "available_pv_potential_without_operational_curtailment"
@@ -327,6 +328,10 @@ class AdaptiveSolarSensor(CoordinatorEntity, SensorEntity):
             day = start.astimezone(ZoneInfo(self.coordinator.site.timezone)).date().isoformat()
             snapshot = self.coordinator.daily_snapshots.get(day)
             attrs["issued_at"] = snapshot["issued_at"] if snapshot else None
+            ids = [self.inverter_id] if self.inverter_id is not None else [inv.id for inv in self.coordinator.site.inverters]
+            attrs["forecast"] = snapshot_curve(snapshot, ids)
+            attrs["forecast_curve_scope"] = "day_start"
+            attrs["forecast_curve_status"] = "available" if attrs["forecast"] else "not_stored" if snapshot else "unavailable"
             metadata = getattr(self.coordinator, "daily_snapshot_provenance", {})
             origin = metadata.get(day) if isinstance(metadata, dict) else None
             if origin is not None:

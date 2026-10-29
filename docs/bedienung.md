@@ -146,7 +146,7 @@ Sensoren im Gerätebereich auswählen, keine feste Beispiel-ID übernehmen.
 | --- | --- |
 | Prognoseleistung | W; Mittel des aktuell gültigen Forecastintervalls, keine Messung der Momentanleistung |
 | Prognose Resttag | kWh ab jetzt bis lokaler Mitternacht, einschließlich verbleibender Teilstunde |
-| Prognose Tag 0 | kWh des ganzen heutigen Tages aus einem tatsächlich vor Tagesbeginn eingefrorenen Snapshot; am ersten Einrichtungstag oft nicht verfügbar |
+| Prognose Tag 0 | kWh des ganzen heutigen Tages aus einem tatsächlich vor Tagesbeginn eingefrorenen Snapshot; neue Snapshots enthalten auch die [Stundenkurve](day-start-curve.md). Vorhandene Tagessummen ohne Kurve bleiben erhalten; am ersten Einrichtungstag oft nicht verfügbar |
 | Prognose Tag 1 bis Tag 6 | Aktuell prognostizierte kWh der vollständigen jeweiligen lokalen Folgetage; außerhalb des eingestellten/gelieferten Horizonts nicht verfügbar |
 | Prognosedatenstatus | Diagnose mit den unten beschriebenen Zuständen und zusätzlichen Attributen |
 

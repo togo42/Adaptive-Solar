@@ -58,6 +58,7 @@ Optional kann je Stufe ein [Messgültigkeitssignal](docs/measurement-validity.md
 Optionales GHI verlangt echte horizontale W/m², Frische und geeigneten Sonnenstand. Lücken bleiben fehlend; Modelle entstehen aus lokalen Zeilen, nicht ausführbaren Dateien.
 
 Resttag enthält die verbleibende Teilstunde; native Energy nur volle UTC-Stunden homogener Entries. Tagesbeginnprognose braucht einen vor Mitternacht eingefrorenen Snapshot. Historische Werte bleiben seit 0.2.14 mit Originalkonfiguration gekennzeichnet erhalten; [Wiederherstellung verlorener Originalwerte](docs/forecast-repairs.md#3-bereits-verlorenen-originalwert-gezielt-wiederherstellen).
+In Entwicklung (externer Integrationsreview noch offen): Die [Stundenkurve zu Tagesbeginn](docs/day-start-curve.md) wird zusammen mit neuen Tagesbeginn-Snapshots gespeichert und am Tag-0-Sensor bereitgestellt; vorhandene reine Tagessummen behalten eine leere Kurve.
 
 ## Entwicklung
 

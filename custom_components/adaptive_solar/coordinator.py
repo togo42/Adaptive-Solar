@@ -44,7 +44,7 @@ from .core.shading import (
 )
 from .archive_export import ArchiveExport, CONF_ARCHIVE_EXPORT, json_value, replay_events, software_provenance
 from .weather import WeatherError
-from .snapshots import config_fingerprints, provenance, validate_snapshot
+from .snapshots import config_fingerprints, make_snapshot, provenance, validate_snapshot
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -846,6 +846,9 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
 
     def _restore_snapshots(self, stored, *, same_history):
         snapshots, metadata = stored.get("daily_snapshots", {}), stored.get("daily_snapshot_provenance", {})
+        curves = stored.get("daily_snapshot_curves", {})
+        if not isinstance(curves, dict) or len(curves) > 32:
+            curves = {}  # Optional display data cannot invalidate learning history.
         if not isinstance(snapshots, dict) or not isinstance(metadata, dict) or len(snapshots) > 32:
             raise ValueError("invalid snapshots")
         now = datetime.now(UTC)
@@ -853,6 +856,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         current = provenance(self.site)
         restored, origins = {}, {}
         for day, snapshot in snapshots.items():
+            if isinstance(snapshot, dict) and day in curves:
+                snapshot = {**snapshot, "forecast": curves[day]}
             origin = metadata.get(day)
             if origin is None:
                 if not same_history:
@@ -864,7 +869,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 raise ValueError("invalid snapshot provenance")
             elif origin.get("site_identity") != current["site_identity"]:
                 continue  # Different location/timezone/stage boundary.
-            snapshot, origin = validate_snapshot(day, snapshot, origin, self.site)
+            snapshot, origin = validate_snapshot(day, snapshot, origin, self.site, strict_curve=False)
             target = datetime.fromisoformat(day).date()
             if target < today - timedelta(days=7) or (not same_history and target > today):
                 continue
@@ -892,7 +897,9 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             await self._store.async_save(self._stored())
             persisted = await self.hass.async_add_executor_job(load_json, self._store.path)
             data = persisted.get("data", {})
-            if (data.get("daily_snapshots", {}).get(day) != snapshot
+            expected = {key: value for key, value in snapshot.items() if key != "forecast"}
+            if (data.get("daily_snapshots", {}).get(day) != expected
+                    or data.get("daily_snapshot_curves", {}).get(day) != snapshot.get("forecast")
                     or data.get("daily_snapshot_provenance", {}).get(day) != origin):
                 raise ValueError("day-start forecast storage readback failed")
             self.daily_snapshots[day], self.daily_snapshot_provenance[day] = snapshot, origin
@@ -1648,9 +1655,9 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             end = datetime.combine(day + timedelta(days=1), time.min, zone).astimezone(UTC)
             if prospective_at > start:
                 continue
-            energies = {inv.id: result.energy_kwh(start, end, inv.id) for inv in self.site.inverters}
-            if all(value is not None for value in energies.values()):
-                self.daily_snapshots[day.isoformat()] = {"issued_at": result.issued_at.isoformat(), "energies": energies}
+            snapshot = make_snapshot(result, start, end, self.site)
+            if snapshot is not None:
+                self.daily_snapshots[day.isoformat()] = snapshot
                 self.daily_snapshot_provenance[day.isoformat()] = provenance(self.site)
 
     def _archive_comparison(self, result) -> None:
@@ -1728,13 +1735,18 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         origins = {day: self.daily_snapshot_provenance.get(day, provenance(self.site)) for day in snapshots}
         for day, (snapshot, origin) in self._pending_day_start_imports.items():
             snapshots[day], origins[day] = snapshot, origin
+        # Keep the legacy snapshot shape readable by 0.2.17 on rollback. The
+        # optional curves are atomic siblings in the same existing Store.
+        curves = {day: snapshot["forecast"] for day, snapshot in snapshots.items() if "forecast" in snapshot}
+        snapshots = {day: {key: value for key, value in snapshot.items() if key != "forecast"}
+                     for day, snapshot in snapshots.items()}
         return {"fingerprint": self._fingerprint, "history_schema": 2, "history_fingerprint": self._history_fingerprint,
                 "shade_fingerprint": self._shade_fingerprint,
                 "learning_feature_contract": LEARNING_FEATURE_CONTRACT,
                 "measurement_contract": MEASUREMENT_CONTRACT,
                 BEAM_SHADE_STORE_KEY: self.shading.to_dict(),
                 "archive": list(self.archive), "intervals": [dict(row) for row in self.intervals],
-                "daily_snapshots": snapshots, "daily_snapshot_provenance": origins}
+                "daily_snapshots": snapshots, "daily_snapshot_provenance": origins, "daily_snapshot_curves": curves}
 
     async def async_close(self) -> None:
         self._closing = True
