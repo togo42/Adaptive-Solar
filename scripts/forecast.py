@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT))
 
 from custom_components.adaptive_solar.core.engine import ForecastEngine  # noqa: E402 - source-checkout CLI bootstrap
 from custom_components.adaptive_solar.core.models import SiteConfig, WeatherForecast, WeatherPoint  # noqa: E402
+from scripts.replay_paths import validate_output, write_output  # noqa: E402
 
 
 def serializable(value):
@@ -60,10 +61,12 @@ def main():
     args = parser.parse_args()
     if args.live and args.as_of is not None:
         parser.error("Live forecasts cannot be backdated")
-    if (args.output.resolve() == args.config.resolve()
-            or args.output.exists() and args.config.exists() and args.output.samefile(args.config)):
-        parser.error("forecast output must not overwrite the configuration")
-    config = SiteConfig.from_dict(json.loads(args.config.read_text()))
+    inputs = (args.config, Path(__file__))
+    try:
+        validate_output(args.output, args.config, inputs)
+    except (OSError, ValueError):
+        parser.error("forecast output must not overwrite the configuration or program sources")
+    config = SiteConfig.from_dict(json.loads(args.config.read_text(encoding="utf-8")))
     try:
         issued = datetime.fromisoformat(args.as_of) if args.as_of is not None else datetime.now(UTC)
     except ValueError:
@@ -79,8 +82,11 @@ def main():
                                       "nominal_output_cap_w": stage.output_cap_w}
                            for stage in config.inverters},
                "forecast": asdict(result)}
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(payload, default=serializable, ensure_ascii=False, allow_nan=False, indent=2) + "\n")
+    encoded = json.dumps(payload, default=serializable, ensure_ascii=False, allow_nan=False, indent=2) + "\n"
+    try:
+        write_output(encoded, args.output, args.config, inputs)
+    except (OSError, ValueError):
+        parser.error("forecast output publication failed; inputs and program sources must remain separate")
     print(f"{len(result.points)} inverter intervals written to {args.output}")
 
 

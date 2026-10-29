@@ -89,3 +89,51 @@ def test_atomic_report_does_not_truncate_a_noninput_hardlink(tmp_path):
     assert output.read_text() == "new report\n"
     assert unrelated.read_text() == "old report"
     assert not list(tmp_path.glob(".*.tmp"))
+
+
+@pytest.mark.parametrize("target", ["custom_components/adaptive_solar/manifest.json", "scripts/tool-resource.json"])
+@pytest.mark.parametrize("alias", ["same", "symlink", "hardlink"])
+def test_program_resources_cannot_be_replaced_by_reports(tmp_path, monkeypatch, target, alias):
+    from scripts import replay_paths
+
+    root = tmp_path / "project"
+    source = root / target
+    source.parent.mkdir(parents=True)
+    source.write_text('{"original":"resource"}\n')
+    monkeypatch.setattr(replay_paths, "SOURCE_ROOT", root)
+    output = source if alias == "same" else tmp_path / "report.json"
+    if alias == "symlink":
+        output.symlink_to(source)
+    elif alias == "hardlink":
+        output.hardlink_to(source)
+    with pytest.raises(ValueError):
+        write_output("report\n", output, tmp_path / "archive")
+    assert source.read_text() == '{"original":"resource"}\n'
+
+
+def test_new_report_does_not_place_private_data_in_program_tree(tmp_path, monkeypatch):
+    from scripts import replay_paths
+
+    root = tmp_path / "project"
+    monkeypatch.setattr(replay_paths, "SOURCE_ROOT", root)
+    output = root / "custom_components/adaptive_solar/new-report.json"
+    with pytest.raises(ValueError, match="program directories"):
+        write_output("report\n", output, tmp_path / "archive")
+    assert not root.exists()
+
+
+def test_reports_remain_utf8_under_a_non_utf8_process_locale(tmp_path):
+    import os
+    from pathlib import Path
+    import subprocess
+    import sys
+
+    root = Path(__file__).resolve().parents[1]
+    output = tmp_path / "report.json"
+    code = ("from pathlib import Path; from scripts.replay_paths import write_output; "
+            "import sys; write_output('{\\\"name\\\":\\\"Gr\\u00fc\\u00dfe\\\"}\\n', Path(sys.argv[1]), Path(sys.argv[2]))")
+    result = subprocess.run([sys.executable, "-c", code, str(output), str(tmp_path / "archive")],
+                            cwd=root, env={**os.environ, "PYTHONUTF8": "0", "PYTHONCOERCECLOCALE": "0", "LC_ALL": "C"},
+                            capture_output=True, timeout=20)
+    assert result.returncode == 0, result.stderr
+    assert output.read_bytes() == '{"name":"Grüße"}\n'.encode("utf-8")

@@ -80,7 +80,10 @@ Synthetische Offline-Demo:
     --as-of 2026-06-21T08:00:00+02:00 --output artifacts/demo.json
 ```
 
-`--live` ruft Open-Meteo auf und ist nicht rückdatierbar.
+`--live` ruft Open-Meteo auf und ist nicht rückdatierbar. Die Forecast- und
+Auswertungs-CLI schützen Eingaben sowie Quell- und Ressourcendateien gegen
+Ausgabe-Aliase. Berichte bleiben außerhalb von `scripts/` und
+`custom_components/` und werden nach erneuter Pfadprüfung atomar veröffentlicht.
 Der Entwicklungsstand enthält außerdem einen separaten
 [Offline-Kandidaten zur Prüfung der Trainingsabdeckung](docs/technik/learning-support-guard.md)
 des Residual-Lerners. Er verändert keine produktiven HA-Prognosen.

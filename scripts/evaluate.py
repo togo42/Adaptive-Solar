@@ -17,6 +17,7 @@ from custom_components.adaptive_solar.core.evaluation import (
 from custom_components.adaptive_solar.core.statistical_validation import paired_day_bootstrap
 from custom_components.adaptive_solar.core.comparison_archive import COMPARISON_ARCHIVE_KEY, ComparisonArchive
 from scripts.capture_actuals import actual_records_from_captures
+from scripts.replay_paths import validate_output, write_output
 
 
 def _receipt(value):
@@ -130,10 +131,11 @@ def main():
     parser.add_argument("--bootstrap-seed", type=int, default=20261024)
     parser.add_argument("--bootstrap-confidence", type=float, default=0.95, help="Nominal family confidence, at least 0.95")
     args = parser.parse_args()
-    for source in (args.input, args.captures, args.actual_captures, args.comparison_archive):
-        if source is not None and (args.output.resolve() == source.resolve()
-                or args.output.exists() and source.exists() and args.output.samefile(source)):
-            parser.error("evaluation output must not overwrite an input archive")
+    inputs = (args.input, args.captures, args.actual_captures, args.comparison_archive, Path(__file__))
+    try:
+        validate_output(args.output, args.input, inputs)
+    except (OSError, ValueError):
+        parser.error("evaluation output must not overwrite an input archive or program sources")
     try:
         payload = json.loads(args.input.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
@@ -173,8 +175,10 @@ def main():
         encoded = json.dumps(report, ensure_ascii=False, allow_nan=False, indent=2) + "\n"
     except (OSError, KeyError, TypeError, ValueError, OverflowError) as error:
         parser.error(f"Invalid evaluation input or policy: {error}")
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(encoded, encoding="utf-8")
+    try:
+        write_output(encoded, args.output, args.input, inputs)
+    except (OSError, ValueError):
+        parser.error("evaluation output publication failed; inputs and program sources must remain separate")
     print(f"{report['paired_intervals']}/{report['expected_intervals']} paired intervals; "
           f"comparison eligible: {report['comparison_eligible']}")
 

@@ -304,8 +304,8 @@ Dieser Befehl stellt keine Netzwerkverbindung her und ändert keine Originale.
 Die Ausgabe ist ein separat auswertbarer Capture einschließlich Prüfbericht;
 Ausgabealias auf Eingaben, den Helfer selbst oder die verwendeten
 Implementierungsdateien sowie ein Ziel innerhalb des Originalarchivs ist gesperrt.
-Die gemeinsame Ausgabeprüfung schützt zusätzlich alle Python-Programmdateien
-unter `scripts/` und `custom_components/`. Gleiche Pfade und
+Die gemeinsame Ausgabeprüfung hält Berichte außerdem aus `scripts/` und
+`custom_components/` fern und schützt deren Quell-/Ressourcendateien gegen Aliase. Gleiche Pfade und
 Symlink-/Hardlink-Aliase werden vor der Ableitung und erneut
 vor der Veröffentlichung geprüft.
 Erfolg des Befehls bestätigt die Durchführung, auch bei null freigegebenen Stunden.

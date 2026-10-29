@@ -83,6 +83,14 @@ JSONL wird exklusiv gesperrt ergänzt, nie ersetzt; auch gleiche Kurven behalten
 
 Echte Auswertung braucht den vollständigen vorher deklarierten Zielplan und alle qualifizierten Istintervalle. Produktive Sensor-/Statistikzuordnung bleibt zu prüfen. Alternativ können `forecasts` direkt als `ForecastRecord` vorliegen; dann muss der Aufrufer vollständige Ausgabe-/Ausfallprovenienz liefern. Direkte `forecasts` dürfen wie bisher zusätzlich zu Prognosearchiven vorliegen und bleiben denselben Anforderungen unterworfen. Direkte `actuals` sind dagegen eine Alternative zu `--actual-captures`; nichtleere Inline-Istwerte dürfen nicht mit dem Ist-Capturearchiv kombiniert werden. Siehe [Implementierungsvertrag](../technik/implementation-contract.md) für unverändert ganze Istintervalle, zuschneidbare Prognosemittel und Revisionen.
 
+Die Auswertung und `forecast.py` verwenden die gemeinsame Ausgabeprüfung:
+Ausgaben bleiben außerhalb der Programmverzeichnisse `scripts/` und
+`custom_components/`. Eingaben und dortige Quell-/Ressourcendateien sind keine
+zulässigen Ausgabeziele, einschließlich Symlink-/Hardlink-Aliasen.
+Die Prüfung läuft vor Berechnung beziehungsweise Netzabruf und nochmals vor
+atomarer Veröffentlichung. Ein unbeteiligter Hardlink auf einen alten Bericht
+wird durch die atomare Ersetzung nicht mitverändert.
+
 ## 5. Istwerte lesend archivieren
 
 `capture_actuals.py` liest Recorder-Metadaten und stündliche `change`-Energie. Native `statistics_unit_of_measurement` belegt die gespeicherte Energieeinheit; Legacyalias bleibt lesbar. Displayeinheit darf anders skaliert sein. Zahlen werden ausschließlich aus `request.units.energy` umgerechnet. Fiktive `data/actual-map.json`: `{"mappings":[{"inverter_id":"roof","statistic_ids":["sensor.PRIVATE_production_energy"]}]}`. Summierte IDs brauchen dieselbe erklärte Messgrenze und identische Stundenabdeckung.

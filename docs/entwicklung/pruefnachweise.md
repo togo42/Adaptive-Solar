@@ -208,6 +208,63 @@ Auch dieser Nachlauf ist keine positive Abnahme. Der neue Korrekturstand
 benötigt einen weiteren frischen hashgebundenen Vollreview. Keine produktive
 HA-/Hoständerung oder Aktivierung ist umfasst.
 
+## Weitere Codex-Läufe und gemeinsame CLI-Ausgabesicherheit
+
+Die Läufe R3 und R4 auf `7471284f399f31582ffeef0ec5b8d27fcd08920f`
+endeten technisch ohne gültiges Reviewurteil und zählen nicht als Abnahme:
+R3 brach im Schlussreview durch einen Sockettimeout ab, R4 bei einem vom Client
+vorzeitig geschlossenen nebenläufigen Modellkatalogabruf (`GET /models`,
+`BrokenPipeError`). Die API-Guards wiesen beide Läufe zurück; fehlende
+Abschlussbelege wurden nicht ersetzt. Lokale Fehlernachweise stehen unter
+`artifacts/continuous-quality/codex-r3-failure.json` und `codex-r4-failure.json`.
+
+Ab R4 enthält ausschließlich der isolierte lokale Reviewtreiber eine zusätzliche
+I/O-Korrektur: Der Verbindungsaufbau behält seinen kurzen Timeout; danach wird
+für Übertragungs-I/O die verbleibende absolute Reviewfrist verwendet und vor
+jedem SSE-Leseschritt erneuert. Eine bloße Modellpause beendet den Review dadurch
+nicht vorzeitig. Ablauf der Gesamtfrist, native Tools, unbekannte Ereignisse,
+unvollständiges EOF und unvollständige Requests bleiben Ablehnungsgründe.
+Der ursprüngliche Guard scheiterte am neuen Leerlauf-Regressionsfall, die lokale
+Korrektur bestand alle 43 Guardtests einschließlich positiver Pause und negativer
+Gesamtdeadline. Originaltreiber, exakter Patch, Code- und Testhashes sind unter
+`reviews/private/continuous-quality-codex-driver-r4/` eingefroren. Diese lokale
+Transportkorrektur wurde nicht in den öffentlichen Toolingzweig integriert.
+
+R5 prüfte denselben Payload vollständig: SHA256
+`92160bbe0ab12899f11078c394231c42357f1e0736e633755b5c8dad3ffb4ea8`,
+209 Originaltexte, 44 Quellblöcke plus Initialisierung und Abschluss,
+46 vollständig abgeschlossene Turns, keine Compaction oder nativen Tools.
+Der unabhängige Audit verifizierte zusätzlich die originale Toolingbasis und den
+exakten lokalen Transportpatch. Receipt-SHA256:
+`18b3ee94ee60996f4472fbd245b083b1fd5de8d95490ec0b9c362f285d024279`.
+Rohbelege: `reviews/private/continuous-quality-codex-r5/`; Audit:
+`artifacts/continuous-quality/codex-r5-closeout.json`.
+
+Das Urteil blieb `blocked` wegen eines mittleren Befunds R5/AS-001:
+`forecast.py` und `evaluate.py` nutzten den gemeinsamen Programmschutz noch nicht.
+Beide CLIs sind nun vor Eingabe-/Netzzugriff und vor Veröffentlichung daran
+angebunden; Berichte werden atomar ersetzt. Neue Regressionen prüfen beide CLIs
+mit eigenen Skripten und Komponentenmodulen als Ziel, direkten Pfaden,
+Symlink-/Hardlink-Aliasen sowie nachträglichen Aliasen. Ein positiver Fall belegt,
+dass ein unbeteiligter Hardlink auf den alten Bericht unverändert bleibt.
+Im ergänzten Selbstcheck wurden auch neue Berichte in Programmverzeichnissen
+und Ausgabe-Aliase auf Manifeste/Ressourcen gesperrt. Berichte werden explizit
+als UTF-8 veröffentlicht; ein zusätzlicher Test prüft eine Prozess-Locale ohne
+UTF-8. Die finale gezielte CLI-/Ausgabeprüfung bestand mit 87 Tests, die
+Vollsuite mit **1.927 Tests ohne Skips** und **90,77 % kombinierter Abdeckung**
+bei unverändertem 90-%-Gate. Weiterhin 23 SQLite-ResourceWarnings. Ruff und der
+Dokuabgleich bestanden. Finale Testausgabe und Coverage stehen lokal unter
+`artifacts/continuous-quality/review-r5-final-full-tests.log` und
+`review-r5-final-coverage.json`. Beide Haupt-CLIs wurden am
+alten Stand mit wegwerfbaren Programmkopien reproduziert: Alte Fassungen
+überschrieben sich mit Ergebnis-JSON, neue wiesen dasselbe Ziel zurück.
+Lokaler Beleg: `artifacts/continuous-quality/r5-findings-reproduction/`. Weitere schreibende Helfer wurden auf
+äquivalente Schutzgrenzen geprüft: private Pfadgrenzen, neue Ausgabeordner oder
+Veröffentlichung ohne Überschreiben bestehender Ziele.
+
+Auch R5 ist keine positive Abnahme; die letzte Korrektur benötigt einen frischen
+hashgebundenen Vollreview. Keine produktive Änderung oder Aktivierung ist erfolgt.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |

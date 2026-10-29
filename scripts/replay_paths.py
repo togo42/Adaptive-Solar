@@ -9,9 +9,10 @@ SOURCE_ROOT = Path(__file__).resolve().parents[1]
 
 
 def implementation_inputs():
-    """Program files are never valid report destinations, including inode aliases."""
+    """Protect program trees, including manifests/resources and inode aliases."""
     return tuple(path for name in ("scripts", "custom_components")
-                 for path in (SOURCE_ROOT / name).rglob("*.py") if path.is_file())
+                 for path in (SOURCE_ROOT / name).rglob("*")
+                 if "__pycache__" not in path.parts and path.is_file())
 
 
 def validate_output(output: Path, archive: Path, inputs=()):
@@ -24,6 +25,10 @@ def validate_output(output: Path, archive: Path, inputs=()):
     if output.is_symlink():
         raise ValueError("replay output must not be a symlink")
     resolved = output.resolve()
+    for name in ("scripts", "custom_components"):
+        folder = SOURCE_ROOT / name
+        if lexical.is_relative_to(folder.absolute()) or resolved.is_relative_to(folder.resolve()):
+            raise ValueError("report output must stay outside program directories")
     for source in (*inputs, *implementation_inputs()):
         if source is None:
             continue
@@ -50,7 +55,7 @@ def write_output(body: str, output: Path, archive: Path, inputs=()):
     descriptor, name = tempfile.mkstemp(prefix=f".{output.name}.", suffix=".tmp", dir=output.parent)
     temporary = Path(name)
     try:
-        with os.fdopen(descriptor, "w") as stream:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
             stream.write(body)
             stream.flush()
             os.fsync(stream.fileno())
