@@ -19,7 +19,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from custom_components.adaptive_solar.core.archive import ArchiveError, ArchiveJournal, ArchiveStore, canonical_bytes  # noqa: E402
-from scripts import capture_actuals, capture_ha  # noqa: E402
+from scripts import capture_actuals, capture_ha, continuous_quality  # noqa: E402
 from scripts.archive import collect, producer_status  # noqa: E402
 
 CHUNK_BYTES = 256 * 1024
@@ -129,13 +129,17 @@ def captures_from_archive(store, *, source, kind, dataset=None):
 
 
 async def archive_observations(store, *, source, ha_url, token, actual_mappings=None,
-                               reference_mappings=None, quality=None, cutoff=None, now=None,
+                               reference_mappings=None, quality=None, quality_bindings=None, cutoff=None, now=None,
                                lookback_hours=72, lag_minutes=10, timeout=30):
     """Independent streams preserve useful reads when another source fails."""
     if not actual_mappings and not reference_mappings:
         raise ArchiveError("At least one explicit observation mapping is required")
     if not isinstance(source, str) or not source.strip() or len(source) > 200:
         raise ArchiveError("A bounded stable source identity is required")
+    if quality_bindings is not None and not actual_mappings:
+        raise ArchiveError("Continuous quality requires actual mappings")
+    if quality is not None and quality_bindings is not None:
+        raise ArchiveError("Static quality and continuous bindings are mutually exclusive")
     report = {"streams": {}, "complete": True}
     for kind, mappings in (("actuals", actual_mappings), ("references", reference_mappings)):
         if not mappings:
@@ -168,8 +172,13 @@ async def archive_observations(store, *, source, ha_url, token, actual_mappings=
                 start, end = actual_window(now or datetime.now(UTC), lookback_hours=lookback_hours, lag_minutes=lag_minutes)
                 raw = await capture_actuals.capture_actuals(ha_url, token, mappings, start, end, timeout=timeout)
                 try:
-                    capture = await asyncio.to_thread(capture_actuals.normalize_capture, raw, quality)
-                except capture_actuals.CaptureError:
+                    if quality_bindings is not None:
+                        capture = await asyncio.to_thread(continuous_quality.derive, store, raw, quality_bindings)
+                        if len(canonical_bytes(capture)) > MAX_CAPTURE_BYTES:
+                            raise ArchiveError("Quality report exceeds observation budget")
+                    else:
+                        capture = await asyncio.to_thread(capture_actuals.normalize_capture, raw, quality)
+                except (ValueError, TypeError, KeyError, OSError, sqlite3.Error):
                     # Keep the original Recorder revision even when a supplied mask is invalid.
                     capture = {**raw, "quality": quality, "normalization_error": "invalid_quality_or_raw"}
                     quality_error = True
@@ -188,6 +197,9 @@ async def archive_observations(store, *, source, ha_url, token, actual_mappings=
             if kind == "actuals" and not quality_error:
                 normalized = capture["normalization"]
                 result.update(accepted_intervals=len(normalized["records"]), excluded_intervals=len(normalized["excluded"]))
+                if "quality_derivation" in capture:
+                    result["quality_summary"] = {key: sum(s[key] for s in capture["quality_derivation"]["summary"].values())
+                                                 for key in ("total_hours", "covered_hours", "qualified_hours", "invalidated_hours")}
             report["streams"][kind] = result
             if quality_error or late or not result["complete"]:
                 report["complete"] = False
@@ -211,7 +223,9 @@ def main(argv=None):
     parser.add_argument("--source", required=True)
     parser.add_argument("--actual-config", type=Path)
     parser.add_argument("--reference-config", type=Path)
-    parser.add_argument("--quality", type=Path, help="Explicit interval quality evidence; absent remains unknown")
+    masks = parser.add_mutually_exclusive_group()
+    masks.add_argument("--quality-bindings", type=Path, help="Bounded v2 source policy; derive fresh quality from local archive")
+    masks.add_argument("--quality", type=Path, help="Explicit interval quality evidence; absent remains unknown")
     parser.add_argument("--cutoff", help="Aware fixed reference forecast deadline")
     parser.add_argument("--lookback-hours", type=int, default=72)
     parser.add_argument("--lag-minutes", type=int, default=10)
@@ -225,7 +239,7 @@ def main(argv=None):
         cutoff = capture_ha._utc(datetime.fromisoformat(args.cutoff)) if args.cutoff else None
         report = asyncio.run(archive_observations(ArchiveStore(_private_path(args.archive)), source=args.source,
             ha_url=os.environ.get("HA_URL", ""), token=os.environ.get("HA_TOKEN", ""),
-            actual_mappings=actual, reference_mappings=reference, quality=read(args.quality), cutoff=cutoff,
+            actual_mappings=actual, reference_mappings=reference, quality=read(args.quality), quality_bindings=read(args.quality_bindings), cutoff=cutoff,
             lookback_hours=args.lookback_hours, lag_minutes=args.lag_minutes, timeout=args.timeout))
         print(json.dumps(report, sort_keys=True))
         return 0 if report["complete"] else 1

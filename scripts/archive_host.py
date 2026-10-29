@@ -88,10 +88,14 @@ def commands(job, config, archive):
                  "--source", config["weather_source"], "--site-json", str(private_path(config["site_json"])),
                  "--hours", "193"]]
     if job == "observations":
+        if config.get("quality") and config.get("quality_bindings"):
+            raise ValueError("Choose static quality or continuous bindings")
+        if config.get("quality_bindings") and not config.get("actual_config"):
+            raise ValueError("Continuous quality requires actual mapping")
         command = [python, str(ROOT / "scripts/archive_observations.py"), "--archive", str(archive),
                    "--source", config["observations_source"], "--lookback-hours", "72", "--lag-minutes", "10"]
         for key, option in (("actual_config", "--actual-config"), ("reference_config", "--reference-config"),
-                            ("quality", "--quality")):
+                            ("quality", "--quality"), ("quality_bindings", "--quality-bindings")):
             if config.get(key):
                 command.extend([option, str(private_path(config[key]))])
         if not config.get("actual_config") and not config.get("reference_config"):

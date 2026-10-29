@@ -140,7 +140,10 @@ Im Entwicklungsstand ergänzt der
 [Offline-Qualitätsadapter](istwert-qualitaetsadapter.md) diese Zuordnung:
 Er prüft Originalintervalle gegen explizit belegte Quellenbindungen und erzeugt
 Stundenmasken samt Ausschlussbericht. Ungeprüfte Bindungen liefern nur
-Abdeckungsdiagnosen. Der Adapter ist noch nicht in den Timern aktiviert.
+Abdeckungsdiagnosen. Mit `--quality-bindings` beziehungsweise Hostschlüssel `quality_bindings` kann
+der Kandidat nach jedem Recorder-Abruf eine neue Maske ableiten. Er benötigt
+neue Originaldeltas mit Quellenpins und eine begrenzte qualifizierte v2-Policy.
+Die Funktion ist vorbereitet, noch nicht in den Timern aktiviert.
 
 Referenzfristen mit `--cutoff ISO_ZEIT_MIT_OFFSET` vorgeben. Der tatsächliche
 Gruppenempfang entscheidet über Rechtzeitigkeit. Zu spät gelieferte Daten werden

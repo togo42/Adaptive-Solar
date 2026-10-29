@@ -196,7 +196,12 @@ und Empfangszeiten. Unveränderte, ungültige, restaurierte und entfernte Zustä
 bleiben erhalten; die Attribute sind auf Einheit, State-Class und `restored`
 beschränkt. Die deduplizierte Subscriptionmenge ändert keine Zählerverarbeitung
 und erzwingt keine Quellenaktualisierung. `qualified_interval` ist ein getrenntes abgeleitetes Messergebnis,
-kein unabhängiger Beweis physischer Quellenqualität.
+kein unabhängiger Beweis physischer Quellenqualität. Der Entwicklungskandidat
+ergänzt am exportierten Originaldelta `source_binding` (`schema: 1`,
+`energy_entity_id`, `config_sha256`, `producer_sha256`); die internen Lernintervalle
+bleiben unverändert. Die bedingte, zeitlich begrenzte v2-Quellenpolicy verlangt
+diese Pins für jede freigegebene Stunde.
+[Vertrag und Probelauf](../archiv/istwert-qualitaetsadapter.md#5-fortlaufende-quellenbindung-und-qualitätsaufnahme).
 
 `forecast_issued.shade_learning` (`schema: 1`) ergänzt den Rohzustandssnapshot
 aller konfigurierten Quellen, normalisierte Stufeneingaben sowie Entscheidungen

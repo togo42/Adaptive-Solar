@@ -207,3 +207,12 @@ def test_success_exit_without_verified_collector_evidence_is_not_complete(config
     report = host.run("ha", config)
     assert not report["complete"]
     assert all(row["status"] == "invalid_collector_status" for row in report["commands"])
+
+
+def test_continuous_quality_is_opt_in_and_cannot_mix_with_static_mask(config):
+    config["quality_bindings"] = "data/quality-policy.json"
+    command, = host.commands("observations", config, Path("archive"))
+    assert command[command.index("--quality-bindings") + 1].endswith("data/quality-policy.json")
+    config["quality"] = "data/static.json"
+    with pytest.raises(ValueError, match="static quality"):
+        host.commands("observations", config, Path("archive"))

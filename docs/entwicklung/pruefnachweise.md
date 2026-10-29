@@ -76,6 +76,42 @@ Die Nachweise betreffen Ableitung, Originalerhalt, Revisionen und nachvollziehba
 Ausschlüsse. Sie ersetzen keine Quellenattestierung oder Prognosegütemessung.
 Es erfolgten kein Release, keine Timeranbindung und keine produktive Aktivierung.
 
+## Entwicklungskandidat: fortlaufende Quellenbindung und Qualitätsaufnahme
+
+Stand 29.10.2026, aufbauend auf dem Offlineadapter. Native Originaldeltas tragen
+nun Konfigurations-/Producerpins und die Energie-Entity. Eine begrenzte v2-Policy
+ermöglicht die erneute Qualitätsableitung bei jeder Recorder-Aufnahme; die
+Hostoption ist vorbereitet und ausdrücklich optiert. Vertrag, Vorlage,
+Abnahmeschritte und Rücknahme stehen im
+[Qualitätsadapter-Leitfaden](../archiv/istwert-qualitaetsadapter.md#5-fortlaufende-quellenbindung-und-qualitätsaufnahme).
+
+Die finale lokale Suite bestand mit **1.875 Tests ohne Skips** und
+**90,72 % kombinierter Zeilen-/Branchabdeckung**, unverändertes 90-%-Gate.
+138 gezielte Tests prüfen insbesondere Originalerhalt, bedingte Quellenpins,
+Konfigurations-/Producerabweichungen, alte Intervalle ohne Pins, begrenzte
+Freigabezeiträume, beide Zeitumstellungen, Payload-Chunks, getrennte
+Qualitätsverfügbarkeit, Aufnahmefehler und Berichtgrößenlimits. Native HA-Tests
+prüfen die zusätzlichen Exportfelder bei unveränderten internen Lernintervallen
+sowie fortgesetzte Forecastausgabe bei fehlgeschlagener Provenienzlesung.
+Die Suite meldete weiterhin 23 ResourceWarnings zu ungeschlossenen
+SQLite-Verbindungen; diese sind kein Stabilitätsnachweis für einen Livebetrieb.
+
+Ruff, `pip check`, CLI-Smokes mit ausdrücklich gesperrten HA-Imports und
+Dokumentationslinks/Markdownvorschauen wurden geprüft. Ein lokaler synthetischer
+Archiv-Probelauf qualifizierte zwei Stunden bei unverändertem Recorder-Rohstand;
+Eingaben, Ausgabe und Implementierungshashes liegen ignoriert unter
+`artifacts/continuous-quality/rehearsal/`, die finale Testausgabe und Coverage
+unter `artifacts/continuous-quality/`. Diese lokalen Artefakte sind keine
+öffentlichen Downloads und enthalten keinen produktiven Quellenqualitätsnachweis.
+
+Ein aktiver lokaler Self-Review prüfte insbesondere Fehlerpfade, die Bewahrung
+der Rohaufnahme bei fehlgeschlagener oder zu großer Qualitätsableitung und die
+Abgrenzung historischer v1-Attestierungen von bedingten v2-Policies. Ein
+vollständiger externer Providerreview, neue GitHub-CI, Release sowie HA-/Host-
+Installation und Timeraktivierung wurden in diesem Auftrag nicht ausgeführt.
+Der reale Probelauf benötigt separat qualifizierte Quellen und Originaldeltas
+des neuen Producers; Laufzeit und Ankererhalt sind am tatsächlichen Archiv zu prüfen.
+
 ## Ältere Quellenprüfungen
 
 | Release | Geprüfter Quellbezug | Historischer Umfang |

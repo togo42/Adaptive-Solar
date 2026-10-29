@@ -86,6 +86,8 @@ Der Entwicklungsstand enthält außerdem einen separaten
 des Residual-Lerners. Er verändert keine produktiven HA-Prognosen.
 Ein weiterer [Offline-Adapter qualifiziert Recorder-Iststunden](docs/archiv/istwert-qualitaetsadapter.md)
 aus Originalintervallen und belegten Quellenbindungen; ungeprüfte Quellen bleiben Diagnose.
+Der Kandidat unterstützt auch optionale fortlaufende Qualitätsaufnahme mit
+Quellenpins je Originaldelta und einen lokalen Probelauf ohne HA-Zugriff.
 [Datenverträge](docs/technik/implementation-contract.md),
 [Vergleichsaufnahme](docs/entwicklung/benchmark-aufnahme.md) und
 [Reviewablauf](docs/entwicklung/validierung.md#4-lokale-prüfung-und-review)

@@ -71,7 +71,13 @@ Die Standortdatei folgt `examples/site.json`. Alle privaten Eingabedateien bleib
 unter dem tatsächlichen gemeinsamen `data/`-Verzeichnis. Kein Token gehört in
 diese Dateien. Eine optionale `quality`-Datei muss nachgewiesene Intervallqualität
 enthalten; ohne sie wird Rohenergie bewahrt, aber nicht als Trainingswahrheit
-qualifiziert.
+qualifiziert. Alternativ aktiviert der optionale Schlüssel `quality_bindings`
+eine neue Ableitung je Aufnahme aus einer privaten v2-Policy. Er setzt
+`actual_config` voraus und darf nicht zusammen mit `quality` gesetzt sein.
+Quellenqualifikation, Ankererhalt und der
+[lokale Probelauf](istwert-qualitaetsadapter.md#5-fortlaufende-quellenbindung-und-qualitätsaufnahme)
+sind vor einer Hostaktivierung zu prüfen. Diese Funktion gehört zum
+Entwicklungskandidaten, nicht zum Release 0.2.18.
 
 ## Zugangsdaten ohne dauerhafte Klartextdatei
 

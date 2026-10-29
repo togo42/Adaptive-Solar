@@ -361,3 +361,38 @@ async def test_archive_availability_includes_serialization_after_computation(has
         with pytest.raises(ValueError, match="not archived.*as-of"):
             replay_forecast(issued, events, as_of=NOW + timedelta(seconds=10))
         await instance.async_close()
+
+
+async def test_original_interval_binds_source_without_changing_learning_payload(hass):
+    from dataclasses import replace
+    from homeassistant.core import State
+    from custom_components.adaptive_solar.core.actual_quality import digest
+
+    instance, _ = make_coordinator(hass, True)
+    inv = replace(instance.site.inverters[0], energy_entity_id="sensor.original_energy")
+    instance.site = replace(instance.site, inverters=(inv,))
+    with freeze_time(NOW, real_asyncio=True):
+        await instance._async_update_data()
+        instance.async_commit_setup()
+        for offset, energy in ((0, "1"), (5, "1.1"), (10, "1.2")):
+            stamp = NOW + timedelta(minutes=offset)
+            state = State(inv.energy_entity_id, energy, {"unit_of_measurement": "kWh"}, last_updated=stamp)
+            instance._record_energy(inv, state, stamp, reported_at=stamp)
+        response = await instance.export.page()
+        originals = [event["payload"] for event in response["page"]["events"] if event["kind"] == "qualified_interval"]
+        assert len(originals) == 2
+        assert all(p["source_binding"] == {"schema": 1, "energy_entity_id": inv.energy_entity_id,
+                   "config_sha256": digest(instance.site.to_dict()),
+                   "producer_sha256": instance._export_software["source_sha256"]} for p in originals)
+        assert all("source_binding" not in p for p in instance.intervals)
+        await instance.async_close()
+
+
+async def test_provenance_read_failure_does_not_block_forecast(hass):
+    instance, _ = make_coordinator(hass, True)
+    with freeze_time(NOW, real_asyncio=True), patch(
+            "custom_components.adaptive_solar.coordinator.software_provenance", side_effect=OSError):
+        result = await instance._async_update_data()
+        assert result.points
+        assert instance._export_software is None
+        await instance.async_close()

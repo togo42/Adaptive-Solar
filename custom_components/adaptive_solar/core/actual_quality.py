@@ -1,8 +1,8 @@
 """Offline whole-hour quality from original meter intervals and attestations.
 
 Hashes establish byte integrity, not source authenticity or physical validity.
-Native qualified_interval events lack configuration/producer identifiers. A
-bounded external attestation must bind those facts before a mask is published.
+Legacy intervals lack configuration/producer identifiers. New pins permit
+bounded prospective policies; external source qualification remains required.
 No interval energy is apportioned: Recorder remains the hourly energy source.
 """
 from __future__ import annotations
@@ -17,6 +17,7 @@ from .models import SiteConfig, finite_number, utc_time
 from .replay import hydrate_forecast, timestamp
 
 BINDINGS_SCHEMA = "adaptive-solar-actual-quality-bindings-v1"
+CONTINUOUS_BINDINGS_SCHEMA = "adaptive-solar-actual-quality-bindings-v2"
 REPORT_SCHEMA = "adaptive-solar-actual-quality-report-v1"
 POLICY = "qualified-original-interval-hour-coverage-v1"
 CONTROL_CONTRACT = "non-restored-control-v1"
@@ -30,7 +31,7 @@ _INTERVAL_KEYS = {"inverter_id", "start", "end", "observed_at", "energy_kwh",
 _INVALIDATING_REASONS = {"conflicting_interval_evidence", "mixed_measurement_lineage",
                          "measurement_boundary_in_hour", "contradictory_archive_generation",
                          "contradictory_configuration_in_binding_period", "energy_above_bound_output_cap",
-                         "contradictory_curtailment_configuration"}
+                         "contradictory_curtailment_configuration", "contradictory_interval_source_binding"}
 
 
 def digest(value):
@@ -99,9 +100,10 @@ def _forecast(event, events):
 
 def _bindings(payload, events, mappings, as_of, generated):
     if (not isinstance(payload, dict) or set(payload) != {"schema", "bindings"}
-            or payload["schema"] != BINDINGS_SCHEMA or not isinstance(payload["bindings"], list)
+            or payload["schema"] not in {BINDINGS_SCHEMA, CONTINUOUS_BINDINGS_SCHEMA} or not isinstance(payload["bindings"], list)
             or len(payload["bindings"]) > MAX_BINDINGS):
         raise ValueError("invalid binding document")
+    continuous = payload["schema"] == CONTINUOUS_BINDINGS_SCHEMA
     by_id = {(e["source"], e["event_id"]): e for e in events}
     result, ids = [], set()
     for raw in payload["bindings"]:
@@ -120,7 +122,7 @@ def _bindings(payload, events, mappings, as_of, generated):
         if row["curtailment_mode"] not in {"signal", "unconstrained"}:
             raise ValueError("unsupported curtailment mode")
         a, b = timestamp(row["valid_from"]), timestamp(row["valid_to"])
-        if not a < b <= generated:
+        if not a < b or (not continuous and b > generated):
             raise ValueError("binding must describe an elapsed bounded period")
         if any(old["inverter_id"] == row["inverter_id"] and a < old["end"] and old["start"] < b
                for old in result):
@@ -162,7 +164,7 @@ def _bindings(payload, events, mappings, as_of, generated):
         if timestamp(original["received_at"]) > as_of:
             unavailable.append("configuration_anchor_not_available")
         result.append({**row, "start": a, "end": b, "cap_w": inverter.output_cap_w,
-                       "unavailable": unavailable, "binding_sha256": digest(raw)})
+                       "unavailable": unavailable, "binding_sha256": digest(raw), "continuous": continuous})
     return result
 
 
@@ -174,7 +176,7 @@ def _intervals(events, binding, as_of):
         if (event["kind"] != "qualified_interval" or event["source"] != binding["source"]
                 or p.get("inverter_id") != binding["source_inverter_id"]):
             continue
-        if set(p) not in (_INTERVAL_KEYS, _INTERVAL_KEYS | {"curtailment_measurement_contract"}):
+        if set(p) - {"curtailment_measurement_contract", "source_binding"} != _INTERVAL_KEYS:
             raise ValueError("unexpected original measurement payload fields")
         a, b, observed, received = (timestamp(v) for v in (p["start"], p["end"], p["observed_at"], event["received_at"]))
         if not a < b <= observed <= received:
@@ -186,6 +188,13 @@ def _intervals(events, binding, as_of):
         if received > as_of or b <= binding["start"] or a >= binding["end"]:
             continue
         reasons = []
+        source_pin = p.get("source_binding")
+        expected_pin = {"schema": 1, "energy_entity_id": binding["statistic_id"],
+                        "config_sha256": binding["config_sha256"], "producer_sha256": binding["producer_sha256"]}
+        if source_pin is not None and canonical_bytes(source_pin) != canonical_bytes(expected_pin):
+            reasons.append("contradictory_interval_source_binding")
+        elif binding["continuous"] and source_pin is None:
+            reasons.append("missing_interval_source_binding")
         if event["generation"] != binding["generation"]:
             reasons.append("contradictory_archive_generation")
         if p.get("measurement_contract") != MEASUREMENT_CONTRACT or not p.get("continuity_id"):

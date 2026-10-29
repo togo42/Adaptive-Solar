@@ -38,8 +38,9 @@ Nachtstunden benötigen belegte Abdeckung; es werden keine Nullwerte erfunden.
 
 ## 2. Warum eine zusätzliche Quellenbindung nötig ist
 
-Ein natives `qualified_interval` enthält bisher weder Konfigurations-/Softwarehash
-noch Energie-Entity. Die Journalgeneration kann einen Reload überleben.
+Die bis Release 0.2.18 exportierten `qualified_interval` enthalten weder
+Konfigurations-/Softwarehash noch Energie-Entity. Der neue Entwicklungskandidat
+ergänzt diese Angaben direkt am Originaldelta (Abschnitt 5). Die Journalgeneration kann einen Reload überleben.
 Ein benachbarter Forecast mit Standortkonfiguration belegt deshalb allein keine
 durchgehend unveränderte Zuordnung. SHA256 bestätigt unveränderte Bytes und
 ersetzt keinen Herkunfts- oder physischen Qualitätsnachweis.
@@ -56,8 +57,8 @@ aber keine positiven Stundenmasken. Die drei getrennten Facetten bedeuten:
 
 Jede bestätigte Facette braucht ihre tatsächliche Prüfzeit und einen konkreten
 Evidenzverweis. Der Adapter validiert diese Behauptungsstruktur, zertifiziert
-aber nicht die genannten Belege. `configuration` umfasst ausdrücklich auch
-die Producerkontinuität: Intervallereignisse tragen dessen Hash nicht selbst.
+aber nicht die genannten Belege. Bei Altintervallen umfasst `configuration` ausdrücklich auch
+die Producerkontinuität: Diese Intervallereignisse tragen dessen Hash nicht selbst.
 Vorhandene widersprechende Konfigurations-/Producer-Snapshots im gebundenen
 Zeitraum sperren dessen Stunden trotz positiver Attestierung.
 
@@ -94,7 +95,7 @@ Format `adaptive-solar-actual-quality-bindings-v1`, ausschließlich Platzhalter:
 Konfiguration passen. `config_sha256` verwendet die kanonischen JSON-Bytes von
 `payload.site`; `producer_sha256` ist der archivierte `software.source_sha256`.
 Originale und Hashes können die übrigen Facetten nicht selbst auf `true` setzen.
-Bindungen desselben Scopes dürfen sich zeitlich nicht überlappen. Sie müssen
+Bindungen desselben Scopes dürfen sich zeitlich nicht überlappen. Im v1-Vertrag müssen sie
 abgelaufene Zeiträume beschreiben und die gesamten verwendeten Originaldeltas
 einschließlich deren Stundenrandüberschreitungen abdecken.
 
@@ -208,6 +209,111 @@ Nach belegter Quellenqualifikation und geprüftem lokalen Ergebnis kann die
 Maskendatei über das vorhandene `--quality` beziehungsweise den Hostschlüssel
 `quality` angebunden werden. Zuvor müssen Aktualisierung, Aufnahmezeitplan und
 Konfigurationswechsel für den jeweiligen Host festgelegt sein. Eine statische
-Maske qualifiziert keine neuen Stunden. Diese automatische Betriebsanbindung
-und produktive Aktivierung sind eigene Schritte; der Offlineadapter verändert
-weder Timer noch deren Konfiguration.
+Maske qualifiziert keine neuen Stunden. Die optionale fortlaufende Ableitung
+beschreibt Abschnitt 5; ihre produktive Aktivierung bleibt ein eigener Schritt.
+Der Offlineadapter verändert weder Timer noch deren Konfiguration.
+
+
+## 5. Fortlaufende Quellenbindung und Qualitätsaufnahme
+
+Der Entwicklungskandidat ergänzt jedes exportierte Originaldelta um
+`source_binding` mit `schema: 1`, `energy_entity_id`, `config_sha256` und
+`producer_sha256`. Die Hashes beziehen sich wie beim Anker auf kanonisches
+`site`-JSON und den Python-Quellumfang der Integration. Die Softwareprovenienz
+wird im Executor ermittelt und für die Coordinatorlaufzeit beibehalten.
+Softwarewechsel benötigen einen regulären Reload/Neustart; ein Austausch von
+Dateien unter einem laufenden Coordinator ist kein unterstützter Nachweis.
+Die Bindung ergänzt nur das Archivereignis, keine Lernintervalle oder Gates.
+
+Für fortlaufende Aufnahmen gibt es den ausdrücklich optierten Vertrag
+`adaptive-solar-actual-quality-bindings-v2`. Er hat dieselben Felder wie v1,
+erlaubt jedoch ein zukünftiges `valid_to`. `configuration.verified` bestätigt
+hier eine **bedingte Freigabe der exakt gepinnten Quelle**, keine Kenntnis
+zukünftiger Messungen. Die [synthetische Vorlage](../../examples/actual-quality-bindings-v2.json)
+enthält ausschließlich Platzhalter und ungeprüfte Facetten. Alle drei Facetten
+benötigen weiterhin echte Prüfzeiten
+und Evidenzverweise. Messquelle und Betriebsannahmen müssen für den ausdrücklich
+begrenzten Zeitraum qualifiziert sein. Es gibt keine automatische Verlängerung,
+Übernahme neuer Softwarehashes oder Neuerstellung bestätigter Facetten.
+
+Zusätzlich zu allen v1-Prüfungen muss jedes verwendete Originaldelta seine
+passenden Pins tragen. Fehlende Pins liefern keine Freigabe; widersprechende
+Pins erzeugen bei bestätigter Konfigurationszuordnung negative Stundenmasken.
+Auch v1 wertet vorhandene widersprechende Pins aus. Generation, Kontinuität,
+Randabdeckung und vollständige Originaldeltas bleiben erforderlich. Ein
+beobachteter Konfigurations-/Producerwechsel sperrt vorsichtshalber die gesamte
+betroffene Bindungsperiode. Danach Perioden anhand belegter Grenzen aufteilen
+und die neue Quelle gesondert qualifizieren. Eine aktuelle Installation von
+0.2.18 kann durch v2 allein noch keine Stunden freigeben: ihren Originaldeltas
+fehlen die neuen Pins. Historische v1-Nachqualifikation bleibt getrennt möglich.
+
+`scripts/archive_observations.py --quality-bindings data/quality/policy.json`
+leitet nach jedem Recorder-Abruf eine neue Qualitätsrevision aus dem lokalen
+Originalarchiv ab. Der Hostschlüssel dafür heißt `quality_bindings`; er verlangt
+`actual_config` und schließt `quality` aus. Die HA-Collectorquellen müssen zuvor
+die nötigen Originalintervalle und Anker eingesammelt haben. Der vorhandene
+Writerlock umfasst Aufnahme und Ableitung. HA wird dabei nur gelesen.
+
+Die Auswahl umfasst alle aufbewahrten Originalintervalle der gebundenen Quellen,
+die Zielstunden berühren, sowie Anker und alle Konfigurationsaufnahmen in den
+Bindungsperioden. Andere Generationen werden als Widersprüche mitgeprüft.
+Payload-Chunks werden quellen-/generationsgebunden aufgelöst. Die Auswahl ist
+auf 500.000 Ereignisse und 512 MiB kanonische Ereignisbytes begrenzt; ein
+fehlender Anker oder überschrittenes Budget erzeugt keine Ersatzfreigabe.
+Sehr lange Policies können vor Ablauf am Budget oder an der Retention scheitern;
+Perioden und Ankererhalt gehören zur Betriebsplanung. Die Auswahl scannt
+die aufbewahrten Batches der gebundenen Quellen; ihre Laufzeit muss im
+Host-Probelauf am tatsächlichen Archivvolumen gemessen werden.
+
+Der archivierte Capture enthält die unveränderten Recorder-Rohdaten und deren
+ursprüngliche Empfangszeit, eine neue Normalisierung und `quality_derivation`
+mit Policykopie, Eingabe-/Programmhashes, Stundendiagnosen und Evidenzreferenzen.
+`validated_at` ist die tatsächliche Ableitungszeit. Vor diesem Zeitpunkt bleiben
+die neuen Labels für historische Auswertungen unsichtbar. Ein Bericht oberhalb der 32-MiB-Grenze für Beobachtungscaptures wird ebenfalls
+als Ableitungsfehler behandelt. Eine fehlgeschlagene
+Ableitung wird als fehlerhafter Job gemeldet, der Rohcapture dennoch bewahrt.
+Eine erfolgreiche Aufnahme mit null freigegebenen Stunden bleibt als solche
+sichtbar (`quality_summary` zählt Abdeckung, Freigaben und Invalidierungen).
+Bestehende negative Masken werden auch beim lokalen Probelauf nicht freigegeben.
+
+### Lokalen Probelauf vorbereiten und abnehmen
+
+1. Den Kandidatenstand samt Abhängigkeiten einfrieren und die später eingesetzte
+   HA-Version mit diesem Producerhash abgleichen. Keine bestehenden Timer auf
+   die neue Policy umstellen, bevor diese Quelle Originaldeltas mit Pins liefert.
+2. Eine private v2-Policy mit exakter 1:1-Messgrenze, Quelle, Generation,
+   archiviertem Konfigurationsanker, Pins und begrenztem Zeitraum erstellen.
+   Ungeprüfte Facetten bleiben `verified: false`; ihr Lauf dient der Diagnose.
+3. Mit einer eingefrorenen lokalen Archivkopie und unverändertem Recorder-Capture
+   prüfen. Während des lokalen Laufs dürfen Collector/Retention diese Kopie
+   nicht verändern; der spätere Hostjob verwendet dafür den gemeinsamen Writerlock:
+
+```bash
+.venv/bin/python scripts/continuous_quality.py \
+    --archive data/archive \
+    --bindings data/quality/policy.json \
+    --actual-capture data/quality/raw-capture.json \
+    --output data/quality/rehearsal-derived.json
+```
+
+Dieser Befehl stellt keine Netzwerkverbindung her und ändert keine Originale.
+Die Ausgabe ist ein separat auswertbarer Capture einschließlich Prüfbericht;
+Ausgabealias auf Eingaben oder ein Ziel innerhalb des Originalarchivs ist gesperrt.
+Erfolg des Befehls bestätigt die Durchführung, auch bei null freigegebenen Stunden.
+
+4. `quality_derivation.summary`, Ausschlussgründe, Rohdatenhash und echte
+   Qualitätszeit prüfen. Positive Stunden benötigen vollständige Originaldeltas;
+   Lücken, alte Producer und abgelaufene Supports bleiben ausgeschlossen.
+   Die Auswertung vor `validated_at` muss die neuen Labels weiterhin auslassen.
+5. Erst für einen gesondert autorisierten Host-Probelauf den bestehenden
+   Beobachtungsjob mit `quality_bindings` konfigurieren. Vorher Konfiguration
+   sichern; HA-Collector zuerst lesen lassen, danach einen einzelnen
+   Beobachtungslauf ausführen und archivierte Captures sowie privaten Hoststatus
+   zurücklesen. Anschließend erst über die reguläre Taktung entscheiden.
+   Rücknahme: vorherige Hostkonfiguration wiederherstellen; neue Capture- und
+   Qualitätsrevisionen als historische Evidenz erhalten. Explizite negative
+   Revisionen benötigen fachliche Klärung, kein Löschen zur Ergebnisverbesserung.
+
+Dieser Arbeitsstand installiert oder aktiviert weder HA noch Hostdienste.
+Ein lokaler synthetischer Probelauf belegt die Verkabelung, keine physische
+Messgüte, produktive Stabilität oder Prognoseüberlegenheit.

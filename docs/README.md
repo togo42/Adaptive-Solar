@@ -40,7 +40,7 @@ privaten Archivhost voraus; die Prognoseintegration benötigt diesen Host nicht.
 | Dokument | Inhalt |
 | --- | --- |
 | [Archivbetrieb](archiv/archivbetrieb.md) | Aufnahme, eingefrorene Daten, Replay und Energiequantile |
-| [Istwerte offline qualifizieren](archiv/istwert-qualitaetsadapter.md) | Entwicklungskandidat: Originalintervalle, explizite Quellenbindung und vollständige Stundenmasken |
+| [Istwerte offline qualifizieren](archiv/istwert-qualitaetsadapter.md) | Entwicklungskandidat: Originalintervalle, begrenzte Quellenpolicy, fortlaufende Aufnahme und lokaler Probelauf |
 | [Hostinstallation](archiv/archiv-host-installation.md) | Eigene Laufzeit, Dienste, Timer, Zugangsdaten, Platz und Sicherung |
 | [HA-freie Hostlaufzeit](archiv/archiv-runtime-ohne-ha.md) | Installer, Paketgrenzen und strenge Replayprovenienz |
 | [Hashablage](archiv/archiv-hashablage.md) | Verzeichnislayout, Migration und Rückweg |

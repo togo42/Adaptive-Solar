@@ -42,6 +42,7 @@ from .core.shade_learning import evaluate_shade_step
 from .core.shading import (
     BEAM_SHADE_STORE_KEY, BeamShadeTable, feature_solar_angles, shade_factors_compatible,
 )
+from .core.archive import canonical_bytes
 from .archive_export import ArchiveExport, CONF_ARCHIVE_EXPORT, json_value, replay_events, software_provenance
 from .weather import WeatherError
 from .snapshots import config_fingerprints, make_snapshot, provenance, validate_snapshot
@@ -1165,7 +1166,14 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         if interval is not None:
             if inv.curtailed_entity_id:
                 interval["curtailment_measurement_contract"] = CURTAILMENT_MEASUREMENT_CONTRACT
-            self.export.record("qualified_interval", dict(interval), now)
+            exported = dict(interval)
+            if self.export.enabled and self._export_software is not None:
+                exported["source_binding"] = {
+                    "schema": 1, "energy_entity_id": inv.energy_entity_id,
+                    "config_sha256": hashlib.sha256(canonical_bytes(self.site.to_dict())).hexdigest(),
+                    "producer_sha256": self._export_software["source_sha256"],
+                }
+            self.export.record("qualified_interval", exported, now)
             self._append_interval(interval)
 
     def _append_interval(self, interval: dict) -> None:
@@ -1327,6 +1335,11 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         if self._closing:
             raise UpdateFailed("Coordinator is closed")
+        if self.export.enabled and self._export_software is None:
+            try:
+                self._export_software = await self.hass.async_add_executor_job(software_provenance)
+            except (OSError, ValueError):
+                _LOGGER.warning("Archive source provenance unavailable")
         now = datetime.now(UTC)
         self._prune(now)
         try:

@@ -28,6 +28,7 @@ jobs:
           .archive-venv/bin/python scripts/replay_shading.py --help
           .archive-venv/bin/python scripts/analyze_learning_support.py --help
           .archive-venv/bin/python scripts/qualify_actuals.py --help
+          .archive-venv/bin/python scripts/continuous_quality.py --help
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20
