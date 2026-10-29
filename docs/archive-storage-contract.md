@@ -150,6 +150,15 @@ bleiben Sequenzlücke und strenge Prüfung fehlender fachlicher Referenzen nöti
 
 ## Seiten, Lücken und Wiederanlauf
 
+Auch die Wetteraufnahme prueft Recovery und jeden anschliessenden
+Journaltransfer: Eine leere Abschlussseite bestaetigt das Ende, waehrend
+Generations-/Cursorluecken und ein unbestaetigtes Seitenlimit den Lauf
+fehlschlagen lassen. Eine unvollstaendige Recovery verhindert neue
+HTTP-Aufnahmen. Bestaetigte Ereignisse und Checkpoints bleiben erhalten.
+Der Wetter-CLI-Bericht enthaelt `records`, `recovery`, `transfers` und
+`complete`; nur verfuegbare Produkte mit vollstaendigen Transfers ergeben
+Exit 0. CLI und Hostrunner melden andernfalls einen fehlgeschlagenen Lauf.
+
 Lokale Beobachtungsjournale verwenden denselben expliziten Seiten-/Status-
 Vertrag. Da ihre Schreibaufrufe synchron abgeschlossen sind, melden sie
 nach erfolgreichem Journalread keine offene Producerqueue. Ein nicht

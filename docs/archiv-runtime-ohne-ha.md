@@ -22,6 +22,16 @@ bestehende Pakete nicht automatisch: Eine alte HA-Umgebung wird bewusst abgelehn
 statt sie während eines unbemerkten Updates umzubauen. Entwicklung und native
 HA-Tests behalten ihre getrennten Abhängigkeiten.
 
+Pip erhaelt keine geerbten `PIP_*`-Einstellungen; `PIP_CONFIG_FILE=/dev/null`
+deaktiviert globale, Benutzer- und venv-Konfigurationen. `--no-user` und
+`PIP_REQUIRE_VIRTUALENV=1` binden die Installation an die Zielumgebung.
+Der Postflight importiert zusaetzlich die tatsaechlichen Laufzeitmodule
+(aiohttp, NumPy, SciPy, pvlib, sklearn und das Kernmodell) und prueft ihre
+Dateipfade innerhalb des Ziel-venv. Eine leere oder per `.pth` umgeleitete
+Umgebung kann damit keinen erfolgreichen Lauf vortaeuschen. Ein echter
+Offline-pip-Test prueft sowohl `PIP_TARGET` als auch eine abweichende
+Konfigurationsdatei, ohne ausserhalb des temporaeren Ziel-venv zu installieren.
+
 Für neue Releases den Installer vor dem Aktivieren des Releasepfads ausführen
 und anschließend die Collector-/Replay-CLIs sowie kontrollierte Aufnahmen prüfen.
 Private Runtimepins können mit `--constraints` ergänzt werden. Abhängigkeiten

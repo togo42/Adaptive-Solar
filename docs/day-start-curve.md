@@ -125,3 +125,14 @@ eine neue Aufnahme des betroffenen Streams. 57 gezielte Tests pruefen
 normale und unvollstaendige Beobachtungsläufe bis zum Host-Exitcode.
 Alle produktiven Aufrufstellen von `scripts.archive.collect` wurden
 abgeglichen; die HA-Komponentendateien bleiben dabei unveraendert.
+
+Der naechste vollstaendige Codex-Nachreview fand zwei weitere bestehende
+Archivwerkzeugfehler: Die Wetteraufnahme uebernahm Journalbrueche nicht in
+ihren Exitstatus; der Hostinstaller konnte durch Pip-Einstellungen in ein
+anderes Ziel installieren. Beide Pfade sind korrigiert und durch echte
+CLI-/Host- sowie Offline-pip-Regressionen abgedeckt. 59 gezielte Tests und
+Ruff bestehen; die gesamte Suite besteht 1.727 Tests ohne Skips, `pip check`
+meldet keine Abhaengigkeitsfehler. Der aktive Self-Review hat alle produktiven
+Wettertransfer-Aufrufstellen sowie die echten Installations- und Importpfade
+abgeglichen. Diese Werkzeugkorrekturen bleiben ausserhalb des HA-Deploys;
+der abschliessende Integrationsreview steht noch aus.

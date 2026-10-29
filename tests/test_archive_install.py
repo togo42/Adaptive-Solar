@@ -61,6 +61,63 @@ def test_update_uses_mandatory_constraints_manifest_pins_and_postflight(isolated
     assert str(subject.ROOT) in install
     assert not any("ha-test" in arg or "[test" in arg for arg in install)
     assert result["homeassistant_installed"] is False
+    assert commands[-1][0][-1] == "runtime"
+    assert result["runtime_imports_verified"] is True
+
+
+def test_runtime_postflight_rejects_an_empty_venv(isolated):
+    result = subprocess.run([str(isolated / "bin/python"), "-I", "-c", subject.CHECK, str(isolated), "runtime"],
+                            capture_output=True, text=True)
+    assert result.returncode != 0
+
+
+@pytest.mark.parametrize("foreign", [False, True])
+def test_runtime_postflight_checks_real_module_locations(isolated, tmp_path, foreign):
+    packages = next((isolated / "lib").glob("python*/site-packages"))
+    for name in ("aiohttp", "numpy", "scipy", "pvlib", "sklearn", "custom_components/adaptive_solar/core/models"):
+        path = packages / (name + ".py")
+        if foreign and name == "pvlib":
+            path = tmp_path / "outside/pvlib.py"
+            (packages / "foreign.pth").write_text(str(path.parent))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("")
+    result = subprocess.run([str(isolated / "bin/python"), "-I", "-c", subject.CHECK, str(isolated), "runtime"],
+                            capture_output=True, text=True)
+    assert (result.returncode == 0) == (not foreign)
+    if not foreign:
+        assert json.loads(result.stdout)["runtime_imports_verified"]
+
+
+def test_pip_target_and_config_cannot_redirect_a_real_install(isolated, monkeypatch, tmp_path):
+    import os
+    # Bootstrap pip before introducing hostile pip settings. No network needed.
+    subprocess.run([str(isolated / "bin/python"), "-I", "-m", "ensurepip"],
+                   check=True, capture_output=True, text=True)
+    outside, configured = tmp_path / "outside-target", tmp_path / "configured-target"
+    configuration = isolated / "pip.conf"
+    configuration.write_text("[global]\ntarget = " + str(configured) + "\n")
+    monkeypatch.setenv("PIP_TARGET", str(outside))
+    monkeypatch.setenv("PIP_CONFIG_FILE", str(configuration))
+    wheel = tmp_path / "archive_probe-1.0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr("archive_probe.py", "VALUE = 1\n")
+        archive.writestr("archive_probe-1.0.dist-info/METADATA", "Metadata-Version: 2.1\nName: archive-probe\nVersion: 1.0\n")
+        archive.writestr("archive_probe-1.0.dist-info/WHEEL", "Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n")
+        archive.writestr("archive_probe-1.0.dist-info/RECORD", "")
+    real = subject.checked
+    def checked(command, step, *, env):
+        assert env["PIP_CONFIG_FILE"] == os.devnull
+        assert set(key for key in env if key.startswith("PIP_")) == {"PIP_CONFIG_FILE", "PIP_REQUIRE_VIRTUALENV"}
+        if step == "installation":
+            command = command[:command.index(str(subject.ROOT))] + ["--no-index", "--no-deps", str(wheel)]
+        return real(command, step, env=env)
+    monkeypatch.setattr(subject, "checked", checked)
+    # A probe wheel is intentionally not the complete archive runtime. It must
+    # not produce a false success after pip check passed in an otherwise empty venv.
+    with pytest.raises(ValueError, match="postflight"):
+        subject.install(isolated)
+    assert not outside.exists() and not configured.exists()
+    assert next((isolated / "lib").glob("python*/site-packages/archive_probe.py")).is_file()
 
 
 def test_polluted_environment_stops_before_pip_install(isolated, monkeypatch):

@@ -44,6 +44,9 @@ ohne Entwicklungs-/HA-Extras. Die verpflichtenden
 auch als versehentliche transitive Abhängigkeit aus. Vor und nach der Installation
 prüft der Installer die isolierte Umgebung und die Abwesenheit von HA;
 `pip check` ist Pflicht. Eine bereits mit HA bestückte Umgebung wird abgelehnt.
+Geerbte Pip-Ziele und Konfigurationsdateien werden deaktiviert; der Postflight
+prueft reale Laufzeitimports und deren Lage im Ziel-venv. Einzelheiten und
+Regressionen stehen unter [Runtimeisolation](archiv-runtime-ohne-ha.md).
 Bei einem Release mit `.venv`-Symlink den tatsächlichen, privaten Umgebungspfad
 an `--venv` übergeben. Gemeinsame Umgebungen nur bei pausierten Archivschreibern
 aktualisieren; einen neuen Stand bevorzugt in einer separaten Umgebung vorbereiten.

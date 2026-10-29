@@ -33,12 +33,30 @@ MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 CHUNK_BYTES = 150_000
 
 
-def flush_journal(journal, store, source):
-    while True:
-        page = journal.page(store.checkpoint(source), limit=100)
-        store.ingest_page(source, page)
+def flush_journal(journal, store, source, *, max_pages=10000):
+    if type(max_pages) is not int or not 1 <= max_pages <= 10000:
+        raise ValueError("invalid journal page limit")
+    pages = events = 0
+    gaps = []
+    confirmed = False
+    cursor = store.checkpoint(source)
+    for _ in range(max_pages):
+        page = journal.page(cursor, limit=100)
+        next_cursor = store.ingest_page(source, page)
+        pages += 1
+        events += len(page["events"])
+        if page["gap"] is not None:
+            gaps.append(page["gap"])
+        progressed = next_cursor != cursor
+        cursor = next_cursor
         if not page["events"]:
+            confirmed = True
             break
+        if not progressed:
+            break
+    return {"complete": confirmed and not gaps, "pages": pages, "events": events, "gaps": gaps,
+            "collection_end_confirmed": confirmed, "page_limit_reached": not confirmed and pages == max_pages,
+            "cursor": cursor}
 
 
 def archive_response(journal, request, raw: bytes | None, received_at, *, product, ensemble,
@@ -147,7 +165,10 @@ async def collect(args):
     source_key = hashlib.sha256(source.encode()).hexdigest()[:16]
     journal = ArchiveJournal(args.archive / f"weather-staging-{source_key}", max_bytes=128 * 1024 * 1024)
     # Drain an earlier interrupted invocation before collecting new responses.
-    flush_journal(journal, store, source)
+    recovery = flush_journal(journal, store, source)
+    report = {"capture_schema": 1, "records": [], "recovery": recovery, "transfers": [], "complete": False}
+    if not recovery["complete"]:
+        return report
     records = []
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=40)) as session:
         for ensemble, products in ((False, args.deterministic), (True, args.ensembles)):
@@ -174,11 +195,15 @@ async def collect(args):
                     received, error = datetime.now(UTC), type(err).__name__
                 event = archive_response(journal, request, raw, received, product=product, ensemble=ensemble,
                                          http_status=http_status, error_type=error, site=site, truncated=truncated)
-                flush_journal(journal, store, source)
+                transfer = flush_journal(journal, store, source)
+                report["transfers"].append(transfer)
                 records.append({"event_id": event["event_id"], "product": product,
                                 "received_at": event["received_at"], "status": event["payload"]["status"],
                                 "coverage": event["payload"]["coverage"]})
-    return records
+    report["records"] = records
+    report["complete"] = bool(records) and all(row["status"] == "available" for row in records) and all(
+        transfer["complete"] for transfer in report["transfers"])
+    return report
 
 
 def comma_list(value):
@@ -200,12 +225,12 @@ def main():
     parser.add_argument("--source", default="weather-host")
     args = parser.parse_args()
     try:
-        records = asyncio.run(collect(args))
+        report = asyncio.run(collect(args))
     except (ValueError, OSError) as err:
         print(f"Capture failed: {type(err).__name__}", file=sys.stderr)
         return 2
-    print(json.dumps({"capture_schema": 1, "records": records}, sort_keys=True))
-    return 0 if records and all(row["status"] == "available" for row in records) else 1
+    print(json.dumps(report, sort_keys=True))
+    return 0 if report["complete"] else 1
 
 
 if __name__ == "__main__":

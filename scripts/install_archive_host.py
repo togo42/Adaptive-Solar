@@ -15,6 +15,7 @@ CONSTRAINTS = ROOT / "deploy/archive-host-constraints.txt"
 CHECK = """
 import importlib.metadata as md
 import importlib.util
+import importlib
 import json
 import pathlib
 import sys
@@ -28,7 +29,14 @@ for name in ('homeassistant', 'pytest-homeassistant-custom-component'):
     else:
         raise RuntimeError('HA package found: ' + name)
 assert importlib.util.find_spec('homeassistant') is None, 'HA module still importable'
-print(json.dumps({'homeassistant_installed': False, 'isolated_venv': True}))
+runtime = len(sys.argv) > 2 and sys.argv[2] == 'runtime'
+if runtime:
+    prefix = pathlib.Path(sys.prefix).resolve()
+    for name in ('aiohttp', 'numpy', 'scipy', 'pvlib', 'sklearn', 'custom_components.adaptive_solar.core.models'):
+        module = importlib.import_module(name)
+        location = getattr(module, '__file__', None)
+        assert location and pathlib.Path(location).resolve().is_relative_to(prefix), 'Runtime import outside target venv'
+print(json.dumps({'homeassistant_installed': False, 'isolated_venv': True, 'runtime_imports_verified': runtime}))
 """
 
 
@@ -53,21 +61,26 @@ def install(target, *, constraints=None):
     if "include-system-site-packages = false" not in config:
         raise ValueError("System site packages must be disabled")
     python = str(target / "bin/python")
-    env = os.environ.copy()
+    # Interpreter isolation alone does not isolate pip's install destination.
+    # os.devnull is pip's explicit switch disabling all config-file variants.
+    env = {key: value for key, value in os.environ.items() if not key.startswith("PIP_")}
     env.pop("PYTHONPATH", None)
     env.pop("PYTHONHOME", None)
     env["PYTHONNOUSERSITE"] = "1"
+    env["PIP_CONFIG_FILE"] = os.devnull
+    env["PIP_REQUIRE_VIRTUALENV"] = "1"
     checked([python, "-I", "-c", CHECK, str(target)], "preflight", env=env)
     requirements = json.loads((ROOT / "custom_components/adaptive_solar/manifest.json").read_text())["requirements"]
-    command = [python, "-I", "-m", "pip", "install", "--upgrade", "--constraint", str(CONSTRAINTS)]
+    command = [python, "-I", "-m", "pip", "install", "--upgrade", "--no-user", "--constraint", str(CONSTRAINTS)]
     if constraints is not None:
         command += ["--constraint", str(Path(constraints).resolve())]
     # Install the regular runtime only. Native HA/test extras belong in CI/dev.
     command += [str(ROOT), *requirements]
     checked(command, "installation", env=env)
     checked([python, "-I", "-m", "pip", "check"], "dependency check", env=env)
-    checked([python, "-I", "-c", CHECK, str(target)], "postflight", env=env)
-    return {"homeassistant_installed": False, "dependency_check": True, "runtime_requirements": requirements}
+    checked([python, "-I", "-c", CHECK, str(target), "runtime"], "postflight", env=env)
+    return {"homeassistant_installed": False, "dependency_check": True, "runtime_imports_verified": True,
+            "runtime_requirements": requirements}
 
 
 def main(argv=None):
