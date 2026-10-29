@@ -14,6 +14,25 @@ die Serviceimplementierung. Implementierungscommit `8dbf980` bestand lokal
 Lauf nicht abgeleitet. Release-CI, Artefakte und Installation benötigen eigene
 Nachweise; frühere Receipts gelten nicht automatisch für diesen Stand.
 
+Releasecommit `de9c832da394b7d6b0ebeb041a73cad274012224` wurde als `v0.2.19`
+veröffentlicht. [Main-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40896868759)
+und [Tag-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40896869542)
+bestanden jeweils mit 1.729 Tests ohne Skips, 90,86 % beziehungsweise 90,88 %
+kombinierter Abdeckung und erfolgreichen HA-freien Archivhostjobs.
+Wheel, Quellpaket und Integrations-ZIP stimmen in allen 38 Komponenten-Dateien
+mit dem Releasequellstand überein; alle vier veröffentlichten Artefakte wurden
+nach Download bytegleich geprüft. Ein regulär installierter Wheel bestand
+30 Modulimporte mit den vorhandenen gepinnten HA-Testabhängigkeiten.
+
+Die Installation über natives HACS mit einem Core-Neustart wurde auf einer
+bestehenden HAOS-/Core-2026.10.4-Installation nachgeprüft. Komponentenbytes,
+geladene Einträge, Registryreferenzen, Optionen, Historien, Tagesbeginnwerte,
+Energy-/Dashboardkonfiguration und neue Prognosen wurden abgeglichen.
+Konfigurationsprüfung und aktive Repairs waren unauffällig; im begrenzten
+Logreadback gab es keine Adaptive-Solar-Fehler oder blockierenden Startupmeldungen.
+Konkrete Anlagendaten, Komponentenrückweg und Laufzeitreceipts bleiben unter
+ignoriertem `data/`. Dies ist ein begrenzter Installationsnachweis.
+
 ## Vorheriger Release 0.2.18
 
 [0.2.18](../releases/release-0.2.18.md) wurde aus

@@ -37,3 +37,16 @@ Reviewreceipts gelten ausschließlich für ihre gebundenen Quellen. Veröffentli
 CI- und Buildnachweise stehen in den [Prüfnachweisen](../entwicklung/pruefnachweise.md);
 anlagenspezifische Laufzeitprotokolle bleiben privat. Die Prüfungen belegen keine
 höhere reale Prognosegenauigkeit.
+
+## Veröffentlichung und Laufzeitprüfung
+
+`v0.2.19` wurde aus Releasecommit
+`de9c832da394b7d6b0ebeb041a73cad274012224` veröffentlicht. Main-/Tag-CI bestanden
+jeweils mit 1.729 Tests ohne Skips und erfolgreichem HA-freiem Archivhostjob.
+Die vier Releaseartefakte wurden nach Download bytegleich geprüft.
+
+Die native HACS-Installation mit einem Core-Neustart auf bestehendem
+HAOS / Core 2026.10.4 wurde mit Datei- und Laufzeitreadbacks kontrolliert.
+Einträge, Entity-IDs, Optionen, kompatible Historien und Tagesbeginnwerte blieben
+erhalten; neue Prognosen tragen die Releaseprovenienz. Konfiguration und Repairs
+wurden geprüft. Private Einzelbelege werden nicht veröffentlicht.
