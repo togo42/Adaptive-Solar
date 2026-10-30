@@ -10,6 +10,59 @@ Quellenbindung und Qualitätsaufnahme hat die [Codex-Quellabnahme](#codex-quella
 auf `05f90ea49d1fb124c9f16e1382921d3726f76022` bestanden. Dies ist keine
 produktive Installation oder Betriebsfreigabe.
 
+Die anschließende lokale Überarbeitung von Hoststatus, Auswertung und
+Qualitäts-CLIs ist **nicht** durch R18 abgedeckt. Ihre Nachweise stehen im
+folgenden Abschnitt; die historische Quellabnahme bleibt unverändert erhalten.
+
+## Lokale Nacharbeit nach der Quellabnahme
+
+Ausgangsstand: `5a53b08474a78999b6bfb65523b1785ae9823a54`, 30.10.2026.
+Geprüfter Implementierungsstand: `261cd972834174b3e390aeb55e25f12b70a78b4d`
+(Hostschutz `9e3dbb3`, gemeinsame Auswahl `dd4e0d1`, Qualitätsadapter `261cd97`).
+Die nachfolgende Workflow-/Statusdokumentation ändert diese Pythonbytes nicht.
+Die gezielte Untersuchung bestätigte zwei Varianten eines weiteren
+Hoststatusfehlers: Statusverzeichnisse in der Originalablage konnten das
+Wiederöffnen des Archivs verhindern; ein Statusziel konnte die zuvor gelesene
+Hostkonfiguration ersetzen. Beide Fälle wurden ausschließlich in temporären
+Verzeichnissen reproduziert. Die drei Regressionen für vorhandenes/nicht
+vorhandenes Archiv sowie die Konfigurationskollision scheitern am unveränderten
+Ausgangscode; private Daten und produktive Dienste wurden nicht verwendet.
+
+Der korrigierte Runner prüft Statusverzeichnis, alle Jobnachweise und Lock vor
+Verzeichnisanlage gegen Quellarchiv, Hostkonfiguration, konfigurierte Eingaben
+und Programme. Die Auswerter verwenden eine gemeinsame Auswahlfunktion für den
+jüngsten verfügbaren Prognoseversuch; die Qualitäts-CLIs teilen begrenztes
+JSON-Lesen und die Prüfung vorhandener Qualität ohne gegenseitigen CLI-Import.
+Guardpolicy, Lern- und Qualitätsgates bleiben unverändert.
+
+Drei Implementierungs- und zwei davon getrennte Nachreview-Subagenten wurden mit
+**GPT-6.1-Sol/high** beauftragt. Der fokussierte Nachreview fand zusätzlich einen
+statischen Aliasfall zwischen konfigurierter und aufgelöster Archivwurzel; er
+ist im gemeinsamen Ausgabevalidator und im Datasetexport ebenfalls vorab
+gesperrt. Vier neue Gegenproben scheiterten vor dieser Korrektur; drei bestehende
+Vergleichsfälle bestanden bereits. Das war eine Schutzvertragsverletzung,
+kein Nachweis zusätzlicher Originalkorruption. Die Nachprüfung umfasste die
+[Inventur der Schreibwege](review-fehlerfamilien.md), gemeinsame Auswahl und
+Qualitätsadapter einschließlich ihrer Verbraucher. Sie ist kein neuer externer
+hashgebundener Vollreview und keine Produktivfreigabe.
+
+Nach Korrektur meldeten die beiden fokussierten Nachreviews keine offenen
+konkreten Befunde in ihrem Umfang. Die abschließende Vollsuite bestand mit
+**2.230 Tests ohne Skips**, **90,88 % kombinierter Abdeckung** und unverändertem
+90-%-Gate. Die 23 vorhandenen SQLite-ResourceWarnings bleiben bestehen. Ruff,
+`pip check`, vier HA-gesperrte CLI-Importprüfungen und der Dokumentationsabgleich
+bestanden. Die geänderten Markdowntexte wurden gerendert; alle 111 lokalen
+Linkziele waren vorhanden. Eine zusätzliche Writerfamilienprüfung bestand mit
+679 Tests, der unabhängige Writer-Nachreview mit 150 gezielten Tests.
+
+Lokale Nachweise liegen unter `artifacts/learning-support-followup/`:
+`host-before.log`, `final-full-tests.log`, `final-coverage.json` und
+`final-code-manifest.json`. Das Manifest bindet die 15 geänderten Pythondateien
+dieser Überarbeitung; es ist kein externer Reviewreceipt. Es erfolgten kein Push,
+Main-Merge, Release oder produktives HA-/Hostdeployment. Die Auslagerung der
+Offlineanalyse bleibt der separat beschriebene Folgeschritt; Quellenpins werden
+nicht gelockert und die Guardpolicy bleibt unverändert.
+
 ## Aktueller Releasebezug
 
 [0.2.18](../releases/release-0.2.18.md) wurde aus

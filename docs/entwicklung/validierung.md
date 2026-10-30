@@ -46,6 +46,13 @@ Diese Approximation setzt austauschbare, repräsentative Tagesblöcke voraus, mo
 
 ## 4. Lokale Prüfung und Review
 
+Für Entwicklung und Befundkorrekturen gilt der ergänzende Ablauf
+[Fehlerfamilien gemeinsam prüfen](review-fehlerfamilien.md): zuerst verwandte
+Einstiegspunkte vollständig untersuchen, Korrekturen bündeln und gezielt durch
+einen anderen Bearbeiter nachprüfen, danach den integrierten Stand insgesamt
+bewerten. Ein fokussierter lokaler Nachreview ist keine neue externe Vollabnahme;
+die folgenden Transfer-, Integritäts- und Abschlussregeln bleiben erhalten.
+
 Seit der Korrektur vom 29.10.2026 gehoeren auch ausgelieferte `.service`-
 und `.timer`-Dateien ausdruecklich zum oeffentlichen Textscope. Alle acht
 systemd-Vorlagen unter `deploy/` werden vollstaendig samt Hash/Byteoffsets

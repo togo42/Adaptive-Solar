@@ -51,6 +51,7 @@ privaten Archivhost voraus; die Prognoseintegration benötigt diesen Host nicht.
 
 - [Entwicklung](entwicklung/entwicklung.md): Umgebung, Tests, Beiträge und Veröffentlichung.
 - [Validierung](entwicklung/validierung.md): prospektiver Messplan und hashgebundener Reviewablauf.
+- [Fehlerfamilien prüfen](entwicklung/review-fehlerfamilien.md): gemeinsame Nachprüfung, Inventur der Schreibwege und Grenzen fokussierter Reviews.
 - [Vergleichsaufnahme](entwicklung/benchmark-aufnahme.md): Recorder-Istwerte und Referenzprognosen.
 - [Prüfnachweise](entwicklung/pruefnachweise.md): historische Quell-/Releasebezüge und Aussagegrenzen.
 - [Dokumentationspflege](entwicklung/dokumentationspflege.md): Ablageregeln und Konsistenzprüfung.

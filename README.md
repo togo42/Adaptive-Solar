@@ -91,6 +91,11 @@ Ein weiterer [Offline-Adapter qualifiziert Recorder-Iststunden](docs/archiv/istw
 aus Originalintervallen und belegten Quellenbindungen; ungeprüfte Quellen bleiben Diagnose.
 Der Kandidat unterstützt auch optionale fortlaufende Qualitätsaufnahme mit
 Quellenpins je Originaldelta und einen lokalen Probelauf ohne HA-Zugriff.
+Die nachfolgende lokale Überarbeitung schützt auch Hoststatusziele, bündelt die
+Ausgabeauswahl der Auswerter und trennt die gemeinsame Qualitäts-Einlesehilfe
+von den CLIs. Der [Ablauf für Fehlerfamilien](docs/entwicklung/review-fehlerfamilien.md)
+beschreibt die gemeinsame Nachprüfung; ältere Vollreviews gelten ausschließlich
+für ihre damaligen Quellstände.
 [Datenverträge](docs/technik/implementation-contract.md),
 [Vergleichsaufnahme](docs/entwicklung/benchmark-aufnahme.md) und
 [Reviewablauf](docs/entwicklung/validierung.md#4-lokale-prüfung-und-review)
