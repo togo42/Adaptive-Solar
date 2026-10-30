@@ -159,7 +159,10 @@ mit vorhandenen HA-Testabhängigkeiten. Das ist kein neuer Plattform- oder
 HA-Laufzeitnachweis. [Quellbindung und lokale Buildbelege](../entwicklung/pruefnachweise.md#release-0220-aktueller-stand)
 enthalten die Grenzen. Nachfolgende Statusdokumente liegen außerhalb des Reviews;
 Code und Tests bleiben bytegleich zum eingefrorenen Stand. Paketbau und CI
-des Releasecommits sind separat in den Prüfnachweisen gebunden. Reale Quellen-
+des Releasecommits sowie das ausdrücklich freigegebene native HA-Update mit
+erhaltenen Einträgen, Entities, Optionen und Historien sind separat in den
+Prüfnachweisen gebunden. Dieser begrenzte Laufzeitnachweis qualifiziert keine
+weiteren Plattformen. Reale Quellen-
 und Lernabnahme sowie ein Genauigkeitsvergleich benötigen eigene Nachweise.
 
 Ein synthetischer Probelauf zeigt nur die Verkabelung. Weder ein Review noch

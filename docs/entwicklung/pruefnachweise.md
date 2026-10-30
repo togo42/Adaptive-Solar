@@ -76,10 +76,45 @@ Statusdokumente liegen außerhalb dieses Reviews; Code und Tests bleiben bytegle
 [PR #1](https://github.com/togo42/Adaptive-Solar/pull/1) wurde als
 `54505d9ba7ebe392f079f3ae46fea3f7f6938f6b` in main gemerged; sein Tree ist
 identisch zum geprüften Statusstand `6a236ee500d1c990f7f9cab6376b41b294bce1c0`.
-Releasepakete, CI und eine tatsächlich erfolgte Installation werden separat
-an ihre jeweiligen Quellstände gebunden. Die vorhandene native Testumgebung
-ersetzt keine Prüfung weiterer Plattformen. Quellenvalidität, produktive
-Lernabnahme und Prognoseüberlegenheit benötigen eigene Nachweise.
+Der unveränderliche Releasecommit ist
+`d8e7c8e557c2569a9b30ff13631eb232c04093cc`. Die
+[Main-CI des Releasecommits](https://github.com/togo42/Adaptive-Solar/actions/runs/41065089830)
+und [Tag-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/41065329229)
+bestanden jeweils **2.354 Tests ohne Skips**, **90,89 % kombinierte Abdeckung**
+und den HA-unabhängigen Archivhost-Job. Die vorherige
+[Merge-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/41064303284)
+bestand dieselben 2.354 Tests bei 90,91 %.
+
+Wheel, sdist und Integrations-ZIP wurden aus dem exakten Releasecommit gebaut;
+alle 41 Komponentendateien sind bytegleich. Eine separate reguläre Wheelinstallation
+bestand 34 Modulimporte mit vorhandenen HA-Testabhängigkeiten. Alle vier
+veröffentlichten Assets wurden erneut heruntergeladen und bytegleich geprüft.
+Buildreceipt: `artifacts/release-0.2.20/release-build/build-verification.json`,
+SHA256 `f5057b6f094f63df84d23c8b9a252597eec4a6ec6b398c51627a1129fc829594`.
+Die [veröffentlichten Prüfsummen](https://github.com/togo42/Adaptive-Solar/releases/download/v0.2.20/SHA256SUMS)
+binden die drei Pakete. Die vorhandene Testumgebung ersetzt keine Prüfung
+weiterer Plattformen.
+
+Das ausdrücklich freigegebene HA-Update erfolgte am 30.10.2026 über natives HACS
+mit genau einem Core-Neustart unter **Core 2026.10.4**. Vorher wurden eine
+geschützte native Konfigurations-/SSL-Sicherung ohne Recorderdatenbank und eine
+gezielte Komponenten-/Historienkopie erstellt und geprüft; Entschlüsselung und
+vollständiger Restore wurden nicht getestet. Nach dem regulären Prognosezyklus
+bestanden vier geladene Einträge mit Version 0.2.20 und gültigen Eingängen,
+drei vollständige Folgetage je Anlage sowie die unveränderten 80 Entity-/Unique-IDs,
+vier Geräte, Optionen, Energy-/Dashboardzuordnungen, vorhandenen Messintervalle
+und Tagesbeginnwerte einschließlich Kurven und Provenienz. Es gab keine aktiven
+Repairs, Adaptive-Solar-Laufzeitfehler oder blockierenden Startaufrufe.
+Neue Originalprognosen und Messintervalle tragen den passenden Releasequellpin;
+das bestätigt Softwareherkunft, keine physische Quellenqualifikation.
+
+Private Installationsbelege liegen unter `data/release-0.2.20-20261030/`, darunter
+`runtime-audit-final.json`; öffentliche CI-/Buildbelege unter
+`artifacts/release-0.2.20/`. Externe Archivhostdienste, Timer und Dashboardressourcen
+wurden nicht aktualisiert. Der Support-Guard bleibt offline. Quellenvalidität,
+produktive Lernabnahme und Prognoseüberlegenheit benötigen eigene Nachweise.
+Diese nachträgliche Abschlussdokumentation verändert weder den Tag noch die
+akzeptierten Implementierungs- und Testbytes.
 
 <a id="releasekandidat-0220-aktueller-stand"></a>
 
