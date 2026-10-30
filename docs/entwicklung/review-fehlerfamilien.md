@@ -13,7 +13,9 @@ bleiben unverändert. Ein lokaler Subagentenreview ist kein Provider-Vollreview.
 2. Alle Einstiegspunkte derselben Fehlerfamilie erfassen, bevor ein Nachreview
    startet. Schreibende Helfer anhand der folgenden Tabelle prüfen; bei
    Zeitfehlern alle Ausgabe-/Empfangs-/Zielgrenzen, bei Vergleichsfehlern alle
-   betroffenen Auswertungsarme und Kennzahlen verfolgen.
+   betroffenen Auswertungsarme und Kennzahlen verfolgen. Bei Einheitenfehlern
+   sämtliche numerischen Eingangsklassen sowie Metadatenwechsel, Unterbrechung
+   und Wiederanlauf der Messkontinuität über native HA-Ereignisse prüfen.
 3. Bestätigte Geschwisterfälle gemeinsam korrigieren. Regressionen prüfen das
    beobachtbare Ergebnis einschließlich Originalerhalt und zulässiger Fälle;
    sie spiegeln nicht lediglich die neue Implementierung. Mindestens einen

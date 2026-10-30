@@ -124,6 +124,54 @@ Vorher-/Nachherprüfungen: `artifacts/release-0.2.20/` mit
 `codex-r4-closeout.json`, `fixes-primary/` und `fixes-capture/`.
 Kein Release oder produktives HA-/Hostdeployment ist erfolgt.
 
+## Weiterer Codex-Review und Einheitenkontinuität
+
+R6 prüfte den korrigierten Kandidaten `62ca40c070f22b5fa0c7c3815f9505fbb1366a75`
+vollständig: **GPT-6.1-Sol/high**, CLI **0.166.0**, 214 öffentliche Originaltexte,
+46 Quellblöcke und 48 abgeschlossene Turns. Der unabhängige Audit bestand mit
+exakten Quellen-, Prompt-, Antwort- und API-Bindungen, ohne Compaction, native
+Tools oder Hintergrundaufgaben. **Das Fachurteil blieb mit zwei mittleren
+Befunden `blocked`; R6 ist keine positive Abnahme.**
+
+- AS-001: Nichttextuelle Einheiten, etwa Listen oder Objekte, konnten im
+  gemeinsamen numerischen Leser einen `TypeError` auslösen. Der Leser weist
+  diese Typen nun vor Dictionaryzugriffen als ungültige Beobachtung zurück.
+- AS-002: Ein reiner Wechsel zwischen gültigen Energieeinheiten konnte den
+  bisherigen Anker erhalten und dadurch künstliche, dennoch unterhalb der
+  Leistungskappe liegende Energie erzeugen. Jeder Energieeinheitenwechsel
+  beendet nun die Phase und verwirft offene Deltas. Ein echter Zahlen-/Forced-
+  Bericht kann neu ankern; eine reine Attributänderung wartet auf den nächsten
+  echten Bericht. Bestehende Historie wird nicht gelöscht.
+
+Alle acht Aufrufer des numerischen Lesers wurden geprüft, einschließlich
+Originalexport, optionaler Umwelt-/Leistungseingänge und Meterqualität.
+Unveränderte Einheiten, sachfremde Metadaten, Restored-Unterbrechung, Nullwerte,
+Rückwechsel, negative Werte und Leistungskappen wurden mitgeprüft. `state_class`
+bleibt hier reine Raw-Metadateninformation; es wurde kein zusätzlicher Gate
+eingeführt. Von 62 neuen Fällen scheitern 37 am eingefrorenen Originalcode,
+25 Kontrollfälle bestehen dort bereits. Die korrigierte Familie besteht
+229 Tests ohne Skips; ein unabhängiger Satz besteht 65 Prüfungen. Die gemeinsame
+Vollsuite bestand mit **2.315 Tests ohne Skips**, **90,89 % kombinierter
+Abdeckung** und unverändertem 90-%-Gate; weiterhin 23 SQLite-ResourceWarnings.
+Ruff und `pip check` bestanden. Ein neuer Codex-Nachreview sowie Build und CI
+dieser Korrekturen stehen noch aus. Lokale Volltestbelege:
+`artifacts/release-0.2.20/r7-full-tests.log`, `r7-tests.xml` und `r7-coverage.json`.
+
+R5 scheiterte zuvor technisch im Schlussdialog nach 300 Sekunden ohne SSE-
+Ereignis. R6 setzte den [dokumentierten nativen Streamtimeout](https://developers.openai.com/codex/config-reference)
+nur im isolierten Reviewprozess auf 3.600.000 ms, innerhalb der unveränderten
+Gesamtlaufzeit von 3.600 Sekunden. Eine threadfreie native Konfigurationsabfrage
+bestätigte den Wert; Retrywerte, Quellen und Schutzprüfungen blieben unverändert.
+R5 bleibt ohne gültiges Urteil. Die Änderungen betreffen den isolierten Treiber,
+keine globale Codex-Konfiguration. R6 war statisch und führte keine Tests aus.
+
+R6-Receipt-SHA256: `27b6bc10d4cb5f6844ed57385155de0ae9ed0f35d4e0bed1b81cc18a9fd56b30`.
+Audit-SHA256: `a685d387f06a969fe2eed726544a957293698739f668e54a4e1dfb9a525734a1`.
+Rohbelege: `reviews/private/release-0.2.20-codex-r6/`; Audit, native
+Konfigurationsprüfung und Korrekturbelege: `artifacts/release-0.2.20/` mit
+`codex-r6-closeout.json`, `codex-r6-native-config-preflight.json` und `fixes-units/`.
+Keine Veröffentlichung oder produktive Aktivierung ist erfolgt.
+
 ## Aktueller Releasebezug
 
 [0.2.19](../releases/release-0.2.19.md) aktualisiert die HA-Geräte-API und

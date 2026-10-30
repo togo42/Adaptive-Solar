@@ -81,6 +81,11 @@ physische Messgüte. Format, Grenzen und Probelauf stehen im
   im Executor. Snapshotbildung und Retention bleiben auf dem Eventloop;
   verzögertes Speichern, Pending-Load, expliziter Import und Abschluss verwenden
   weiterhin den nativen Store-Lebenszyklus. Das Speicherformat ändert sich nicht.
+- Nichttextuelle Einheiten numerischer HA-Quellen gelten als ungültige
+  Beobachtung und brechen keinen optionalen Prognosepfad mehr ab. Ein Wechsel
+  der Energieeinheit beendet die Zählerkontinuität; erst nach einem neuen
+  echten Anker dürfen weitere Berichte wieder Messenergie bilden. Bestehende
+  Historie bleibt erhalten, Attributänderungen allein liefern keine Energie.
 
 ## Getrennte Installation und Rückwege vorbereiten
 
