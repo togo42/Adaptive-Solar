@@ -11,6 +11,7 @@ import json
 import hashlib
 import logging
 import math
+from threading import get_ident
 from time import perf_counter
 from pathlib import Path
 from typing import Any, Mapping
@@ -21,6 +22,7 @@ from homeassistant.helpers.event import async_track_state_change_event, async_tr
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.json import load_json
+from homeassistant.util.async_ import run_callback_threadsafe
 
 from .const import (
     COUNTER_PLAUSIBILITY_WINDOW_SECONDS, COUNTER_PENDING_WAIT_SECONDS, MEASUREMENT_CONTRACT, DOMAIN, MAX_ARCHIVE_ROWS, MAX_ENERGY_GAP_SECONDS, MAX_TRAINING_ROWS,
@@ -610,7 +612,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self._comparison_saved_revision = 0
         self._comparison_save_task = None
         self._comparison_storage_status = "not_loaded"
-        self._store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.history_v2")
+        self._store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.history_v2",
+                            serialize_in_event_loop=False)
         self._legacy_store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}")
 
     async def async_restore(self) -> None:
@@ -1742,7 +1745,14 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         # Do not postpone the write indefinitely when meters report each second.
         if self._persistence_active and not self._closing and not self._save_pending:
             self._save_pending = True
-            self._store.async_delay_save(self._stored, 30)
+            self._store.async_delay_save(self._stored_threadsafe, 30)
+
+    def _stored_threadsafe(self) -> dict[str, Any]:
+        """Capture live state on its owning loop before native worker encoding."""
+        # Native pending-load readback can also call data_func on the loop.
+        if get_ident() == self.hass.loop_thread_id:
+            return self._stored()
+        return run_callback_threadsafe(self.hass.loop, self._stored).result()
 
     @callback
     def _stored(self) -> dict[str, Any]:
@@ -1750,6 +1760,10 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         # Enforce the same bounds the reader requires even if no forecast
         # refresh succeeds between meter reports, delayed writes or shutdown.
         self._prune(datetime.now(UTC))
+        # Published forecast rows/features, snapshot curves/provenance and
+        # measurement parts are replaced, never edited in place. Detached
+        # containers therefore stay stable while native Store encodes them
+        # in its executor; _append_interval replaces a merged row as well.
         snapshots = dict(self.daily_snapshots)
         origins = {day: self.daily_snapshot_provenance.get(day, provenance(self.site)) for day in snapshots}
         for day, (snapshot, origin) in self._pending_day_start_imports.items():
