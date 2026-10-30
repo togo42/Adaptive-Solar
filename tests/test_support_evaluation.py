@@ -150,7 +150,8 @@ def test_declared_schedule_keeps_missing_forecast_tasks_visible():
     assert report["strata"]["wr|unknown|6-24h"]["available_tasks"] == 0
 
 
-def test_schedule_selects_same_origin_for_global_stratum_and_bounds():
+@pytest.mark.parametrize("receipt_delay_minutes", [0, 10])
+def test_schedule_selects_same_origin_for_global_stratum_and_bounds(receipt_delay_minutes):
     payload = frozen()
     target = synthetic_days(first=28, count=1)[2]
     first = payload["tasks"][0]
@@ -160,6 +161,8 @@ def test_schedule_selects_same_origin_for_global_stratum_and_bounds():
                                   power_w=target.actual_w, observed_at=target.observed_at.isoformat())
     second = deepcopy(first)
     second["issued_at"] = (datetime.fromisoformat(first["issued_at"]) + timedelta(hours=1)).isoformat()
+    second["available_at"] = (datetime.fromisoformat(second["issued_at"])
+                              + timedelta(minutes=receipt_delay_minutes)).isoformat()
     second["features"]["lead_hours"] -= 1
     second["features"]["cloud_cover_pct"] = 100  # Deliberately outside support.
     payload["tasks"].append(second)
@@ -174,11 +177,20 @@ def test_schedule_selects_same_origin_for_global_stratum_and_bounds():
     assert stratum["calibration"]["residual"]["paired_bounded_tasks"] == 1
     for arm in ("physics", "residual", "guarded_residual"):
         assert stratum["scores"][arm] == report["evaluation"]["scores"][arm]["overall"]
-    payload["schedule"][0]["cutoff"] = second["issued_at"]
+    payload["schedule"][0]["cutoff"] = (datetime.fromisoformat(second["available_at"])
+                                         - timedelta(microseconds=1)).isoformat()
+    before_receipt = evaluate_support(payload)
+    stratum = next(iter(before_receipt["strata"].values()))
+    assert stratum["guard_fallback_tasks"] == 0
+    for arm in ("physics", "residual", "guarded_residual"):
+        assert stratum["scores"][arm] == report["evaluation"]["scores"][arm]["overall"]
+    payload["schedule"][0]["cutoff"] = second["available_at"]
     newer = evaluate_support(payload)
     stratum = next(iter(newer["strata"].values()))
     assert stratum["guard_fallback_tasks"] == 1
     assert stratum["calibration"]["guarded_residual"]["paired_bounded_tasks"] == 0
+    for arm in ("physics", "residual", "guarded_residual"):
+        assert stratum["scores"][arm] == newer["evaluation"]["scores"][arm]["overall"]
 
 
 def test_declared_schedule_cannot_split_native_feature_support():

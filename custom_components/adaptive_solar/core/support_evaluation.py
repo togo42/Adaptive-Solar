@@ -7,14 +7,16 @@ are evidence assertions, not source qualification performed by this module.
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from bisect import bisect_right
 from datetime import datetime
 import hashlib
 import math
 from zoneinfo import ZoneInfo
 
 from .archive import canonical_bytes, validate_envelope
-from .evaluation import ActualRecord, EvaluationWindow, ForecastAttempt, ForecastRecord, _interval_mean, evaluate_forecasts
+from .evaluation import (
+    ActualRecord, EvaluationWindow, ForecastAttempt, ForecastRecord,
+    _interval_mean, _latest_available_issue, evaluate_forecasts,
+)
 from .learning import LEAD_BIN_NAMES, feature_regime, lead_bin
 from .learning_support import SupportGuardLearner
 from .models import ForecastPoint, SiteConfig, TrainingSample, finite_number, midpoint_lead_hours
@@ -252,9 +254,8 @@ def _scheduled_strata(rows, forecasts, windows, actuals, as_of, timezone_name, a
         values.sort()
     grouped, selected = defaultdict(list), defaultdict(list)
     for window in sorted(set(windows), key=lambda w: (w.cutoff, w.inverter_id, w.start, w.end)):
-        values = issues[window.inverter_id]
-        position = bisect_right(values, min(window.cutoff, window.start, as_of)) - 1
-        bucket = indexed.get((window.inverter_id, values[position]), {}) if position >= 0 else {}
+        issue = _latest_available_issue(issues[window.inverter_id], window, as_of)
+        bucket = indexed.get((window.inverter_id, issue), {}) if issue is not None else {}
         row = bucket.get((window.start, window.end))
         if row is None and any(r["start"] < window.end and r["end"] > window.start for r in bucket.values()):
             raise ValueError("schedule must preserve complete exported target intervals")

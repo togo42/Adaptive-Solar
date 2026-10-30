@@ -32,7 +32,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta, timezone
 import math
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, Sequence
 from zoneinfo import ZoneInfo
 
 from .models import midpoint_lead_hours
@@ -145,6 +145,19 @@ class EvaluationWindow:
     def to_dict(self) -> dict:
         return {key: value.isoformat() if isinstance(value, datetime) else value
                 for key, value in self.__dict__.items()}
+
+
+def _latest_available_issue(
+    issues: Sequence[datetime], window: EvaluationWindow, as_of: datetime,
+) -> datetime | None:
+    """Select from sorted UTC attempt times, including attempts without a curve.
+
+    Callers index by archive availability (receipt time for native exports),
+    retaining empty attempts so a failed newer curve cannot expose older data.
+    Target coverage is checked only after selecting the complete attempt.
+    """
+    position = bisect_right(issues, min(window.cutoff, window.start, as_of)) - 1
+    return issues[position] if position >= 0 else None
 
 
 def _metrics(rows: list[tuple[float, float, float]]) -> dict:
@@ -282,11 +295,10 @@ def evaluate_forecasts(
         predictions = {}
         for source in sources:
             index_key = source, window.inverter_id
-            issues = source_issues.get(index_key, [])
-            position = bisect_right(issues, min(window.cutoff, window.start, as_of)) - 1
-            if position < 0:
+            issue = _latest_available_issue(source_issues.get(index_key, ()), window, as_of)
+            if issue is None:
                 continue
-            latest = forecast_index[index_key][issues[position]]
+            latest = forecast_index[index_key][issue]
             value = _interval_mean(latest, window.start, window.end)
             if value is not None:
                 predictions[source] = value

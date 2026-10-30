@@ -167,7 +167,11 @@ Residualmerkmale für zusammengefügte oder geteilte Intervalle. Die Auswahl ber
 eine leere jüngere Ausgabe sperrt deshalb den Rückgriff auf ältere erfolgreiche
 Kurven. Das gilt für Gesamtfehler, Regime-/Vorlaufstrata und Bandabdeckung
 gleichermaßen. Fehlende Prognoseaufgaben bleiben im Plan sichtbar; ihr Regime
-ist `unknown`. Das Werkzeug erzeugt dafür keine Ersatz-Zielintervalle oder
+ist `unknown`. Gesamtfehler und Strata verwenden dafür dieselbe Auswahlfunktion:
+Sie berücksichtigt Versuche bis einschließlich des frühesten Zeitpunkts aus
+Prüfplan-Cutoff, Zielbeginn und `as_of`; beim nativen Import zählt der
+Archivempfang. Erst danach wird die Zielabdeckung des gewählten Versuchs geprüft.
+Das Werkzeug erzeugt dafür keine Ersatz-Zielintervalle oder
 Merkmale. Ohne `schedule` ist der abgeleitete
 Plan ausdrücklich nachträglich (`posthoc_task_schedule`), auch wenn vollständige
 Tagesfenster rein deskriptiv auswertbar sind.
