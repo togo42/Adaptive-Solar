@@ -11,7 +11,7 @@ Lauf erhalten. Normale Pufferretention ohne Cursorverlust zaehlt nicht
 als neue Abholluecke. Collector und Runner muessen gemeinsam aktualisiert
 werden; eine reine Codevorbereitung aendert keinen bestehenden Hostdienst.
 
-Stand: 29.10.2026. Die Vorlagen unter `deploy/` und der Runner
+Stand: 30.10.2026. Die Vorlagen unter `deploy/` und der Runner
 `scripts/archive_host.py` bereiten den Hostbetrieb vor. Ihre Existenz bedeutet
 keine Aktivierung. HA-Exportoptionen und produktive Hoständerungen benötigen den
 konkreten Inbetriebnahmeauftrag. Grundlagen und Datenvertrag stehen in
@@ -71,7 +71,13 @@ Die Standortdatei folgt `examples/site.json`. Alle privaten Eingabedateien bleib
 unter dem tatsächlichen gemeinsamen `data/`-Verzeichnis. Kein Token gehört in
 diese Dateien. Eine optionale `quality`-Datei muss nachgewiesene Intervallqualität
 enthalten; ohne sie wird Rohenergie bewahrt, aber nicht als Trainingswahrheit
-qualifiziert.
+qualifiziert. Alternativ aktiviert der optionale Schlüssel `quality_bindings`
+eine neue Ableitung je Aufnahme aus einer privaten v2-Policy. Er setzt
+`actual_config` voraus und darf nicht zusammen mit `quality` gesetzt sein.
+Quellenqualifikation, Ankererhalt und der
+[lokale Probelauf](istwert-qualitaetsadapter.md#5-fortlaufende-quellenbindung-und-qualitätsaufnahme)
+sind vor einer Hostaktivierung zu prüfen. Diese Funktion gehört zum
+Entwicklungskandidaten, nicht zum Release 0.2.18.
 
 ## Zugangsdaten ohne dauerhafte Klartextdatei
 
@@ -131,6 +137,18 @@ Kapazität, Archivgröße und die aus der bisherigen Rate geschätzten komprimie
 dieser Projektion hinzu. Eine kurze Beobachtungsdauer erlaubt keine belastbare
 Langfristprognose. Jobfehler und Kapazitätsstopp erscheinen zusätzlich als
 fehlgeschlagener systemd-Dienst; das ist noch keine externe Alarmierung.
+
+`status_dir` darf einen anderen privaten Statusordner wählen. Der Ordner,
+`writer.lock` und sämtliche fünf Jobnachweise müssen außerhalb des Archivs
+liegen, sowohl nach ihrem konfigurierten Pfad als auch nach Symlinkauflösung.
+Sie dürfen weder die mit `--config` gelesene Hostkonfiguration noch konfigurierte
+Standort-, Istwert-, Referenz- oder Qualitätsdateien oder Programmdateien
+überlagern; vorhandene Symlink- und Hardlinkaliase werden ebenfalls abgelehnt.
+Der Runner prüft diese Grenzen für alle Aufgaben vor der ersten
+Verzeichnisanlage. Eine ungültige Konfiguration endet mit Exitcode 2 und
+schreibt keinen Status. Insbesondere sind `data/archive/originals/status` und
+eine Hostkonfiguration unter `data/host-status/status.json` unzulässig.
+Der Standard `data/host-status` bleibt erhalten.
 
 ```bash
 current/.venv/bin/python current/scripts/archive_host.py status --config current/data/host.json

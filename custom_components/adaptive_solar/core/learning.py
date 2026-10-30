@@ -671,8 +671,12 @@ class ResidualLearner:
             self._models[inverter, regime] = (model, supported)
             self._bin_shade_factors[inverter, regime] = regime_shade
             report.update(state="active", uncertainty="per_lead_bin_empirical_calibration")
+            self._capture_training_support(inverter, regime, train)
         else:
             report["state"] = "insufficient_lead_validation"
+
+    def _capture_training_support(self, inverter: str, regime: str, train: list[TrainingSample]) -> None:
+        """Offline subclass hook for the exact accepted fit block; retain nothing by default."""
 
     def predict(self, inverter_id: str, features: Mapping[str, float], baseline_w: float, cap_w: float) -> Prediction:
         """Return bounded finite power; unknown models safely retain physics."""

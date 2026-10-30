@@ -376,3 +376,67 @@ def test_invalid_bootstrap_policy_keeps_existing_output_untouched(offline_proces
     run = offline_process("evaluate.py", schedule, "--output", output, "--bootstrap", "--bootstrap-confidence", "0.9")
     assert run.returncode == 2
     assert output.read_text() == "existing\n"
+
+
+@pytest.mark.parametrize("name", ["forecast", "evaluate"])
+@pytest.mark.parametrize("target", ["script", "component"])
+@pytest.mark.parametrize("alias", ["same", "symlink", "hardlink", "after_calculation"])
+def test_report_clis_preserve_programs_before_and_after_calculation(tmp_path, monkeypatch, name, target, alias):
+    from scripts import evaluate, forecast, replay_paths
+
+    command = forecast if name == "forecast" else evaluate
+    root = tmp_path / "project"
+    protected = root / (f"scripts/{name}.py" if target == "script" else "custom_components/adaptive_solar/core/models.py")
+    protected.parent.mkdir(parents=True)
+    protected.write_text("# protected program copy\n")
+    monkeypatch.setattr(replay_paths, "SOURCE_ROOT", root)
+    source, output = tmp_path / "input.json", tmp_path / "result.json"
+    if name == "forecast":
+        source.write_bytes((ROOT / "examples/site.json").read_bytes())
+        argv = ["forecast.py", "--config", str(source), "--synthetic", "--as-of", "2026-06-21T12:00:00+02:00"]
+        calculation = "synthetic_weather"
+    else:
+        source.write_text(json.dumps(evaluation_payload(include_actuals=True)))
+        argv = ["evaluate.py", str(source)]
+        calculation = "evaluate_forecasts"
+    if alias == "same":
+        output = protected
+    elif alias == "symlink":
+        output.symlink_to(protected)
+    elif alias == "hardlink":
+        os.link(protected, output)
+    if alias == "after_calculation":
+        original = getattr(command, calculation)
+        def compute_then_alias(*args, **kwargs):
+            result = original(*args, **kwargs)
+            os.link(protected, output)
+            return result
+        monkeypatch.setattr(command, calculation, compute_then_alias)
+    else:
+        monkeypatch.setattr(command, calculation, lambda *args, **kwargs: pytest.fail("aliased output must fail before calculation"))
+    monkeypatch.setattr(sys, "argv", [*argv, "--output", str(output)])
+    with pytest.raises(SystemExit) as failed:
+        command.main()
+    assert failed.value.code == 2
+    assert protected.read_text() == "# protected program copy\n"
+
+
+@pytest.mark.parametrize("name", ["forecast", "evaluate"])
+def test_report_clis_atomically_replace_an_unrelated_report_hardlink(tmp_path, monkeypatch, name):
+    from scripts import evaluate, forecast
+
+    previous, output, source = (tmp_path / n for n in ("previous.json", "output.json", "input.json"))
+    previous.write_text("old report copy\n")
+    os.link(previous, output)
+    if name == "forecast":
+        source.write_bytes((ROOT / "examples/site.json").read_bytes())
+        argv = ["forecast.py", "--config", str(source), "--synthetic", "--as-of", "2026-06-21T12:00:00+02:00"]
+        command = forecast
+    else:
+        source.write_text(json.dumps(evaluation_payload(include_actuals=True)))
+        argv = ["evaluate.py", str(source)]
+        command = evaluate
+    monkeypatch.setattr(sys, "argv", [*argv, "--output", str(output)])
+    command.main()
+    assert isinstance(json.loads(output.read_text()), dict)
+    assert previous.read_text() == "old report copy\n"

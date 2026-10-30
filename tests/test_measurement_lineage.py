@@ -1,7 +1,9 @@
 """Real endpoint support under slow/irregular counters; no accuracy claim."""
 from dataclasses import replace
+from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 import json
+import math
 
 from freezegun import freeze_time
 import numpy as np
@@ -11,7 +13,10 @@ from tests.storage_helpers import seed_store
 
 from custom_components.adaptive_solar.const import MEASUREMENT_CONTRACT
 from custom_components.adaptive_solar.coordinator import EnergyIntervalTracker, join_training
-from custom_components.adaptive_solar.core.learning import _aligned_duration, _target_hours, _weights
+from custom_components.adaptive_solar.core.learning import ResidualLearner, _aligned_duration, _target_hours, _weights
+from custom_components.adaptive_solar.core.measurement import integrate_original
+from custom_components.adaptive_solar.core.shading import feature_shade_bin, feature_solar_angles
+from tests.test_learning import synthetic_days
 from tests.test_meter_quality import coordinator
 from tests.test_training_alignment import NOW, archived, measured
 
@@ -70,6 +75,101 @@ def test_slow_counter_hour_offset_uses_whole_real_deltas_and_original_forecast(c
 def qualified(row, lineage="a" * 32):
     return {**row, "measurement_contract": MEASUREMENT_CONTRACT, "continuity_id": lineage,
             "boundary_reason": None}
+
+
+def azimuth_cells(angles=(359, 1), representation="both"):
+    cells = forecast_cells(count=2)
+    template = synthetic_days(count=1)[0].features
+    for cell, angle in zip(cells, angles, strict=True):
+        cell["features"] = {**template, **cell["features"], "sun_elevation_deg": 40,
+                            "sun_azimuth_deg": angle, "sun_azimuth_sin": math.sin(math.radians(angle)),
+                            "sun_azimuth_cos": math.cos(math.radians(angle)), "beam_shade_factor": .5,
+                            "output_cap_w": 5000}
+        if representation == "degrees":
+            for field in ("sun_azimuth_sin", "sun_azimuth_cos"):
+                del cell["features"][field]
+        elif representation == "vector":
+            del cell["features"]["sun_azimuth_deg"]
+    return cells
+
+
+@pytest.mark.parametrize("representation", ["both", "degrees", "vector"])
+@pytest.mark.parametrize("minutes", [15, 30])
+def test_original_azimuth_integration_wraps_north_and_uses_measured_time_weights(representation, minutes):
+    cells = azimuth_cells(representation=representation)
+    before = deepcopy(cells)
+    start = NOW + timedelta(minutes=minutes)
+    baseline, features = integrate_original(cells, ((start, start + timedelta(hours=1)),))
+    left, right = 60 - minutes, minutes
+    expected = math.degrees(math.atan2(left * math.sin(math.radians(359)) + right * math.sin(math.radians(1)),
+                                     left * math.cos(math.radians(359)) + right * math.cos(math.radians(1)))) % 360
+    actual = feature_solar_angles(features)[0]
+    assert (actual - expected + 180) % 360 - 180 == pytest.approx(0, abs=1e-8)
+    assert feature_shade_bin(features)[0] in (0, 350)
+    if representation == "both":
+        vector_only = {key: value for key, value in features.items() if key != "sun_azimuth_deg"}
+        assert feature_solar_angles(vector_only) == pytest.approx(feature_solar_angles(features))
+    assert baseline == pytest.approx((left * 2000 + right * 3000) / 60)
+    assert cells == before
+
+
+@pytest.mark.parametrize("representation", ["both", "degrees", "vector"])
+@pytest.mark.parametrize("angles", [(0, 180), (90, 270), (0, 180 - 1e-11)])
+def test_original_azimuth_cancelling_directions_have_no_defined_mean(representation, angles):
+    cells = azimuth_cells(angles, representation)
+    assert integrate_original(cells, ((NOW + timedelta(minutes=30), NOW + timedelta(minutes=90)),)) is None
+
+
+@pytest.mark.parametrize("representation", ["both", "degrees", "vector"])
+def test_azimuth_time_weights_exclude_an_unmeasured_gap(representation):
+    cells = azimuth_cells(representation=representation)
+    support = ((NOW + timedelta(minutes=30), NOW + timedelta(minutes=59, seconds=59)),
+               (NOW + timedelta(hours=1), NOW + timedelta(minutes=90)))
+    baseline, features = integrate_original(cells, support)
+    expected = math.degrees(math.atan2(1799 * math.sin(math.radians(359)) + 1800 * math.sin(math.radians(1)),
+                                     1799 * math.cos(math.radians(359)) + 1800 * math.cos(math.radians(1)))) % 360
+    assert feature_solar_angles(features)[0] == pytest.approx(expected, abs=1e-8)
+    assert baseline == pytest.approx((1799 * 2000 + 1800 * 3000) / 3599)
+
+
+@pytest.mark.parametrize("missing", ["sun_azimuth_sin", "sun_azimuth_cos"])
+def test_incomplete_azimuth_vector_cannot_manufacture_a_direction(missing):
+    cells = azimuth_cells()
+    for cell in cells:
+        del cell["features"][missing]
+    assert integrate_original(cells, ((NOW + timedelta(minutes=30), NOW + timedelta(minutes=90)),)) is None
+
+
+@pytest.mark.parametrize("representation", ["both", "degrees", "vector"])
+def test_endpoint_join_keeps_north_shade_bin_energy_and_original_support(representation):
+    start = NOW + timedelta(minutes=30)
+    rows = counter_series(start, [300] * 12)
+    samples = join_training(azimuth_cells(representation=representation), rows)
+    assert len(samples) == 1
+    sample = samples[0]
+    assert sample.features["measurement_endpoint_window"] == 1
+    assert feature_shade_bin(sample.features) == (0, 40)
+    assert sample.baseline_w == pytest.approx(2500) and sample.actual_w == pytest.approx(1000)
+    assert sample.start == start and sample.end == start + timedelta(hours=1)
+    assert sample.measurement_support == tuple((datetime.fromisoformat(row["start"]), datetime.fromisoformat(row["end"]))
+                                               for row in rows)
+
+
+@pytest.mark.parametrize("representation", ["both", "degrees", "vector"])
+def test_endpoint_join_rejects_undefined_azimuth_without_inventing_a_shade_bin(representation):
+    rows = counter_series(NOW + timedelta(minutes=30), [300] * 12)
+    assert join_training(azimuth_cells((0, 180), representation), rows) == []
+
+
+def test_endpoint_north_wrap_obeys_latest_north_shade_baseline_compatibility():
+    rows = counter_series(NOW + timedelta(minutes=30), [300] * 12)
+    sample = join_training(azimuth_cells(), rows)[0]
+    newer = replace(sample, issued_at=sample.issued_at + timedelta(seconds=1),
+                    features={**sample.features, "beam_shade_factor": 1.0,
+                              "sun_azimuth_deg": 0.0, "sun_azimuth_sin": 0.0, "sun_azimuth_cos": 1.0})
+    details = {}
+    ResidualLearner(output_caps={"i": 5000}).fit([sample, newer], sample.end + timedelta(days=1), diagnostics=details)
+    assert any("incompatible_shade_baseline" in item["reasons"] for item in details["i"]["items"])
 
 
 def test_ten_millisecond_gap_is_bounded_metadata_not_energy_or_measured_time():

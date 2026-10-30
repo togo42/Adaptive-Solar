@@ -6,7 +6,7 @@ import zlib
 from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from freezegun import freeze_time
 from homeassistant.config_entries import ConfigEntryState
@@ -21,6 +21,7 @@ from custom_components.adaptive_solar.archive_export import ArchiveExport, encod
 from custom_components.adaptive_solar.coordinator import AdaptiveSolarCoordinator
 from custom_components.adaptive_solar.core.archive import ArchiveJournal
 from custom_components.adaptive_solar.core.models import InverterConfig, SiteConfig, StringConfig, WeatherForecast, WeatherPoint
+from tests.test_weather import MALFORMED_RESPONSES
 
 NOW = datetime(2026, 6, 1, 10, tzinfo=UTC)
 
@@ -49,6 +50,53 @@ async def test_disabled_default_never_creates_files_or_serializes(hass):
         assert await instance.export.page() == {"page": None, "status": instance.export.status}
         await instance.async_close()
     assert not Path(instance.export.root).exists()
+
+
+@pytest.mark.parametrize("data", MALFORMED_RESPONSES)
+@pytest.mark.parametrize("cached", [False, True])
+async def test_malformed_weather_json_is_archived_unchanged_with_http_success(hass, data, cached):
+    from copy import deepcopy
+    from custom_components.adaptive_solar.weather import OpenMeteoClient, WeatherError, parse_forecast
+    from tests.test_weather import payload
+
+    instance, _ = make_coordinator(hass)
+    response = AsyncMock()
+    response.status = 200
+    response.raise_for_status = Mock()
+    original = deepcopy(data)
+    response.json.return_value = data
+    session = Mock()
+    session.get.return_value.__aenter__ = AsyncMock(return_value=response)
+    session.get.return_value.__aexit__ = AsyncMock(return_value=False)
+    client = OpenMeteoClient(session, instance.site)
+    old = parse_forecast(payload(), "best_match", NOW - timedelta(hours=1))
+    if cached:
+        client._cache["best_match"] = old
+    export = ArchiveExport(hass, "malformed-weather", enabled=True)
+    client.archive_sink = export.record
+    export.activate()
+    try:
+        with freeze_time(NOW, real_asyncio=True):
+            if cached:
+                assert await client.async_forecasts(NOW) == (old,)
+            else:
+                with pytest.raises(WeatherError):
+                    await client.async_forecasts(NOW)
+            result = await export.page()
+        event, = result["page"]["events"]
+        assert event["kind"] == "weather_response" and event["received_at"] == NOW.isoformat()
+        receipt = event["payload"]
+        assert receipt["status"] == "failed" and receipt["http_status"] == 200
+        assert receipt["error_type"] == "WeatherError"
+        assert encoded(receipt["raw_response"]) == encoded(original) and encoded(data) == encoded(original)
+        assert receipt["raw_unparsed_text"] is None and receipt["model"] == "best_match"
+        assert result["status"]["state"] == "active" and result["status"]["dropped_events"] == 0
+        assert result["status"]["last_error"] is None
+        assert "best_match" not in client.receipt_ids
+        assert client.errors["best_match"] == "WeatherError"
+        assert client.diagnostics["best_match"]["cache_state"] == ("stale_if_error" if cached else "unavailable")
+    finally:
+        await export.close()
 
 
 async def test_enabled_forecast_parity_all_issued_cells_and_restart(hass):
@@ -360,4 +408,39 @@ async def test_archive_availability_includes_serialization_after_computation(has
         assert all(event["received_at"] == issued["received_at"] for event in events)
         with pytest.raises(ValueError, match="not archived.*as-of"):
             replay_forecast(issued, events, as_of=NOW + timedelta(seconds=10))
+        await instance.async_close()
+
+
+async def test_original_interval_binds_source_without_changing_learning_payload(hass):
+    from dataclasses import replace
+    from homeassistant.core import State
+    from custom_components.adaptive_solar.core.actual_quality import digest
+
+    instance, _ = make_coordinator(hass, True)
+    inv = replace(instance.site.inverters[0], energy_entity_id="sensor.original_energy")
+    instance.site = replace(instance.site, inverters=(inv,))
+    with freeze_time(NOW, real_asyncio=True):
+        await instance._async_update_data()
+        instance.async_commit_setup()
+        for offset, energy in ((0, "1"), (5, "1.1"), (10, "1.2")):
+            stamp = NOW + timedelta(minutes=offset)
+            state = State(inv.energy_entity_id, energy, {"unit_of_measurement": "kWh"}, last_updated=stamp)
+            instance._record_energy(inv, state, stamp, reported_at=stamp)
+        response = await instance.export.page()
+        originals = [event["payload"] for event in response["page"]["events"] if event["kind"] == "qualified_interval"]
+        assert len(originals) == 2
+        assert all(p["source_binding"] == {"schema": 1, "energy_entity_id": inv.energy_entity_id,
+                   "config_sha256": digest(instance.site.to_dict()),
+                   "producer_sha256": instance._export_software["source_sha256"]} for p in originals)
+        assert all("source_binding" not in p for p in instance.intervals)
+        await instance.async_close()
+
+
+async def test_provenance_read_failure_does_not_block_forecast(hass):
+    instance, _ = make_coordinator(hass, True)
+    with freeze_time(NOW, real_asyncio=True), patch(
+            "custom_components.adaptive_solar.coordinator.software_provenance", side_effect=OSError):
+        result = await instance._async_update_data()
+        assert result.points
+        assert instance._export_software is None
         await instance.async_close()

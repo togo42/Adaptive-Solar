@@ -46,7 +46,8 @@ def test_shade_cohort_keeps_original_support_before_and_after_ghi_adjustment(mon
                          gains=None, weight=0.0, **kwargs):
         result = physical_members(cfg, members, inverter_id, cell_start, cell_end,
                                   status, gains, weight, **kwargs)
-        cohorts[phase].append((gains is not None, tuple(model for model, *_ in result)))
+        if kwargs.get("source_support") is not None:
+            cohorts[phase].append((gains is not None, tuple(model for model, *_ in result)))
         return result
 
     monkeypatch.setattr(engine, "interval_inverter_power", evaluate_interval)

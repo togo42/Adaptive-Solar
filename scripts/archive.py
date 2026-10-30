@@ -21,6 +21,7 @@ if str(ROOT) not in sys.path:
 from custom_components.adaptive_solar.core.archive import (  # noqa: E402
     MAX_PAGE_BYTES, ArchiveError, ArchiveStore, validate_page,
 )
+from scripts.replay_paths import validate_output  # noqa: E402
 
 PRODUCER_STATES = {"active", "gap", "error", "disabled", "pending_setup", "unknown"}
 COLLECTION_FAILURES = {"producer_error", "producer_pending", "page_unavailable", "cursor_gap", "incomplete_collection"}
@@ -202,6 +203,8 @@ def main(argv=None):
     pin.add_argument("--source", action="append")
     args = parser.parse_args(argv)
     try:
+        if args.command == "export-observations":
+            validate_output(args.output, args.root)
         # An explicit rebuild must also work when the existing index is corrupt/unknown.
         if args.command == "rebuild-index":
             store = ArchiveStore.__new__(ArchiveStore)
@@ -219,6 +222,7 @@ def main(argv=None):
                 result = asyncio.run(collect(store, args.source, fetch, max_pages=args.max_pages))
             elif args.command == "export-observations":
                 from scripts.archive_observations import captures_from_archive
+                validate_output(args.output, args.root)
                 if args.output.exists():
                     raise ArchiveError("Observation output already exists")
                 fd, temporary = tempfile.mkstemp(prefix=".observation-export-", dir=args.output.parent)
@@ -230,6 +234,7 @@ def main(argv=None):
                             count += 1
                         handle.flush()
                         os.fsync(handle.fileno())
+                    validate_output(args.output, args.root)
                     # Hard link publishes atomically and fails if the output already exists.
                     os.link(temporary, args.output)
                     directory = os.open(args.output.parent, os.O_RDONLY | os.O_DIRECTORY)
@@ -254,7 +259,7 @@ def main(argv=None):
                 result = {"pinned": store.pin(args.dataset, sources=args.source)}
         print(json.dumps(result, sort_keys=True))
         return 1 if args.command == "collect" and not result["complete"] else 0
-    except (ArchiveError, OSError, TimeoutError, aiohttp.ClientError):
+    except (ValueError, OSError, TimeoutError, aiohttp.ClientError):
         # Upstream exception strings can contain URLs, tokens or private payloads.
         print("Archive operation failed; checkpoint retained. Check private local diagnostics.", file=sys.stderr)
         return 1

@@ -1,0 +1,37 @@
+{
+  "schema": "adaptive-solar-actual-quality-bindings-v2",
+  "bindings": [
+    {
+      "id": "example-policy-replace-before-use",
+      "inverter_id": "roof",
+      "statistic_id": "sensor.energy",
+      "source": "ha-example",
+      "generation": "00000000-0000-0000-0000-000000000001",
+      "source_inverter_id": "roof",
+      "config_event_id": "REPLACE_WITH_ORIGINAL_EVENT_ID",
+      "config_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "producer_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "valid_from": "2026-11-01T00:00:00+00:00",
+      "valid_to": "2026-11-08T00:00:00+00:00",
+      "measurement_kind": "native_counter",
+      "curtailment_mode": "signal",
+      "qualification": {
+        "configuration": {
+          "verified": false,
+          "evidence": null,
+          "validated_at": null
+        },
+        "meter": {
+          "verified": false,
+          "evidence": null,
+          "validated_at": null
+        },
+        "curtailment": {
+          "verified": false,
+          "evidence": null,
+          "validated_at": null
+        }
+      }
+    }
+  ]
+}

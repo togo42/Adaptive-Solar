@@ -9,6 +9,7 @@ import pytest
 from custom_components.adaptive_solar.archive_export import json_value, replay_events, software_provenance
 from custom_components.adaptive_solar.core.archive import ArchiveJournal, ArchiveStore
 from custom_components.adaptive_solar.core.engine import ForecastEngine
+from custom_components.adaptive_solar.core.ensemble import request_params
 from custom_components.adaptive_solar.core.learning import ResidualLearner
 from custom_components.adaptive_solar.core.models import InverterConfig, SiteConfig, StringConfig
 from custom_components.adaptive_solar.core.replay import Candidate, reconstruct_state, replay_forecast
@@ -24,6 +25,11 @@ NOW = datetime(2026, 6, 1, 10, tzinfo=UTC)
 def site():
     return SiteConfig(52.52, 13.41, "Europe/Berlin", (StringConfig("s", "i", 5, 30, 180),),
                       (InverterConfig("i", 5),), weather_models=("best_match",))
+
+
+def eps_request(product, config=None):
+    config = config or site()
+    return {"params": request_params(config.latitude, config.longitude, product)}
 
 
 def forecast_bundle(tmp_path, *, observation=False):
@@ -155,7 +161,7 @@ def test_host_eps_replays_per_member_physics_full_cohort_and_raw_scores(tmp_path
     journal = ArchiveJournal(tmp_path / "journal")
     manifests = []
     for product in ("dwd_icon_d2_eps", "ecmwf_ifs_europe_ensemble", "ecmwf_ifs025_ensemble"):
-        manifests.append(archive_response(journal, {}, json.dumps(eps_payload(product)).encode(), NOW,
+        manifests.append(archive_response(journal, eps_request(product), json.dumps(eps_payload(product)).encode(), NOW,
                                          product=product, ensemble=True, http_status=200))
     rows = journal.page(limit=100)["events"]
     report = weather_probabilities(manifests, rows, site(), NOW, NOW, NOW + timedelta(hours=2),
@@ -175,9 +181,9 @@ def test_host_short_model_never_stitches_to_ifs_and_failed_latest_invalidates(tm
     journal = ArchiveJournal(tmp_path / "journal")
     manifests = []
     for product, count in (("dwd_icon_d2_eps", 2), ("ecmwf_ifs_europe_ensemble", 4), ("ecmwf_ifs025_ensemble", 4)):
-        manifests.append(archive_response(journal, {}, json.dumps(eps_payload(product, count)).encode(), NOW,
+        manifests.append(archive_response(journal, eps_request(product), json.dumps(eps_payload(product, count)).encode(), NOW,
                                          product=product, ensemble=True, http_status=200))
-    manifests.append(archive_response(journal, {}, b"failure", NOW + timedelta(seconds=1),
+    manifests.append(archive_response(journal, eps_request("ecmwf_ifs_europe_ensemble"), b"failure", NOW + timedelta(seconds=1),
                                      product="ecmwf_ifs_europe_ensemble", ensemble=True, http_status=503))
     rows = journal.page(limit=100)["events"]
     report = weather_probabilities(manifests, rows, site(), NOW + timedelta(seconds=1), NOW + timedelta(seconds=1),
@@ -185,6 +191,88 @@ def test_host_short_model_never_stitches_to_ifs_and_failed_latest_invalidates(tm
     assert report["diagnostics"]["dwd_icon_d2_eps"]["status"] == "unavailable"
     assert report["diagnostics"]["ifs"]["selected_product"] == "ecmwf_ifs025_ensemble"
     assert "family_mixture" not in report["distributions"]
+
+
+@pytest.mark.parametrize("coordinate", ["latitude", "longitude"])
+@pytest.mark.parametrize("value", [None, True, "52.52", float("nan"), float("inf"), [], 181, -181, 0])
+def test_host_eps_rejects_missing_invalid_or_different_request_coordinate_before_physics(
+        tmp_path, monkeypatch, coordinate, value):
+    product = "dwd_icon_d2_eps"
+    journal = ArchiveJournal(tmp_path / "journal")
+    event = archive_response(journal, eps_request(product), json.dumps(eps_payload()).encode(), NOW,
+                             product=product, ensemble=True, http_status=200)
+    event["payload"]["request"]["params"][coordinate] = value
+    monkeypatch.setattr("scripts.replay_archive.member_results", lambda *_: pytest.fail("unbound weather reached physics"))
+    report = weather_probabilities([event], journal.page(limit=100)["events"], site(), NOW, NOW, NOW + timedelta(hours=2))
+    assert report["status"] == "unavailable" and report["distributions"] == {}
+    assert "location" in report["diagnostics"][product]["reason"]
+
+
+@pytest.mark.parametrize("archived_request", [None, [], {}, {"params": None}, {"params": []}, {"params": {}}])
+def test_host_eps_rejects_missing_request_location_binding(tmp_path, monkeypatch, archived_request):
+    product = "dwd_icon_d2_eps"
+    journal = ArchiveJournal(tmp_path / "journal")
+    event = archive_response(journal, eps_request(product), json.dumps(eps_payload()).encode(), NOW,
+                             product=product, ensemble=True, http_status=200)
+    event["payload"]["request"] = archived_request
+    monkeypatch.setattr("scripts.replay_archive.member_results", lambda *_: pytest.fail("unbound weather reached physics"))
+    report = weather_probabilities([event], journal.page(limit=100)["events"], site(), NOW, NOW, NOW + timedelta(hours=2))
+    assert report["status"] == "unavailable" and report["distributions"] == {}
+    assert "location" in report["diagnostics"][product]["reason"]
+
+
+def test_host_eps_excludes_other_location_from_family_mixture(tmp_path):
+    journal = ArchiveJournal(tmp_path / "journal")
+    manifests = []
+    for product, config in (("dwd_icon_d2_eps", site()),
+                            ("ecmwf_ifs_europe_ensemble", replace(site(), longitude=14))):
+        manifests.append(archive_response(journal, eps_request(product, config), json.dumps(eps_payload(product)).encode(),
+                                         NOW, product=product, ensemble=True, http_status=200))
+    report = weather_probabilities(manifests, journal.page(limit=100)["events"], site(), NOW, NOW, NOW + timedelta(hours=2))
+    assert report["status"] == "raw_probabilities"
+    assert set(report["distributions"]) == {"dwd_icon_d2_eps"}
+    assert "location" in report["diagnostics"]["ecmwf_ifs_europe_ensemble"]["reason"]
+
+
+def test_host_eps_newer_wrong_location_blocks_old_same_product(tmp_path):
+    journal = ArchiveJournal(tmp_path / "journal")
+    product = "dwd_icon_d2_eps"
+    manifests = [archive_response(journal, eps_request(product, config), json.dumps(eps_payload()).encode(),
+                                  NOW + timedelta(seconds=index), product=product, ensemble=True, http_status=200)
+                 for index, config in enumerate((site(), replace(site(), latitude=53)))]
+    rows = journal.page(limit=100)["events"]
+    early = weather_probabilities(manifests, rows, site(), NOW, NOW + timedelta(seconds=1), NOW + timedelta(hours=2))
+    assert early["status"] == "raw_probabilities"
+    later = weather_probabilities(manifests, rows, site(), NOW + timedelta(seconds=1), NOW + timedelta(seconds=1),
+                                  NOW + timedelta(hours=2))
+    assert later["status"] == "unavailable" and later["distributions"] == {}
+    assert later["diagnostics"][product]["event_id"] == manifests[-1]["event_id"]
+
+
+@pytest.mark.parametrize("coordinate", [None, "latitude", "longitude"])
+def test_host_eps_cli_binds_site_to_archived_request_not_response_grid(tmp_path, monkeypatch, coordinate):
+    product = "dwd_icon_d2_eps"
+    journal, store = ArchiveJournal(tmp_path / "journal"), ArchiveStore(tmp_path / "store")
+    payload = eps_payload()
+    # Provider grid cells can differ from the requested point; the original request binds the site.
+    payload.update(latitude=52.5, longitude=13.4)
+    archive_response(journal, eps_request(product), json.dumps(payload).encode(), NOW,
+                     product=product, ensemble=True, http_status=200)
+    flush_journal(journal, store, "weather:test")
+    config = site() if coordinate is None else replace(site(), **{coordinate: getattr(site(), coordinate) + 1})
+    config_path, output = tmp_path / "site.json", tmp_path / "report.json"
+    config_path.write_text(json.dumps(config.to_dict()))
+    monkeypatch.setattr("sys.argv", ["replay_archive.py", "--archive", str(tmp_path / "store"), "--source", "weather:test",
+                                     "--probabilities", "--site-json", str(config_path), "--as-of", NOW.isoformat(),
+                                     "--start", NOW.isoformat(), "--end", (NOW + timedelta(hours=2)).isoformat(),
+                                     "--output", str(output)])
+    assert main() == (0 if coordinate is None else 1)
+    report = json.loads(output.read_text())
+    assert report["status"] == ("raw_probabilities" if coordinate is None else "unavailable")
+    if coordinate is None:
+        assert report["distributions"]
+    else:
+        assert report["distributions"] == {}
 
 
 def test_cli_replays_immutable_dataset_without_network(tmp_path, monkeypatch):

@@ -219,6 +219,23 @@ def integrate_original(rows, support):
     if not total:
         return None
     features = {key: sum(seconds * row["features"][key] for seconds, row in used) / total for key in schema}
+    # A degree value is cyclic: 359 and 1 degrees average toward north.
+    # Keep the original vector means; only derive the redundant degree value.
+    azimuth_vector = {"sun_azimuth_sin", "sun_azimuth_cos"}
+    if schema & (azimuth_vector | {"sun_azimuth_deg"}):
+        if schema & azimuth_vector:
+            if not azimuth_vector <= schema:
+                return None
+            sine, cosine = features["sun_azimuth_sin"], features["sun_azimuth_cos"]
+        else:
+            sine = sum(seconds * math.sin(math.radians(row["features"]["sun_azimuth_deg"]))
+                       for seconds, row in used) / total
+            cosine = sum(seconds * math.cos(math.radians(row["features"]["sun_azimuth_deg"]))
+                         for seconds, row in used) / total
+        if math.hypot(sine, cosine) <= 1e-12:
+            return None
+        if "sun_azimuth_deg" in schema:
+            features["sun_azimuth_deg"] = round(math.degrees(math.atan2(sine, cosine)) % 360, 9) % 360
     baseline = sum(seconds * row["baseline_w"] for seconds, row in used) / total
     features["baseline_w"] = baseline
     return baseline, features

@@ -824,6 +824,14 @@ class ArchiveStore:
     def export_dataset(self, dataset, destination, *, layout="hash-prefix"):
         """Copy a frozen original set and its manifest; never overwrite a destination."""
         target = Path(destination)
+
+        def validate_target():
+            if (Path(os.path.abspath(target)).is_relative_to(Path(os.path.abspath(self.root)))
+                    or Path(os.path.abspath(target)).is_relative_to(self.root.resolve())
+                    or target.resolve().is_relative_to(self.root.resolve())):
+                raise ArchiveError("Dataset destination must stay outside the source archive")
+
+        validate_target()
         self._layout_path("0" * 64, layout)
         with _lock(self.root):
             pins = self._pins()
@@ -844,6 +852,7 @@ class ArchiveStore:
                     summary["first_received_at"] = min([*stamps, summary["first_received_at"]] if summary["first_received_at"] else stamps)
                     summary["last_received_at"] = max([*stamps, summary["last_received_at"]] if summary["last_received_at"] else stamps)
                 verified.append((digest, path))
+            validate_target()
             target.mkdir(parents=True, mode=0o700)
             originals = target / "originals"
             originals.mkdir(mode=0o700)

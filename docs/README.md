@@ -1,9 +1,13 @@
 # Adaptive Solar: Dokumentation
 
 Die [Projektübersicht](../README.md) beschreibt Zweck und Einstieg. Die aktuellen
-Anleitungen und Datenverträge beziehen sich auf **0.2.19**. Veröffentlichte
-Versionen und historische Prüfungen stehen getrennt unter
-[Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).
+Anleitungen beschreiben den veröffentlichten Release **0.2.19** sowie ausdrücklich
+gekennzeichnete Erweiterungen des **unveröffentlichten Kandidaten 0.2.20**.
+Dessen [Releasevorbereitung](releases/release-0.2.20.md) trennt Offline-Guard,
+HA-Producer und optionalen Archivhost. Der Build des eingefrorenen Kandidaten
+bestand; CI: **bestanden**; Codex-Review: **akzeptiert, keine Befunde (`mergeable`)**.
+[Quellbindung und Grenzen](entwicklung/pruefnachweise.md#releasekandidat-0220-aktueller-stand). Veröffentlichte Versionen und historische Prüfungen stehen getrennt
+unter [Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).
 
 ## Installation und Anwendung
 
@@ -27,6 +31,7 @@ Versionen und historische Prüfungen stehen getrennt unter
 | [Direktstrahl-Verschattung](technik/adaptive-solar-verschattung.md) | Ursprüngliche Spezifikation mit späteren Vertragsverweisen |
 | [Physik-/Schatten-/Nowcastoptionen](technik/physics-learning-options.md) | Aktuelle Kandidatenparameter und zeitliche Freigaben |
 | [Früher Bias im Shadow](technik/early-bias-shadow.md) | Beobachteter Kandidat mit eigenen Gates |
+| [Trainingsabdeckung offline prüfen](technik/learning-support-guard.md) | Separater Support-Guard-Kandidat im Entwicklungsstand; keine HA-Aktivierung |
 | [Prognosereparaturen](technik/forecast-repairs.md) | Nachtstrahlung, Tagesstartprovenienz und Originalimport |
 | [Fehlerbehandlung und Ressourcen](technik/forecast-resilience.md) | Fit-/Wetterfallback und geschützte Historie |
 | [Modellvergleichsarchiv](technik/model-comparison-archive.md) | Prospektiv ausgegebene Modellarme und Auswertung |
@@ -39,6 +44,7 @@ privaten Archivhost voraus; die Prognoseintegration benötigt diesen Host nicht.
 | Dokument | Inhalt |
 | --- | --- |
 | [Archivbetrieb](archiv/archivbetrieb.md) | Aufnahme, eingefrorene Daten, Replay und Energiequantile |
+| [Istwerte offline qualifizieren](archiv/istwert-qualitaetsadapter.md) | Entwicklungskandidat: Originalintervalle, begrenzte Quellenpolicy, fortlaufende Aufnahme und lokaler Probelauf |
 | [Hostinstallation](archiv/archiv-host-installation.md) | Eigene Laufzeit, Dienste, Timer, Zugangsdaten, Platz und Sicherung |
 | [HA-freie Hostlaufzeit](archiv/archiv-runtime-ohne-ha.md) | Installer, Paketgrenzen und strenge Replayprovenienz |
 | [Hashablage](archiv/archiv-hashablage.md) | Verzeichnislayout, Migration und Rückweg |
@@ -49,6 +55,7 @@ privaten Archivhost voraus; die Prognoseintegration benötigt diesen Host nicht.
 
 - [Entwicklung](entwicklung/entwicklung.md): Umgebung, Tests, Beiträge und Veröffentlichung.
 - [Validierung](entwicklung/validierung.md): prospektiver Messplan und hashgebundener Reviewablauf.
+- [Fehlerfamilien prüfen](entwicklung/review-fehlerfamilien.md): gemeinsame Nachprüfung, Inventur der Schreibwege und Grenzen fokussierter Reviews.
 - [Vergleichsaufnahme](entwicklung/benchmark-aufnahme.md): Recorder-Istwerte und Referenzprognosen.
 - [Prüfnachweise](entwicklung/pruefnachweise.md): historische Quell-/Releasebezüge und Aussagegrenzen.
 - [Dokumentationspflege](entwicklung/dokumentationspflege.md): Ablageregeln und Konsistenzprüfung.

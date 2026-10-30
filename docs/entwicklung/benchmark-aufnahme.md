@@ -10,11 +10,41 @@ verlustfrei im gemeinsamen Archiv ab; `archive.py export-observations` erzeugt
 wieder die Capture-JSONL für vorhandene Auswerter. Bestehende Qualitäts- und
 Verfügbarkeitsregeln gelten weiter.
 
+`capture_ha.py` und `capture_actuals.py` benötigen den gemeinsamen Helfer
+`scripts/replay_paths.py`; sie werden aus dem vollständigen Checkout ausgeführt.
+Ihre Appendziele müssen eigene Dateien ohne Hardlink-Aliase unter `data/` sein.
+Ein symbolischer Link als Ausgabedatei wird auch über einen verlinkten
+Elternordner vor dem Netzabruf abgelehnt. Die private Pfadgrenze wird am
+aufgelösten Pfad vor dem Abruf und unmittelbar vor dem Append geprüft.
+Vor dem Abruf wird der Elternpfad aufgelöst und
+festgehalten; der Dateiname bleibt für Symlinkprüfung und Öffnen erhalten.
+Ein während des Abrufs umgebogener Elternalias lenkt den Append dadurch nicht
+auf ein anderes Verzeichnis. Elternordner-Aliase umgehen weder die private
+Grenze noch den Schutz der Eingaben.
+Eingaben sowie Programm-/Ressourcendateien sind vor dem Netzabruf und nochmals
+unmittelbar vor dem Schreiben geschützt. Die spätere Prüfung verwendet den
+geöffneten Dateideskriptor samt Geräte-/Inode-Identität; ein nachträglich
+ausgetauschter Zielpfad wird abgelehnt. Vor dem Abruf erfasste geschützte
+Inodes bleiben auch nach Verschieben/Ersetzen ihrer ursprünglichen Pfade
+gesperrt. Lock und Vollständigkeitsprüfung lesen
+denselben Deskriptor. Ein fehlgeschlagener Append kann eine unvollständige letzte
+Zeile hinterlassen; sie wird beim nächsten Lauf nicht fortgeschrieben oder
+automatisch repariert. Die Datei bleibt als Fehlernachweis erhalten.
+
 ## 1. Vergleichbare Messgrenze wählen
 
 Alle drei Anbieter müssen dieselben Module, Ausgabestufen, nominellen Grenzen und dieselbe AC-/DC-Messgrenze abbilden. Keine Aufteilung eines Anlagenwerts auf Einzelstufen. Native Adaptive-Energy-Prognosen gelten für homogene Entries; Stufen liefern eigene Qualitätskurven, Mixed-Entries keinen Gesamtforecast einer einzelnen Messgrenze.
 
 `capture_ha.py` liest `energy/solar_forecast`, `get_states` und optional `adaptive_solar.get_reference_forecasts`. Es archiviert nur ausgewählte native Wh/Kurvenattribute und aktualisiert weder Anbieterwetter noch Einstellungen. Energy liefert bereits verknüpfte Anbieter; HA 2026.10.2/.3 akzeptiert dort kein `config_entry_ids`, daher lokale Auswahl. Nach regulärer Adaptive-Einrichtung kann die reine Antwortaktion geladene Helios-/Open-Meteo-Entries ohne Energy-Umschaltung lesen. Fehlende Installation/Service bleibt fehlend.
+
+Der Antwortservice und der Collector prüfen `wh_hours` auf vollständige
+**UTC-Stundenbeginne nach der Zeitzonennormalisierung**. Beispielsweise ist
+`2026-06-01T15:30:00+05:30` derselbe gültige Stundenbeginn wie `10:00:00Z`;
+`15:00:00+05:30` liegt dagegen außerhalb des UTC-Stundenrasters. Gleichwertige
+Offsetdarstellungen dürfen zusammengeführt werden, doppelte absolute Stunden
+innerhalb derselben Quelle bleiben ungültig. Die ursprünglichen Snapshotkeys
+bleiben erhalten; normalisierte Records verwenden UTC. Energie wird dadurch
+nicht verschoben, geteilt oder ergänzt.
 
 ## 2. Private Zuordnung erstellen
 
@@ -82,6 +112,14 @@ JSONL wird exklusiv gesperrt ergänzt, nie ersetzt; auch gleiche Kurven behalten
 ```
 
 Echte Auswertung braucht den vollständigen vorher deklarierten Zielplan und alle qualifizierten Istintervalle. Produktive Sensor-/Statistikzuordnung bleibt zu prüfen. Alternativ können `forecasts` direkt als `ForecastRecord` vorliegen; dann muss der Aufrufer vollständige Ausgabe-/Ausfallprovenienz liefern. Direkte `forecasts` dürfen wie bisher zusätzlich zu Prognosearchiven vorliegen und bleiben denselben Anforderungen unterworfen. Direkte `actuals` sind dagegen eine Alternative zu `--actual-captures`; nichtleere Inline-Istwerte dürfen nicht mit dem Ist-Capturearchiv kombiniert werden. Siehe [Implementierungsvertrag](../technik/implementation-contract.md) für unverändert ganze Istintervalle, zuschneidbare Prognosemittel und Revisionen.
+
+Die Auswertung und `forecast.py` verwenden die gemeinsame Ausgabeprüfung:
+Ausgaben bleiben außerhalb der Programmverzeichnisse `scripts/` und
+`custom_components/`. Eingaben und dortige Quell-/Ressourcendateien sind keine
+zulässigen Ausgabeziele, einschließlich Symlink-/Hardlink-Aliasen.
+Die Prüfung läuft vor Berechnung beziehungsweise Netzabruf und nochmals vor
+atomarer Veröffentlichung. Ein unbeteiligter Hardlink auf einen alten Bericht
+wird durch die atomare Ersetzung nicht mitverändert.
 
 ## 5. Istwerte lesend archivieren
 
@@ -170,6 +208,11 @@ Gemeinsame Auswertung:
 ```
 
 ## 6. Ergebnis interpretieren
+
+Der separate [Offline-Qualitätsadapter](../archiv/istwert-qualitaetsadapter.md)
+kann aus Originalintervallen und expliziten Quellenattestierungen passende
+Stundenmasken ableiten. Er ist ein Entwicklungskandidat, keine automatische
+Qualifikation vorhandener Recorderwerte und noch keine produktive Hostanbindung.
 
 Abdeckung, Quellenlücken und Leistungs-/Energiefehler werden nach Stufe/Horizont/Tages-/Resttagaufgabe berichtet. Intervallaggregate sind dauergewichtete **Prognoseaufgaben** unterschiedlicher Cutoffs: Exposition, keine einmalige Erzeugung/unabhängige Stichprobenzahl.
 

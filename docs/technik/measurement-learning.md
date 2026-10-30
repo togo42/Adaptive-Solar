@@ -1,6 +1,6 @@
 # Messdaten und Lernfenster aus echten Zählerberichten
 
-Stand: 27.10.2026; Datenvertrag ab Version 0.2.15. Die beschriebenen
+Stand: 30.10.2026; Datenvertrag ab Version 0.2.15. Die beschriebenen
 Softwareprüfungen belegen Datenverarbeitung, keine physische Zählerqualität,
 produktive Aktivierung oder bessere Prognosen.
 
@@ -12,6 +12,23 @@ eine zufällige `continuity_id` und am ersten Intervall einer neuen Phase einen
 Phase. Reset, ungültiger/unverfügbarer Zähler, ungültige Messfreigabe,
 Abregelung, unplausibler Sprung, zu lange Berichtlücke und Neustart beenden sie.
 Anker und zurückgehaltene Berichte werden weiterhin nicht restauriert.
+
+**Ergänzung im unveröffentlichten Kandidaten 0.2.20:** Einheiten numerischer
+HA-Quellen müssen Zeichenketten aus der jeweils
+unterstützten Einheitenmenge sein. Listen, Objekte und andere Typen gelten als
+ungültige Beobachtung; optionale Leistungs-, GHI-, Temperatur- und Windquellen
+werden damit verworfen, ohne den Prognoselauf abzubrechen. Eine ungültige
+Energieeinheit unterbricht die Messkontinuität.
+
+Auch ein Wechsel zwischen gültigen Energieeinheiten beendet die bisherige
+Zählerphase und verwirft ein zurückgehaltenes Delta. Eine reine Attributänderung
+bei gleichem Zahlenwert ist kein Messendpunkt; der nächste echte Originalbericht
+ankert ausschließlich neu. Ändern sich Zahl und Einheit in einem echten Bericht
+gemeinsam, ankert dieser Bericht bereits die neue Phase. Erst spätere echte
+Berichte können wieder Messenergie bilden. Das gilt auch für Nullwerte und
+Rückwechsel der Einheit; eine plausible Leistungskappe belegt keine Kontinuität
+über die geänderte Interpretation. Unveränderte Einheiten und sachfremde
+Attributänderungen erhalten die bestehende Phase.
 
 Genau aneinandergrenzende Messstücke bleiben zusammenfassbar. Unterschiedliche
 bekannte Phasen oder ein expliziter Unterbrechungsgrund werden dabei nicht
@@ -115,12 +132,36 @@ Prognosegrenze geteilt. Verschiedene Ausgabezeitpunkte oder GHI-Regime,
 fehlende Forecastbereiche, `source_partial_at_issue` und mit dem aktuellen
 Schattenstand unvereinbare Quellbaselines sperren das zusätzliche Fenster.
 
+Der Sonnenazimut wird zyklisch aggregiert: `sun_azimuth_deg` folgt der Richtung
+des zeitgewichteten Sinus-/Kosinusmittels, sodass 359° und 1° nach Norden zeigen.
+Vorhandene Sinus-/Kosinusfeatures behalten ihre zeitgewichteten Mittelwerte;
+Gradwerte und Vektorrichtung bleiben konsistent. Bei reinen Gradfeatures werden
+die Vektoren vor der Mittelung daraus gebildet. Ein unvollständiger Vektor oder
+eine mittlere Vektorlänge von höchstens `1e-12` liefert keine definierte Richtung
+und sperrt das Endpunktfenster. Lücken erhalten auch bei den Winkelgewichten
+keine Dauer. Originalfeatures und gemessene Energiedifferenzen werden dabei
+nicht verändert; der Join wird aus den Originalzellen neu aufgebaut.
+
 Ausgabezeiten müssen vor Beginn der betreffenden Originalzellen und des neuen
 Messfensters liegen. Der Lead bezieht sich auf die Mitte des neuen Fensters.
 Ein Label gilt erst nach seinem tatsächlichen Endpunkt und Empfang; `as_of`
 filtert auch verspätete Labels. Chronologische Trainings-/Validierungs-/
 Kalibrierungsgrenzen, Ausgangskappen und sonstige Datenleck-Gates bleiben aktiv.
 Alle Dauern verwenden UTC, auch bei beiden Zeitumstellungen.
+
+### Verschachtelte native Zustandsereignisse
+
+Die geprüften Core-Pakete 2026.10.2/.3/.4 stellen verschachtelte Ereignisse in
+`EventBus.async_fire_internal` in eine Warteschlange. Ein früherer Listener
+kann den aktuellen HA-State schon weiter verändern; die neu ausgelösten
+Zustandsereignisse werden jedoch erst nach allen Listenern des laufenden
+Ereignisses verarbeitet. Ein beobachtetes `unknown`/`unavailable` wird deshalb
+vor seinem so erzeugten numerischen Folgeereignis verarbeitet. Der erste
+gültige Folgebericht ankert neu. Native Regressionen unter Core 2026.10.4 prüfen
+auch Nullenergie, positive Deltas, ungültige Einheiten, `restored`, Entfernung
+und mehrfach verschachtelte Wiederkehr sowie die tatsächlich exportierten
+Intervallgrenzen. Dies gilt für diese geprüfte native Ereignisfolge;
+beliebig manuell rückdatierte Ereignisse werden damit nicht zertifiziert.
 
 ## Gemeinsame archivierte Ausgabezeitpunkte
 

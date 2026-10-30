@@ -81,6 +81,13 @@ Fehler. Archivprobleme stoppen die Prognose nicht. Große Wetter-, Zustands- und
 Prognoseobjekte werden komprimiert in referenzierte Teile zerlegt; alle Teile
 müssen für einen Replay vorhanden sein. Ein Datenpin allein garantiert dies nicht.
 
+Fehlerhaft strukturierte, aber syntaktisch gültige Wetter-JSON-Antworten werden
+ebenfalls als fehlgeschlagene `weather_response` aufgenommen: JSON-Werte,
+HTTP- und Parserstatus bleiben erhalten. Ein dabei weiter verwendeter gültiger
+Altcache wird nicht rückdatiert oder durch diese fehlerhafte Antwort ersetzt.
+Erfolgreiche Aufnahme eines Wetterfehlers ist kein Exportfehler; Wetter- und
+Exportdiagnose sind getrennt zu lesen.
+
 ## 3. Zusätzliche Wettermodelle und Ensembles
 
 ```bash
@@ -136,6 +143,15 @@ Intervall. HA-Quellberichte und qualifizierte Intervalle werden zusätzlich im
 HA-Export bewahrt; ihre Zuordnung zu externen Recorder-Messgrenzen muss der
 Vergleich ausdrücklich prüfen.
 
+Im Entwicklungsstand ergänzt der
+[Offline-Qualitätsadapter](istwert-qualitaetsadapter.md) diese Zuordnung:
+Er prüft Originalintervalle gegen explizit belegte Quellenbindungen und erzeugt
+Stundenmasken samt Ausschlussbericht. Ungeprüfte Bindungen liefern nur
+Abdeckungsdiagnosen. Mit `--quality-bindings` beziehungsweise Hostschlüssel `quality_bindings` kann
+der Kandidat nach jedem Recorder-Abruf eine neue Maske ableiten. Er benötigt
+neue Originaldeltas mit Quellenpins und eine begrenzte qualifizierte v2-Policy.
+Die Funktion ist vorbereitet, noch nicht in den Timern aktiviert.
+
 Referenzfristen mit `--cutoff ISO_ZEIT_MIT_OFFSET` vorgeben. Der tatsächliche
 Gruppenempfang entscheidet über Rechtzeitigkeit. Zu spät gelieferte Daten werden
 aufbewahrt und als spät gemeldet. Für regelmäßige feste Entscheidungszeitpunkte
@@ -161,6 +177,16 @@ sind geschuetzt. Berichte werden in einer temporaeren Datei neben dem
 Ausgabeziel geschrieben und erst nach erfolgreicher Berechnung und
 abschliessender Eingangspruefung atomar ersetzt. Vorhandene unabhaengige
 Berichte ausserhalb des Archivs duerfen weiterhin ersetzt werden.
+
+Auch `export-dataset` benötigt ein neues Ziel außerhalb der gesamten
+Quellarchivwurzel. Interne Ziele, aufgelöste Aliase ins Archiv und lexikalisch
+interne Pfade mit einem Symlink nach außen werden abgelehnt. Die Prüfung läuft
+vor dem Export und erneut vor dem Anlegen des Zielbaums. So kann ein Export
+keine unbekannten Unterverzeichnisse in die Originalablage eintragen.
+`export-observations` prüft sein Dateiziel ebenfalls vor dem Öffnen des Archivs,
+vor der temporären Ausgabe und direkt vor der Veröffentlichung. Auch leere
+Observation-Exporte bleiben außerhalb von Quellarchiv und Programmverzeichnissen;
+bereits vorhandene Ziele werden nicht ersetzt.
 
 ```bash
 .venv/bin/python scripts/archive.py --root data/archive pin pilot-01
@@ -310,6 +336,17 @@ Eine bewusst geringere Schwelle verändert die Kohorte und wird ausgewiesen;
 sie belegt keine gleichwertige Wahrscheinlichkeit. Pro Produkt zählt nur der
 jüngste bis zum Cutoff eingegangene Abruf. Ein neuer fehlgeschlagener Abruf wird
 nicht unbemerkt durch einen älteren ersetzt.
+
+Vor jeder Mitgliedsberechnung müssen die original archivierten
+`request.params.latitude` und `longitude` exakt zum übergebenen `--site-json`
+passen. Fehlende, ungültige oder abweichende Koordinaten schließen das Produkt
+mit Diagnose aus; fehlen danach verwendbare Produkte, endet die CLI mit Status
+`unavailable` und Fehlercode 1. Ein neuer Abruf mit falschem Standort erlaubt
+keinen Rückfall auf den älteren Abruf desselben Produkts. Nur Produkte mit
+passender Standortbindung können gemeinsam in die Familienmischung eingehen.
+Die vom Anbieter zurückgegebenen Rasterkoordinaten dürfen vom angefragten Punkt
+abweichen und ersetzen diese Bindung nicht. Ein geografischer Gegenversuch mit
+Wetterdaten eines anderen Standorts wird von diesem Replay nicht unterstützt.
 
 Für die IFS-Familie wird Europe bevorzugt, IFS025 ist Rückfall. Beide gehen nicht
 doppelt in die Familienmischung ein. ICON und IFS erhalten gleiche Familiengewichte,

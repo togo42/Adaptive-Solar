@@ -42,6 +42,31 @@ Konstruktoren und JSON-Felder: [models.py](../../custom_components/adaptive_sola
 
 `core/physics.py`, `core/engine.py`: `ForecastEngine(config).forecast(forecasts, issued_at, observations=(), learner=None) -> ForecastResult`. Der Learner liefert über `.predict(inverter_id, features, baseline_w, cap_w)` ein Objekt mit `power_w`, `lower_w`, `upper_w`, `status`; fehlendes/abgelehntes ML fällt auf Physik zurück. Mindestfeatures: `baseline_w`, `sun_elevation_deg`, `sun_azimuth_sin`, `sun_azimuth_cos`, `day_of_year_sin`, `day_of_year_cos`, `temperature_c`, `wind_m_s`, `cloud_cover_pct`, `lead_hours`.
 
+`ForecastResult.inverter_status` hält den veröffentlichten Stufenstatus unter
+unveränderten Stufenkennungen; `diagnostic_status` enthält technische Wetter-,
+Physik-, GHI- und Power-Nowcast-Diagnosen. Diese beiden getrennten Maps sind
+maßgeblich für HA-Status und Qualitätsanzeige. Dynamische Modell-/Stufenkennungen
+in Diagnoseschlüsseln werden segmentweise URL-kodiert (`quote(..., safe="")`),
+einschließlich Prozentzeichen: `a:b` wird `a%3Ab`, die wörtliche Kennung `a%3Ab`
+wird `a%253Ab`. Feste Präfixe und Intervallzeiten bleiben unverändert. Dadurch
+bleiben auch Modell-/Stufenkombinationen mit Doppelpunkten getrennt.
+
+`model_status` bleibt eine bewusst verlustbehaftete flache Legacyprojektion:
+Diagnoseschlüssel werden genau einmal dekodiert; bei einer Kollision gewinnt
+der Stufenstatus, ohne Diagnose-Tokens hineinzumischen. Für gewöhnliche Kennungen
+bleiben bisherige Schlüssel und Werte erhalten. Keine Kennung wird reserviert
+oder umbenannt. Die zwei neuen Felder stehen hinter allen bisherigen
+Positionsargumenten. Nur `None`/fehlende Felder kennzeichnen alte Ergebnisse;
+explizit leere Maps bleiben maßgeblich und lösen keinen Legacyfallback aus.
+
+Dataclass-Export und CLI liefern beide Maps zusätzlich; HA stellt sie als
+Attribute außerhalb des Recorder-Verlaufs bereit. Replay liest sie unverändert
+zurück und vergleicht sie bei entsprechend aufgezeichneten Ergebnissen exakt.
+Der bisherige exakte `model_status`-Vergleich bleibt für alle Ergebnisse bestehen.
+Historische Records ohne die neuen Maps behalten ausschließlich ihren bisherigen
+Vertrag; Rohdaten werden weder umgeschrieben noch aus heutigen Diagnosen ergänzt.
+Ein historisch bereits vermischter Kollisionsstatus wird nicht still repariert.
+
 Physikkette: GHI/DHI horizontal, DNI normal → pvlib-Sonnenstand → Hay-Davies → Horizontbegrenzung auf `poa_direct` → Stufenfaktor `beam_shade_factor` (Standard `1.0`) auf `poa_direct` → Summe mit `poa_diffuse` → Faiman-Modultemperatur aus Temperatur/Wind → PVWatts-DC (25 °C Referenz) → String-`loss_fraction` → optionale String-Morgen-/Abenddämpfung → Stringsumme je Stufe. Danach AC-Effizienz/gemeinsamer AC-Clip oder nur konfigurierter DC-Stufenverlust/gemeinsamer Ausgangsclip, ohne versteckte AC-Effizienz. Auch ML/Nowcast begrenzen; Physik, Ist-Plausibilität/Restore teilen dieselbe `output_cap_w`.
 
 `core/shading.py` (`BeamShadeTable`) verwaltet je Ausgangsstufe ein `10°`-Azimut- × `5°`-Höhenraster über der scheinbaren Sonnenhöhe (`[0, 360)` × `[0, 90)`). Jedes Fenster speichert höchstens die letzten 24 UTC-Viertelstunden mit Faktoren in `[0, 1]`; je UTC-Viertelstunde bleibt die erste qualifizierte Probe unverändert, samt echtem Mess- und Verfügbarkeitszeitpunkt. Die Freigabe benötigt fünf verschiedene UTC-Viertelstunden an mindestens zwei UTC-Tagen innerhalb 45 Tagen; gleichgewichtete Tagesmediane dürfen höchstens MAD 0,15 aufweisen. Nach Freigabe ist die Änderung auf 0,10 je verstrichenem UTC-Kalendertag begrenzt. Unzureichende/alte/instabile Belege und leere Fenster liefern Faktor `1.0` ohne Nachbarschaftsinterpolation. Schema 3 persistiert bis zu 64 Freigabeänderungen je Fenster und deren echte Verfügbarkeit. Schema 1/2 bleibt lesbar, seine zeitlich unbelegten Proben bleiben aber ausschließlich als unqualifizierte Altdaten diagnostisch sichtbar; neue qualifizierte Berichte sind für aktive Freigaben erforderlich. [Zeitgates und Details](physics-learning-options.md). `inverter_power` übergibt denselben Stufenfaktor an alle Strings der Stufe. `ForecastEngine` liest den Faktor für Stunden- und Teilintervalle am Sonnenstand des eigenen Intervallmittelpunkts und für die Nowcast-Momentanreferenz am Sonnenstand des Leistungszeitpunkts. Aufnahmen entstehen im Coordinator nur, wenn Sonnenhöhe `>= 10°` und Haurwitz-Klarhimmel `>= 50 W/m²`, Clearness-Index `GHI / Haurwitz >= 0,6`, Leistungs- und GHI-Bericht frisch (GHI `<= 5 min`, Leistung `<= 15 min`, nicht `restored`) und höchstens fünf Minuten auseinander, Messung gültig und nicht abgeregelt, unverschattete Momentanreferenz `(P0, P1)` auf der gültigen Stufenkohorte verfügbar (`P0` mit `beam_shade_factor=0`, `P1` mit `beam_shade_factor=1`), Direktanteil `P1 - P0 >= 0,4 * P1` und `>= max(30 W, 0,03 * output_cap_w)` sowie weder `P_messung` noch `P1` bei `>= 98 %` von `output_cap_w` liegen (`t = clip((P_messung - P0) / (P1 - P0), 0, 1)`). Detailvorgabe: [Direktstrahl-Verschattung](adaptive-solar-verschattung.md); ein gemessener Prognosevorteil wird damit nicht behauptet.
@@ -83,11 +108,23 @@ Momentanreferenz: Original-NWP-Strahlungsmittel mit [Ineichen-Klarhimmelform](ht
 
 ### Lernen und Archiv
 
+Bei zusätzlichen Endpunktfenstern aggregiert `core/measurement.py` den
+Sonnenazimut zyklisch über den gemessenen Support. Ein vorhandener Gradwert
+folgt dem zeitgewichteten Sinus-/Kosinusvektor; bei reinen Gradfeatures werden
+die Vektoren daraus gebildet. Ein unvollständiger Vektor oder eine mittlere
+Vektorlänge `<= 1e-12` sperrt das Fenster. Der Norddurchgang darf keine südliche
+Schattenzuordnung erzeugen. Details: [Messvertrag](measurement-learning.md#endpunktfenster-statt-erzwungener-voller-stunden).
+
 `core/learning.py`: `ResidualLearner().fit(samples, as_of)`, `.predict(...)` wie oben, Diagnose `.status`. Je Stufe getrennte NWP-/GHI-Baselinemodelle. Zusatzfeatures: `ghi_regime` 0/1, `ghi_nowcast_gain` (NWP 1), `ghi_observation_age_seconds` (NWP 0). Im Kern sind markerfreie Zeilen NWP, unvollständige alte GHI-Marker ungültig. Sensorausfall erlaubt kein GHI-Modell auf roher NWP-Baseline.
 
 Je Regime eigene chronologische Trainings-/Validierungs-/Kalibrierungs-Zieltage nach lokalem Intervallstart, auch über Mitternacht bei Teilstundenoffsets. Ganze frühere Zielzeilen mit `end > nächster Blockstart` werden an beiden Grenzen entfernt; Gleichheit ist zulässig. Historientage/-stunden danach erneut prüfen, Messenergie nie teilen. `purged_boundary_overlap_rows` nennt entfernte Zeilen. Je Regime: Future-Labels, Nacht, Abregelung, ungültige Daten/Duplikatgewichtung ausschließen. Aktivierung, LeadRange/Kalibrierung nicht aus dem anderen Regime leihen. Solar-Geometrie/Saison erlauben wiederkehrende Verschattung; Stufenzähler identifizieren keine Einzelstrings. Modelle aus Zeilen rekonstruieren, keine Pickles.
 
 Standard: mindestens 28 Zieltage/240 Stunden vereinigter Messdauer, keine vollen Stunden aus Kurzfragmenten. Je aktivem Lead-Bin eigene ausreichende Trainings-/Validierungstage/-stunden, strikt mehr als 5 % MAE-Verbesserung gegen Physik und 60 % gewonnene Validierungstage. Unterstützter Lead: Schnittmenge der Trainings-/Validierungsbereiche; unbelegt/abgelehnt bedeutet Physik. Fehlergrenzen brauchen eigene Kalibrierungstage/-stunden im Bin, keine zertifizierten P10/P90.
+
+Der Entwicklungsstand ergänzt einen getrennten
+[Offline-Support-Guard](learning-support-guard.md). Nur dieser Kandidat prüft
+zusätzlich die Trainingsabdeckung der Merkmale. Der produktive Lerner und seine
+Freigaberegeln bleiben unverändert; ein Kalibrierradius ist kein Korrekturlimit.
 
 `training_quality.alignment.rejection_reasons` trennt `issued_after_target_start`, `target_shorter_than_minimum`, `source_partial_at_issue` und `stale_beam_shade_baseline` (wenn der zur Ausgabezeit archivierte `beam_shade_factor` eines Sonnenstandsfensters einer inkompatiblen Baselinephase angehört, d. h. Wechsel zwischen unverschattet `1,0` und verschattet `< 1,0` oder Abweichung über `SHADE_BASELINE_TOLERANCE = 0,10` gegenüber dem aktuellen Tabellenfaktor; ohne kompatible Trainings- und Validierungsstützung fällt sowohl die Holdout-Bewertung/Kalibrierung als auch `predict` für verschattete Baselines auf `physics_unvalidated_shade_baseline` zurück); mehrere Gründe können dieselbe Zielzelle betreffen. Die unveränderte Mindestdauer von 30 Minuten ist eine Historienanforderung, kein Leakage-Nachweis für kürzere, ansonsten prospektive Wetterzellen.
 
@@ -128,8 +165,34 @@ HA `Store`: höchstens120 Tage,60.000 Forecast-/30.000 Istzeilen; Raster/Stufenz
 
 Modelle beim Erstaufbau oder bei geänderter Fit-Signatur rekonstruieren: Historienrevision, lokaler Tag, vollständig serialisierte Schattentabelle, tatsächlich verbundene Samples und Alignmentdiagnose. Neue Learner werden lokal gefittet und erst mit erfolgreicher Prognose übernommen; ein Fitfehler verwirft den alten Learner, liefert gültige Physik und erlaubt späteren Retry. Join-/Fit-/Prognoselaufzeiten und Fitereignisse stehen in `resources`. Der separate `EarlyBiasShadow` verändert keine veröffentlichten Punkte; sein Fitcutoff und sein Status stehen in `bias_shadow`. Auch neue/ersetzte Schattenaufnahmen bei unverändertem Median können einen Refit auslösen; HA serialisiert Updates, offline kein paralleles `fit`/`predict` zugesichert. Tagesbeginnenergie: eigener vollständiger Snapshot bis lokalem Tagesbeginn; sowohl ursprüngliches `issued_at` als auch tatsächliche lokale Verfügbarkeit nach Rückkehr des vollständigen Executor-Ergebnisses müssen diese Grenze einhalten. Spät fertige Läufe erzeugen keine fehlenden historischen Tageswerte und überschreiben keine vorhandenen Snapshots/Operatorimporte. Neue Trainingszellen werden nur archiviert, wenn ihre ursprüngliche Ausgabe und diese tatsächliche Verfügbarkeit spätestens am Zielbeginn liegen; keine rückdatierte Ausgabezeit und kein nachträglicher Zuschnitt. Noch zukünftige Tage/Zielzellen bleiben nutzbar. Keine Secrets/ausführbaren Modellobjekte persistieren. Das große Vergleichsarchiv wird ausschließlich nach echten Tagescaptures, Retentionänderungen oder dem Retry einer noch unbestätigten Änderung geschrieben, unabhängig vom 30-Sekunden-Savepfad der Zählerhistorie. Export, JSON-Serialisierung, Validierung und Readback-Hashprüfung laufen in Workern mit unveränderlicher Capturesicht. Erst eine passende tatsächliche Diskrücklese bestätigt die gespeicherte Revision; Fehler lassen sie für einen späteren Retry offen. Unbekannte/defekte Vergleichsdateien bleiben unverändert und nur lesend, während Messungen und Prognosen weiterlaufen. Einrichtung und Schließen respektieren dieselbe erfolgreiche Setupgrenze. [Vergleichspersistenz](model-comparison-archive.md).
 
+Die Auswahl repräsentativer und gepaarter Forecast-Origins läuft nach der
+Modellrechnung ebenfalls im Executor auf einer unveränderlichen Archivsicht.
+Erst dessen tatsächliche Rückkehr begrenzt die Verfügbarkeit. Überschreitet die
+Auswahl einen neuen Zielbeginn oder hat ein zwischenzeitlicher Messbericht
+Historienzeilen entfernt, wird aus der aktuellen Originalsicht erneut gewählt;
+ein früheres Auswahlergebnis wird dabei nicht als Originalbasis verwendet.
+Der anschließende Eventloop-Commit enthält keinen weiteren Await. Er erhält
+zwischenzeitliche Messintervalle und Operatorimporte und prüft Tagesbeginnwerte
+gegen die tatsächliche Verfügbarkeit; Ausgabezeit und Cohortenauswahl werden
+nicht rückdatiert. Beim Schließen wird ein noch laufender Kandidat verworfen.
+
+Der Primary serialisiert JSON im nativen HA-Executor. Sein verzögerter
+Speichercallback übernimmt Pruning und Snapshotbildung auf dem HA-Eventloop;
+auch nativer Pending-Load-Readback darf ihn dort direkt aufrufen. Abgetrennte
+Container und ausschließlich ersetzte veröffentlichte Zeilen, Messungsteile,
+Tageskurven und Provenienz halten den Snapshot während der Serialisierung
+stabil. Der native 30-Sekunden-Delay sowie Setup-, Import- und Abschlussgrenzen
+bleiben erhalten; Legacy wird weiterhin ausschließlich gelesen.
+
 Historien werden ohne native Load-/Migrationsnebenwirkungen jeweils einmal
-read-only im Executor gelesen. Nur ein tatsächlich fehlender Primary erlaubt
+read-only im Executor gelesen. Auch vollständige Forecast-/Messhistorienprüfung,
+Messungsteil-Expansion, Restore-Join, Tageskurven-/Provenienzprüfung,
+Schattentabellenaufbau und Retention-/Indexvorbereitung laufen dort auf einem
+privaten Kandidaten. Erst der geprüfte Zustand wird auf dem HA-Eventloop
+übernommen; Worker ändern keinen lebenden Coordinatorzustand. Dies gilt für
+Primary und Legacy sowie die gesonderte Tagesstartprüfung nach physischer
+Konfigurationsänderung. Das Vergleichsarchiv wird ebenfalls im Worker gelesen,
+validiert und vor seiner Übernahme beschnitten. Nur ein tatsächlich fehlender Primary erlaubt
 Legacyfallback. Vorhandene JSON-/UTF-8-/I/O-Fehler, Verzeichnisse und unbekannte
 Envelopes einschließlich falschem Key, Haupt-/Unterversion oder `data=None`
 sperren Primary-Laden und -Persistenz, ohne die Originaldatei umzubenennen.
@@ -169,6 +232,11 @@ ausgewiesen; gültige Forecasts werden weiterhin veröffentlicht.
 
 `weather_response` bindet die tatsächliche ursprüngliche Antwort, Anfrageparameter,
 Modell, Empfang, HTTP-/Parserstatus und Normalisierungsbeleg an eine stabile ID.
+Auch gültiges JSON mit falscher Objektstruktur (`null`, Liste oder ungültige
+`hourly_units`-/`hourly`-Container) wird als Parserfehler erfasst. Bei aktiviertem
+Export bleiben die unveränderten JSON-Werte mit `status=failed`, HTTP-Status und
+`error_type=WeatherError` erhalten. Diese Antwort wird nicht als neue verfügbare
+Wetterquelle veröffentlicht; ein erlaubter Altcache behält seinen alten Empfang.
 Ein Cachehit behält deren ID und ursprünglichen Empfang; eine unbekannte
 Providerlaufzeit bleibt unbekannt. `forecast_issued` bewahrt alle ausgegebenen
 Zellen einschließlich Nacht/Teilstunden, ursprüngliche normalisierte Wetterzellen
@@ -189,9 +257,22 @@ bewahrt Original-Zähler-/Gültigkeits-/Abregelungsberichte sowie bei aktivierte
 Export alle konfigurierten Leistungs-/GHI-/Temperatur-/Windberichte mit Quell-
 und Empfangszeiten. Unveränderte, ungültige, restaurierte und entfernte Zustände
 bleiben erhalten; die Attribute sind auf Einheit, State-Class und `restored`
-beschränkt. Die deduplizierte Subscriptionmenge ändert keine Zählerverarbeitung
+beschränkt. Bei `state_changed` wird der ursprüngliche Berichtszeitpunkt aus
+dem unveränderlichen `new_state.last_updated` übernommen; `new_state.last_reported`
+kann durch weitere Berichte bereits verändert sein. Bei `state_reported` gilt
+weiterhin der im Ereignis eingefrorene `last_reported`-Wert. Das gilt auch, wenn
+ein früher registrierter nativer Listener synchron weitere Berichte auslöst,
+bevor der Eltern-Callback diese Integration erreicht. Journalreihenfolge und
+ursprüngliche Ereigniszeit können dann voneinander abweichen; Originalzeiten
+werden nicht auf den späteren veränderlichen Zustand umgebogen. Bei Entfernung
+bleiben die fehlenden Zustandszeitstempel leer. Die deduplizierte Subscriptionmenge ändert keine Zählerverarbeitung
 und erzwingt keine Quellenaktualisierung. `qualified_interval` ist ein getrenntes abgeleitetes Messergebnis,
-kein unabhängiger Beweis physischer Quellenqualität.
+kein unabhängiger Beweis physischer Quellenqualität. Der Entwicklungskandidat
+ergänzt am exportierten Originaldelta `source_binding` (`schema: 1`,
+`energy_entity_id`, `config_sha256`, `producer_sha256`); die internen Lernintervalle
+bleiben unverändert. Die bedingte, zeitlich begrenzte v2-Quellenpolicy verlangt
+diese Pins für jede freigegebene Stunde.
+[Vertrag und Probelauf](../archiv/istwert-qualitaetsadapter.md#5-fortlaufende-quellenbindung-und-qualitätsaufnahme).
 
 `forecast_issued.shade_learning` (`schema: 1`) ergänzt den Rohzustandssnapshot
 aller konfigurierten Quellen, normalisierte Stufeneingaben sowie Entscheidungen
@@ -267,10 +348,21 @@ AC-JSON behält unverändert Serialisierung/Fingerprint, neue DC-Stufen ändern 
 Qualität: `SensorDeviceClass.ENUM`, keine Genauigkeits-/Konfidenzklasse. Priorität: aktive Abregelung → partielle Resttagabdeckung → beeinträchtigte konfigurierte Eingaben/unbekannte Abregelung, Residualfitfehler oder verwendeter alter Wettercache nach Abruffehler → Physik, teilweise (`mixed`) oder vollständige Residualanwendung. Tatsächlicher Ausgabestatus gilt horizonweit; inaktives Gegenregime/Nacht-/Nullzellen verdecken aktive Tageskorrekturen nicht. `learning_horizon`: globaler Scope, Rohstatus, NWP-/GHI-Validierungsranges; `coverage_scope`: Resttag. Horizonweite Wetter-/Physikdiagnosen und letzter Abruffehler bleiben Attribute: Zusatzproviderausfall/ferne Lücke degradieren gültige heutige Ausgabe nicht; echte Resttagslücken bleiben `partial`.
 
 Native `wh_hours`: nur vollständige UTC-Stunden **aller** Stufen homogener AC-/DC-Entries; kleinere Zellen nach Dauer integrieren. Angefangene Stunden fehlen, Resttag/Qualitätskurve behalten verbleibende Teilenergie. Keine Minutenkeys als Stunden-Wh/erfundene Vorenergie; DST behält 23/25 UTC-Stunden.
+Beim Lesen fremder `wh_hours` normalisieren Referenzservice und Collector zuerst
+nach UTC und prüfen erst danach Minuten/Sekunden/Mikrosekunden. Äquivalente
+Offsetdarstellungen belegen denselben Zeitpunkt, doppelte absolute Stunden
+bleiben ungültig; Originalkeys und Wh-Werte werden im Snapshot nicht umgeschrieben.
 
 Mixed-Entries behalten Stufensensoren und `mixed_output_generation_sum` verschiedener Messpunkte, ohne AC-Netz-/Batteriefluss oder nativen Gesamtforecast einer Messgrenze. `native_energy_eligible=False` gilt der Entry-Schnittstelle, nicht fehlenden Stufenprognosen. `output_type`, `output_types`, `measurement_boundary`, `measurement_boundaries`, `output_stage_boundaries` bleiben auch ohne Zustände verfügbar. CLI nennt Stufe/nominelle W-Grenze ohne Sensorbindungen/Standort.
 
 ## Nachweis
+
+Der [Offline-Qualitätsadapter](../archiv/istwert-qualitaetsadapter.md) ergänzt im
+Entwicklungsstand eine separate Ableitung aus nativen Originalintervallen und
+explizit attestierten Quellen-/Konfigurationszeiträumen. Er benötigt vollständig
+belegte Stunden, bewahrt die ganze Recorderenergie und datiert neue positive
+oder ausdrücklich negative Qualitätsrevisionen auf den tatsächlichen Prüflauf.
+Unbestätigte Zuordnungen erlauben nur Diagnose; es erfolgt keine HA-Aktivierung.
 
 `services.py` liest native Helios-/Open-Meteo-Wh mit Domain-Allowlist/Timeout, ohne Energy-Preferences-Write. `capture_ha.py`/`capture_actuals.py` bewahren Empfang, Rohrevision, Einheiten/Qualitätsprovenienz; spät geprüfte Altstände verdecken keine neuere Invalidierung und erzeugen keine rückdatierten Labels. Positive Recorderfreigabe braucht weiterhin vollständige Stundenabdeckung;
 negative oder ausdrücklich unbestätigte Qualitätsmasken invalidieren jede

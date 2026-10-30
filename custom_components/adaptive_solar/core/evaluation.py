@@ -32,7 +32,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta, timezone
 import math
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, Sequence
 from zoneinfo import ZoneInfo
 
 from .models import midpoint_lead_hours
@@ -76,6 +76,20 @@ class ForecastRecord:
     def to_dict(self) -> dict:
         return {key: value.isoformat() if isinstance(value, datetime) else value
                 for key, value in self.__dict__.items()}
+
+
+@dataclass(frozen=True)
+class ForecastAttempt:
+    """An issued source/stage attempt, including an entirely absent curve."""
+    source: str
+    issued_at: datetime
+    inverter_id: str
+
+    def __post_init__(self) -> None:
+        for value in (self.source, self.inverter_id):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("attempt source and inverter must be nonempty")
+        object.__setattr__(self, "issued_at", _utc(self.issued_at))
 
 
 @dataclass(frozen=True)
@@ -131,6 +145,19 @@ class EvaluationWindow:
     def to_dict(self) -> dict:
         return {key: value.isoformat() if isinstance(value, datetime) else value
                 for key, value in self.__dict__.items()}
+
+
+def _latest_available_issue(
+    issues: Sequence[datetime], window: EvaluationWindow, as_of: datetime,
+) -> datetime | None:
+    """Select from sorted UTC attempt times, including attempts without a curve.
+
+    Callers index by archive availability (receipt time for native exports),
+    retaining empty attempts so a failed newer curve cannot expose older data.
+    Target coverage is checked only after selecting the complete attempt.
+    """
+    position = bisect_right(issues, min(window.cutoff, window.start, as_of)) - 1
+    return issues[position] if position >= 0 else None
 
 
 def _metrics(rows: list[tuple[float, float, float]]) -> dict:
@@ -195,6 +222,7 @@ def evaluate_forecasts(
     windows: Iterable[EvaluationWindow],
     *,
     as_of: datetime,
+    forecast_attempts: Iterable[ForecastAttempt] = (),
     sources: tuple[str, ...] = ("adaptive", "physics", "helios", "open_meteo"),
     timezone_name: str = "UTC",
     min_coverage: float = 0.95,
@@ -210,6 +238,7 @@ def evaluate_forecasts(
     midnight/cutoff to the next local midnight, including known zero nighttime
     intervals. DST days therefore have their actual 23/24/25-hour duration.
     Interval scores can still be reported descriptively below the claim gate.
+    Explicit forecast_attempts retain empty newer curves in origin selection.
     An older valid issue never masks an unavailable newest archived issue.
     Lead groups use the declared common cutoff to the target-window midpoint,
     independent of each source's selected archived issue timestamp.
@@ -241,6 +270,9 @@ def evaluate_forecasts(
     for row in forecasts:
         if row.source in sources:
             forecast_index[row.source, row.inverter_id][row.issued_at].append(row)
+    for attempt in forecast_attempts:
+        if attempt.source in sources:
+            forecast_index[attempt.source, attempt.inverter_id][attempt.issued_at]
     source_issues = {key: sorted(issues) for key, issues in forecast_index.items()}
     actual_index: dict[str, list[ActualRecord]] = defaultdict(list)
     for row in actuals:
@@ -263,11 +295,10 @@ def evaluate_forecasts(
         predictions = {}
         for source in sources:
             index_key = source, window.inverter_id
-            issues = source_issues.get(index_key, [])
-            position = bisect_right(issues, min(window.cutoff, window.start, as_of)) - 1
-            if position < 0:
+            issue = _latest_available_issue(source_issues.get(index_key, ()), window, as_of)
+            if issue is None:
                 continue
-            latest = forecast_index[index_key][issues[position]]
+            latest = forecast_index[index_key][issue]
             value = _interval_mean(latest, window.start, window.end)
             if value is not None:
                 predictions[source] = value

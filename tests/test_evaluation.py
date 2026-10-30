@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from custom_components.adaptive_solar.core.evaluation import (
-    ActualRecord, EvaluationWindow, ForecastRecord, evaluate_forecasts,
+    ActualRecord, EvaluationWindow, ForecastAttempt, ForecastRecord, evaluate_forecasts,
 )
 
 EPOCH = datetime(2025, 4, 1, tzinfo=timezone.utc)
@@ -232,6 +232,24 @@ def test_ambiguous_duplicates_and_latest_unavailable_issue_fail_closed():
     report = evaluate(forecasts + [latest], actuals, [window])
     assert report["paired_intervals"] == 0
     assert report["missing"][0]["missing_sources"] == ["adaptive"]
+
+
+@pytest.mark.parametrize("cutoff_offset_us,paired", [(-1, 1), (0, 0), (1, 0)])
+def test_empty_attempt_blocks_older_curve_at_its_exact_availability(cutoff_offset_us, paired):
+    forecasts, actuals, windows = archive(days=1)
+    target = windows[12]
+    available = EPOCH + timedelta(hours=11)
+    window = replace(target, cutoff=available + timedelta(microseconds=cutoff_offset_us))
+    attempts = [ForecastAttempt("adaptive", available, "wr"),
+                ForecastAttempt("physics", available, "other-stage")]
+
+    report = evaluate(forecasts, actuals, [window], forecast_attempts=attempts)
+
+    assert report["paired_intervals"] == paired
+    assert report["source_available_intervals"] == {source: paired if source == "adaptive" else 1
+                                                     for source in SOURCES}
+    if not paired:
+        assert report["missing"][0]["missing_sources"] == ["adaptive"]
 
 
 def test_curtailment_and_actual_gaps_cannot_generate_complete_day_energy():

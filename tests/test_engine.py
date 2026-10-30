@@ -60,6 +60,30 @@ def test_local_weather_only_in_short_horizon():
     assert local.points[-1] == baseline.points[-1]
 
 
+@pytest.mark.parametrize("substeps", [2, 4, 6, 12])
+@pytest.mark.parametrize("models", [("a",), ("a", "b")])
+@pytest.mark.parametrize("stages", [1, 2])
+def test_original_nwp_members_survive_all_ghi_corrected_subinterval_failures(substeps, models, stages):
+    cfg = replace(config(models=models), physics_substeps=substeps)
+    if stages == 2:
+        cfg = replace(cfg, inverters=(*cfg.inverters, InverterConfig("j", 5)),
+                      strings=(*cfg.strings, StringConfig("s2", "j", 5, 30, 180)))
+    source = replace(weather(ghi=1000), dni_w_m2=1700)
+    forecasts = tuple(forecast(model, (source,), issue=T - timedelta(minutes=index))
+                      for index, model in enumerate(models))
+    original = ForecastEngine(cfg).forecast(forecasts, T)
+    corrected = ForecastEngine(cfg).forecast(forecasts, T, (
+        Observation(T, "i", ghi_w_m2=1600, temperature_c=40, wind_m_s=.1),))
+    assert len(original.points) == stages
+    assert not corrected.points  # Real scaled proxies exceed the original weather bounds.
+    assert corrected.model_status["irradiance"] == "usable:haurwitz_normalized"
+    assert any(value == "unavailable:unavailable_subinterval_shape" for value in corrected.model_status.values())
+    assert corrected.member_points == original.member_points
+    assert corrected.member_issued_at == {model: row.issued_at for model, row in zip(models, forecasts, strict=True)}
+    assert all(len(points) == stages for points in corrected.member_points.values())
+    assert forecasts[0].points[0] == source
+
+
 def test_nowcast_is_short_and_blocked_by_any_recent_curtailment():
     engine = ForecastEngine(config())
     baseline = engine.forecast((forecast(),), T)

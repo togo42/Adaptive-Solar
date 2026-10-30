@@ -213,3 +213,81 @@ async def test_snapshot_keeps_rejected_power_and_original_timestamp(hass, invali
         assert payload["shade_learning"]["inputs"]["i"]["power_w"] is None
         assert payload["shade_learning"]["inputs"]["i"]["power_time"] is None
         await instance.async_close()
+
+
+@pytest.mark.parametrize("entity,unit", [("sensor.power", "W"), ("sensor.energy", "kWh"),
+                                        ("sensor.ghi", "W/m²"), ("sensor.temp", "°C"), ("sensor.wind", "m/s")])
+@pytest.mark.parametrize("kind", ["initial", "attributes", "forced"])
+async def test_raw_report_burst_keeps_each_original_event_timestamp(hass, entity, unit, kind):
+    instance = configured(hass)
+    attrs = {"unit_of_measurement": unit}
+    if kind != "initial":
+        with freeze_time(NOW - timedelta(minutes=1), real_asyncio=True):
+            hass.states.async_set(entity, "12", attrs)
+            await hass.async_block_till_done()
+    with freeze_time(NOW, real_asyncio=True) as clock:
+        instance.async_start_tracking()
+        instance.async_commit_setup()
+        changed_attrs = {**attrs, "extra_attribute": "changed"} if kind == "attributes" else attrs
+        # No event-loop flush between updates: HA mutates new_state.last_reported
+        # before the initial state_changed callback gets to inspect that object.
+        hass.states.async_set(entity, "12", changed_attrs, force_update=kind == "forced")
+        for _ in range(2):
+            clock.tick(delta=timedelta(seconds=1))
+            hass.states.async_set(entity, "12", changed_attrs)
+        assert hass.states.get(entity).last_reported == NOW + timedelta(seconds=2)
+        await hass.async_block_till_done()
+        events = (await instance.export.page())["page"]["events"]
+        reports = [event for event in events if event["kind"] == "source_report" and event["payload"]["entity_id"] == entity]
+        assert [event["payload"]["event_type"] for event in reports] == ["state_changed", "state_reported", "state_reported"]
+        expected = [(NOW + timedelta(seconds=n)).isoformat() for n in range(3)]
+        assert [event["payload"]["last_reported"] for event in reports] == expected
+        assert [event["received_at"] for event in reports] == expected
+        assert all(event["payload"]["last_updated"] == NOW.isoformat() for event in reports)
+        await instance.async_close()
+
+
+@pytest.mark.parametrize("entity,unit", [("sensor.power", "W"), ("sensor.energy", "kWh"),
+                                        ("sensor.ghi", "W/m²"), ("sensor.temp", "°C"), ("sensor.wind", "m/s")])
+@pytest.mark.parametrize("kind", ["initial", "attributes", "forced"])
+async def test_earlier_native_listener_cannot_advance_original_raw_report(hass, entity, unit, kind):
+    from homeassistant.core import callback
+
+    instance = configured(hass)
+    attrs = {"unit_of_measurement": unit}
+    if kind != "initial":
+        with freeze_time(NOW - timedelta(minutes=1), real_asyncio=True):
+            hass.states.async_set(entity, "12", attrs)
+            await hass.async_block_till_done()
+    with freeze_time(NOW, real_asyncio=True) as clock:
+        changed_attrs = {**attrs, "extra_attribute": "changed"} if kind == "attributes" else attrs
+        armed = True
+
+        @callback
+        def reports_before_tracker(event):
+            nonlocal armed
+            if armed and event.data["entity_id"] == entity:
+                armed = False
+                for _ in range(2):
+                    clock.tick(delta=timedelta(seconds=1))
+                    hass.states.async_set(entity, "12", changed_attrs)
+
+        # Real HA callbacks are immediate; an earlier listener may synchronously
+        # publish more reports before this integration receives the parent change.
+        unsubscribe = hass.bus.async_listen("state_changed", reports_before_tracker)
+        instance.async_start_tracking()
+        instance.async_commit_setup()
+        hass.states.async_set(entity, "12", changed_attrs, force_update=kind == "forced")
+        assert hass.states.get(entity).last_reported == NOW + timedelta(seconds=2)
+        await hass.async_block_till_done()
+        events = (await instance.export.page())["page"]["events"]
+        reports = [event for event in events if event["kind"] == "source_report" and event["payload"]["entity_id"] == entity]
+        changed, = [event for event in reports if event["payload"]["event_type"] == "state_changed"]
+        reported = [event for event in reports if event["payload"]["event_type"] == "state_reported"]
+        assert changed["received_at"] == NOW.isoformat()
+        assert changed["payload"]["last_reported"] == NOW.isoformat()
+        assert [event["payload"]["last_reported"] for event in reported] == [
+            (NOW + timedelta(seconds=n)).isoformat() for n in (1, 2)]
+        assert all(event["payload"]["last_reported"] <= event["received_at"] for event in reports)
+        unsubscribe()
+        await instance.async_close()

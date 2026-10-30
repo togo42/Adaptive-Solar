@@ -280,10 +280,23 @@ im Index; bei fehlenden Indexzeilen ist zuerst ein überprüfter Wiederaufbau
 nötig. Spätere Ereignisse gehören nicht zu diesem Dataset.
 `export_dataset(dataset, destination)` kopiert die Originale und ein Manifest
 mit Hashes, Quellen und den ursprünglichen Empfangszeitbereichen in ein neues
-Zielverzeichnis. Das Ziel lässt sich mit `ArchiveStore` unabhängig öffnen und
+Zielverzeichnis außerhalb des Quellarchivs. Sowohl lexikalischer als auch
+aufgelöster Zielpfad müssen außerhalb der gesamten Archivwurzel liegen;
+auch ein lexikalisches Ziel unter der aufgelösten Archivwurzel wird gesperrt,
+wenn das Archiv selbst über einen anderen Symlinknamen geöffnet wurde.
+Interne Ziele und Pfadaliase werden vor Beginn und erneut direkt vor dem
+Anlegen des Exportbaums abgelehnt. Das Ziel lässt sich mit `ArchiveStore` unabhängig öffnen und
 indexieren. Ein bereits existierendes Ziel wird nicht überschrieben. Bei einem
 abgebrochenen Export bleibt eventuell ein unvollständiges Ziel; das Quellarchiv
 bleibt erhalten. Die erfolgreiche vollständige Ausgabe enthält `dataset.json`.
+
+Auch `archive.py export-observations` verlangt ein neues Ausgabeziel außerhalb
+der gesamten Quellarchivwurzel und der Programmverzeichnisse. Die gemeinsame
+Pfadprüfung schützt lexikalische/aufgelöste Pfade sowie Eingabe- und Programmaliasen
+vor dem Öffnen des Archivs, vor der temporären Ausgabe und unmittelbar vor der
+Veröffentlichung. Ein interner Dateiname mit `.json.gz` darf nicht als vermeintliches
+Original in die Ablage gelangen. Bestehende Ausgabeziele werden nicht ersetzt;
+die JSONL-Veröffentlichung erfolgt ohne Überschreiben per Hardlink.
 
 Ein Pin bewahrt alle aufgenommenen Originale seiner gewählten Quellen, nicht
 bloß eine Ergebnisdatei. Fachliche Vollständigkeit und die Auflösung sämtlicher

@@ -25,6 +25,15 @@ und initialisieren ihre Empfangszeit explizit.
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
 
+**Vorbereiteter, unveröffentlichter Kandidat: 0.2.20, Stand 30.10.2026.**
+Er ergänzt einen ausschließlich offline nutzbaren Support-Guard, optierte
+Istwert-Qualitätsadapter mit Quellenbindung und Korrekturen für Archivaufnahme,
+Zeitbezüge und Vergleichsarme. Der HA-Lerner bleibt `ResidualLearner`; der Guard
+wird nicht aktiviert. Der Build des eingefrorenen Kandidaten bestand.
+CI: **bestanden**; Codex-Review: **akzeptiert, keine Befunde (`mergeable`)**.
+[Quellbindung und Grenzen](docs/entwicklung/pruefnachweise.md#releasekandidat-0220-aktueller-stand).
+[Umfang, getrennte Installationswege und offene Freigaben](docs/releases/release-0.2.20.md).
+
 ## Installation und Bedienung
 
 1. [Plattform und Abhängigkeiten prüfen](docs/anwendung/installation.md).
@@ -81,7 +90,22 @@ Synthetische Offline-Demo:
     --as-of 2026-06-21T08:00:00+02:00 --output artifacts/demo.json
 ```
 
-`--live` ruft Open-Meteo auf und ist nicht rückdatierbar.
+`--live` ruft Open-Meteo auf und ist nicht rückdatierbar. Die Forecast- und
+Auswertungs-CLI schützen Eingaben sowie Quell- und Ressourcendateien gegen
+Ausgabe-Aliase. Berichte bleiben außerhalb von `scripts/` und
+`custom_components/` und werden nach erneuter Pfadprüfung atomar veröffentlicht.
+Der Entwicklungsstand enthält außerdem einen separaten
+[Offline-Kandidaten zur Prüfung der Trainingsabdeckung](docs/technik/learning-support-guard.md)
+des Residual-Lerners. Er verändert keine produktiven HA-Prognosen.
+Ein weiterer [Offline-Adapter qualifiziert Recorder-Iststunden](docs/archiv/istwert-qualitaetsadapter.md)
+aus Originalintervallen und belegten Quellenbindungen; ungeprüfte Quellen bleiben Diagnose.
+Der Kandidat unterstützt auch optionale fortlaufende Qualitätsaufnahme mit
+Quellenpins je Originaldelta und einen lokalen Probelauf ohne HA-Zugriff.
+Die nachfolgende lokale Überarbeitung schützt auch Hoststatusziele, bündelt die
+Ausgabeauswahl der Auswerter und trennt die gemeinsame Qualitäts-Einlesehilfe
+von den CLIs. Der [Ablauf für Fehlerfamilien](docs/entwicklung/review-fehlerfamilien.md)
+beschreibt die gemeinsame Nachprüfung; ältere Vollreviews gelten ausschließlich
+für ihre damaligen Quellstände.
 [Datenverträge](docs/technik/implementation-contract.md),
 [Vergleichsaufnahme](docs/entwicklung/benchmark-aufnahme.md) und
 [Reviewablauf](docs/entwicklung/validierung.md#4-lokale-prüfung-und-review)

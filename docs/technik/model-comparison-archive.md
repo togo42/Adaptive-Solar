@@ -22,6 +22,10 @@ Vergleichsvertrag mit `schema_version=1` direkt. Der normale Mess-/Lernstore
 
 `operative_baseline` ist die direkte Kandidatenreferenz und keine als reine
 NWP-Physik umbenannte Prognose. Einzelne NWP-Arme sind getrennte Referenzen.
+Die NWP-Mitglieder werden unabhängig vom Erfolg lokaler Korrekturen berechnet.
+Auch bei vollständig fehlender operativer GHI-Zelle kann daher ein gültiger
+`nwp:<model>`-Arm archiviert werden; der operative Ausfall bleibt als solcher
+erhalten. Das ergänzt keine fehlenden historischen Originalausgaben.
 Gemeinsamkeit von Wetterdaten oder Physik bedeutet keine statistische
 Unabhängigkeit. Die Anlage, ihre physischen Messgrenzen, die ursprünglichen
 Ausgangskappen und ihre Zeitzone sind durch Konfigurations-/Historyhash und

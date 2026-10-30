@@ -1,0 +1,170 @@
+# Adaptive Solar 0.2.20 – unveröffentlichter Releasekandidat
+
+Stand: 30.10.2026. **Vorbereitet, noch nicht veröffentlicht oder installiert.**
+Der veröffentlichte Release bleibt [0.2.19](release-0.2.19.md). Manifest und
+Paketmetadaten tragen bereits die Kandidatenversion 0.2.20. Der Build des
+eingefrorenen Kandidaten bestand. CI: **bestanden**; Codex-Review:
+**akzeptiert, keine Befunde (`mergeable`)**. Die [Prüfnachweise](../entwicklung/pruefnachweise.md#releasekandidat-0220-aktueller-stand)
+binden Quellen und Artefakte. Diese Hinweise sind keine produktive Aktivierungsfreigabe.
+
+## Änderungen gegenüber 0.2.19
+
+### Trainingsabdeckung ausschließlich offline untersuchen
+
+Der separate `SupportGuardLearner` prüft, ob eine Merkmalslage durch den
+tatsächlichen Trainingsblock gestützt ist. Er verbindet dauergewichtete
+Merkmalsgrenzen, gemeinsame Prototypabstände und kreisförmige Azimut-/Saisonwerte.
+Validierungs- und Kalibrierungsdaten passen diese Grenzen nicht an. Bei fehlender
+Stützung verwendet der Kandidat die begrenzte Physikbaseline mit eigener Diagnose.
+
+`scripts/analyze_learning_support.py` vergleicht Physikbaseline, bisherigen Lerner
+und Guard auf denselben eingefrorenen Aufgaben vor dem Leistungsnowcast.
+Echte Archivempfangszeiten, Quellen- und Konfigurationsidentität, qualifizierte
+Istwerte sowie ein deklarierter Prüfplan bleiben erforderlich. Auch vollständig
+fehlende jüngere Ausgabeversuche bleiben sichtbar und verhindern einen
+stillschweigenden Rückgriff auf ältere Kurven. Ohne vorab deklarierten Plan ist
+die Auswertung nachträglich und diagnostisch.
+
+Die HA-Integration verwendet weiterhin **`ResidualLearner`**. Der Guard erhält
+keine HA-Option, keinen Dienst und keine automatische Aktivierung. Seine Policy
+ist nicht an realer Prognosegüte validiert; sie erkennt keine veränderte
+Ertragsbeziehung bei unveränderten Eingaben. Vertrag und Grenzen stehen unter
+[Trainingsabdeckung offline prüfen](../technik/learning-support-guard.md).
+
+### Istwertqualität optiert an Originalquellen binden
+
+`scripts/qualify_actuals.py` erzeugt aus vollständigen Originalintervallen und
+expliziten Quellenattestierungen eine separate Qualitätsrevision für
+Recorder-Stundenenergie. `scripts/continuous_quality.py` ergänzt den lokalen
+Probelauf und die begrenzte fortlaufende Ableitung. `--quality-bindings` beim
+Beobachtungscollector beziehungsweise `quality_bindings` beim Archivhost sind
+ausdrücklich optiert und schließen die bisherige statische `quality`-Maske aus.
+
+Neue exportierte `qualified_interval`-Originale tragen `source_binding` mit
+Energie-Entity, Konfigurationshash und Producerquellhash. Der v2-Vertrag verlangt
+passende Pins an jedem vollständigen verwendeten Delta, eindeutige 1:1-Zuordnung,
+lückenlose UTC-Stunden und getrennt belegte Konfigurations-, Mess- und
+Abregelungsfacetten. Widersprüche bleiben sperrend; fehlende Daten werden nicht
+zu Nullwerten oder Freigaben. Neue Qualitätsrevisionen erhalten ihren tatsächlichen
+Abschlusszeitpunkt als `validated_at`; Originalempfang und Rohdaten bleiben erhalten.
+
+**Alte Originale aus 0.2.18/0.2.19 erhalten keine Pins nachträglich.** Eine neue
+v2-Policy qualifiziert sie deshalb nicht. Eine ausdrücklich belegte historische
+v1-Prüfung bleibt ein eigener Vorgang. Hashgleichheit belegt allein keine
+physische Messgüte. Format, Grenzen und Probelauf stehen im
+[Istwert-Qualitätsadapter](../archiv/istwert-qualitaetsadapter.md).
+
+### Aufnahme, Zeitbezüge und Vergleichsarme korrigieren
+
+- Der HA-Producer friert Rohberichte für `state_changed` an `last_updated` ein;
+  `state_reported` behält seine Ereigniszeit. Der bestehende gesonderte Zeitpfad
+  der Energiemessung bleibt erhalten. Die Korrektur verändert neue Exporte,
+  keine historischen Originale.
+- Referenzstunden werden nach Normalisierung auf UTC auf das Stundenraster und
+  doppelte absolute Zeitpunkte geprüft. Fehlerhafte Open-Meteo-Objekte werden
+  als `WeatherError` behandelt und im bestehenden Fehlerpfad archiviert.
+- Der reine NWP-Physikarm wird unabhängig von optionalen lokalen Korrekturen
+  gebildet. Ein Ausfall der operativen Kohorte entfernt dadurch nicht mehr
+  einen ansonsten vorhandenen NWP-Vergleichspunkt. Fehlende Mitglieder bleiben
+  fehlend. Integrierte Azimutmerkmale verwenden eine kreisförmige Mittelung.
+- Capture-, Replay-, Forecast- und Auswertungshelfer schützen Eingaben,
+  Programm-/Ressourcendateien und deren Link-Aliase vor Ausgabeüberschreibungen.
+  JSONL-Aufnahmen prüfen das geöffnete Ziel unter Sperre; Archive und
+  Originalreceipts bleiben getrennt von abgeleiteten Berichten. Beide
+  Append-CLI-Einstiege halten den Elternpfad vor dem Abruf fest und erhalten
+  den Dateinamen für die Symlinksperre. Sie weisen ein Symlinkziel vor dem Abruf
+  ab und prüfen die private Pfadgrenze unmittelbar vor dem Append erneut.
+- Hoststatus und Datasetexport weisen auch interne Archivziele sowie die
+  geprüften Pfadaliase zurück; Statusberichte dürfen keine Hostkonfiguration
+  ersetzen. Der Ensemble-Replay bindet Wetterprodukte an die ursprünglichen
+  Anfragekoordinaten des gewählten Standorts.
+- Die JSON-Kodierung der großen HA-Primärhistorie läuft wie beim Vergleichsstore
+  im Executor. Snapshotbildung und Retention bleiben auf dem Eventloop;
+  verzögertes Speichern, Pending-Load, expliziter Import und Abschluss verwenden
+  weiterhin den nativen Store-Lebenszyklus. Das Speicherformat ändert sich nicht.
+- Auch die umfangreiche Restoreprüfung und Prognosearchivauswahl laufen im
+  Executor. Restore übernimmt erst vollständig geprüfte Kandidaten. Die
+  Archivauswahl berücksichtigt Messereignisse während der Berechnung und den
+  tatsächlichen Rückkehrzeitpunkt; verspätete Ergebnisse gelten nicht rückwirkend
+  als rechtzeitig verfügbar. Laufende Messintervalle und explizite Importe bleiben
+  auf dem Eventloop erhalten.
+- Nichttextuelle Einheiten numerischer HA-Quellen gelten als ungültige
+  Beobachtung und brechen keinen optionalen Prognosepfad mehr ab. Ein Wechsel
+  der Energieeinheit beendet die Zählerkontinuität; erst nach einem neuen
+  echten Anker dürfen weitere Berichte wieder Messenergie bilden. Bestehende
+  Historie bleibt erhalten, Attributänderungen allein liefern keine Energie.
+- Stufenstatus und technische Diagnosen besitzen getrennte Namensräume.
+  Frei gewählte Kennungen können dadurch keine GHI-Qualitätsanzeige mehr
+  verfälschen; mehrdeutige Trennzeichen in Diagnosebestandteilen werden eindeutig
+  kodiert. Bestehende Stufen-/Entitykennungen bleiben erhalten. Die bisherige
+  flache Statusdarstellung bleibt als Kompatibilitätsansicht verfügbar.
+
+## Getrennte Installation und Rückwege vorbereiten
+
+Diese Schritte beschreiben einen späteren freigegebenen Upgradepfad. In der
+Releasevorbereitung werden weder HA noch externe Hosts geändert.
+
+### Home Assistant
+
+Vor einem späteren Update abgeschlossene HA-Sicherung und bisherigen vollständigen
+Komponentenstand erhalten. Nach Veröffentlichung die neue Version über HACS
+herunterladen und einmal Core neu starten. Bestehende Einträge, Entity-IDs,
+Optionen und passende Historien weiterverwenden; kein Core-/OS-Upgrade oder neuer
+Binärabhängigkeitsbau ist vorgesehen. Abhängigkeitspins, Featurevertrag und
+bisherige Lerngates ändern sich nicht; die Azimutmittelung wird wie oben beschrieben
+korrigiert. Es gibt keine Reinitialisierung und keine direkten `.storage`-Änderungen.
+
+Anschließend Eintragsstatus, Prognosen, Entity-IDs, Optionen, Historien,
+Tagesbeginnwerte, Konfigurationsprüfung und Repairs prüfen. Nur beim bewusst
+aktivierten Originalexport neue Intervalle und deren tatsächliche Quellenpins
+zurücklesen. Producerprovenienz wird für die Coordinatorlaufzeit gehalten;
+ein Dateiaustausch unter laufendem Coordinator genügt nicht.
+
+Für den Code-Rückweg den gesicherten vollständigen Komponentenstand oder den
+veröffentlichten Release 0.2.19 verwenden und Core neu starten. Vorhandene
+Historien erhalten; eine Sicherung ersetzt keinen geprüften Wiederherstellungsweg.
+Neue gepinnte Originale bleiben unverändert archiviert. Ein älterer Producer
+liefert anschließend keine für v2 ausreichenden Pins mehr; seine Stunden werden
+nicht durch Übernahme der neuen Policy qualifiziert.
+
+### Optionaler externer Archivhost
+
+HACS aktualisiert weder Hosthelfer, deren Laufzeit und Konfiguration noch Timer
+oder Dashboardressourcen. Den Hoststand separat nach
+[Hostinstallation](../archiv/archiv-host-installation.md) einfrieren und testen.
+Bestehende Konfiguration und vorherigen Releasepfad für den Rückweg erhalten.
+Ein realer v2-Probelauf benötigt zuerst neue Originalintervalle des passenden
+HA-Producers, einen erhaltenen Konfigurationsanker und eine begrenzte Policy
+mit drei gesondert geprüften Facetten. Policies übernehmen neue Producerpins
+oder Gültigkeitszeiträume nicht automatisch.
+
+Zuerst lokal mit eingefrorener Archivkopie prüfen. Ein später gesondert
+autorisierter Host-Probelauf muss Writerlock, Archivvolumen, Auswahlbudgets,
+Ankerretention, Rohdatenhashes, Qualitätszeit und Fehlermeldungen kontrollieren,
+bevor über eine reguläre Taktung entschieden wird. Rücknahme bedeutet vorherigen
+Hostrelease und Konfiguration wiederherstellen; Originale und neue
+Qualitätsrevisionen bleiben als Evidenz erhalten. Negative Masken verlangen
+fachliche Klärung und werden nicht zur Ergebnisverbesserung gelöscht.
+
+## Prüfung und Aussagegrenzen
+
+Der eingefrorene Stand `13bc620f821f8a6c3f1c4cfbf6e1f21ef579b527` bestand
+lokal **2.354 Tests ohne Skips**, **90,91 % kombinierte Abdeckung** und das
+unveränderte 90-%-Gate. [Reguläre CI](https://github.com/togo42/Adaptive-Solar/actions/runs/41055882245):
+**bestanden**. Codex-Review: **akzeptiert, keine Befunde (`mergeable`)**;
+native Abschlussprüfung: **bestanden, ohne Compaction, native Tools oder Hintergrundaufgaben**.
+
+Wheel, sdist und Integrations-ZIP enthalten alle 41 Komponenten-Dateien
+bytegleich; eine separate reguläre Wheelinstallation bestand alle 34 Modulimporte
+mit vorhandenen HA-Testabhängigkeiten. Das ist kein neuer Plattform- oder
+HA-Laufzeitnachweis. [Quellbindung und lokale Buildbelege](../entwicklung/pruefnachweise.md#releasekandidat-0220-aktueller-stand)
+enthalten die Grenzen. Nachfolgende Statusdokumente liegen außerhalb des Reviews;
+Code und Tests bleiben bytegleich zum eingefrorenen Stand. Veröffentlichung,
+produktive Installation und reale Quellen-/Lernabnahme bleiben getrennte Schritte.
+
+Ein synthetischer Probelauf zeigt nur die Verkabelung. Weder ein Review noch
+Tests, Hashpins oder Qualitätsableitung belegen physische Quellenvalidität,
+produktive Lernfreigabe oder bessere Prognosen als andere Integrationen.
+Dafür bleiben passende prospektive Originale, qualifizierte Messwerte und
+vollständige gepaarte Tage nach dem [Validierungsplan](../entwicklung/validierung.md)
+erforderlich. Der Offline-Guard bleibt auch nach einem späteren Release offline.

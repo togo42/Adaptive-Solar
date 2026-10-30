@@ -71,6 +71,11 @@ gelernte Schattentabelle, ML oder Leistungs-Nowcast. Konfigurierte Stringphysik,
 Horizonte, Dämpfung und gemeinsame Ausgangsgrenzen gelten weiterhin. Ein
 Mehrmodellmittel ist keine zusätzliche unabhängige Wetterquelle. Die API liefert
 Vergleichsarme; erst die gesonderte Speicherung macht sie zu einem Archiv.
+Ihre Berechnung erfolgt vor den Abbruchstellen des operativen Korrekturpfads.
+Scheitern beispielsweise alle GHI-korrigierten Teilintervall-Proxys, bleibt die
+operative Zelle eine Lücke; gültige reine NWP-Mitglieder bleiben trotzdem in
+`member_points` verfügbar. Scheitert auch ihre ursprüngliche Physik, bleiben
+ebenso deren Zellen fehlend. Historische fehlende Mitglieder werden nicht ergänzt.
 
 ## Zeitlich qualifizierte Schattentabelle
 
