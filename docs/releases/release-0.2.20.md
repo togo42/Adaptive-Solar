@@ -81,6 +81,12 @@ physische Messgüte. Format, Grenzen und Probelauf stehen im
   im Executor. Snapshotbildung und Retention bleiben auf dem Eventloop;
   verzögertes Speichern, Pending-Load, expliziter Import und Abschluss verwenden
   weiterhin den nativen Store-Lebenszyklus. Das Speicherformat ändert sich nicht.
+- Auch die umfangreiche Restoreprüfung und Prognosearchivauswahl laufen im
+  Executor. Restore übernimmt erst vollständig geprüfte Kandidaten. Die
+  Archivauswahl berücksichtigt Messereignisse während der Berechnung und den
+  tatsächlichen Rückkehrzeitpunkt; verspätete Ergebnisse gelten nicht rückwirkend
+  als rechtzeitig verfügbar. Laufende Messintervalle und explizite Importe bleiben
+  auf dem Eventloop erhalten.
 - Nichttextuelle Einheiten numerischer HA-Quellen gelten als ungültige
   Beobachtung und brechen keinen optionalen Prognosepfad mehr ab. Ein Wechsel
   der Energieeinheit beendet die Zählerkontinuität; erst nach einem neuen

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 from bisect import bisect_left
@@ -547,6 +547,19 @@ def join_training(archive: list[dict], intervals: list[dict], *, diagnostics: di
     return samples
 
 
+@dataclass(frozen=True)
+class _RestoredHistory:
+    """Private worker result; no live coordinator state is touched in preparation."""
+    archive: list[dict]
+    intervals: list[dict]
+    snapshots: dict[str, dict]
+    origins: dict[str, dict]
+    shading: BeamShadeTable
+    part_count: int
+    latest: dict[tuple[str, datetime], tuple[int, dict]]
+    pruned: bool
+
+
 class AdaptiveSolarCoordinator(DataUpdateCoordinator):
     """Refresh cheap local calculations every five minutes, weather hourly."""
 
@@ -664,7 +677,9 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 # not training data for the newly configured model. Only the
                 # new self-describing provenance can cross this boundary.
                 try:
-                    self._restore_snapshots(stored, same_history=False)
+                    snapshots, origins = await self.hass.async_add_executor_job(
+                        self._validated_snapshots, stored, False, self.site, self._history_fingerprint)
+                    self.daily_snapshots, self.daily_snapshot_provenance = snapshots, origins
                 except (KeyError, TypeError, ValueError, OverflowError):
                     self.daily_snapshots, self.daily_snapshot_provenance = {}, {}
                     self._store_writable = False
@@ -682,65 +697,16 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             self._training_snapshot = None
             self.learner_status = {}
         try:
-            archive = stored.get("archive", []) if compatible_features else []
-            intervals = stored.get("intervals", [])
-            if not isinstance(archive, list) or not isinstance(intervals, list):
-                raise ValueError("invalid history arrays")
-            # Reject malformed persistence as a whole rather than let bad rows
-            # silently train. Dataclasses enforce timestamp/number validation.
-            if len(archive) > MAX_ARCHIVE_ROWS or len(intervals) > MAX_TRAINING_ROWS:
-                raise ValueError("history exceeds retention bound")
-            part_count = 0
-            for row in intervals:
-                if not isinstance(row, dict):
-                    raise ValueError("invalid measurement row")
-                if "measurement_parts" in row:
-                    parts = row["measurement_parts"]
-                    if not isinstance(parts, (list, tuple)) or not 1 <= len(parts) <= MAX_MEASUREMENT_PARTS_PER_ROW:
-                        raise ValueError("invalid original measurement parts")
-                    part_count += len(parts)
-                else:
-                    part_count += 1
-            if part_count > MAX_MEASUREMENT_PARTS:
-                raise ValueError("measurement history exceeds original-parts bound")
-            caps = {inv.id: inv.output_cap_w / 1000 for inv in self.site.inverters}
-            for row in archive:
-                start, end = utc_time(datetime.fromisoformat(row["start"])), utc_time(datetime.fromisoformat(row["end"]))
-                if utc_time(datetime.fromisoformat(row["issued_at"])) > start:
-                    raise ValueError("history was not prospective")
-                ForecastPoint(start, end, row["inverter_id"], row["baseline_w"], row.get("power_w", row["baseline_w"]), features=row["features"])
-                if (row["inverter_id"] not in caps
-                        or max(row["baseline_w"], row.get("power_w", row["baseline_w"])) > caps[row["inverter_id"]] * 1000):
-                    raise ValueError("forecast history violates output measurement boundary")
-            for row in intervals:
-                start, end = utc_time(datetime.fromisoformat(row["start"])), utc_time(datetime.fromisoformat(row["end"]))
-                observed = utc_time(datetime.fromisoformat(row["observed_at"]))
-                energy = row["energy_kwh"]
-                if "measurement_contract" in row:
-                    if (row["measurement_contract"] != MEASUREMENT_CONTRACT
-                            or not isinstance(row.get("continuity_id"), str)
-                            or len(row["continuity_id"]) != 32
-                            or any(char not in "0123456789abcdef" for char in row["continuity_id"])
-                            or (row.get("boundary_reason") is not None
-                                and (not isinstance(row["boundary_reason"], str) or len(row["boundary_reason"]) > 80))):
-                        raise ValueError("invalid measurement lineage")
-                if not 0 < (end - start).total_seconds() <= 3600 or observed < end or isinstance(energy, bool) or not isinstance(energy, (float, int)) or not math.isfinite(energy) or energy < 0 or row["inverter_id"] not in caps or energy > caps[row["inverter_id"]] * (end - start).total_seconds() / 3600 * 1.1:
-                    raise ValueError("invalid measured history")
-                expand_interval(row, cap_w=caps[row["inverter_id"]] * 1000)
-            join_training(archive, intervals)
-            self._restore_snapshots(stored, same_history=True)
-            shade_compatible = (
-                stored.get("shade_fingerprint") == self._shade_fingerprint
-                or ("shade_fingerprint" not in stored and stored.get("fingerprint") == self._fingerprint)
-            )
-            self.archive, self.intervals = archive, intervals
-            self.shading = (
-                BeamShadeTable.from_dict(stored.get(BEAM_SHADE_STORE_KEY), inverter_ids=set(caps))
-                if shade_compatible
-                else BeamShadeTable()
-            )
+            restored = await self.hass.async_add_executor_job(
+                self._validated_history, stored, compatible_features, self.site,
+                self._fingerprint, self._history_fingerprint, self._shade_fingerprint)
+            self.archive, self.intervals = restored.archive, restored.intervals
+            self.daily_snapshots, self.daily_snapshot_provenance = restored.snapshots, restored.origins
+            self.shading = restored.shading
             self.engine.shading = self.shading
-            self._prune(datetime.now(UTC))
+            self._measurement_part_count, self._interval_latest = restored.part_count, restored.latest
+            if restored.pruned:
+                self._history_revision += 1
         except (KeyError, TypeError, ValueError, OverflowError):
             self.archive, self.intervals, self.daily_snapshots, self._interval_latest = [], [], {}, {}
             self.daily_snapshot_provenance = {}
@@ -750,6 +716,67 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             self._history_storage_status = ("invalid_legacy_preserved_new_primary" if legacy
                                             else "invalid_primary_preserved_read_only")
             _LOGGER.warning("Ignoring invalid Adaptive Solar history")
+
+    @staticmethod
+    def _validated_history(stored, compatible_features, site, fingerprint, history_fingerprint, shade_fingerprint):
+        """Validate an exclusively owned payload and prepare all bulk state off-loop."""
+        archive = stored.get("archive", []) if compatible_features else []
+        intervals = stored.get("intervals", [])
+        if not isinstance(archive, list) or not isinstance(intervals, list):
+            raise ValueError("invalid history arrays")
+        # Reject malformed persistence as a whole rather than let bad rows
+        # silently train. Dataclasses enforce timestamp/number validation.
+        if len(archive) > MAX_ARCHIVE_ROWS or len(intervals) > MAX_TRAINING_ROWS:
+            raise ValueError("history exceeds retention bound")
+        part_count = 0
+        for row in intervals:
+            if not isinstance(row, dict):
+                raise ValueError("invalid measurement row")
+            if "measurement_parts" in row:
+                parts = row["measurement_parts"]
+                if not isinstance(parts, (list, tuple)) or not 1 <= len(parts) <= MAX_MEASUREMENT_PARTS_PER_ROW:
+                    raise ValueError("invalid original measurement parts")
+                part_count += len(parts)
+            else:
+                part_count += 1
+        if part_count > MAX_MEASUREMENT_PARTS:
+            raise ValueError("measurement history exceeds original-parts bound")
+        caps = {inv.id: inv.output_cap_w / 1000 for inv in site.inverters}
+        for row in archive:
+            start, end = utc_time(datetime.fromisoformat(row["start"])), utc_time(datetime.fromisoformat(row["end"]))
+            if utc_time(datetime.fromisoformat(row["issued_at"])) > start:
+                raise ValueError("history was not prospective")
+            ForecastPoint(start, end, row["inverter_id"], row["baseline_w"], row.get("power_w", row["baseline_w"]), features=row["features"])
+            if (row["inverter_id"] not in caps
+                    or max(row["baseline_w"], row.get("power_w", row["baseline_w"])) > caps[row["inverter_id"]] * 1000):
+                raise ValueError("forecast history violates output measurement boundary")
+        for row in intervals:
+            start, end = utc_time(datetime.fromisoformat(row["start"])), utc_time(datetime.fromisoformat(row["end"]))
+            observed = utc_time(datetime.fromisoformat(row["observed_at"]))
+            energy = row["energy_kwh"]
+            if "measurement_contract" in row:
+                if (row["measurement_contract"] != MEASUREMENT_CONTRACT
+                        or not isinstance(row.get("continuity_id"), str)
+                        or len(row["continuity_id"]) != 32
+                        or any(char not in "0123456789abcdef" for char in row["continuity_id"])
+                        or (row.get("boundary_reason") is not None
+                            and (not isinstance(row["boundary_reason"], str) or len(row["boundary_reason"]) > 80))):
+                    raise ValueError("invalid measurement lineage")
+            if not 0 < (end - start).total_seconds() <= 3600 or observed < end or isinstance(energy, bool) or not isinstance(energy, (float, int)) or not math.isfinite(energy) or energy < 0 or row["inverter_id"] not in caps or energy > caps[row["inverter_id"]] * (end - start).total_seconds() / 3600 * 1.1:
+                raise ValueError("invalid measured history")
+            expand_interval(row, cap_w=caps[row["inverter_id"]] * 1000)
+        join_training(archive, intervals)
+        snapshots, origins = AdaptiveSolarCoordinator._validated_snapshots(stored, True, site, history_fingerprint)
+        shade_compatible = (
+            stored.get("shade_fingerprint") == shade_fingerprint
+            or ("shade_fingerprint" not in stored and stored.get("fingerprint") == fingerprint)
+        )
+        shading = (BeamShadeTable.from_dict(stored.get(BEAM_SHADE_STORE_KEY), inverter_ids=set(caps))
+                   if shade_compatible else BeamShadeTable())
+        size = len(archive), len(intervals)
+        archive, intervals, part_count, latest = AdaptiveSolarCoordinator._pruned_history(archive, intervals, datetime.now(UTC))
+        return _RestoredHistory(archive, intervals, snapshots, origins, shading, part_count, latest,
+                                size != (len(archive), len(intervals)))
 
     @staticmethod
     def _read_history_store(store):
@@ -787,7 +814,6 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 self._comparison_archive.restore_status = "configuration_changed_new_archive"
                 return
             self._comparison_archive = archive
-            self._comparison_archive.prune(datetime.now(UTC))
 
     def _load_comparison(self):
         # A direct read is deliberate: Store.async_load renames broken JSON.
@@ -797,7 +823,9 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             path.lstat()
         except FileNotFoundError:
             return None
-        return ComparisonArchive.from_dict(self._read_comparison_data())
+        archive = ComparisonArchive.from_dict(self._read_comparison_data())
+        archive.prune(datetime.now(UTC))
+        return archive
 
     def _read_comparison_data(self):
         envelope = load_json(self._comparison_store.path)
@@ -851,6 +879,11 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("Optional comparison persistence failed: %s", type(err).__name__)
 
     def _restore_snapshots(self, stored, *, same_history):
+        self.daily_snapshots, self.daily_snapshot_provenance = self._validated_snapshots(
+            stored, same_history, self.site, self._history_fingerprint)
+
+    @staticmethod
+    def _validated_snapshots(stored, same_history, site, history_fingerprint):
         snapshots, metadata = stored.get("daily_snapshots", {}), stored.get("daily_snapshot_provenance", {})
         curves = stored.get("daily_snapshot_curves", {})
         if not isinstance(curves, dict) or len(curves) > 32:
@@ -858,8 +891,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         if not isinstance(snapshots, dict) or not isinstance(metadata, dict) or len(snapshots) > 32:
             raise ValueError("invalid snapshots")
         now = datetime.now(UTC)
-        today = now.astimezone(ZoneInfo(self.site.timezone)).date()
-        current = provenance(self.site)
+        today = now.astimezone(ZoneInfo(site.timezone)).date()
+        current = provenance(site)
         restored, origins = {}, {}
         for day, snapshot in snapshots.items():
             if isinstance(snapshot, dict) and day in curves:
@@ -875,14 +908,14 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 raise ValueError("invalid snapshot provenance")
             elif origin.get("site_identity") != current["site_identity"]:
                 continue  # Different location/timezone/stage boundary.
-            snapshot, origin = validate_snapshot(day, snapshot, origin, self.site, strict_curve=False)
+            snapshot, origin = validate_snapshot(day, snapshot, origin, site, strict_curve=False)
             target = datetime.fromisoformat(day).date()
             if target < today - timedelta(days=7) or (not same_history and target > today):
                 continue
-            if target > today and origin["history_fingerprint"] != self._history_fingerprint:
+            if target > today and origin["history_fingerprint"] != history_fingerprint:
                 continue
             restored[day], origins[day] = snapshot, origin
-        self.daily_snapshots, self.daily_snapshot_provenance = restored, origins
+        return restored, origins
 
     async def async_restore_day_start(self, day, snapshot, source_site):
         """Explicit operator import of one missing historical issued forecast."""
@@ -1597,6 +1630,15 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             raise
         if self._closing:
             raise UpdateFailed("Coordinator is closed")
+        # Representative-origin selection scans the bounded full archive.
+        # Its private worker result must satisfy actual return-time cutoffs and
+        # any retention changes received from meters while it was calculating.
+        try:
+            selected_archive, available_at = await self._async_selected_archive(result)
+        except Exception:
+            if not self._closing:
+                self._capture_comparison(None, received_at=datetime.now(UTC))
+            raise
         self._export_fit_samples, self._export_fit_as_of = export_fit_samples, export_fit_as_of
         self._learner, self._fit_signature, self._training_snapshot = learner, fit_signature, snapshot
         self.resource_diagnostics = resources
@@ -1611,25 +1653,46 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         # This is actual local availability after the complete executor result
         # returned, including optional shadow computation. issued_at alone is
         # the earlier calculation origin and cannot prove a day/target cutoff.
-        available_at = datetime.now(UTC)
+        # Archive selection is part of the complete executor result as well.
         # Encoding/export CPU is part of output availability. Worker-local
         # computed_at describes calculation completion, never an earlier receipt.
         self.export.submit([(kind, text, available_at, event_id)
                             for kind, text, _received, event_id in export_events])
-        self._archive_result(result, available_at=available_at)
+        self._archive_result(result, available_at=available_at, selected_archive=selected_archive)
         self._schedule_save()
         return result
 
-    def _archive_result(self, result, *, available_at: datetime | None = None) -> None:
-        available_at = utc_time(datetime.now(UTC) if available_at is None else available_at, "available_at")
+    async def _async_selected_archive(self, result):
+        available_at = datetime.now(UTC)
+        while True:
+            # Published rows are immutable; meter pruning only replaces their
+            # outer container. Never send live intervals or imports to a worker.
+            rows = tuple(self.archive)
+            selected = await self.hass.async_add_executor_job(
+                self._selected_archive, rows, result, self.site, available_at)
+            if self._closing:
+                raise UpdateFailed("Coordinator is closed")
+            returned_at = datetime.now(UTC)
+            before, after = max(result.issued_at, available_at), max(result.issued_at, returned_at)
+            crossed_target = any(before <= point.start < after for point in result.points)
+            changed_rows = (len(rows) != len(self.archive)
+                            or any(old is not current for old, current in zip(rows, self.archive)))
+            if not crossed_target and not changed_rows:
+                return selected, returned_at
+            # Re-select from the current original rows, never a prior selection:
+            # expired new cells may have displaced still-valid older origins.
+            available_at = returned_at
+
+    @staticmethod
+    def _selected_archive(archive, result, site, available_at):
+        """Select representative/paired origins without editing caller state."""
         prospective_at = max(result.issued_at, available_at)
-        self._archive_comparison(result)
         # Slot count is fixed by configured site size, never by outcome scores.
         # Budget includes future targets and has a 120-day / 60k-row upper bound;
         # it does not promise 120 days of actual paired history.
-        slots = 3 if len(self.site.inverters) <= 3 else 2 if len(self.site.inverters) <= 6 else 1
+        slots = 3 if len(site.inverters) <= 3 else 2 if len(site.inverters) <= 6 else 1
         groups = {}
-        candidates = list(self.archive)
+        candidates = list(archive)
         for point in result.points:
             if (prospective_at > point.start or point.baseline_w <= 0
                     or point.features.get("sun_elevation_deg", 0) <= 0
@@ -1648,7 +1711,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             # Repeated identical origins never take multiple representative slots.
             groups.setdefault(key, {})[row["issued_at"]] = row
         selected = []
-        centers = (3, 15, 36, 72, (96 + max(96, self.site.forecast_days * 24)) / 2)
+        centers = (3, 15, 36, 72, (96 + max(96, site.forecast_days * 24)) / 2)
         for key, values in groups.items():
             rows = list(values.values())
             def lead(row):
@@ -1659,13 +1722,13 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             # NWP representatives are never displaced by GHI or sensor failure.
             # Keep at most two additional GHI edge origins per bin (one for
             # >=7 inverters); total row/date limits remain hard upper bounds.
-            budget = (2 if len(self.site.inverters) <= 6 else 1) if regime == "ghi" else slots
+            budget = (2 if len(site.inverters) <= 6 else 1) if regime == "ghi" else slots
             choices = [middle] if budget == 1 else [min(rows, key=lead), max(rows, key=lead)]
             if budget == 3:
                 choices.append(middle)
             selected.extend({row["issued_at"]: row for row in choices}.values())
-        paired = _paired_forecast_origins(candidates, slots=1 if len(self.site.inverters) >= 7 else 2,
-                                          forecast_days=self.site.forecast_days)
+        paired = _paired_forecast_origins(candidates, slots=1 if len(site.inverters) >= 7 else 2,
+                                          forecast_days=site.forecast_days)
         def target_bin(row):
             return (row["inverter_id"], row["start"], row["end"], feature_regime(row["features"]),
                     lead_bucket(datetime.fromisoformat(row["issued_at"]), datetime.fromisoformat(row["start"]),
@@ -1677,7 +1740,14 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         # keep the established per-cell representatives unchanged.
         selected = [row for row in selected if target_bin(row) not in paired_targets]
         selected.extend(paired)
-        self.archive = sorted(selected, key=lambda row: (row["start"], row["inverter_id"], row["issued_at"]))[-MAX_ARCHIVE_ROWS:]
+        return sorted(selected, key=lambda row: (row["start"], row["inverter_id"], row["issued_at"]))[-MAX_ARCHIVE_ROWS:]
+
+    def _archive_result(self, result, *, available_at: datetime | None = None, selected_archive=None) -> None:
+        available_at = utc_time(datetime.now(UTC) if available_at is None else available_at, "available_at")
+        prospective_at = max(result.issued_at, available_at)
+        self._archive_comparison(result)
+        self.archive = (selected_archive if selected_archive is not None
+                        else AdaptiveSolarCoordinator._selected_archive(self.archive, result, self.site, available_at))
         zone = ZoneInfo(self.site.timezone)
         for offset in range(self.site.forecast_days):
             day = result.issued_at.astimezone(zone).date() + timedelta(days=offset)
@@ -1728,25 +1798,31 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         if self._comparison_archive.prune(now):
             self._schedule_comparison_save()
         previous_size = len(self.archive), len(self.intervals)
-        cutoff = (now - timedelta(days=RETENTION_DAYS)).isoformat()
-        self.archive = [row for row in self.archive if row["end"] >= cutoff][-MAX_ARCHIVE_ROWS:]
-        self.intervals = [row for row in self.intervals if row["end"] >= cutoff][-MAX_TRAINING_ROWS:]
-        kept, count = [], 0
-        for row in reversed(self.intervals):
-            size = len(row.get("measurement_parts", ())) or 1
-            if count + size > MAX_MEASUREMENT_PARTS:
-                break
-            kept.append(row)
-            count += size
-        self.intervals = list(reversed(kept))
-        self._measurement_part_count = count
-        self._interval_latest = {(row["inverter_id"], datetime.fromisoformat(row["start"]).replace(minute=0, second=0, microsecond=0)): (index, row) for index, row in enumerate(self.intervals)}
+        self.archive, self.intervals, self._measurement_part_count, self._interval_latest = self._pruned_history(
+            self.archive, self.intervals, now)
         oldest_day = (now.astimezone(ZoneInfo(self.site.timezone)).date() - timedelta(days=7)).isoformat()
         self.daily_snapshots = {key: value for key, value in self.daily_snapshots.items() if key >= oldest_day}
         self.daily_snapshot_provenance = {key: value for key, value in self.daily_snapshot_provenance.items()
                                           if key in self.daily_snapshots}
         if previous_size != (len(self.archive), len(self.intervals)):
             self._history_revision += 1
+
+    @staticmethod
+    def _pruned_history(archive, intervals, now):
+        """Return bounded containers and their index without editing inputs."""
+        cutoff = (now - timedelta(days=RETENTION_DAYS)).isoformat()
+        archive = [row for row in archive if row["end"] >= cutoff][-MAX_ARCHIVE_ROWS:]
+        intervals = [row for row in intervals if row["end"] >= cutoff][-MAX_TRAINING_ROWS:]
+        kept, count = [], 0
+        for row in reversed(intervals):
+            size = len(row.get("measurement_parts", ())) or 1
+            if count + size > MAX_MEASUREMENT_PARTS:
+                break
+            kept.append(row)
+            count += size
+        intervals = list(reversed(kept))
+        latest = {(row["inverter_id"], datetime.fromisoformat(row["start"]).replace(minute=0, second=0, microsecond=0)): (index, row) for index, row in enumerate(intervals)}
+        return archive, intervals, count, latest
 
     @callback
     def _schedule_save(self) -> None:

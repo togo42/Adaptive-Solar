@@ -172,6 +172,52 @@ Konfigurationsprüfung und Korrekturbelege: `artifacts/release-0.2.20/` mit
 `codex-r6-closeout.json`, `codex-r6-native-config-preflight.json` und `fixes-units/`.
 Keine Veröffentlichung oder produktive Aktivierung ist erfolgt.
 
+## Codex-Nachreview und umfangreiche Eventloop-Arbeiten
+
+R7 prüfte `849bbc353aa3ca74e0d46a145d7013128224e584` mit **GPT-6.1-Sol/high**,
+CLI **0.166.0**: 215 öffentliche Originaltexte, 47 Quellblöcke und 49 vollständig
+abgeschlossene Turns. Der unabhängige Audit bestätigte die exakten Quellen,
+Dialoge und API-Abschlüsse ohne Compaction, native Tools oder Hintergrundaufgaben.
+**Das Urteil war `blocked` mit einem mittleren Befund:** Die umfangreiche
+Validierung und Trainingszuordnung beim Restore lief nach dem Dateilesen wieder
+auf dem HA-Eventloop. R7 ist keine positive Abnahme.
+
+Die Korrektur validiert Primary-/Legacy-Historien, Snapshots, Schattentabelle,
+Retention und Index im Worker und übernimmt erst den vollständigen privaten
+Kandidaten auf dem Loop. Der Vergleichsrestore beschneidet ebenfalls seinen
+privaten Kandidaten im Worker. Ungültige Originaldateien bleiben erhalten und
+schreibgesperrt. Die unabhängige Familienprüfung bestätigte außerdem eine
+umfangreiche synchrone Auswahl von Prognoseursprüngen im laufenden Update.
+Auch diese Auswahl läuft jetzt im Worker. Ändern sich währenddessen die
+Archivmitgliedschaft oder die Zulässigkeit neuer Zielintervalle, erfolgt die
+Auswahl erneut aus den Originalzeilen. Tatsächliche Verfügbarkeit wird erst
+nach der abschließenden Auswahl erfasst; Messintervalle und Operatorimporte
+werden nicht durch einen veralteten Workersnapshot ersetzt.
+
+Die 21 neuen nativen Fälle prüfen unter anderem Primary/Legacy, ungültige
+Originale, echte HA-Ereignisse während der Workerarbeit, Retention, Importe,
+Closing und Zielgrenzen an 23-/24-/25-Stunden-Tagen. Am Originalstand scheitern
+19 Fälle; zwei Kontrollfälle bestehen bereits. Die gezielte Familie besteht
+**307 Tests ohne Skips**; der unabhängige Nachreview besteht weitere 91 Fälle
+und meldet keine offenen konkreten Produktbefunde in seinem Umfang. Die
+Vollsuite besteht **2.336 Tests ohne Skips**, **90,90 % kombinierte Abdeckung**
+bei unverändertem 90-%-Gate und 23 SQLite-ResourceWarnings. Ruff, `pip check`
+und die Dokumentationsprüfung bestanden. Vorher-/Nachherbelege liegen unter
+`artifacts/release-0.2.20/fixes-restore/`, Vollsuite und Coverage unter
+`r8-full-tests.log`, `r8-tests.xml` und `r8-coverage.json` im selben Releaseordner.
+Ein neuer hashgebundener Codex-Nachreview dieser Korrekturen steht noch aus.
+
+Der vorherige Stand `849bbc3` bestand inzwischen die reguläre
+[CI mit 2.315 Tests ohne Skips und 90,89 % Abdeckung](https://github.com/togo42/Adaptive-Solar/actions/runs/41048224145)
+sowie den Paketbau. Diese Nachweise gelten für dessen Bytes und ersetzen
+keine Prüfung der anschließenden Korrektur.
+
+R7-Receipt-SHA256: `d769eb6fda251a04ec5d432419b6de8aa8b30cd137d93303704bfaf14790ddb7`.
+Audit-SHA256: `369346c2f8ff2615594cce0a9d1082f2395681043e98718a7b9d0342e4d5a912`.
+Rohbelege: `reviews/private/release-0.2.20-codex-r7/`; Audit:
+`artifacts/release-0.2.20/codex-r7-closeout.json`.
+Keine Veröffentlichung oder produktive Aktivierung ist erfolgt.
+
 ## Aktueller Releasebezug
 
 [0.2.19](../releases/release-0.2.19.md) aktualisiert die HA-Geräte-API und

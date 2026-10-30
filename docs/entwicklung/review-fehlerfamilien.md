@@ -23,6 +23,11 @@ bleiben unverändert. Ein lokaler Subagentenreview ist kein Provider-Vollreview.
    nicht, wenn sein Aufrufer zuvor einen Symlink auflöst und dessen Identität
    verwirft. Native HA-Pfade zusätzlich ohne verändernde Testadapter prüfen,
    wenn diese Threadwechsel oder verzögerte Callbacks verdecken können.
+   Bei umfangreichen Eventloop-Arbeiten Restore, Speichern und laufende
+   Archivauswahl gemeinsam betrachten. Native Reaktionsproben müssen während
+   der Workerarbeit laufen; zusätzlich tatsächliche Verfügbarkeit, gleichzeitige
+   Messereignisse, Retention, Importe und Abschlussgrenzen prüfen. Kleine,
+   begrenzte Zustandsübernahmen bleiben auf dem zuständigen Eventloop.
 4. Ein anderer Bearbeiter prüft die Korrektur und ihre Aufrufer gezielt. Befunde
    als konsolidierte Liste zurückgeben; die erste Entdeckung beendet die Suche
    innerhalb des vereinbarten Umfangs nicht. Gegenbeweise dürfen einen Befund

@@ -140,6 +140,17 @@ HA `Store`: höchstens120 Tage,60.000 Forecast-/30.000 Istzeilen; Raster/Stufenz
 
 Modelle beim Erstaufbau oder bei geänderter Fit-Signatur rekonstruieren: Historienrevision, lokaler Tag, vollständig serialisierte Schattentabelle, tatsächlich verbundene Samples und Alignmentdiagnose. Neue Learner werden lokal gefittet und erst mit erfolgreicher Prognose übernommen; ein Fitfehler verwirft den alten Learner, liefert gültige Physik und erlaubt späteren Retry. Join-/Fit-/Prognoselaufzeiten und Fitereignisse stehen in `resources`. Der separate `EarlyBiasShadow` verändert keine veröffentlichten Punkte; sein Fitcutoff und sein Status stehen in `bias_shadow`. Auch neue/ersetzte Schattenaufnahmen bei unverändertem Median können einen Refit auslösen; HA serialisiert Updates, offline kein paralleles `fit`/`predict` zugesichert. Tagesbeginnenergie: eigener vollständiger Snapshot bis lokalem Tagesbeginn; sowohl ursprüngliches `issued_at` als auch tatsächliche lokale Verfügbarkeit nach Rückkehr des vollständigen Executor-Ergebnisses müssen diese Grenze einhalten. Spät fertige Läufe erzeugen keine fehlenden historischen Tageswerte und überschreiben keine vorhandenen Snapshots/Operatorimporte. Neue Trainingszellen werden nur archiviert, wenn ihre ursprüngliche Ausgabe und diese tatsächliche Verfügbarkeit spätestens am Zielbeginn liegen; keine rückdatierte Ausgabezeit und kein nachträglicher Zuschnitt. Noch zukünftige Tage/Zielzellen bleiben nutzbar. Keine Secrets/ausführbaren Modellobjekte persistieren. Das große Vergleichsarchiv wird ausschließlich nach echten Tagescaptures, Retentionänderungen oder dem Retry einer noch unbestätigten Änderung geschrieben, unabhängig vom 30-Sekunden-Savepfad der Zählerhistorie. Export, JSON-Serialisierung, Validierung und Readback-Hashprüfung laufen in Workern mit unveränderlicher Capturesicht. Erst eine passende tatsächliche Diskrücklese bestätigt die gespeicherte Revision; Fehler lassen sie für einen späteren Retry offen. Unbekannte/defekte Vergleichsdateien bleiben unverändert und nur lesend, während Messungen und Prognosen weiterlaufen. Einrichtung und Schließen respektieren dieselbe erfolgreiche Setupgrenze. [Vergleichspersistenz](model-comparison-archive.md).
 
+Die Auswahl repräsentativer und gepaarter Forecast-Origins läuft nach der
+Modellrechnung ebenfalls im Executor auf einer unveränderlichen Archivsicht.
+Erst dessen tatsächliche Rückkehr begrenzt die Verfügbarkeit. Überschreitet die
+Auswahl einen neuen Zielbeginn oder hat ein zwischenzeitlicher Messbericht
+Historienzeilen entfernt, wird aus der aktuellen Originalsicht erneut gewählt;
+ein früheres Auswahlergebnis wird dabei nicht als Originalbasis verwendet.
+Der anschließende Eventloop-Commit enthält keinen weiteren Await. Er erhält
+zwischenzeitliche Messintervalle und Operatorimporte und prüft Tagesbeginnwerte
+gegen die tatsächliche Verfügbarkeit; Ausgabezeit und Cohortenauswahl werden
+nicht rückdatiert. Beim Schließen wird ein noch laufender Kandidat verworfen.
+
 Der Primary serialisiert JSON im nativen HA-Executor. Sein verzögerter
 Speichercallback übernimmt Pruning und Snapshotbildung auf dem HA-Eventloop;
 auch nativer Pending-Load-Readback darf ihn dort direkt aufrufen. Abgetrennte
@@ -149,7 +160,14 @@ stabil. Der native 30-Sekunden-Delay sowie Setup-, Import- und Abschlussgrenzen
 bleiben erhalten; Legacy wird weiterhin ausschließlich gelesen.
 
 Historien werden ohne native Load-/Migrationsnebenwirkungen jeweils einmal
-read-only im Executor gelesen. Nur ein tatsächlich fehlender Primary erlaubt
+read-only im Executor gelesen. Auch vollständige Forecast-/Messhistorienprüfung,
+Messungsteil-Expansion, Restore-Join, Tageskurven-/Provenienzprüfung,
+Schattentabellenaufbau und Retention-/Indexvorbereitung laufen dort auf einem
+privaten Kandidaten. Erst der geprüfte Zustand wird auf dem HA-Eventloop
+übernommen; Worker ändern keinen lebenden Coordinatorzustand. Dies gilt für
+Primary und Legacy sowie die gesonderte Tagesstartprüfung nach physischer
+Konfigurationsänderung. Das Vergleichsarchiv wird ebenfalls im Worker gelesen,
+validiert und vor seiner Übernahme beschnitten. Nur ein tatsächlich fehlender Primary erlaubt
 Legacyfallback. Vorhandene JSON-/UTF-8-/I/O-Fehler, Verzeichnisse und unbekannte
 Envelopes einschließlich falschem Key, Haupt-/Unterversion oder `data=None`
 sperren Primary-Laden und -Persistenz, ohne die Originaldatei umzubenennen.
