@@ -1,11 +1,10 @@
-# Adaptive Solar 0.2.20 – unveröffentlichter Releasekandidat
+# Adaptive Solar 0.2.20
 
-Stand: 30.10.2026. **Vorbereitet, noch nicht veröffentlicht oder installiert.**
-Der veröffentlichte Release bleibt [0.2.19](release-0.2.19.md). Manifest und
-Paketmetadaten tragen bereits die Kandidatenversion 0.2.20. Der Build des
-eingefrorenen Kandidaten bestand. CI: **bestanden**; Codex-Review:
-**akzeptiert, keine Befunde (`mergeable`)**. Die [Prüfnachweise](../entwicklung/pruefnachweise.md#releasekandidat-0220-aktueller-stand)
-binden Quellen und Artefakte. Diese Hinweise sind keine produktive Aktivierungsfreigabe.
+Stand: 30.10.2026. Dieses Release ergänzt den separaten Offline-Support-Guard,
+optionale Qualitätsaufnahme mit Quellenbindung sowie Archiv-, Zeit- und
+Einheitenkorrekturen. Die [Quellabnahme und Releaseprüfung](../entwicklung/pruefnachweise.md#release-0220-aktueller-stand)
+trennen den akzeptierten Implementierungsstand von nachfolgender
+Statusdokumentation, Paketbau und CI. Der Guard bleibt offline.
 
 ## Änderungen gegenüber 0.2.19
 
@@ -99,15 +98,15 @@ physische Messgüte. Format, Grenzen und Probelauf stehen im
   kodiert. Bestehende Stufen-/Entitykennungen bleiben erhalten. Die bisherige
   flache Statusdarstellung bleibt als Kompatibilitätsansicht verfügbar.
 
-## Getrennte Installation und Rückwege vorbereiten
+## Getrennte Installation und Rückwege
 
-Diese Schritte beschreiben einen späteren freigegebenen Upgradepfad. In der
-Releasevorbereitung werden weder HA noch externe Hosts geändert.
+HA-Integration und optionale Archivhosthelfer haben getrennte Upgrade- und
+Rückwege. Ein HACS-Update ersetzt keine Hostaktualisierung.
 
 ### Home Assistant
 
-Vor einem späteren Update abgeschlossene HA-Sicherung und bisherigen vollständigen
-Komponentenstand erhalten. Nach Veröffentlichung die neue Version über HACS
+Vor dem Update abgeschlossene HA-Sicherung und bisherigen vollständigen
+Komponentenstand erhalten. Version 0.2.20 über HACS
 herunterladen und einmal Core neu starten. Bestehende Einträge, Entity-IDs,
 Optionen und passende Historien weiterverwenden; kein Core-/OS-Upgrade oder neuer
 Binärabhängigkeitsbau ist vorgesehen. Abhängigkeitspins, Featurevertrag und
@@ -157,14 +156,15 @@ native Abschlussprüfung: **bestanden, ohne Compaction, native Tools oder Hinter
 Wheel, sdist und Integrations-ZIP enthalten alle 41 Komponenten-Dateien
 bytegleich; eine separate reguläre Wheelinstallation bestand alle 34 Modulimporte
 mit vorhandenen HA-Testabhängigkeiten. Das ist kein neuer Plattform- oder
-HA-Laufzeitnachweis. [Quellbindung und lokale Buildbelege](../entwicklung/pruefnachweise.md#releasekandidat-0220-aktueller-stand)
+HA-Laufzeitnachweis. [Quellbindung und lokale Buildbelege](../entwicklung/pruefnachweise.md#release-0220-aktueller-stand)
 enthalten die Grenzen. Nachfolgende Statusdokumente liegen außerhalb des Reviews;
-Code und Tests bleiben bytegleich zum eingefrorenen Stand. Veröffentlichung,
-produktive Installation und reale Quellen-/Lernabnahme bleiben getrennte Schritte.
+Code und Tests bleiben bytegleich zum eingefrorenen Stand. Paketbau und CI
+des Releasecommits sind separat in den Prüfnachweisen gebunden. Reale Quellen-
+und Lernabnahme sowie ein Genauigkeitsvergleich benötigen eigene Nachweise.
 
 Ein synthetischer Probelauf zeigt nur die Verkabelung. Weder ein Review noch
 Tests, Hashpins oder Qualitätsableitung belegen physische Quellenvalidität,
 produktive Lernfreigabe oder bessere Prognosen als andere Integrationen.
 Dafür bleiben passende prospektive Originale, qualifizierte Messwerte und
 vollständige gepaarte Tage nach dem [Validierungsplan](../entwicklung/validierung.md)
-erforderlich. Der Offline-Guard bleibt auch nach einem späteren Release offline.
+erforderlich. Der Offline-Guard bleibt offline.

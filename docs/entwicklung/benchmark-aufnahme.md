@@ -211,8 +211,8 @@ Gemeinsame Auswertung:
 
 Der separate [Offline-Qualitätsadapter](../archiv/istwert-qualitaetsadapter.md)
 kann aus Originalintervallen und expliziten Quellenattestierungen passende
-Stundenmasken ableiten. Er ist ein Entwicklungskandidat, keine automatische
-Qualifikation vorhandener Recorderwerte und noch keine produktive Hostanbindung.
+Stundenmasken ableiten. Er ist ab Release 0.2.20 verfügbar. Vorhandene Recorderwerte
+werden dadurch nicht automatisch qualifiziert; die Hostanbindung bleibt optiert.
 
 Abdeckung, Quellenlücken und Leistungs-/Energiefehler werden nach Stufe/Horizont/Tages-/Resttagaufgabe berichtet. Intervallaggregate sind dauergewichtete **Prognoseaufgaben** unterschiedlicher Cutoffs: Exposition, keine einmalige Erzeugung/unabhängige Stichprobenzahl.
 

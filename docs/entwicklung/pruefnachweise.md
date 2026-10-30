@@ -63,7 +63,27 @@ Main-Merge, Release oder produktives HA-/Hostdeployment. Die Auslagerung der
 Offlineanalyse bleibt der separat beschriebene Folgeschritt; Quellenpins werden
 nicht gelockert und die Guardpolicy bleibt unverändert.
 
-## Releasekandidat 0.2.20: aktueller Stand
+## Release 0.2.20: aktueller Stand
+
+Stand: 30.10.2026. Die Veröffentlichung ist unter
+[Tag v0.2.20](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.20)
+gebunden. Der akzeptierte Implementierungsstand bleibt
+`13bc620f821f8a6c3f1c4cfbf6e1f21ef579b527`; sein vollständiger Codex-Review ohne
+Befunde und 2.354 Tests ohne Skips mit 90,91 % Abdeckung sind im folgenden
+historischen Abschnitt belegt. Nachfolgende Veröffentlichungs- und
+Statusdokumente liegen außerhalb dieses Reviews; Code und Tests bleiben bytegleich.
+
+[PR #1](https://github.com/togo42/Adaptive-Solar/pull/1) wurde als
+`54505d9ba7ebe392f079f3ae46fea3f7f6938f6b` in main gemerged; sein Tree ist
+identisch zum geprüften Statusstand `6a236ee500d1c990f7f9cab6376b41b294bce1c0`.
+Releasepakete, CI und eine tatsächlich erfolgte Installation werden separat
+an ihre jeweiligen Quellstände gebunden. Die vorhandene native Testumgebung
+ersetzt keine Prüfung weiterer Plattformen. Quellenvalidität, produktive
+Lernabnahme und Prognoseüberlegenheit benötigen eigene Nachweise.
+
+<a id="releasekandidat-0220-aktueller-stand"></a>
+
+## Releasekandidat 0.2.20: historischer Abschlussstand
 
 Stand: 30.10.2026; unveröffentlicht, eingefroren auf
 `13bc620f821f8a6c3f1c4cfbf6e1f21ef579b527`. Codex-Nachreview R9 mit

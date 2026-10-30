@@ -1,17 +1,15 @@
 # Adaptive Solar: Versionshinweise
 
-Aktueller veröffentlichter und dokumentierter Release: **[0.2.19](release-0.2.19.md)**.
-Vorbereiteter, **unveröffentlichter Kandidat: [0.2.20](release-0.2.20.md)**;
-der Build des eingefrorenen Kandidaten bestand. CI: **bestanden**;
-Codex-Review: **akzeptiert, keine Befunde (`mergeable`)**.
-[Quellbindung und Grenzen](../entwicklung/pruefnachweise.md#releasekandidat-0220-aktueller-stand).
+Aktueller dokumentierter Release: **[0.2.20](release-0.2.20.md)**.
+[Quellabnahme und Releaseprüfung](../entwicklung/pruefnachweise.md#release-0220-aktueller-stand)
+binden Review, Tests und Artefakte an ihre jeweiligen Quellstände.
 Die Hinweise beschreiben Änderungen und den Upgradepfad der jeweiligen Version.
 Historische Testzahlen gelten ausschließlich für den damals geprüften Quellstand;
 siehe [Prüfnachweise](../entwicklung/pruefnachweise.md).
 
 | Version | Schwerpunkt |
 | --- | --- |
-| [0.2.20 (Kandidat)](release-0.2.20.md) | Offline-Support-Guard, optierte Istwert-Quellenbindung und Aufnahme-/Zeitkorrekturen; unveröffentlicht |
+| [0.2.20](release-0.2.20.md) | Offline-Support-Guard, optierte Istwert-Quellenbindung und Aufnahme-/Zeitkorrekturen |
 | [0.2.19](release-0.2.19.md) | Aktuelle HA-Geräte-API und explizite Servicevalidierung/-Empfangszeit |
 | [0.2.18](release-0.2.18.md) | Gespeicherte Tagesbeginn-Stundenkurven und Archivhelfer |
 | [0.2.17](release-0.2.17.md) | Strenger Replay mit begrenzter Rechenrundungstoleranz |

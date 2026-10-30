@@ -76,8 +76,8 @@ eine neue Ableitung je Aufnahme aus einer privaten v2-Policy. Er setzt
 `actual_config` voraus und darf nicht zusammen mit `quality` gesetzt sein.
 Quellenqualifikation, Ankererhalt und der
 [lokale Probelauf](istwert-qualitaetsadapter.md#5-fortlaufende-quellenbindung-und-qualitätsaufnahme)
-sind vor einer Hostaktivierung zu prüfen. Diese Funktion gehört zum
-Entwicklungskandidaten, nicht zum Release 0.2.18.
+sind vor einer Hostaktivierung zu prüfen. Diese Funktion ist ab Release 0.2.20
+enthalten; ein HA-Update aktualisiert oder aktiviert den externen Host nicht.
 
 ## Zugangsdaten ohne dauerhafte Klartextdatei
 

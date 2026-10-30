@@ -1,7 +1,7 @@
 # Trainingsabdeckung des Residual-Lerners offline prüfen
 
-Stand: 29.10.2026, Entwicklungskandidat; keine produktive Aktivierung und kein
-Bestandteil des unveränderten Release-Tags 0.2.18.
+Stand: 30.10.2026, separater Offline-Kandidat in Release 0.2.20;
+keine produktive Aktivierung durch die HA-Installation.
 
 ## Zweck und Grenze
 

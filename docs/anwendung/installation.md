@@ -1,6 +1,6 @@
 # Adaptive Solar installieren und aktualisieren
 
-Stand: 29.10.2026; Releaseanleitung für 0.2.19. Veröffentlichungs- und
+Stand: 30.10.2026; Releaseanleitung für 0.2.20. Veröffentlichungs- und
 historische Testangaben stehen in den [Prüfnachweisen](../entwicklung/pruefnachweise.md). Die hier beschriebenen Schritte
 werden vom Betreiber auf der eigenen Installation ausgeführt. Projektprüfungen und
 ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
@@ -17,7 +17,7 @@ ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 | ARM/aarch64, Raspberry Pi, andere Python-ABIs | Bisher nicht qualifiziert; kein passender Build-/Installationsnachweis im Projekt |
 
 Die HACS-Untergrenze 2026.10.2 entspricht dem ältesten geprüften Core. Sie ist keine
-Zusage für alle späteren Versionen. Die vollständige Release-Suite für 0.2.19 prüft Core 2026.10.4;
+Zusage für alle späteren Versionen. Die vollständige Release-Suite für 0.2.20 prüft Core 2026.10.4;
 die Nachweise für .2/.3 stammen aus früheren Releases. Versionsdetails stehen in den [Prüfnachweisen](../entwicklung/pruefnachweise.md). Runtimepins stehen im
 [Manifest](../../custom_components/adaptive_solar/manifest.json): pvlib 0.16.1 und
 scikit-learn 1.9.1. Ein früherer erfolgreicher Import anderer Versionen reicht nicht.
@@ -149,12 +149,11 @@ Geräte-Eigentümerabfrage und die Serviceimplementierung. Der Upgradepfad ist
 unverändert: HACS-Download und ein Core-Neustart. Konfiguration, Lernhistorie,
 Entity-IDs, Prognoseverfahren und Abhängigkeitspins bleiben erhalten.
 
-**Vorbereitung für den unveröffentlichten Kandidaten 0.2.20:**
-Die [Kandidatenhinweise](../releases/release-0.2.20.md) beschreiben den getrennten
-HA-Producer-/Archivhostpfad, den gebundenen Prüfstand und die getrennten
-Aktivierungsschritte. Bis zur Veröffentlichung
-weiterhin einen veröffentlichten Release auswählen. Der Offline-Support-Guard
-wird durch ein späteres HA-Update nicht aktiviert; vorhandene Einträge und
+**[Version 0.2.20](../releases/release-0.2.20.md):**
+HA-Integration und externe Archivhosthelfer getrennt aktualisieren. Vor dem
+HACS-Download sichern, danach einmal Core neu starten und die Erfolgskontrolle
+aus Abschnitt 5 durchführen. Der Offline-Support-Guard wird durch das HA-Update
+nicht aktiviert; vorhandene Einträge und
 Lernhistorien weiterverwenden, keine Reinitialisierung oder direkten Änderungen
 an `.storage` vornehmen. Fortlaufende v2-Qualitätsaufnahme benötigt neue
 Originalintervalle mit passenden Producerpins und gesondert geprüfte

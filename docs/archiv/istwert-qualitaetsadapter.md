@@ -1,7 +1,7 @@
 # Istwerte offline aus archivierten Messnachweisen qualifizieren
 
-Stand: 30.10.2026, Entwicklungskandidat. Der Adapter gehört noch nicht zum
-veröffentlichten Release 0.2.18 und ist in keinem Timer aktiviert. Er liest lokale
+Stand: 30.10.2026, enthalten ab Release 0.2.20; eine Timeraktivierung erfolgt
+separat und ausdrücklich. Der Adapter liest lokale
 Originalauszüge, prüft Stundenabdeckung und erzeugt eine neue Qualitätsrevision
 für den bestehenden [Recorder-Collector](../entwicklung/benchmark-aufnahme.md).
 Er verändert weder HA noch Originalarchive und bescheinigt keine Prognosegüte.
@@ -50,8 +50,8 @@ Nachtstunden benötigen belegte Abdeckung; es werden keine Nullwerte erfunden.
 
 ## 2. Warum eine zusätzliche Quellenbindung nötig ist
 
-Die bis Release 0.2.18 exportierten `qualified_interval` enthalten weder
-Konfigurations-/Softwarehash noch Energie-Entity. Der neue Entwicklungskandidat
+Die bis Release 0.2.19 exportierten `qualified_interval` enthalten weder
+Konfigurations-/Softwarehash noch Energie-Entity. Release 0.2.20
 ergänzt diese Angaben direkt am Originaldelta (Abschnitt 5). Die Journalgeneration kann einen Reload überleben.
 Ein benachbarter Forecast mit Standortkonfiguration belegt deshalb allein keine
 durchgehend unveränderte Zuordnung. SHA256 bestätigt unveränderte Bytes und
@@ -228,7 +228,7 @@ Der Offlineadapter verändert weder Timer noch deren Konfiguration.
 
 ## 5. Fortlaufende Quellenbindung und Qualitätsaufnahme
 
-Der Entwicklungskandidat ergänzt jedes exportierte Originaldelta um
+Release 0.2.20 ergänzt jedes exportierte Originaldelta um
 `source_binding` mit `schema: 1`, `energy_entity_id`, `config_sha256` und
 `producer_sha256`. Die Hashes beziehen sich wie beim Anker auf kanonisches
 `site`-JSON und den Python-Quellumfang der Integration. Die Softwareprovenienz
