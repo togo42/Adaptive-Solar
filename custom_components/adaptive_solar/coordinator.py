@@ -78,6 +78,8 @@ def state_number(state, now: datetime, kind: str, *, max_age: int = SENSOR_MAX_A
     if not math.isfinite(value):
         return None
     unit = state.attributes.get("unit_of_measurement")
+    if not isinstance(unit, str):
+        return None
     factors = {
         "power": {"W": 1, "kW": 1000, "MW": 1000000},
         "energy": {"Wh": 0.001, "kWh": 1, "MWh": 1000},
@@ -968,6 +970,12 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 self._curtailment_flag_report(inv, event.data.get("new_state"), now)
             if entity == inv.energy_entity_id:
                 old, new = event.data.get("old_state"), event.data.get("new_state")
+                if (old is not None and new is not None
+                        and old.attributes.get("unit_of_measurement") != new.attributes.get("unit_of_measurement")):
+                    # A unit change reinterprets the held counter value. It
+                    # supplies no evidence for a delta across that boundary,
+                    # even when both units are valid and the delta fits the cap.
+                    self.tracker.invalidate(inv.id, "counter_unit_changed")
                 # A forced report advances last_changed even for the same
                 # value; an attribute-only update does not prove a measurement.
                 if old is None or new is None or old.state != new.state or old.last_changed != new.last_changed:
