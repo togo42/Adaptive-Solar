@@ -149,6 +149,18 @@ Geräte-Eigentümerabfrage und die Serviceimplementierung. Der Upgradepfad ist
 unverändert: HACS-Download und ein Core-Neustart. Konfiguration, Lernhistorie,
 Entity-IDs, Prognoseverfahren und Abhängigkeitspins bleiben erhalten.
 
+**Vorbereitung für den unveröffentlichten Kandidaten 0.2.20:**
+Die [Kandidatenhinweise](../releases/release-0.2.20.md) beschreiben den getrennten
+HA-Producer-/Archivhostpfad und die noch offenen Prüfungen. Bis zur Veröffentlichung
+weiterhin einen veröffentlichten Release auswählen. Der Offline-Support-Guard
+wird durch ein späteres HA-Update nicht aktiviert; vorhandene Einträge und
+Lernhistorien weiterverwenden, keine Reinitialisierung oder direkten Änderungen
+an `.storage` vornehmen. Fortlaufende v2-Qualitätsaufnahme benötigt neue
+Originalintervalle mit passenden Producerpins und gesondert geprüfte
+Konfigurations-, Mess- und Abregelungsbindungen. Alte Originale aus 0.2.18/0.2.19
+erhalten durch das Update keine fehlenden Pins. Ein HACS-Update installiert
+keine externen Hosthelfer und aktiviert keine Archivtimer.
+
 Historisch für 0.2.13: Featurevertrag, passende Forecast-/Messhistorie,
 Schattentabellen und echte Tagesbeginn-Snapshots erhalten. Die
 [Releasebeschreibung](../releases/release-0.2.13.md) erklärt die neuen Messabdeckungsregeln

@@ -1,9 +1,12 @@
 # Adaptive Solar: Dokumentation
 
 Die [Projektübersicht](../README.md) beschreibt Zweck und Einstieg. Die aktuellen
-Anleitungen und Datenverträge beziehen sich auf **0.2.19**. Veröffentlichte
-Versionen und historische Prüfungen stehen getrennt unter
-[Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).
+Anleitungen beschreiben den veröffentlichten Release **0.2.19** sowie ausdrücklich
+gekennzeichnete Erweiterungen des **unveröffentlichten Kandidaten 0.2.20**.
+Dessen [Releasevorbereitung](releases/release-0.2.20.md) trennt Offline-Guard,
+HA-Producer und optionalen Archivhost; abschließender Review, Build und CI sind
+noch offen. Veröffentlichte Versionen und historische Prüfungen stehen getrennt
+unter [Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).
 
 ## Installation und Anwendung
 

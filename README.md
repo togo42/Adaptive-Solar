@@ -25,6 +25,14 @@ und initialisieren ihre Empfangszeit explizit.
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
 
+**Vorbereiteter, unveröffentlichter Kandidat: 0.2.20, Stand 30.10.2026.**
+Er ergänzt einen ausschließlich offline nutzbaren Support-Guard, optierte
+Istwert-Qualitätsadapter mit Quellenbindung und Korrekturen für Archivaufnahme,
+Zeitbezüge und Vergleichsarme. Der HA-Lerner bleibt `ResidualLearner`; der Guard
+wird nicht aktiviert. Abschließender Codex-Review, Build und CI dieses
+Releasekandidaten stehen noch aus.
+[Umfang, getrennte Installationswege und offene Freigaben](docs/releases/release-0.2.20.md).
+
 ## Installation und Bedienung
 
 1. [Plattform und Abhängigkeiten prüfen](docs/anwendung/installation.md).
