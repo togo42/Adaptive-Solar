@@ -282,7 +282,9 @@ nötig. Spätere Ereignisse gehören nicht zu diesem Dataset.
 mit Hashes, Quellen und den ursprünglichen Empfangszeitbereichen in ein neues
 Zielverzeichnis außerhalb des Quellarchivs. Sowohl lexikalischer als auch
 aufgelöster Zielpfad müssen außerhalb der gesamten Archivwurzel liegen;
-interne Ziele und Pfadaliase werden vor Beginn und erneut direkt vor dem
+auch ein lexikalisches Ziel unter der aufgelösten Archivwurzel wird gesperrt,
+wenn das Archiv selbst über einen anderen Symlinknamen geöffnet wurde.
+Interne Ziele und Pfadaliase werden vor Beginn und erneut direkt vor dem
 Anlegen des Exportbaums abgelehnt. Das Ziel lässt sich mit `ArchiveStore` unabhängig öffnen und
 indexieren. Ein bereits existierendes Ziel wird nicht überschrieben. Bei einem
 abgebrochenen Export bleibt eventuell ein unvollständiges Ziel; das Quellarchiv

@@ -18,8 +18,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.archive import collection_summary  # noqa: E402
+from scripts.replay_paths import validate_output  # noqa: E402
 
 GIB = 1024 ** 3
+JOBS = ("ha", "weather", "observations", "retention", "status")
+INPUT_PATHS = ("site_json", "actual_config", "reference_config", "quality", "quality_bindings")
 
 
 def private_path(value):
@@ -124,10 +127,23 @@ def write_status(path, value):
         Path(name).unlink(missing_ok=True)
 
 
-def run(job, config):
-    archive = private_path(config["archive"])
+def run(job, config, *, config_path=None):
+    archive_path = Path(config["archive"])
+    if not archive_path.is_absolute():
+        archive_path = ROOT / archive_path
+    archive = private_path(archive_path)
+    state = Path(config.get("status_dir", "data/host-status"))
+    if not state.is_absolute():
+        state = ROOT / state
+    private_path(state)
+    inputs = [private_path(config[key]) for key in INPUT_PATHS if config.get(key)]
+    if config_path is not None:
+        inputs.append(private_path(config_path))
+    # Validate the entire configured output set before creating either directory.
+    # Keep lexical paths here so output symlinks cannot hide behind resolve().
+    for output in (state, state / "writer.lock", *(state / f"{name}.json" for name in JOBS)):
+        validate_output(output, archive_path, inputs)
     archive.mkdir(parents=True, exist_ok=True, mode=0o700)
-    state = private_path(config.get("status_dir", "data/host-status"))
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
     report = {"schema": 1, "job": job, "started_at": datetime.now(UTC).isoformat(), "commands": [], "complete": True}
     # All timer jobs share this lock, including retention and stats/index reconciliation.
@@ -181,13 +197,14 @@ def run(job, config):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("job", choices=("ha", "weather", "observations", "retention", "status"))
+    parser.add_argument("job", choices=JOBS)
     parser.add_argument("--config", type=Path, required=True)
     args = parser.parse_args(argv)
     os.umask(0o077)
     try:
-        config = json.loads(private_path(args.config).read_text())
-        report = run(args.job, config)
+        config_path = private_path(args.config)
+        config = json.loads(config_path.read_text())
+        report = run(args.job, config, config_path=config_path)
     except (OSError, ValueError, TypeError, KeyError):
         print("Archive host configuration failed.", file=sys.stderr)
         return 2

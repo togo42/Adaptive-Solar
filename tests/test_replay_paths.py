@@ -204,6 +204,24 @@ def test_archive_aliases_cannot_escape_output_guard(tmp_path, monkeypatch, alias
     assert original.read_bytes() == b"immutable"
 
 
+@pytest.mark.parametrize("output_via_alias", [False, True])
+def test_report_rejects_outward_symlink_under_real_or_aliased_archive_root(tmp_path, output_via_alias):
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    original = archive / "pins.json"
+    original.write_bytes(b"immutable")
+    alias = tmp_path / "archive-alias"
+    alias.symlink_to(archive, target_is_directory=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (archive / "escape").symlink_to(outside, target_is_directory=True)
+    output = (alias if output_via_alias else archive) / "escape/new/report.json"
+    with pytest.raises(ValueError, match="outside.*archive"):
+        write_output("report\n", output, alias)
+    assert list(outside.iterdir()) == []
+    assert original.read_bytes() == b"immutable"
+
+
 def test_publication_rechecks_target_after_computation_and_keeps_inputs(tmp_path):
     archive = tmp_path / "archive"
     archive.mkdir()

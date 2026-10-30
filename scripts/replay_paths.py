@@ -20,6 +20,7 @@ def validate_output(output: Path, archive: Path, inputs=()):
     lexical = Path(os.path.abspath(output))
     archive_lexical = Path(os.path.abspath(archive))
     if (lexical.is_relative_to(archive_lexical)
+            or lexical.is_relative_to(archive.resolve())
             or output.resolve().is_relative_to(archive.resolve())):
         raise ValueError("replay output must be outside the source archive")
     _validate_program_output(output, inputs)

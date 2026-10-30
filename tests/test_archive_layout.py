@@ -48,7 +48,8 @@ def test_new_writes_and_exports_use_hash_prefix(stored, tmp_path):
 
 
 @pytest.mark.parametrize("layout", ["hash-prefix", "flat"])
-@pytest.mark.parametrize("location", ["root", "originals", "prefix", "root_alias", "lexical_escape", "normalized"])
+@pytest.mark.parametrize("location", ["root", "originals", "prefix", "root_alias", "lexical_escape",
+                                      "root_alias_lexical_escape", "normalized"])
 def test_dataset_export_refuses_internal_paths_and_aliases_without_harming_archive(stored, tmp_path, layout, location):
     if location == "root":
         target = stored.root / "new-export"
@@ -60,12 +61,16 @@ def test_dataset_export_refuses_internal_paths_and_aliases_without_harming_archi
         alias = tmp_path / "alias"
         alias.symlink_to(stored.root, target_is_directory=True)
         target = alias / "originals/export-copy"
-    elif location == "lexical_escape":
+    elif location in {"lexical_escape", "root_alias_lexical_escape"}:
         outside = tmp_path / "outside"
         outside.mkdir()
         alias = stored.root / "escape"
         alias.symlink_to(outside, target_is_directory=True)
         target = alias / "export-copy"
+        if location == "root_alias_lexical_escape":
+            root_alias = tmp_path / "archive-alias"
+            root_alias.symlink_to(stored.root, target_is_directory=True)
+            stored = ArchiveStore(root_alias)
     else:
         target = stored.root / "originals/../new-export"
     before, events = snapshot(stored), list(stored.iter_events())

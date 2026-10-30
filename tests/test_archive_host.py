@@ -8,6 +8,7 @@ import pytest
 
 from scripts import archive_host as host
 from scripts import archive as collector
+from scripts import replay_paths
 
 
 @pytest.fixture
@@ -216,3 +217,136 @@ def test_continuous_quality_is_opt_in_and_cannot_mix_with_static_mask(config):
     config["quality"] = "data/static.json"
     with pytest.raises(ValueError, match="static quality"):
         host.commands("observations", config, Path("archive"))
+
+
+def archived_original(tmp_path):
+    from datetime import UTC, datetime
+    from custom_components.adaptive_solar.core.archive import ArchiveJournal, ArchiveStore
+
+    journal = ArchiveJournal(tmp_path / "journal")
+    journal.append("event", {"original": True}, datetime(2026, 10, 29, tzinfo=UTC))
+    store = ArchiveStore(tmp_path / "data/archive")
+    store.ingest_page("ha-one", journal.page())
+    return store, next(store.originals.rglob("*.json.gz"))
+
+
+@pytest.mark.parametrize("existing_archive", [False, True])
+def test_main_rejects_status_inside_originals_before_any_creation(config, tmp_path, monkeypatch, capsys, existing_archive):
+    from custom_components.adaptive_solar.core.archive import ArchiveStore
+
+    original = archived_original(tmp_path)[1] if existing_archive else None
+    before = original.read_bytes() if original else None
+    config["status_dir"] = "data/archive/originals/status"
+    cfg = tmp_path / "data/host.json"
+    cfg.write_text(json.dumps(config))
+    monkeypatch.setattr(host.subprocess, "run", lambda *_a, **_k: pytest.fail("invalid output started a child"))
+    assert host.main(["status", "--config", str(cfg)]) == 2
+    assert not (tmp_path / config["status_dir"]).exists()
+    assert not (tmp_path / "data/host-status").exists()
+    assert "configuration failed" in capsys.readouterr().err
+    if original:
+        assert original.read_bytes() == before
+        assert ArchiveStore(tmp_path / "data/archive").checkpoint("ha-one") is not None
+    else:
+        assert not (tmp_path / "data/archive").exists()
+
+
+def test_main_cannot_replace_its_own_configuration_with_status(config, tmp_path, capsys):
+    cfg = tmp_path / "data/host-status/status.json"
+    cfg.parent.mkdir()
+    cfg.write_text(json.dumps(config))
+    before = cfg.read_bytes()
+    assert host.main(["status", "--config", str(cfg)]) == 2
+    assert cfg.read_bytes() == before
+    assert not (cfg.parent / "writer.lock").exists()
+    assert not (tmp_path / "data/archive").exists()
+    assert "configuration failed" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("key", ["site_json", "actual_config", "reference_config", "quality", "quality_bindings"])
+@pytest.mark.parametrize("output", ["weather.json", "writer.lock"])
+def test_main_protects_all_configured_inputs_even_for_status_job(config, tmp_path, capsys, key, output):
+    source = tmp_path / "data/host-status" / output
+    source.parent.mkdir()
+    source.write_bytes(b'{"private_input":true}\n')
+    config[key] = str(source)
+    cfg = tmp_path / "data/host.json"
+    cfg.write_text(json.dumps(config))
+    assert host.main(["status", "--config", str(cfg)]) == 2
+    assert source.read_bytes() == b'{"private_input":true}\n'
+    assert not (tmp_path / "data/archive").exists()
+    assert "configuration failed" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("alias_kind", ["symlink", "hardlink"])
+@pytest.mark.parametrize("protected", ["input", "program", "original"])
+@pytest.mark.parametrize("output", ["status.json", "writer.lock"])
+def test_main_rejects_status_and_lock_aliases_without_mutation(config, tmp_path, monkeypatch, capsys,
+                                                             alias_kind, protected, output):
+    monkeypatch.setattr(replay_paths, "SOURCE_ROOT", tmp_path)
+    if protected == "original":
+        store, source = archived_original(tmp_path)
+    else:
+        source = tmp_path / ("scripts/source.py" if protected == "program" else "data/actuals.json")
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_bytes(b'{"protected":true}\n')
+    before = source.read_bytes()
+    destination = tmp_path / "data/host-status" / output
+    destination.parent.mkdir()
+    if alias_kind == "symlink":
+        destination.symlink_to(source)
+    else:
+        destination.hardlink_to(source)
+    cfg = tmp_path / "data/host.json"
+    cfg.write_text(json.dumps(config))
+    assert host.main(["status", "--config", str(cfg)]) == 2
+    assert source.read_bytes() == destination.read_bytes() == before
+    assert not (destination.parent / "ha.json").exists()
+    assert "configuration failed" in capsys.readouterr().err
+    if protected == "original":
+        from custom_components.adaptive_solar.core.archive import ArchiveStore
+        assert ArchiveStore(store.root).checkpoint("ha-one") is not None
+    else:
+        assert not (tmp_path / "data/archive").exists()
+
+
+@pytest.mark.parametrize("archive_alias,state_alias", [(False, False), (True, True), (True, False)])
+def test_main_rejects_lexical_archive_status_even_through_outward_symlink(config, tmp_path, monkeypatch, capsys,
+                                                                      archive_alias, state_alias):
+    store, original = archived_original(tmp_path)
+    before = original.read_bytes()
+    outside = tmp_path / "data/outside"
+    outside.mkdir()
+    (store.originals / "status-link").symlink_to(outside, target_is_directory=True)
+    if archive_alias:
+        (tmp_path / "data/archive-alias").symlink_to(store.root, target_is_directory=True)
+        config["archive"] = "data/archive-alias"
+    status_archive = config["archive"] if state_alias else "data/archive"
+    config["status_dir"] = status_archive + "/originals/status-link/new"
+    cfg = tmp_path / "data/host.json"
+    cfg.write_text(json.dumps(config))
+    mock_process(monkeypatch, iter([]))
+    assert host.main(["status", "--config", str(cfg)]) == 2
+    assert list(outside.iterdir()) == []
+    assert original.read_bytes() == before
+    assert "configuration failed" in capsys.readouterr().err
+
+
+def test_main_default_status_preserves_originals_and_archive_reopens(config, monkeypatch, tmp_path, capsys):
+    from custom_components.adaptive_solar.core.archive import ArchiveStore
+
+    store, original = archived_original(tmp_path)
+    before = original.read_bytes()
+    checkpoint = store.checkpoint("ha-one")
+    source_scripts = Path(__file__).resolve().parents[1] / "scripts"
+    (tmp_path / "scripts").symlink_to(source_scripts, target_is_directory=True)
+    monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
+    cfg = tmp_path / "data/host.json"
+    cfg.write_text(json.dumps(config))
+    for _ in range(2):
+        assert host.main(["status", "--config", str(cfg)]) == 0
+        report = json.loads(capsys.readouterr().out)
+        assert report["complete"] and report["archive"]["events"] == 1
+        assert json.loads((tmp_path / "data/host-status/status.json").read_text()) == report
+        assert ArchiveStore(store.root).checkpoint("ha-one") == checkpoint
+        assert original.read_bytes() == before

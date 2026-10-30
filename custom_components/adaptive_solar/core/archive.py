@@ -827,6 +827,7 @@ class ArchiveStore:
 
         def validate_target():
             if (Path(os.path.abspath(target)).is_relative_to(Path(os.path.abspath(self.root)))
+                    or Path(os.path.abspath(target)).is_relative_to(self.root.resolve())
                     or target.resolve().is_relative_to(self.root.resolve())):
                 raise ArchiveError("Dataset destination must stay outside the source archive")
 
