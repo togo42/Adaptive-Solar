@@ -11,7 +11,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 import math
 
-import voluptuous as vol
+import probatio as vol
 from homeassistant.components.energy.websocket_api import async_get_energy_platforms
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import SupportsResponse, callback
@@ -85,6 +85,7 @@ async def _read_references(hass, call):
         entry = hass.config_entries.async_get_entry(entry_id)
         domain = entry.domain if entry is not None else None
         status, forecast = "not_found", None
+        received = None
         if entry is not None:
             if domain not in _ALLOWED:
                 status = "unsupported_domain"
@@ -108,7 +109,7 @@ async def _read_references(hass, call):
                 except Exception:
                     # Exception strings may contain private provider data.
                     status = "error"
-        if "received" not in locals():
+        if received is None:
             received = datetime.now(timezone.utc)
         return entry_id, {"domain": domain, "status": status, "forecast": forecast,
                           "retrieved_at": received.isoformat()}

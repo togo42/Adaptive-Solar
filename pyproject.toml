@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adaptive-solar-ha"
-version = "0.2.18"
+version = "0.2.19"
 description = "Physikalische und lernende Solarprognose für Home Assistant"
 requires-python = ">=3.13"
 license = "GPL-3.0-only"

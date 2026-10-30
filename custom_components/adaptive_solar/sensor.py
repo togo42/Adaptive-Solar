@@ -87,7 +87,7 @@ def _sync_registry(hass, entry, entities, keys):
         if scope in {"site", "dc_site", "mixed_site"} or scope and scope.startswith(("inverter_", "dc_inverter_")):
             registry.async_remove(row.entity_id)
     for device in list(dr.async_entries_for_config_entry(devices, entry.entry_id)):
-        if (device.id not in device_ids and device.config_entries == {entry.entry_id}
+        if (device.id not in device_ids and device.config_entry_id == entry.entry_id
                 and device.identifiers and all(domain == DOMAIN and identifier.startswith(prefix)
                                               for domain, identifier in device.identifiers)
                 and not er.async_entries_for_device(registry, device.id, include_disabled_entities=True)):
