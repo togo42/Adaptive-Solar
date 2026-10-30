@@ -69,11 +69,18 @@ physische Messgüte. Format, Grenzen und Probelauf stehen im
 - Capture-, Replay-, Forecast- und Auswertungshelfer schützen Eingaben,
   Programm-/Ressourcendateien und deren Link-Aliase vor Ausgabeüberschreibungen.
   JSONL-Aufnahmen prüfen das geöffnete Ziel unter Sperre; Archive und
-  Originalreceipts bleiben getrennt von abgeleiteten Berichten.
+  Originalreceipts bleiben getrennt von abgeleiteten Berichten. Beide
+  Append-CLI-Einstiege halten den Elternpfad vor dem Abruf fest und erhalten
+  den Dateinamen für die Symlinksperre. Sie weisen ein Symlinkziel vor dem Abruf
+  ab und prüfen die private Pfadgrenze unmittelbar vor dem Append erneut.
 - Hoststatus und Datasetexport weisen auch interne Archivziele sowie die
   geprüften Pfadaliase zurück; Statusberichte dürfen keine Hostkonfiguration
   ersetzen. Der Ensemble-Replay bindet Wetterprodukte an die ursprünglichen
   Anfragekoordinaten des gewählten Standorts.
+- Die JSON-Kodierung der großen HA-Primärhistorie läuft wie beim Vergleichsstore
+  im Executor. Snapshotbildung und Retention bleiben auf dem Eventloop;
+  verzögertes Speichern, Pending-Load, expliziter Import und Abschluss verwenden
+  weiterhin den nativen Store-Lebenszyklus. Das Speicherformat ändert sich nicht.
 
 ## Getrennte Installation und Rückwege vorbereiten
 

@@ -16,7 +16,11 @@ bleiben unverändert. Ein lokaler Subagentenreview ist kein Provider-Vollreview.
    betroffenen Auswertungsarme und Kennzahlen verfolgen.
 3. Bestätigte Geschwisterfälle gemeinsam korrigieren. Regressionen prüfen das
    beobachtbare Ergebnis einschließlich Originalerhalt und zulässiger Fälle;
-   sie spiegeln nicht lediglich die neue Implementierung.
+   sie spiegeln nicht lediglich die neue Implementierung. Mindestens einen
+   tatsächlichen Einstiegspunkt durchlaufen: Ein korrekter Schutzhelfer genügt
+   nicht, wenn sein Aufrufer zuvor einen Symlink auflöst und dessen Identität
+   verwirft. Native HA-Pfade zusätzlich ohne verändernde Testadapter prüfen,
+   wenn diese Threadwechsel oder verzögerte Callbacks verdecken können.
 4. Ein anderer Bearbeiter prüft die Korrektur und ihre Aufrufer gezielt. Befunde
    als konsolidierte Liste zurückgeben; die erste Entdeckung beendet die Suche
    innerhalb des vereinbarten Umfangs nicht. Gegenbeweise dürfen einen Befund
@@ -47,7 +51,7 @@ Bei neuen Helfern oder neuen Schreibarten die passende Zeile ergänzen.
 | `analyze_learning_support.py`, `qualify_actuals.py` | Bericht atomar ersetzen | Gemeinsamer Programmschutz und sämtliche expliziten Daten-/Policy-/Qualitätseingaben |
 | `continuous_quality.py`, `replay_archive.py` | Bericht atomar ersetzen | Zusätzlich außerhalb der Quellarchivwurzel, lexikalisch und aufgelöst |
 | `replay_shading.py` | Temporären JSONL-Bericht atomar veröffentlichen | Gemeinsamer Ausgabeschutz vor Ausgabe und Veröffentlichung; Quell-/Pinprüfung vor Veröffentlichung abschließen |
-| `capture_actuals.py`, `capture_ha.py` | JSONL anhängen | Dedizierte Datei, Eingaben/Programme schützen, geöffneten Deskriptor und Pfadidentität prüfen; vollständige Altzeilen erhalten |
+| `capture_actuals.py`, `capture_ha.py` | JSONL anhängen | Dedizierte Datei, Elternpfad vor Abruf festhalten und Dateiname für Symlinksperre erhalten; private Grenze vor/nach Abruf, Eingaben/Programme, geöffneten Deskriptor und Pfadidentität prüfen; vollständige Altzeilen erhalten |
 | `archive.py export-observations` | Neue Exportdatei veröffentlichen | Ziel außerhalb des Quellarchivs; Veröffentlichung ohne Überschreiben bestehender Ziele |
 | `archive.py export-dataset` | Neues Exportverzeichnis | `ArchiveStore.export_dataset`: neues Ziel außerhalb der gesamten Quellarchivwurzel; Originale und Pins erhalten |
 | `archive_host.py` | Status atomar ersetzen; Writerlock öffnen | Statusverzeichnis und alle festen Status-/Locknamen vor Anlage gegen Archiv, Hostkonfiguration und konfigurierte Eingabedateien prüfen |
@@ -70,6 +74,9 @@ und gegebenenfalls Archivkollision beurteilen. Direkte Pfade sowie die bereits
 unterstützten Symlink-/Hardlinkfälle beachten. Eine Grenze auf `data/` allein
 schützt keine Eingaben oder über Hardlinks erreichbaren Inodes. Atomarer Ersatz
 und Append sind unterschiedlich: Append verändert den geöffneten Inode.
+Bei einer Pfadkorrektur auch prüfen, ob ein bisher festgehaltener Elternalias
+nun über einen Netzabruf hinweg neu aufgelöst wird. Die CLI-Regressionen prüfen
+sowohl das Umhängen des ursprünglichen Alias als auch eine ersetzte Zielwurzel.
 
 ## Bewusst getrennte weitere Arbeit
 

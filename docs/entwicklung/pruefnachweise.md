@@ -63,6 +63,67 @@ Main-Merge, Release oder produktives HA-/Hostdeployment. Die Auslagerung der
 Offlineanalyse bleibt der separat beschriebene Folgeschritt; Quellenpins werden
 nicht gelockert und die Guardpolicy bleibt unverändert.
 
+## Codex-Review des Releasekandidaten 0.2.20 und Befundkorrekturen
+
+Der mit dem veröffentlichten Stand 0.2.19 zusammengeführte Kandidat
+`a7803a5247bae80a1b70eeef6a3abd0c57cb9953` wurde am 30.10.2026 durch
+**Codex GPT-6.1-Sol/high**, CLI **0.166.0**, vollständig statisch geprüft.
+R4 übergab 213 öffentliche Originaltexte einschließlich acht Service-/Timervorlagen
+in 46 Quellblöcken. Der unabhängige Audit bestätigte alle 48 Turns einschließlich
+Initialisierung und Abschluss, exakte Quellen-/Prompt-/Antwortbytes, native
+Modell- und CLI-Identität sowie API-Abschlüsse. Keine Compaction, nativen Tools
+oder Hintergrundaufgaben. **Das Fachurteil war `blocked` mit zwei Befunden.**
+
+- AS-001, mittel: Die JSON-Kodierung der Primärhistorie lief im HA-Eventloop.
+  Der korrigierte Store kodiert im Executor; eine native Threadsafe-Brücke hält
+  Snapshotbildung und Pruning auf dem Loop. Die fünf neuen nativen Tests umgehen
+  den verändernden gemeinsamen Testadapter. Vier scheitern am Originalcode;
+  der Pending-Load-Fall besteht bereits dort. Verzögertes Speichern, Import,
+  Abschluss und ein gleichzeitiger echter Messintervallmerge werden geprüft.
+  Vergleichsstore und ausschließlich lesender Legacystore wurden mitgeprüft.
+- AS-002, niedrig: Beide Append-CLIs lösten den Ausgabepfad vor der
+  Symlinkprüfung auf. Der korrigierte Einstieg hält den Elternpfad fest und
+  erhält den Dateinamen für die Symlinksperre. Acht Regressionen
+  scheitern vorher, darunter echte CLI-Prozesse mit Netzwerk-Tripwire und
+  reproduzierte Änderungen fremder JSON-Ziele. Direkte/vermittelte Symlinkziele,
+  Eingabealiase und Grenzausbrüche werden jetzt vor dem Abruf zurückgewiesen.
+
+Der unabhängige Korrekturreview fand am ersten CLI-Fix zusätzlich einen
+umhängbaren Elternalias. Vier Gegenproben scheiterten an diesem Zwischenstand.
+Der jetzt vor dem Abruf festgehaltene Elternpfad verhindert diese Umleitung;
+eine erneute private Grenzprüfung vor dem Append weist auch eine inzwischen
+ersetzte Zielwurzel zurück. Diese Fälle wurden vor dem nächsten externen
+Review gemeinsam korrigiert und unabhängig erneut reproduziert.
+
+Die gezielten Korrekturprüfungen bestanden mit 158 Speicher-/HA-Tests und
+215 Capture-/Pfadtests ohne Skips. Der unabhängige Korrekturreview meldete nach
+der Nachbesserung keine weiteren konkreten Befunde. Die gemeinsame Vollsuite
+bestand mit **2.253 Tests ohne Skips**, weiterhin 23 SQLite-ResourceWarnings.
+Ruff und `pip check` bestanden. Die lokale Coverageerfassung enthielt versehentlich
+zusätzlich die Skripte (52 Dateien, 88,01 %, deshalb Exit 1 des Gesamtbefehls).
+Die Auswertung derselben Messdaten für die unveränderten 34 Komponentenmodule
+bestand mit **90,88 % kombinierter Abdeckung** und dem unveränderten 90-%-Gate;
+es wurden keine Tests oder Messdaten verworfen. Rohbericht und korrigierte
+Scopeauswertung bleiben getrennt unter `artifacts/release-0.2.20/r5-*` erhalten.
+Ein neuer hashgebundener Codex-Nachreview, Build und reguläre CI der Korrekturen
+stehen noch aus. R4 ist keine positive Abnahme und wird durch lokale Korrekturen
+nicht nachträglich grün.
+
+Die vorherigen technischen Versuche zählen nicht als Fachabnahme: R1 scheiterte
+beim nativen Modellkatalogabruf; R2 und R3 wurden wegen nativer Compaction samt
+zusätzlichem API-POST verworfen. Der vollständige Tool-Dialog überschritt die
+verfügbare Kontextreserve. Der anschließende explizite Blocktransport behielt
+alle Originalquellen und Schutzprüfungen bei. Ein großer isolierter Testblock
+aus R2 hatte außerdem 77 Setupfehler durch nicht zurückgesetzte Socket-Guards
+im Testharness; er ist kein bestandener Testlauf. R4 selbst führte keine Tests aus.
+
+R4-Payload-SHA256: `32d3ec3708590fb5257dbf3a806095219600b2851c134d2a3ff336387fa33586`.
+Receipt-SHA256: `7f0f00b244ae084c3cdb75306ca4979280363142e531b16a59479b7e3ed63c50`.
+Rohbelege: `reviews/private/release-0.2.20-codex-r4/`; unabhängiger Audit und
+Vorher-/Nachherprüfungen: `artifacts/release-0.2.20/` mit
+`codex-r4-closeout.json`, `fixes-primary/` und `fixes-capture/`.
+Kein Release oder produktives HA-/Hostdeployment ist erfolgt.
+
 ## Aktueller Releasebezug
 
 [0.2.19](../releases/release-0.2.19.md) aktualisiert die HA-Geräte-API und
