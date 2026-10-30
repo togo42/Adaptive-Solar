@@ -11,7 +11,7 @@ import sys
 from freezegun import freeze_time
 import pytest
 
-from scripts import capture_actuals, qualify_actuals
+from scripts import actual_quality_io, capture_actuals, qualify_actuals
 
 
 def cli_case(tmp_path, *, verified=True, normalized_input=False):
@@ -71,6 +71,7 @@ def test_real_quality_reaches_normalization_with_new_revision_and_unchanged_raw(
     assert capture_actuals.actual_records_from_captures([normalized], as_of=datetime.now(UTC))
     assert normalized["quality"] == report["quality"] == mask
     assert report["adapter_source_sha256"] and report["normalizer_source_sha256"] and report["script_sha256"]
+    assert report["adapter_io_source_sha256"] == hashlib.sha256(Path(actual_quality_io.__file__).read_bytes()).hexdigest()
     for name, raw in originals.items():
         assert paths[name].read_bytes() == raw
     for item in report["input_files"]:
@@ -161,8 +162,8 @@ def test_malformed_or_future_existing_quality_is_not_silently_replaced(tmp_path,
 def test_new_quality_timestamp_follows_input_reading_and_validation(tmp_path, monkeypatch):
     with freeze_time("2026-06-03T12:00:00Z") as clock:
         paths, args, _, _ = cli_case(tmp_path)
-        original_read = qualify_actuals._read_json
-        original_validate = qualify_actuals._validate_existing_quality
+        original_read = actual_quality_io.read_json
+        original_validate = actual_quality_io.validate_existing_quality
         entered_at = datetime.now(UTC)
 
         def delayed_read(*values, **kwargs):
@@ -173,8 +174,8 @@ def test_new_quality_timestamp_follows_input_reading_and_validation(tmp_path, mo
             original_validate(*values, **kwargs)
             clock.tick(timedelta(seconds=10))
 
-        monkeypatch.setattr(qualify_actuals, "_read_json", delayed_read)
-        monkeypatch.setattr(qualify_actuals, "_validate_existing_quality", delayed_validation)
+        monkeypatch.setattr(actual_quality_io, "read_json", delayed_read)
+        monkeypatch.setattr(actual_quality_io, "validate_existing_quality", delayed_validation)
         monkeypatch.setattr(sys, "argv", args)
         assert qualify_actuals.main() == 0
         report = json.loads(paths["report"].read_text())
@@ -255,9 +256,9 @@ def test_input_limits_apply_before_quality_derivation(tmp_path, monkeypatch, bou
     paths, args, _, _ = cli_case(tmp_path)
     sizes = [paths[key].stat().st_size for key in ("events", "bindings", "capture")]
     if bound == "single":
-        monkeypatch.setattr(qualify_actuals, "MAX_INPUT_BYTES", sizes[0] - 1)
+        monkeypatch.setattr(actual_quality_io, "MAX_INPUT_BYTES", sizes[0] - 1)
     else:
-        monkeypatch.setattr(qualify_actuals, "MAX_TOTAL_BYTES", sum(sizes) - 1)
+        monkeypatch.setattr(actual_quality_io, "MAX_TOTAL_BYTES", sum(sizes) - 1)
     monkeypatch.setattr(sys, "argv", args)
     assert qualify_actuals.main() == 2
     assert not paths["report"].exists()
@@ -319,3 +320,44 @@ def test_slow_offline_quality_is_not_available_during_its_calculation(tmp_path, 
     assert capture_actuals.actual_records_from_captures([result], as_of=started + timedelta(seconds=15)) == []
     assert len(capture_actuals.actual_records_from_captures([result], as_of=finished)) == 2
     assert result["raw"] == raw["raw"] and result["retrieved_at"] == raw["retrieved_at"]
+
+
+@freeze_time("2026-06-03T12:00:00Z")
+@pytest.mark.parametrize("alias", ["same", "symlink", "hardlink"])
+def test_offline_publication_protects_shared_adapter_helper(tmp_path, monkeypatch, alias):
+    paths, args, _, _ = cli_case(tmp_path)
+    protected = tmp_path / "actual_quality_io.py"
+    protected.write_text("# original helper bytes\n")
+    monkeypatch.setattr(actual_quality_io, "__file__", str(protected))
+    if alias == "same":
+        args[args.index("--output") + 1] = str(protected)
+    elif alias == "symlink":
+        paths["report"].symlink_to(protected)
+    else:
+        os.link(protected, paths["report"])
+    monkeypatch.setattr(sys, "argv", args)
+    assert qualify_actuals.main() == 2
+    assert protected.read_text() == "# original helper bytes\n"
+    assert not paths["quality"].exists() and not paths["normalized"].exists()
+
+
+def test_shared_input_reader_preserves_original_byte_hash_at_exact_budget(tmp_path, monkeypatch):
+    path = tmp_path / "input.json"
+    raw = b'  {"value": 1}\n'
+    path.write_bytes(raw)
+    monkeypatch.setattr(actual_quality_io, "MAX_INPUT_BYTES", len(raw))
+    value, details = actual_quality_io.read_json(path, remaining=len(raw))
+    assert value == {"value": 1}
+    assert details == {"sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}
+    with pytest.raises(ValueError, match="byte bound"):
+        actual_quality_io.read_json(path, remaining=len(raw) - 1)
+    with pytest.raises(ValueError, match="aggregate input"):
+        actual_quality_io.read_json(path, remaining=-1)
+
+
+@pytest.mark.parametrize("raw", ['{"value": NaN}', '{"value": Infinity}', '{private_malformed'])
+def test_shared_input_reader_rejects_nonfinite_or_malformed_json(tmp_path, raw):
+    path = tmp_path / "input.json"
+    path.write_text(raw)
+    with pytest.raises(ValueError):
+        actual_quality_io.read_json(path, remaining=actual_quality_io.MAX_TOTAL_BYTES)

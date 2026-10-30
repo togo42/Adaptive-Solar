@@ -1,6 +1,10 @@
 """Prospective policies never renew themselves or qualify legacy intervals."""
 from copy import deepcopy
 from datetime import timedelta
+import hashlib
+from pathlib import Path
+import subprocess
+import sys
 from unittest.mock import AsyncMock
 
 from freezegun import freeze_time
@@ -8,7 +12,7 @@ import pytest
 
 from custom_components.adaptive_solar.core.actual_quality import CONTINUOUS_BINDINGS_SCHEMA
 from custom_components.adaptive_solar.core.archive import ArchiveJournal, ArchiveStore
-from scripts import archive_observations, capture_actuals, continuous_quality
+from scripts import actual_quality_io, archive_observations, capture_actuals, continuous_quality
 from tests.test_actual_quality import quality_case, rehash, run_case
 from tests.test_archive_observations import ingest
 from tests.test_capture_actuals import capture
@@ -90,6 +94,8 @@ def test_derive_preserves_raw_and_dates_quality_at_real_execution(tmp_path):
     assert len(derived["normalization"]["records"]) == 2
     assert derived["quality_derivation"]["bindings"] == case[1]
     assert derived["quality_derivation"]["raw_capture_sha256"]
+    assert derived["quality_derivation"]["implementation_sha256"]["actual_quality_io.py"] == hashlib.sha256(
+        Path(actual_quality_io.__file__).read_bytes()).hexdigest()
     assert len(capture_actuals.actual_records_from_captures([derived])) == 2
     assert capture_actuals.actual_records_from_captures([derived], as_of=case[-1]) == []
 
@@ -179,7 +185,7 @@ def test_chunked_configuration_anchor_is_resolved_from_originals(tmp_path, monke
 
 def test_existing_negative_mask_cannot_be_automatically_released(tmp_path):
     from tests.test_capture_actuals import mask
-    from scripts.qualify_actuals import ExistingQualityConflict
+    from scripts.actual_quality_io import ExistingQualityConflict
 
     case = continuous_case()
     store = store_case(tmp_path, case)
@@ -210,7 +216,7 @@ async def test_oversized_quality_report_preserves_smaller_raw_capture(tmp_path, 
 
 
 @pytest.mark.parametrize("alias", ["same", "symlink", "hardlink"])
-@pytest.mark.parametrize("module", [continuous_quality, continuous_quality.actual_quality, capture_actuals, continuous_quality.qualify_actuals])
+@pytest.mark.parametrize("module", [continuous_quality, continuous_quality.actual_quality, capture_actuals, actual_quality_io])
 def test_rehearsal_cannot_overwrite_implementation_files(tmp_path, monkeypatch, alias, module):
     import json
     import os
@@ -308,3 +314,21 @@ def test_clock_moving_backwards_during_quality_derivation_fails_closed(tmp_path,
         monkeypatch.setattr(continuous_quality.actual_quality, "_hour", backwards)
         with pytest.raises(ValueError, match="clock moved backwards"):
             continuous_quality.derive(store, raw, case[1])
+
+
+def test_rehearsal_imports_without_offline_qualification_cli():
+    code = """
+import importlib.abc, runpy, sys
+class NoQualificationCLI(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == 'scripts.qualify_actuals':
+            raise RuntimeError('continuous adapter must not load another CLI')
+sys.meta_path.insert(0, NoQualificationCLI())
+script = sys.argv[1]
+sys.argv = [script, '--help']
+runpy.run_path(script, run_name='__main__')
+"""
+    result = subprocess.run([sys.executable, "-I", "-c", code, str(Path(continuous_quality.__file__).resolve())],
+                            capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
+    assert "--actual-capture" in result.stdout

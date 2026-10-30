@@ -17,7 +17,7 @@ if str(ROOT) not in sys.path:
 from custom_components.adaptive_solar.core import actual_quality  # noqa: E402
 from custom_components.adaptive_solar.core.archive import canonical_bytes  # noqa: E402
 from custom_components.adaptive_solar.core.replay import timestamp  # noqa: E402
-from scripts import capture_actuals, qualify_actuals  # noqa: E402
+from scripts import actual_quality_io, capture_actuals  # noqa: E402
 
 MAX_BYTES = 512 * 1024 * 1024
 
@@ -34,7 +34,7 @@ def derive(store, raw, bindings):
         raise ValueError("Invalid source policy")
     as_of = datetime.now(UTC)
     capture_actuals.normalize_capture(raw, None, normalized_at=as_of)
-    qualify_actuals._validate_existing_quality(raw, as_of=as_of, validation_time=as_of)
+    actual_quality_io.validate_existing_quality(raw, as_of=as_of, validation_time=as_of)
     if capture_actuals.utc(raw["retrieved_at"]) > as_of:
         raise ValueError("Future raw capture")
     start, end = capture_actuals.target_bounds(raw["raw"]["target_start"], raw["raw"]["target_end"])
@@ -76,7 +76,8 @@ def derive(store, raw, bindings):
     generated = timestamp(report["generated_at"])
     report.update(bindings=bindings, raw_capture_sha256=actual_quality.digest(raw),
                   implementation_sha256={path.name: hashlib.sha256(path.read_bytes()).hexdigest()
-                                         for path in (Path(__file__), Path(actual_quality.__file__), Path(capture_actuals.__file__))})
+                                         for path in (Path(__file__), Path(actual_quality.__file__), Path(capture_actuals.__file__),
+                                                      Path(actual_quality_io.__file__))})
     normalized = capture_actuals.normalize_capture(raw, report["quality"], normalized_at=generated)
     return {**normalized, "quality_derivation": report}
 
@@ -101,12 +102,12 @@ def main(argv=None):
     os.umask(0o077)
     try:
         inputs = (args.bindings, args.actual_capture, Path(__file__), Path(actual_quality.__file__),
-                  Path(capture_actuals.__file__), Path(qualify_actuals.__file__))
+                  Path(capture_actuals.__file__), Path(actual_quality_io.__file__))
         validate_output(args.output, args.archive, inputs)
         if not (args.archive / "index.sqlite3").is_file():
             raise ValueError("An existing local archive is required")
-        bindings, details = qualify_actuals._read_json(args.bindings, remaining=qualify_actuals.MAX_INPUT_BYTES)
-        raw, _ = qualify_actuals._read_json(args.actual_capture, remaining=qualify_actuals.MAX_TOTAL_BYTES - details["bytes"])
+        bindings, details = actual_quality_io.read_json(args.bindings, remaining=actual_quality_io.MAX_INPUT_BYTES)
+        raw, _ = actual_quality_io.read_json(args.actual_capture, remaining=actual_quality_io.MAX_TOTAL_BYTES - details["bytes"])
         result = derive(ArchiveStore(args.archive), raw, bindings)
         write_output(json.dumps(result, sort_keys=True, indent=2, allow_nan=False) + "\n", args.output, args.archive, inputs)
         print(json.dumps({"status": "local_quality_rehearsal", "accepted_records": len(result["normalization"]["records"]),

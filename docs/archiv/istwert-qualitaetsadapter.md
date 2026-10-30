@@ -1,10 +1,22 @@
 # Istwerte offline aus archivierten Messnachweisen qualifizieren
 
-Stand: 29.10.2026, Entwicklungskandidat. Der Adapter gehört noch nicht zum
+Stand: 30.10.2026, Entwicklungskandidat. Der Adapter gehört noch nicht zum
 veröffentlichten Release 0.2.18 und ist in keinem Timer aktiviert. Er liest lokale
 Originalauszüge, prüft Stundenabdeckung und erzeugt eine neue Qualitätsrevision
 für den bestehenden [Recorder-Collector](../entwicklung/benchmark-aufnahme.md).
 Er verändert weder HA noch Originalarchive und bescheinigt keine Prognosegüte.
+
+Beide Qualitätsadapter verwenden `scripts/actual_quality_io.py` für begrenztes
+JSON-Lesen mit Originalbytehash und die Prüfung bereits vorhandener
+Qualitätsmasken beziehungsweise Normalisierungen. `continuous_quality.py`
+benötigt damit keinen Import der anderen CLI. Qualifikationsregeln und
+Quellenprüfung bleiben in `core/actual_quality.py`, die sichere Veröffentlichung
+in `scripts/replay_paths.py`. Die gemeinsame Hilfe behält die bisherigen Grenzen
+von 128 MiB pro Eingabedatei und 512 MiB insgesamt sowie die Sperre vorhandener
+negativer oder widersprüchlicher Qualitätsnachweise bei. Ihr Quellhash steht im
+Offlinebericht als `adapter_io_source_sha256` und im kontinuierlichen Bericht
+unter `implementation_sha256.actual_quality_io.py`; auch diese Datei ist als
+Ausgabeziel gegen direkte Pfade und Aliase geschützt.
 
 ## 1. Was automatisch geprüft wird
 

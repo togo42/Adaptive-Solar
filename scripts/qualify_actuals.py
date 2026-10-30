@@ -20,28 +20,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from custom_components.adaptive_solar.core import actual_quality
 from custom_components.adaptive_solar.core.archive import canonical_bytes
-from scripts import capture_actuals
+from scripts import actual_quality_io, capture_actuals
 from scripts.replay_paths import validate_output, write_output
-
-MAX_INPUT_BYTES = 128 * 1024 * 1024
-MAX_TOTAL_BYTES = 512 * 1024 * 1024
-
-
-class ExistingQualityConflict(ValueError):
-    """Existing negative evidence needs resolution outside this adapter."""
-
-
-def _read_json(path, *, remaining):
-    limit = min(MAX_INPUT_BYTES, remaining)
-    if limit < 0:
-        raise ValueError("aggregate input exceeds byte bound")
-    with path.open("rb") as stream:
-        raw = stream.read(limit + 1)
-    if len(raw) > limit:
-        raise ValueError("input exceeds byte bound")
-    value = json.loads(raw)
-    canonical_bytes(value)
-    return value, {"sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}
 
 
 def _validate_outputs(outputs, inputs, capture_path):
@@ -66,25 +46,6 @@ def _counts(normalization):
                                               for reason in row["reasons"]))}
 
 
-def _validate_existing_quality(capture, *, as_of, validation_time):
-    """Never turn an existing rejection into a new automatic qualification."""
-    quality = capture.get("quality")
-    masks, provenance = capture_actuals.parse_quality(quality, normalized_at=validation_time)
-    if provenance is not None and capture_actuals.utc(provenance["validated_at"]) > as_of:
-        raise ValueError("existing quality is unavailable at the evidence cutoff")
-    if "normalized_at" in capture or "normalization" in capture:
-        if "normalized_at" not in capture or "normalization" not in capture:
-            raise ValueError("incomplete existing normalization metadata")
-        original_time = capture_actuals.utc(capture["normalized_at"])
-        if original_time > validation_time:
-            raise ValueError("existing normalization is in the future")
-        verified = capture_actuals.normalize_capture(capture, quality, normalized_at=original_time)
-        if canonical_bytes(verified["normalization"]) != canonical_bytes(capture["normalization"]):
-            raise ValueError("existing normalization disagrees with its original inputs")
-    if any(capture_actuals._quality_rejections(mask) for mask in masks):
-        raise ExistingQualityConflict
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--events-json", type=Path, action="append", required=True,
@@ -98,21 +59,21 @@ def main():
     args = parser.parse_args()
     outputs = [path for path in (args.output, args.quality_output, args.normalized_output) if path is not None]
     inputs = (*args.events_json, args.bindings, args.actual_capture, Path(__file__),
-              Path(actual_quality.__file__), Path(capture_actuals.__file__))
+              Path(actual_quality.__file__), Path(capture_actuals.__file__), Path(actual_quality_io.__file__))
     try:
         _validate_outputs(outputs, inputs, args.actual_capture)
-        remaining, hashes, events = MAX_TOTAL_BYTES, [], []
+        remaining, hashes, events = actual_quality_io.MAX_TOTAL_BYTES, [], []
         for index, path in enumerate(args.events_json):
-            value, details = _read_json(path, remaining=remaining)
+            value, details = actual_quality_io.read_json(path, remaining=remaining)
             remaining -= details["bytes"]
             if not isinstance(value, list):
                 raise ValueError("event export must be an array")
             events.extend(value)
             hashes.append({"role": "events", "index": index, **details})
-        bindings, details = _read_json(args.bindings, remaining=remaining)
+        bindings, details = actual_quality_io.read_json(args.bindings, remaining=remaining)
         remaining -= details["bytes"]
         hashes.append({"role": "bindings", **details})
-        capture, details = _read_json(args.actual_capture, remaining=remaining)
+        capture, details = actual_quality_io.read_json(args.actual_capture, remaining=remaining)
         hashes.append({"role": "actual_capture", **details})
         validation_time = datetime.now(UTC)
         if args.as_of > validation_time:
@@ -123,7 +84,7 @@ def main():
         received = capture_actuals.utc(capture["retrieved_at"])
         if received > args.as_of:
             raise ValueError("raw capture follows evidence cutoff")
-        _validate_existing_quality(capture, as_of=args.as_of, validation_time=validation_time)
+        actual_quality_io.validate_existing_quality(capture, as_of=args.as_of, validation_time=validation_time)
         raw = capture["raw"]
         start, end = capture_actuals.target_bounds(raw["target_start"], raw["target_end"])
         mappings = list(capture_actuals.parse_mapping({"mappings": raw["mappings"]}))
@@ -140,6 +101,7 @@ def main():
         report = {**report, "generated_at": generated_at.isoformat(), "evidence_as_of": args.as_of.isoformat(),
                   "raw_retrieved_at": received.isoformat(), "input_files": hashes,
                   "adapter_source_sha256": hashlib.sha256(Path(actual_quality.__file__).read_bytes()).hexdigest(),
+                  "adapter_io_source_sha256": hashlib.sha256(Path(actual_quality_io.__file__).read_bytes()).hexdigest(),
                   "normalizer_source_sha256": hashlib.sha256(Path(capture_actuals.__file__).read_bytes()).hexdigest(),
                   "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                   "normalization_comparison": {"raw_without_quality": _counts(raw_only["normalization"]),
@@ -162,7 +124,7 @@ def main():
         print(json.dumps({"status": "offline_quality_derived", "accepted_records": len(normalized["normalization"]["records"]),
                           "excluded_records": len(normalized["normalization"]["excluded"])}))
         return 0
-    except ExistingQualityConflict:
+    except actual_quality_io.ExistingQualityConflict:
         print("Existing quality rejects or leaves unknown intervals; separate explicit resolution is required.", file=sys.stderr)
         return 2
     except (ValueError, OSError, TypeError, KeyError, AttributeError) as err:
