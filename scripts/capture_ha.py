@@ -703,7 +703,10 @@ def main() -> int:
     parser.add_argument("--cutoff-margin", type=float, default=5, help="Preflight lead margin beyond the total request timeout, seconds")
     args = parser.parse_args()
     try:
-        config, output = _private_path(args.config), _private_path(args.output)
+        config = _private_path(args.config)
+        # Pin parent aliases before capture; retain the leaf for symlink checks.
+        output = args.output.parent.resolve() / args.output.name
+        _private_path(output)
         if config == output or output.exists() and os.path.samefile(config, output):
             raise CaptureError("Configuration and output paths must differ")
         protected = _validate_output(output, (config,))
@@ -720,6 +723,7 @@ def main() -> int:
             return 0 if plan["forecast_capture_ready"] else 1
         capture = asyncio.run(capture_forecasts(os.environ.get("HA_URL", ""), os.environ.get("HA_TOKEN", ""), mappings,
                                                timeout=args.timeout, cutoff=cutoff))
+        _private_path(output)
         append_capture(output, capture, inputs=(config,), protected_identities=protected)
     except (CaptureError, OSError, json.JSONDecodeError) as exc:
         # Do not echo path, URL, token, snapshots or transport exception details.
