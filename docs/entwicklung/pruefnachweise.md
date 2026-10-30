@@ -218,6 +218,55 @@ Rohbelege: `reviews/private/release-0.2.20-codex-r7/`; Audit:
 `artifacts/release-0.2.20/codex-r7-closeout.json`.
 Keine Veröffentlichung oder produktive Aktivierung ist erfolgt.
 
+## Codex-Nachreview und Statusnamensräume
+
+R8 prüfte `3eae6cc003b3267a9e30af6d0731ae739001a9e2` vollständig mit
+**GPT-6.1-Sol/high**, CLI **0.166.0**: 217 öffentliche Originaltexte,
+47 Quellblöcke und 49 abgeschlossene Turns. Der unabhängige Audit bestand ohne
+Compaction, native Tools oder Hintergrundaufgaben. **Das Urteil war `blocked`
+mit einem niedrigen Befund:** Frei gewählte Stufenkennungen konnten mit
+technischen Schlüsseln im gemeinsamen `model_status` kollidieren. Insbesondere
+die Kennung `irradiance` konnte eine gültige GHI-Beobachtung in der
+Qualitätsanzeige fälschlich als beeinträchtigt erscheinen lassen.
+
+Dieser Stand bestand lokal 2.336 Tests ohne Skips und 90,90 % kombinierte
+Abdeckung; die [reguläre CI](https://github.com/togo42/Adaptive-Solar/actions/runs/41052233817)
+bestand ebenfalls 2.336 Tests ohne Skips bei 90,88 %. Wheel, sdist und
+Integrations-ZIP enthielten die 41 Komponentendateien bytegleich; 34 Module
+ließen sich aus einer separaten Wheelinstallation mit vorhandenen
+HA-Testabhängigkeiten importieren. Diese Ergebnisse ersetzen keine positive
+fachliche Abnahme.
+
+Die Korrektur trennt `inverter_status` und `diagnostic_status` im ForecastResult.
+Technische Diagnosen kodieren dynamische Kennungssegmente eindeutig; die
+unabhängige Familienprüfung hatte auch eine Kollision zwischen zusammengesetzten
+Wettermodell-/Stufenkennungen reproduziert. Die flache `model_status`-Ansicht
+bleibt für bestehende Leser erhalten, ist bei Kollisionen ausdrücklich
+verlustbehaftet und steuert neue HA-Qualitätsentscheidungen nicht mehr.
+Kennungen, Entities, Prognosewerte und Lerngates bleiben unverändert.
+Neue JSON-Originale tragen beide kanonischen Maps, die der Replay exakt vergleicht.
+Alte Originale ohne diese Felder behalten ihren bisherigen strikten Flatvertrag;
+historisch kollidierte Statusdaten werden nicht nachträglich repariert.
+
+18 neue Regressionen prüfen die Engine, native HA-Qualität, CLI, JSON-Roundtrip,
+leere gegenüber fehlenden Maps, Original-Replay und Prozent-/Unicodekennungen.
+Die ursprüngliche Fehlanzeige und vermischte Statuswerte wurden separat am
+eingefrorenen Originalcode reproduziert; neue Feldassertions sind zusätzliche
+Vertragsprüfungen, keine weiteren Produktbefunde. Die betroffene Familie besteht
+430 Tests; der unabhängige Nachreview besteht 14 eigene sowie drei zusätzliche
+Original-Replayfälle und meldet keine verbleibenden Befunde. Die Vollsuite besteht
+**2.354 Tests ohne Skips**, **90,91 % kombinierte Abdeckung** bei unverändertem
+90-%-Gate und 23 SQLite-ResourceWarnings. Ruff, `pip check` und Dokuprüfung
+bestanden. Korrekturbelege: `artifacts/release-0.2.20/fixes-status/`; Vollsuite
+und Coverage: `r9-full-tests.log`, `r9-tests.xml`, `r9-coverage.json` im selben
+Releaseordner. Ein neuer Codex-Nachreview dieser Korrektur steht noch aus.
+
+R8-Receipt-SHA256: `03eebe97ce92ba6d1524546c06e02e8ac32fe371e8651865ef6f40cae11eb972`.
+Audit-SHA256: `78b275c7fd4a77095ba1fa87c9f070963bc2561d5c9d3e96618d3b632864013a`.
+Rohbelege: `reviews/private/release-0.2.20-codex-r8/`; Audit, CI und Build:
+`artifacts/release-0.2.20/codex-r8-closeout.json`, `ci-41052233817/` und `r8-build/`.
+Keine Veröffentlichung oder produktive Aktivierung ist erfolgt.
+
 ## Aktueller Releasebezug
 
 [0.2.19](../releases/release-0.2.19.md) aktualisiert die HA-Geräte-API und

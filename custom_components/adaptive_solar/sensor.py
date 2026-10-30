@@ -106,7 +106,7 @@ class AdaptiveSolarSensor(CoordinatorEntity, SensorEntity):
 
     _attr_has_entity_name = True
     _attr_should_poll = False
-    _unrecorded_attributes = frozenset({"forecast", "learning", "learning_horizon", "inputs", "model_status", "weather_errors", "weather_diagnostics", "resources", "archive_export", "training_intervals", "archive_points", "issued_at", "coverage_start", "coverage_end"})
+    _unrecorded_attributes = frozenset({"forecast", "learning", "learning_horizon", "inputs", "model_status", "inverter_status", "diagnostic_status", "weather_errors", "weather_diagnostics", "resources", "archive_export", "training_intervals", "archive_points", "issued_at", "coverage_start", "coverage_end"})
 
     def __init__(self, coordinator, entry, inverter_id, kind, day=0):
         super().__init__(coordinator)
@@ -198,8 +198,9 @@ class AdaptiveSolarSensor(CoordinatorEntity, SensorEntity):
         """
         residual, fallback = False, False
         result = self.coordinator.data
+        inverter_status = result.model_status if result.inverter_status is None else result.inverter_status
         for inv in self._inverters():
-            statuses = set(result.model_status.get(inv.id, "physics").split(";")) - {""}
+            statuses = set(inverter_status.get(inv.id, "physics").split(";")) - {""}
             active = any(status.startswith("residual_") for status in statuses)
             residual |= active
             meaningful = any(point.inverter_id == inv.id and point.baseline_w > 0
@@ -217,6 +218,7 @@ class AdaptiveSolarSensor(CoordinatorEntity, SensorEntity):
         are internal validation support, not future accuracy guarantees.
         """
         result = self.coordinator.data
+        inverter_status = result.model_status if result.inverter_status is None else result.inverter_status
         own = {inv.id for inv in self._inverters()}
         points = [point for point in result.points if point.inverter_id in own]
         stages = {}
@@ -224,7 +226,7 @@ class AdaptiveSolarSensor(CoordinatorEntity, SensorEntity):
             report = self.coordinator.learner_status.get(inverter_id, {})
             regimes = report.get("regimes", {"nwp": report})
             stages[inverter_id] = {
-                "published_statuses": sorted(set(result.model_status.get(inverter_id, "physics").split(";")) - {""}),
+                "published_statuses": sorted(set(inverter_status.get(inverter_id, "physics").split(";")) - {""}),
                 "validated_lead_support": {
                     name: {"state": regime.get("state", "unknown"), "lead_ranges": {
                         lead: {"min_hours": values["supported_lead_min_hours"],
@@ -349,7 +351,9 @@ class AdaptiveSolarSensor(CoordinatorEntity, SensorEntity):
                           "archive_export": self.coordinator.export.status,
                           "weather_errors_scope": "latest_provider_fetches_diagnostic_only",
                           "learning": self.coordinator.learner_status, "inputs": self.coordinator.input_quality,
-                          "model_status": result.model_status, "weather_errors": self.coordinator.client.errors,
+                          "model_status": result.model_status,
+                          "inverter_status": result.inverter_status, "diagnostic_status": result.diagnostic_status,
+                          "weather_errors": self.coordinator.client.errors,
                           "weather_diagnostics": weather_diagnostics if isinstance(weather_diagnostics, dict) else {},
                           "resources": getattr(self.coordinator, "resource_diagnostics", {}),
                           "training_intervals": len(self.coordinator.intervals), "archive_points": len(self.coordinator.archive)})

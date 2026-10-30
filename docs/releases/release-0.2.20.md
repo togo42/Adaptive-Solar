@@ -92,6 +92,11 @@ physische Messgüte. Format, Grenzen und Probelauf stehen im
   der Energieeinheit beendet die Zählerkontinuität; erst nach einem neuen
   echten Anker dürfen weitere Berichte wieder Messenergie bilden. Bestehende
   Historie bleibt erhalten, Attributänderungen allein liefern keine Energie.
+- Stufenstatus und technische Diagnosen besitzen getrennte Namensräume.
+  Frei gewählte Kennungen können dadurch keine GHI-Qualitätsanzeige mehr
+  verfälschen; mehrdeutige Trennzeichen in Diagnosebestandteilen werden eindeutig
+  kodiert. Bestehende Stufen-/Entitykennungen bleiben erhalten. Die bisherige
+  flache Statusdarstellung bleibt als Kompatibilitätsansicht verfügbar.
 
 ## Getrennte Installation und Rückwege vorbereiten
 

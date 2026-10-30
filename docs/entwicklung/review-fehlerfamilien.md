@@ -28,6 +28,10 @@ bleiben unverändert. Ein lokaler Subagentenreview ist kein Provider-Vollreview.
    der Workerarbeit laufen; zusätzlich tatsächliche Verfügbarkeit, gleichzeitige
    Messereignisse, Retention, Importe und Abschlussgrenzen prüfen. Kleine,
    begrenzte Zustandsübernahmen bleiben auf dem zuständigen Eventloop.
+   Bei Statusnamenskollisionen sowohl frei gewählte Kennungen gegen technische
+   Schlüssel als auch mehrdeutige zusammengesetzte Schlüssel prüfen. Produzent,
+   HA-Anzeige, JSON-Export und strikter Replayvergleich müssen denselben
+   kanonischen Vertrag verwenden; eine alte flache Ansicht ersetzt ihn nicht.
 4. Ein anderer Bearbeiter prüft die Korrektur und ihre Aufrufer gezielt. Befunde
    als konsolidierte Liste zurückgeben; die erste Entdeckung beendet die Suche
    innerhalb des vereinbarten Umfangs nicht. Gegenbeweise dürfen einen Befund

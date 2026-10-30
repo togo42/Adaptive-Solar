@@ -6,6 +6,7 @@ from datetime import datetime, time, timedelta
 from math import cos, exp, pi, sin
 from statistics import fmean
 from zoneinfo import ZoneInfo
+from urllib.parse import quote, unquote
 
 from .models import (ForecastPoint, ForecastResult, Observation, SiteConfig,
                      WeatherForecast, finite_number, midpoint_lead_hours, utc_time)
@@ -70,6 +71,11 @@ def _scale_irradiance(weather, gain):
                    dni_w_m2=weather.dni_w_m2 * gain, dhi_w_m2=weather.dhi_w_m2 * gain), gain
 
 
+def _diagnostic_id(value):
+    """Keep arbitrary ID segments distinct from diagnostic separators."""
+    return quote(value, safe="")
+
+
 def _without_uncertainty(status):
     return "residual_no_uncertainty" if status == "residual_empirical_calibration" else status
 
@@ -91,7 +97,7 @@ def _physical_members(config, members, inverter_id, start, end, status, gains=No
                     config, original, start=start, end=end, inverter_id=inverter_id, beam_shade_factor=beam_shade_factor
                 )[inverter_id]
         except PhysicsUnavailable as exc:
-            status[f"physics:{model}:{inverter_id}:{start.isoformat()}/{end.isoformat()}"] = f"unavailable:{exc}"
+            status[f"physics:{_diagnostic_id(model)}:{_diagnostic_id(inverter_id)}:{start.isoformat()}/{end.isoformat()}"] = f"unavailable:{exc}"
             continue
         result.append((model, adjusted, power, gain))
     return result
@@ -481,6 +487,7 @@ class ForecastEngine:
         config = self.config
         active_shading = self.shading if shading is None else shading
         status = {}
+        inverter_status = {}
         latest = {}
         for forecast in forecasts:
             if not isinstance(forecast, WeatherForecast):
@@ -489,15 +496,15 @@ class ForecastEngine:
                 continue
             age = issued_at - forecast.issued_at
             if age < timedelta(0) or age > WEATHER_MAX_AGE:
-                status[f"weather:{forecast.model}"] = "unavailable:future_or_stale"
+                status[f"weather:{_diagnostic_id(forecast.model)}"] = "unavailable:future_or_stale"
                 continue
             if forecast.model not in latest or forecast.issued_at > latest[forecast.model].issued_at:
                 latest[forecast.model] = forecast
         for model in config.weather_models:
             if model in latest:
-                status[f"weather:{model}"] = "available"
+                status[f"weather:{_diagnostic_id(model)}"] = "available"
             else:
-                status.setdefault(f"weather:{model}", "unavailable")
+                status.setdefault(f"weather:{_diagnostic_id(model)}", "unavailable")
         observations = tuple(observations)
         fresh = []
         inverter_ids = {v.id for v in config.inverters}
@@ -537,7 +544,7 @@ class ForecastEngine:
             except PhysicsUnavailable as exc:
                 for inverter in config.inverters:
                     for model, _ in members:
-                        status[f"physics:{model}:{inverter.id}:{start.isoformat()}/{end.isoformat()}"] = f"unavailable:{exc}"
+                        status[f"physics:{_diagnostic_id(model)}:{_diagnostic_id(inverter.id)}:{start.isoformat()}/{end.isoformat()}"] = f"unavailable:{exc}"
                 continue
             season = 2 * pi * midpoint.astimezone(ZoneInfo(config.timezone)).timetuple().tm_yday / 365.2425
             geometry_features = {"sun_elevation_deg": sun.elevation_deg,
@@ -585,7 +592,7 @@ class ForecastEngine:
                     continue
                 use_ghi = weight > 0 and all(model in ghi_gains for model, *_ in evaluated)
                 if weight > 0 and ghi_gains and not use_ghi:
-                    status[f"irradiance:{inverter.id}:{start.isoformat()}/{end.isoformat()}"] = "ignored:incomplete_reference_cohort"
+                    status[f"irradiance:{_diagnostic_id(inverter.id)}:{start.isoformat()}/{end.isoformat()}"] = "ignored:incomplete_reference_cohort"
                 if use_ghi:
                     evaluated = _physical_members(
                         config, [(model, point) for model, point, _, _ in evaluated],
@@ -657,7 +664,7 @@ class ForecastEngine:
                     # double-correct it. Skip only these mixed-mode targets.
                     reference = None
                     reference_status = "ignored:incomparable_learning_support"
-                _add_status(status, f"power_nowcast:{point.inverter_id}", reference_status)
+                _add_status(status, f"power_nowcast:{_diagnostic_id(point.inverter_id)}", reference_status)
             if reference is not None and reference.baseline_w > max(10.0, cap * 0.002):
                 begin = max(point.start, issued_at)
                 stop = min(point.end, issued_at + timedelta(hours=NOWCAST_HORIZON_HOURS))
@@ -675,7 +682,7 @@ class ForecastEngine:
                             issued_at, fresh, learner, ghi_regime, active_shading, reference)
                         if smoothed is not None:
                             raw_residual = smoothed
-                            _add_status(status, f"power_nowcast:{point.inverter_id}", "candidate:normalized_history")
+                            _add_status(status, f"power_nowcast:{_diagnostic_id(point.inverter_id)}", "candidate:normalized_history")
                     residual = max(-cap * 0.35, min(cap * 0.35, raw_residual))
                     correction = 0.5 * exp(-age / NOWCAST_DECAY_HOURS) * residual * weight
                     power = max(0.0, min(cap, point.power_w + correction))
@@ -688,7 +695,11 @@ class ForecastEngine:
             corrected.append(point)
             # Aggregate only final point statuses. An untouched calibrated
             # neighbor may retain calibration; a changed point may not.
-            _add_status(status, point.inverter_id, row_learning[point.start, point.end, point.inverter_id])
-        return ForecastResult(issued_at, tuple(corrected), status,
+            _add_status(inverter_status, point.inverter_id, row_learning[point.start, point.end, point.inverter_id])
+        # Retain ordinary legacy keys. Arbitrary stage IDs may also name a
+        # diagnostic, so only the separate maps are authoritative; stage wins
+        # in this necessarily lossy compatibility projection.
+        return ForecastResult(issued_at, tuple(corrected), {**{unquote(key): value for key, value in status.items()}, **inverter_status},
                               {model: tuple(points) for model, points in archived_members.items()},
-                              {model: latest[model].issued_at for model in archived_members})
+                              {model: latest[model].issued_at for model in archived_members},
+                              inverter_status=inverter_status, diagnostic_status=status)

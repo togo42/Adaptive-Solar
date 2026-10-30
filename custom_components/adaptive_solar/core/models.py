@@ -409,6 +409,8 @@ class ForecastResult:
     model_status: dict[str, str] = field(default_factory=dict)
     member_points: dict[str, tuple[ForecastPoint, ...]] = field(default_factory=dict)
     member_issued_at: dict[str, datetime] = field(default_factory=dict)
+    inverter_status: dict[str, str] | None = None
+    diagnostic_status: dict[str, str] | None = None
 
     def __post_init__(self):
         object.__setattr__(self, "issued_at", utc_time(self.issued_at, "issued_at"))
@@ -422,6 +424,12 @@ class ForecastResult:
                 raise ValueError("overlapping forecast intervals for inverter")
         object.__setattr__(self, "points", points)
         object.__setattr__(self, "model_status", dict(self.model_status))
+        if (self.inverter_status is None) != (self.diagnostic_status is None):
+            raise ValueError("both status namespaces must be supplied together")
+        for name in ("inverter_status", "diagnostic_status"):
+            value = getattr(self, name)
+            if value is not None:
+                object.__setattr__(self, name, dict(value))
         members = {}
         if set(self.member_points) != set(self.member_issued_at):
             raise ValueError("member points and source issue models must match")

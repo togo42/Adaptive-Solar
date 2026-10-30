@@ -1649,7 +1649,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self.engine.shading = shading
         self.learner_status = status
         if self.site.irradiance_entity_id:
-            self.input_quality["irradiance_nowcast"] = result.model_status.get("irradiance", "ignored:no_observation")
+            diagnostics = result.model_status if result.diagnostic_status is None else result.diagnostic_status
+            self.input_quality["irradiance_nowcast"] = diagnostics.get("irradiance", "ignored:no_observation")
         # This is actual local availability after the complete executor result
         # returned, including optional shadow computation. issued_at alone is
         # the earlier calculation origin and cannot prove a day/target cutoff.
