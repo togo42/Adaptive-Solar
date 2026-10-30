@@ -2,7 +2,9 @@
 
 Aktueller veröffentlichter und dokumentierter Release: **[0.2.19](release-0.2.19.md)**.
 Vorbereiteter, **unveröffentlichter Kandidat: [0.2.20](release-0.2.20.md)**;
-abschließender Review, Build und CI stehen noch aus.
+der Build des eingefrorenen Kandidaten bestand. CI: **bestanden**;
+Codex-Review: **akzeptiert, keine Befunde (`mergeable`)**.
+[Quellbindung und Grenzen](../entwicklung/pruefnachweise.md#releasekandidat-0220-aktueller-stand).
 Die Hinweise beschreiben Änderungen und den Upgradepfad der jeweiligen Version.
 Historische Testzahlen gelten ausschließlich für den damals geprüften Quellstand;
 siehe [Prüfnachweise](../entwicklung/pruefnachweise.md).

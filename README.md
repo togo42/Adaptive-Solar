@@ -29,8 +29,9 @@ Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/valid
 Er ergänzt einen ausschließlich offline nutzbaren Support-Guard, optierte
 Istwert-Qualitätsadapter mit Quellenbindung und Korrekturen für Archivaufnahme,
 Zeitbezüge und Vergleichsarme. Der HA-Lerner bleibt `ResidualLearner`; der Guard
-wird nicht aktiviert. Abschließender Codex-Review, Build und CI dieses
-Releasekandidaten stehen noch aus.
+wird nicht aktiviert. Der Build des eingefrorenen Kandidaten bestand.
+CI: **bestanden**; Codex-Review: **akzeptiert, keine Befunde (`mergeable`)**.
+[Quellbindung und Grenzen](docs/entwicklung/pruefnachweise.md#releasekandidat-0220-aktueller-stand).
 [Umfang, getrennte Installationswege und offene Freigaben](docs/releases/release-0.2.20.md).
 
 ## Installation und Bedienung

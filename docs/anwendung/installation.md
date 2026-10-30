@@ -151,7 +151,8 @@ Entity-IDs, Prognoseverfahren und Abhängigkeitspins bleiben erhalten.
 
 **Vorbereitung für den unveröffentlichten Kandidaten 0.2.20:**
 Die [Kandidatenhinweise](../releases/release-0.2.20.md) beschreiben den getrennten
-HA-Producer-/Archivhostpfad und die noch offenen Prüfungen. Bis zur Veröffentlichung
+HA-Producer-/Archivhostpfad, den gebundenen Prüfstand und die getrennten
+Aktivierungsschritte. Bis zur Veröffentlichung
 weiterhin einen veröffentlichten Release auswählen. Der Offline-Support-Guard
 wird durch ein späteres HA-Update nicht aktiviert; vorhandene Einträge und
 Lernhistorien weiterverwenden, keine Reinitialisierung oder direkten Änderungen

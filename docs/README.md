@@ -4,8 +4,9 @@ Die [Projektübersicht](../README.md) beschreibt Zweck und Einstieg. Die aktuell
 Anleitungen beschreiben den veröffentlichten Release **0.2.19** sowie ausdrücklich
 gekennzeichnete Erweiterungen des **unveröffentlichten Kandidaten 0.2.20**.
 Dessen [Releasevorbereitung](releases/release-0.2.20.md) trennt Offline-Guard,
-HA-Producer und optionalen Archivhost; abschließender Review, Build und CI sind
-noch offen. Veröffentlichte Versionen und historische Prüfungen stehen getrennt
+HA-Producer und optionalen Archivhost. Der Build des eingefrorenen Kandidaten
+bestand; CI: **bestanden**; Codex-Review: **akzeptiert, keine Befunde (`mergeable`)**.
+[Quellbindung und Grenzen](entwicklung/pruefnachweise.md#releasekandidat-0220-aktueller-stand). Veröffentlichte Versionen und historische Prüfungen stehen getrennt
 unter [Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).
 
 ## Installation und Anwendung

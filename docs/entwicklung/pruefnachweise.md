@@ -63,6 +63,42 @@ Main-Merge, Release oder produktives HA-/Hostdeployment. Die Auslagerung der
 Offlineanalyse bleibt der separat beschriebene Folgeschritt; Quellenpins werden
 nicht gelockert und die Guardpolicy bleibt unverändert.
 
+## Releasekandidat 0.2.20: aktueller Stand
+
+Stand: 30.10.2026; unveröffentlicht, eingefroren auf
+`13bc620f821f8a6c3f1c4cfbf6e1f21ef579b527`. Codex-Nachreview R9 mit
+**GPT-6.1-Sol/high**, CLI **0.166.0**: **akzeptiert, keine Befunde (`mergeable`)**.
+Das abgeschlossene Receipt bindet 218 öffentliche Originaltexte und 2.817.358
+Payloadbytes in 47 Quellblöcken; Initialisierung, Quellen und Schlussreview
+umfassen 49 vollständig abgeschlossene Turns. Native Vollständigkeits-/Kontext-/Abschlussprüfung:
+**bestanden, ohne Compaction, native Tools oder Hintergrundaufgaben**. Receipt-SHA256: `671f6e8fa9a740fb8140f1a926250807cbf51706e740d290ed654f5dea0021ae`;
+unabhängiger Audit-SHA256: `0ebe69c4732f139e7463809d945c29246a47fb93783261ed55cf3f3a65e179f8`. R4-/R6-/R7-/R8-Historie bleibt unverändert.
+Codex prüfte statisch und führte keine Tests aus. Lokale Reviewbelege:
+`reviews/private/release-0.2.20-codex-r9/` und
+`artifacts/release-0.2.20/codex-r9-closeout.json`.
+
+Lokal bestanden **2.354 Tests ohne Skips**, **90,91 % kombinierte Abdeckung**,
+das unveränderte 90-%-Gate, Ruff und `pip check`; 23 vorhandene SQLite-
+ResourceWarnings bleiben bestehen. [Reguläre CI auf demselben Commit](https://github.com/togo42/Adaptive-Solar/actions/runs/41055882245):
+**bestanden, 2.354 Tests ohne Skips und 90,91 % kombinierte Abdeckung**.
+
+Der neue Build enthält alle **41 Komponenten-Dateien** bytegleich in Wheel,
+sdist und Integrations-ZIP; Versionsprüfungen ergeben 0.2.20. Eine separate
+reguläre Wheelinstallation bestand **34 Modulimporte** aus dem Installationsziel.
+Vorhandene HA-Testabhängigkeiten wurden verwendet; neue Plattformauflösung und
+HA-Laufzeit sind damit nicht geprüft. Das Paketinventar enthält keine privaten
+Daten-/Review-/Artefaktverzeichnisse; frühere Builds blieben erhalten.
+Lokaler Buildreceipt: `artifacts/release-0.2.20/r9-build/build-verification.json`,
+SHA256 `bc011e69695c0879a38d8fb650f5cce6c8470a46f0f9a8e9ad35a80dd80cc635`;
+`artifacts/release-0.2.20/r9-build/dist/SHA256SUMS` bestand drei Prüfungen.
+
+Die anschließenden Statusdokumente (Projekt-/Doku-/Releaseübersicht,
+Installationsanleitung, 0.2.20-Hinweise und dieser Prüfstatus) liegen außerhalb
+des Reviews; Code und Tests bleiben bytegleich zum eingefrorenen Stand.
+Veröffentlicht bleibt 0.2.19; kein HA-/Hostdeployment oder Timerstart.
+Der Guard bleibt offline; Quellenvalidität, produktives Lernen und
+Prognoseüberlegenheit brauchen eigene Nachweise.
+
 ## Codex-Review des Releasekandidaten 0.2.20 und Befundkorrekturen
 
 Der mit dem veröffentlichten Stand 0.2.19 zusammengeführte Kandidat

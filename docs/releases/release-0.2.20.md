@@ -2,9 +2,10 @@
 
 Stand: 30.10.2026. **Vorbereitet, noch nicht veröffentlicht oder installiert.**
 Der veröffentlichte Release bleibt [0.2.19](release-0.2.19.md). Manifest und
-Paketmetadaten tragen bereits die Kandidatenversion 0.2.20. Abschließender
-Codex-Review, Releasebuild und CI dieses Kandidaten stehen noch aus;
-diese Hinweise sind keine Freigabe zur produktiven Aktivierung.
+Paketmetadaten tragen bereits die Kandidatenversion 0.2.20. Der Build des
+eingefrorenen Kandidaten bestand. CI: **bestanden**; Codex-Review:
+**akzeptiert, keine Befunde (`mergeable`)**. Die [Prüfnachweise](../entwicklung/pruefnachweise.md#releasekandidat-0220-aktueller-stand)
+binden Quellen und Artefakte. Diese Hinweise sind keine produktive Aktivierungsfreigabe.
 
 ## Änderungen gegenüber 0.2.19
 
@@ -145,14 +146,21 @@ Hostrelease und Konfiguration wiederherstellen; Originale und neue
 Qualitätsrevisionen bleiben als Evidenz erhalten. Negative Masken verlangen
 fachliche Klärung und werden nicht zur Ergebnisverbesserung gelöscht.
 
-## Offene Prüfung und Aussagegrenzen
+## Prüfung und Aussagegrenzen
 
-Die historischen [Prüfnachweise](../entwicklung/pruefnachweise.md) gelten für
-ihre jeweils gebundenen Quellen. Der abschließende Codex-Review für diesen
-zusammengeführten Kandidaten sowie dessen vollständige Tests, Build- und
-CI-Nachweise sind noch offen. Frühere Abnahmen werden nicht auf neue Bytes
-übertragen. Veröffentlichung, produktive Installation und reale Quellen-/Lernabnahme
-sind weitere getrennte Schritte.
+Der eingefrorene Stand `13bc620f821f8a6c3f1c4cfbf6e1f21ef579b527` bestand
+lokal **2.354 Tests ohne Skips**, **90,91 % kombinierte Abdeckung** und das
+unveränderte 90-%-Gate. [Reguläre CI](https://github.com/togo42/Adaptive-Solar/actions/runs/41055882245):
+**bestanden**. Codex-Review: **akzeptiert, keine Befunde (`mergeable`)**;
+native Abschlussprüfung: **bestanden, ohne Compaction, native Tools oder Hintergrundaufgaben**.
+
+Wheel, sdist und Integrations-ZIP enthalten alle 41 Komponenten-Dateien
+bytegleich; eine separate reguläre Wheelinstallation bestand alle 34 Modulimporte
+mit vorhandenen HA-Testabhängigkeiten. Das ist kein neuer Plattform- oder
+HA-Laufzeitnachweis. [Quellbindung und lokale Buildbelege](../entwicklung/pruefnachweise.md#releasekandidat-0220-aktueller-stand)
+enthalten die Grenzen. Nachfolgende Statusdokumente liegen außerhalb des Reviews;
+Code und Tests bleiben bytegleich zum eingefrorenen Stand. Veröffentlichung,
+produktive Installation und reale Quellen-/Lernabnahme bleiben getrennte Schritte.
 
 Ein synthetischer Probelauf zeigt nur die Verkabelung. Weder ein Review noch
 Tests, Hashpins oder Qualitätsableitung belegen physische Quellenvalidität,
