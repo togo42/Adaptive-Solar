@@ -93,6 +93,9 @@ Ein weiterer [Offline-Adapter qualifiziert Recorder-Iststunden](docs/archiv/istw
 aus Originalintervallen und belegten Quellenbindungen; ungeprüfte Quellen bleiben Diagnose.
 Der Qualitätsadapter unterstützt auch optionale fortlaufende Aufnahme mit
 Quellenpins je Originaldelta und einen lokalen Probelauf ohne HA-Zugriff.
+Für die fortlaufende Qualitätsprüfung werden vollständige Forecastoriginale
+einzeln geprüft und danach als kompakte Konfigurationsbelege aufbewahrt;
+die unveränderten Originale und alle Konfigurationswidersprüche bleiben gebunden.
 Die nachfolgende lokale Überarbeitung schützt auch Hoststatusziele, bündelt die
 Ausgabeauswahl der Auswerter und trennt die gemeinsame Qualitäts-Einlesehilfe
 von den CLIs. Der [Ablauf für Fehlerfamilien](docs/entwicklung/review-fehlerfamilien.md)
