@@ -332,3 +332,210 @@ runpy.run_path(script, run_name='__main__')
                             capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stderr
     assert "--actual-capture" in result.stdout
+
+
+class _OriginalEvents:
+    """Synthetic verified-envelope source with the real resolver lock boundary."""
+
+    def __init__(self, events):
+        self.events = events
+        self.iterating = False
+
+    def iter_events(self, *, source):
+        self.iterating = True
+        try:
+            yield from (e for e in self.events if e["source"] == source)
+        finally:
+            self.iterating = False
+
+    def resolve_events(self, identifiers, *, source, generation):
+        assert not self.iterating, "resolution must not acquire the active iterator's lock"
+        return [e for e in self.events if e["event_id"] in identifiers
+                and e["source"] == source and e["generation"] == generation]
+
+
+def _decisions(report):
+    return {"hours": report["hours"], "summary": report["summary"],
+            "masks": report["quality"]["intervals"], "binding_checks": report["binding_checks"]}
+
+
+@pytest.mark.parametrize("drift", [None, "site", "producer", "generation", "unknown_site_field"])
+def test_many_large_forecasts_preserve_every_configuration_conflict_without_retaining_arrays(monkeypatch, drift):
+    from custom_components.adaptive_solar.core.actual_quality import build_quality
+    from custom_components.adaptive_solar.core.archive import canonical_bytes
+    from tests.test_actual_quality import envelope
+
+    case = continuous_case()
+    for n in range(40):
+        payload = deepcopy(case[0][0]["payload"])
+        payload.update(issued_at=(case[3] + timedelta(minutes=n)).isoformat(), unused_weather_array="x" * 16384)
+        case[0].append(envelope("forecast_issued", payload, 100 + n, case[3] + timedelta(minutes=n + 1)))
+    if drift is not None:
+        # Contradictions after the actual window still invalidate the whole bound period.
+        for n in range(2):
+            event = deepcopy(case[0][-1])
+            event.update(event_id=f"late-conflict-{n}", sequence=900 + n,
+                         received_at=(case[4] + timedelta(hours=1, minutes=n + 1)).isoformat())
+            event["payload"]["issued_at"] = (case[4] + timedelta(hours=1, minutes=n)).isoformat()
+            if drift == "site":
+                event["payload"]["site"]["latitude"] += 1
+            elif drift == "unknown_site_field":
+                event["payload"]["site"]["foreign_parameter"] = True
+            elif drift == "producer":
+                event["payload"]["software"]["source_sha256"] = "b" * 64
+            else:
+                event["generation"] = "00000000-0000-0000-0000-000000000002"
+            case[0].append(rehash(event))
+    before = deepcopy(case[0])
+    raw = capture(start=case[3], end=case[4], received=case[-1])
+    now = case[-1] + timedelta(hours=2)
+    expected = build_quality(case[0], case[1], case[2], start=case[3], end=case[4], as_of=now, generated_at=now)
+    assert sum(len(canonical_bytes(e)) for e in case[0]) > 128 * 1024
+    monkeypatch.setattr(continuous_quality, "MAX_BYTES", 128 * 1024)
+    with freeze_time(now):
+        actual = continuous_quality.derive(_OriginalEvents(case[0]), raw, case[1])["quality_derivation"]
+    assert case[0] == before
+    assert _decisions(actual) == _decisions(expected)
+    assert len(actual["configuration_evidence"]) == 41 + (2 if drift else 0)
+    assert actual["event_set_hash_format"] == "original-envelope-reference-manifest-v1"
+    assert len(canonical_bytes(actual)) < 128 * 1024
+    if drift:
+        assert actual["binding_checks"][0]["configuration_conflicts"] == ["late-conflict-0", "late-conflict-1"]
+        assert all(h["mask_status"] == "invalid" for h in actual["hours"])
+
+
+def _chunked_case(monkeypatch):
+    from custom_components.adaptive_solar import archive_export
+    from tests.test_actual_quality import envelope
+
+    case = continuous_case()
+    anchor = case[0].pop(0)
+    monkeypatch.setattr(archive_export, "MAX_INLINE_BYTES", 1)
+    generated = []
+    for n, (kind, payload, received, identifier) in enumerate(archive_export.payload_events(
+            "forecast_issued", anchor["payload"], capture_actuals.utc(anchor["received_at"]), anchor["event_id"]), start=100):
+        event = envelope(kind, payload, n, received)
+        event["event_id"] = identifier
+        generated.append(rehash(event))
+    case[0][:] = generated + case[0]
+    return case
+
+
+@pytest.mark.parametrize("fault", ["missing", "corrupt", "later_receipt", "wrong_generation"])
+def test_chunk_original_faults_fail_closed_before_projection(monkeypatch, fault):
+    case = _chunked_case(monkeypatch)
+    part = next(e for e in case[0] if e["kind"] == "forecast_payload_chunk")
+    if fault == "missing":
+        case[0].remove(part)
+    elif fault == "corrupt":
+        part["payload"]["data_fragment"] = "corrupt"
+        rehash(part)
+    elif fault == "later_receipt":
+        part["received_at"] = case[3].isoformat()
+        rehash(part)
+    else:
+        part["generation"] = "00000000-0000-0000-0000-000000000002"
+        rehash(part)
+    raw = capture(start=case[3], end=case[4], received=case[-1])
+    with freeze_time(case[-1]), pytest.raises(ValueError):
+        continuous_quality.derive(_OriginalEvents(case[0]), raw, case[1])
+
+
+def test_chunk_originals_still_count_toward_event_limit(monkeypatch):
+    case = _chunked_case(monkeypatch)
+    monkeypatch.setattr(continuous_quality.actual_quality, "MAX_EVENTS", len(case[0]) - 1)
+    raw = capture(start=case[3], end=case[4], received=case[-1])
+    with freeze_time(case[-1]), pytest.raises(ValueError, match="budget"):
+        continuous_quality.derive(_OriginalEvents(case[0]), raw, case[1])
+
+
+def test_compact_configuration_is_immutable_and_json_cannot_claim_verification():
+    import json
+    from dataclasses import FrozenInstanceError, replace
+    from custom_components.adaptive_solar.core import actual_quality
+
+    case = continuous_case()
+    proof = actual_quality.configuration_from_forecast(case[0][0], retain_site=True)
+    case[0][0]["payload"]["site"]["latitude"] += 1
+    with pytest.raises(FrozenInstanceError):
+        proof._canonical = b"{}"
+    with pytest.raises(TypeError):
+        replace(proof, _canonical=b"{}")
+    args = dict(start=case[3], end=case[4], as_of=case[-1], generated_at=case[-1])
+    report = actual_quality.build_quality(case[0][1:], case[1], case[2], configurations=[proof], **args)
+    assert report["summary"]["roof"]["qualified_hours"] == 2
+    with pytest.raises(ValueError, match="verified originals"):
+        actual_quality.build_quality(case[0][1:], case[1], case[2], configurations=[json.loads(proof._canonical)], **args)
+    with pytest.raises(ValueError):
+        actual_quality.build_quality([json.loads(proof._canonical)], case[1], case[2], **args)
+
+
+def test_original_reference_hash_format_is_bound_into_quality_provenance():
+    from custom_components.adaptive_solar.core import actual_quality
+
+    case = continuous_case()
+    proof = actual_quality.configuration_from_forecast(case[0][0], retain_site=True)
+    report = actual_quality.build_quality(case[0][1:], case[1], case[2], configurations=[proof],
+                                          start=case[3], end=case[4], as_of=case[-1], generated_at=case[-1])
+    names = ("policy", "bindings_sha256", "mappings_sha256", "event_set_sha256", "as_of", "generated_at",
+             "event_set_hash_format", "configuration_evidence_sha256")
+    provenance = {name: report[name] for name in names}
+    assert report["quality"]["provenance"]["source"].endswith(actual_quality.digest(provenance))
+    del provenance["event_set_hash_format"]
+    assert not report["quality"]["provenance"]["source"].endswith(actual_quality.digest(provenance))
+
+
+def test_corruption_in_discarded_forecast_arrays_is_still_rejected():
+    case = continuous_case()
+    case[0][0]["payload"]["weather_arrays"] = [1, 2, 3]
+    rehash(case[0][0])
+    case[0][0]["payload"]["weather_arrays"][0] = 99
+    raw = capture(start=case[3], end=case[4], received=case[-1])
+    with freeze_time(case[-1]), pytest.raises(ValueError, match="checksum"):
+        continuous_quality.derive(_OriginalEvents(case[0]), raw, case[1])
+
+
+@pytest.mark.parametrize("collision", ["identity", "sequence"])
+def test_conflicting_originals_across_separate_projections_are_rejected(collision):
+    case = continuous_case()
+    duplicate = deepcopy(case[0][0])
+    duplicate["payload"]["unused_weather"] = [1]
+    if collision == "identity":
+        duplicate["sequence"] = 999
+    else:
+        duplicate["event_id"] = "different-event-on-same-sequence"
+    case[0].append(rehash(duplicate))
+    raw = capture(start=case[3], end=case[4], received=case[-1])
+    with freeze_time(case[-1]), pytest.raises(ValueError, match="conflicting event"):
+        continuous_quality.derive(_OriginalEvents(case[0]), raw, case[1])
+
+
+def test_future_configuration_conflict_becomes_visible_only_after_its_original_receipt():
+    case = continuous_case()
+    drift = deepcopy(case[0][0])
+    drift.update(event_id="later-received-configuration", sequence=999,
+                 received_at=(case[-1] + timedelta(seconds=1)).isoformat())
+    drift["payload"]["issued_at"] = case[4].isoformat()
+    drift["payload"]["software"]["source_sha256"] = "b" * 64
+    case[0].append(rehash(drift))
+    raw = capture(start=case[3], end=case[4], received=case[-1])
+    with freeze_time(case[-1]):
+        before = continuous_quality.derive(_OriginalEvents(case[0]), raw, case[1])
+    with freeze_time(case[-1] + timedelta(seconds=2)):
+        after = continuous_quality.derive(_OriginalEvents(case[0]), raw, case[1])
+    assert len(before["normalization"]["records"]) == 2
+    assert not after["normalization"]["records"]
+    assert after["quality_derivation"]["binding_checks"][0]["configuration_conflicts"] == [drift["event_id"]]
+
+
+def test_duplicate_internal_proofs_keep_the_original_anchor_and_one_conflict_identity():
+    from custom_components.adaptive_solar.core import actual_quality
+
+    case = continuous_case()
+    compact = actual_quality.configuration_from_forecast(case[0][0])
+    anchor = actual_quality.configuration_from_forecast(case[0][0], retain_site=True)
+    report = actual_quality.build_quality(case[0][1:], case[1], case[2], configurations=[anchor, compact],
+                                          start=case[3], end=case[4], as_of=case[-1], generated_at=case[-1])
+    assert report["summary"]["roof"]["qualified_hours"] == 2
+    assert len(report["configuration_evidence"]) == 1
+    assert report["original_event_count"] == len(case[0])

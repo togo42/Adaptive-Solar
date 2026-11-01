@@ -8,8 +8,10 @@ No interval energy is apportioned: Recorder remains the hourly energy source.
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 import hashlib
+import json
 
 from ..const import MAX_ENERGY_GAP_SECONDS, MEASUREMENT_CONTRACT
 from .archive import canonical_bytes, validate_envelope
@@ -32,6 +34,80 @@ _INVALIDATING_REASONS = {"conflicting_interval_evidence", "mixed_measurement_lin
                          "measurement_boundary_in_hour", "contradictory_archive_generation",
                          "contradictory_configuration_in_binding_period", "energy_above_bound_output_cap",
                          "contradictory_curtailment_configuration", "contradictory_interval_source_binding"}
+_CONFIGURATION_TOKEN = object()
+
+
+@dataclass(frozen=True, init=False)
+class _ForecastConfiguration:
+    """Internal immutable evidence, never a replacement original envelope."""
+
+    _canonical: bytes
+    _token: object
+
+    @property
+    def retained_bytes(self):
+        return len(self._canonical)
+
+
+def _reference(event):
+    return {key: value for key, value in event.items() if key != "payload"}
+
+
+def configuration_from_forecast(event, dependencies=(), *, retain_site=False):
+    """Verify complete originals before discarding irrelevant forecast arrays.
+
+    Only this Python factory issues the internal evidence type. JSON documents
+    cannot opt into verification; original envelope hashes stay on references.
+    """
+    originals = _events([event, *dependencies])
+    forecast = next(e for e in originals if (e["source"], e["event_id"]) == (event["source"], event["event_id"]))
+    if forecast["kind"] != "forecast_issued":
+        raise ValueError("expected an original forecast")
+    payload = _forecast(forecast, originals)["payload"]
+    value = {"schema": "verified-original-forecast-configuration-v1", "original": _reference(forecast),
+             "dependencies": [_reference(e) for e in originals
+                              if (e["source"], e["event_id"]) != (forecast["source"], forecast["event_id"])],
+             "issued_at": payload["issued_at"], "computed_at": payload.get("computed_at", payload["issued_at"]),
+             "site_sha256": digest(payload["site"]), "producer_sha256": payload["software"]["source_sha256"],
+             "anchor_site": payload["site"] if retain_site else None}
+    proof = object.__new__(_ForecastConfiguration)
+    object.__setattr__(proof, "_canonical", canonical_bytes(value))
+    object.__setattr__(proof, "_token", _CONFIGURATION_TOKEN)
+    return proof
+
+
+def _configuration_inputs(configurations, events):
+    if not isinstance(configurations, list) or any(e["kind"] != "qualified_interval" for e in events):
+        raise ValueError("configuration evidence requires original interval inputs")
+    records, references = [], [_reference(e) for e in events]
+    for proof in configurations:
+        if type(proof) is not _ForecastConfiguration or getattr(proof, "_token", None) is not _CONFIGURATION_TOKEN:
+            raise ValueError("configuration evidence must come from verified originals")
+        row = json.loads(proof._canonical)
+        references.append(row["original"])
+        references.extend(row["dependencies"])
+        records.append(row)
+        if len(references) > MAX_EVENTS:
+            raise ValueError("invalid event array or event limit")
+    identities, sequences = {}, {}
+    for ref in references:
+        identity = ref["source"], ref["event_id"]
+        sequence = ref["source"], ref["generation"], ref["sequence"]
+        if (identity in identities and identities[identity]["sha256"] != ref["sha256"]
+                or sequence in sequences and sequences[sequence] != ref["sha256"]):
+            raise ValueError("conflicting event identity or sequence")
+        identities[identity] = ref
+        sequences[sequence] = ref["sha256"]
+    def order(row):
+        return row["source"], row["generation"], row["sequence"]
+
+    unique = {}
+    for row in records:
+        ref = row["original"]
+        identity = ref["source"], ref["event_id"]
+        if identity not in unique or row["anchor_site"] is not None:
+            unique[identity] = row
+    return sorted(unique.values(), key=lambda row: order(row["original"])), sorted(identities.values(), key=order)
 
 
 def digest(value):
@@ -98,13 +174,14 @@ def _forecast(event, events):
     return result
 
 
-def _bindings(payload, events, mappings, as_of, generated):
+def _bindings(payload, events, mappings, as_of, generated, configurations=None):
     if (not isinstance(payload, dict) or set(payload) != {"schema", "bindings"}
             or payload["schema"] not in {BINDINGS_SCHEMA, CONTINUOUS_BINDINGS_SCHEMA} or not isinstance(payload["bindings"], list)
             or len(payload["bindings"]) > MAX_BINDINGS):
         raise ValueError("invalid binding document")
     continuous = payload["schema"] == CONTINUOUS_BINDINGS_SCHEMA
     by_id = {(e["source"], e["event_id"]): e for e in events}
+    config_by_id = {(e["original"]["source"], e["original"]["event_id"]): e for e in configurations or []}
     result, ids = [], set()
     for raw in payload["bindings"]:
         if not isinstance(raw, dict) or set(raw) != _BINDING_KEYS:
@@ -127,13 +204,14 @@ def _bindings(payload, events, mappings, as_of, generated):
         if any(old["inverter_id"] == row["inverter_id"] and a < old["end"] and old["start"] < b
                for old in result):
             raise ValueError("overlapping source bindings")
-        original = by_id.get((row["source"], row["config_event_id"]))
+        config = config_by_id.get((row["source"], row["config_event_id"]))
+        original = config["original"] if config is not None else by_id.get((row["source"], row["config_event_id"]))
         if original is None or original["generation"] != row["generation"] or original["kind"] != "forecast_issued":
             raise ValueError("missing same-source configuration anchor")
-        forecast = _forecast(original, events)
-        site_json = forecast["payload"]["site"]
+        forecast = _forecast(original, events) if config is None else None
+        site_json = forecast["payload"]["site"] if config is None else config["anchor_site"]
         site = SiteConfig.from_dict(site_json)
-        producer = forecast["payload"]["software"]["source_sha256"]
+        producer = forecast["payload"]["software"]["source_sha256"] if config is None else config["producer_sha256"]
         if digest(site_json) != _hash(row["config_sha256"]) or producer != _hash(row["producer_sha256"]):
             raise ValueError("configuration or producer pin mismatch")
         inverter = next((i for i in site.inverters if i.id == row["source_inverter_id"]), None)
@@ -218,9 +296,18 @@ def _intervals(events, binding, as_of):
     return sorted(unique.values(), key=lambda x: (x["start"], x["end"]))
 
 
-def _config_changes(events, binding, as_of):
+def _config_changes(events, binding, as_of, configurations=None):
     """An explicit contradictory snapshot overrides a positive attestation."""
     result = []
+    if configurations is not None:
+        for row in configurations:
+            event = row["original"]
+            if (event["source"] == binding["source"] and timestamp(event["received_at"]) <= as_of
+                    and binding["start"] <= timestamp(row["issued_at"]) < binding["end"]
+                    and (event["generation"] != binding["generation"] or row["site_sha256"] != binding["config_sha256"]
+                         or row["producer_sha256"] != binding["producer_sha256"])):
+                result.append(event["event_id"])
+        return result
     for event in events:
         if (event["kind"] != "forecast_issued" or event["source"] != binding["source"]
                 or timestamp(event["received_at"]) > as_of):
@@ -266,7 +353,7 @@ def _hour(intervals, binding, start, end):
     return covered.total_seconds(), reasons, evidence
 
 
-def build_quality(events, bindings, mappings, *, start, end, as_of, generated_at=None):
+def build_quality(events, bindings, mappings, *, start, end, as_of, generated_at=None, configurations=None):
     """Derive a new quality revision, retaining unverified hours as diagnostics.
 
     as_of bounds available input evidence. generated_at is the actual validation
@@ -281,8 +368,9 @@ def build_quality(events, bindings, mappings, *, start, end, as_of, generated_at
             or any(t.minute or t.second or t.microsecond for t in (start, end))):
         raise ValueError("invalid UTC target hours or evidence cutoff")
     events, mapping = _events(events), _mappings(mappings)
-    binding_rows = _bindings(bindings, events, mapping, as_of, generated)
-    prepared = {b["id"]: (_intervals(events, b, as_of), _config_changes(events, b, as_of)) for b in binding_rows}
+    configuration_rows, original_references = (None, None) if configurations is None else _configuration_inputs(configurations, events)
+    binding_rows = _bindings(bindings, events, mapping, as_of, generated, configuration_rows)
+    prepared = {b["id"]: (_intervals(events, b, as_of), _config_changes(events, b, as_of, configuration_rows)) for b in binding_rows}
     hours, masks = [], []
     summary = {scope: {"total_hours": 0, "covered_hours": 0, "qualified_hours": 0, "invalidated_hours": 0, "reasons": Counter()}
                for scope in mapping}
@@ -337,7 +425,9 @@ def build_quality(events, bindings, mappings, *, start, end, as_of, generated_at
     binding_checks = [{"id": b["id"], "sha256": b["binding_sha256"], "unavailable": b["unavailable"],
                        "configuration_conflicts": prepared[b["id"]][1]} for b in binding_rows]
     evidence_events = sorted(used.values(), key=lambda e: (e["source"], e["event_id"]))
-    bindings_hash, mappings_hash, events_hash = digest(bindings), digest(mappings), digest(events)
+    bindings_hash, mappings_hash = digest(bindings), digest(mappings)
+    events_hash = digest(events if original_references is None else original_references)
+    configuration_hash = None if configuration_rows is None else digest(configuration_rows)
     # All decision work, including potentially large evidence hashing/sorting,
     # precedes the actual availability timestamp. Injected times are for tests.
     completed = utc_time(generated_at or datetime.now(UTC))
@@ -346,11 +436,18 @@ def build_quality(events, bindings, mappings, *, start, end, as_of, generated_at
     generated = completed
     provenance = {"policy": POLICY, "bindings_sha256": bindings_hash, "mappings_sha256": mappings_hash,
                   "event_set_sha256": events_hash, "as_of": as_of.isoformat(), "generated_at": generated.isoformat()}
+    if configuration_rows is not None:
+        provenance.update(event_set_hash_format="original-envelope-reference-manifest-v1",
+                          configuration_evidence_sha256=configuration_hash)
     quality = {"schema_version": 1, "validated": True,
                "provenance": {"source": f"{POLICY}:sha256:{digest(provenance)}", "validated_at": generated.isoformat()},
                "intervals": masks}
-    return {"schema": REPORT_SCHEMA, **provenance, "summary": summary, "hours": hours, "quality": quality,
+    report = {"schema": REPORT_SCHEMA, **provenance, "summary": summary, "hours": hours, "quality": quality,
             "binding_checks": binding_checks,
             "evidence_events": evidence_events,
             "hash_semantics": "byte_integrity_not_authenticity_or_physical_source_certification",
             "energy_source": "unchanged_recorder_hourly_change", "operational_use": False}
+    if configuration_rows is not None:
+        report["configuration_evidence"] = configuration_rows
+        report["original_event_count"] = len(original_references)
+    return report

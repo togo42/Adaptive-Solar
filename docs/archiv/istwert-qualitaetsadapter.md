@@ -274,9 +274,24 @@ Writerlock umfasst Aufnahme und Ableitung. HA wird dabei nur gelesen.
 Die Auswahl umfasst alle aufbewahrten Originalintervalle der gebundenen Quellen,
 die Zielstunden berühren, sowie Anker und alle Konfigurationsaufnahmen in den
 Bindungsperioden. Andere Generationen werden als Widersprüche mitgeprüft.
-Payload-Chunks werden quellen-/generationsgebunden aufgelöst. Die Auswahl ist
-auf 500.000 Ereignisse und 512 MiB kanonische Ereignisbytes begrenzt; ein
-fehlender Anker oder überschrittenes Budget erzeugt keine Ersatzfreigabe.
+Payload-Chunks werden quellen-/generationsgebunden aufgelöst, nachdem der
+Archiviterator seinen Lock freigegeben hat. Vollständige Original-Envelopes,
+Payload-Chunks, rekonstruierter Payloadhash und Chronologie werden geprüft.
+Danach behält der fortlaufende Adapter je Forecast nur einen internen,
+unveränderlichen Konfigurationsbeleg: Originalidentität und Originalhash,
+Zeitangaben, Site-Digest und Producerwert; der gewählte Anker enthält zusätzlich
+die vollständige Sitekonfiguration. Wetter-, Ergebnis- und Zustandsarrays werden
+nicht für jeden Forecast im Qualitätskontext aufbewahrt. Kein Forecast in einer
+Bindungsperiode wird dadurch von der Widerspruchsprüfung ausgenommen; auch
+spätere Rückwechsel und andere Generationen bleiben mit ihren Original-IDs
+sichtbar. Ein JSON-Datensatz kann sich nicht selbst als geprüfter Beleg ausgeben.
+
+Die Auswahl bleibt auf 500.000 originale Ereignisse einschließlich referenzierter
+Chunks und 512 MiB des gehaltenen Qualitätskontexts begrenzt. Ein voller
+Forecast wird jeweils einzeln innerhalb dieses Budgets geprüft und danach
+kompaktiert; die kumulativ gelesenen Originalbytes dürfen deshalb größer sein.
+Vollständige Messintervalle werden unverändert übernommen. Ein fehlender Anker
+oder überschrittenes Budget erzeugt keine Ersatzfreigabe.
 Sehr lange Policies können vor Ablauf am Budget oder an der Retention scheitern;
 Perioden und Ankererhalt gehören zur Betriebsplanung. Die Auswahl scannt
 die aufbewahrten Batches der gebundenen Quellen; ihre Laufzeit muss im
@@ -285,6 +300,17 @@ Host-Probelauf am tatsächlichen Archivvolumen gemessen werden.
 Der archivierte Capture enthält die unveränderten Recorder-Rohdaten und deren
 ursprüngliche Empfangszeit, eine neue Normalisierung und `quality_derivation`
 mit Policykopie, Eingabe-/Programmhashes, Stundendiagnosen und Evidenzreferenzen.
+Für kompakte Forecastbelege bezeichnet `event_set_sha256` das nach Quelle,
+Generation und Sequenz sortierte Manifest der Originalidentitäten/-hashes;
+`event_set_hash_format=original-envelope-reference-manifest-v1` ist Teil der
+gehashten Qualitätsprovenienz. `original_event_count` nennt dessen Umfang.
+`configuration_evidence` enthält die geprüften Forecast-/Chunkreferenzen und
+`configuration_evidence_sha256` bindet diese Belege zusätzlich. Die großen
+Originalpayloads bleiben ausschließlich im unveränderten Originalarchiv.
+Der bisherige Offlineadapter mit vollständigen JSON-Eingaben behält seine
+bisherige Hashsemantik über die vollständigen Original-Envelopes. Die beiden
+Hashdarstellungen sind nicht austauschbar; Konfigurations-, Quellen-,
+Abdeckungs- und Freigaberegeln bleiben gleich.
 `validated_at` wird erst nach abgeschlossener Stundenprüfung, Evidenzsortierung
 und Hashberechnung erfasst. Beide Helfer übernehmen diese Abschlusszeit auch
 für Normalisierung und Labelverfügbarkeit; ein Cutoff während der Berechnung
@@ -296,6 +322,15 @@ Ableitung wird als fehlerhafter Job gemeldet, der Rohcapture dennoch bewahrt.
 Eine erfolgreiche Aufnahme mit null freigegebenen Stunden bleibt als solche
 sichtbar (`quality_summary` zählt Abdeckung, Freigaben und Invalidierungen).
 Bestehende negative Masken werden auch beim lokalen Probelauf nicht freigegeben.
+
+Eine reine Archivhostaktualisierung dieser Konfigurationsprüfung ändert keine
+produktive HA-Installation. Da das Kernmodul zum Komponentenquellhash gehört,
+kann der neue Hostquellhash vom weiterhin installierten HA-Producer abweichen.
+Der Producerpin einer Quellenpolicy muss weiterhin den tatsächlich auf HA
+installierten Producer bezeichnen; er darf nicht durch den Hosthash ersetzt
+werden. Alte Releasequellen und ihre unveränderte Laufzeit bleiben für
+historische strenge Replayprüfungen erhalten. Die Qualitätsreparatur lockert
+deren Quell-/Bibliotheksabgleich nicht und ist keine Quellenqualifikation.
 
 ### Lokalen Probelauf vorbereiten und abnehmen
 
