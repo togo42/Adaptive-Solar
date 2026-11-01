@@ -195,6 +195,96 @@ def test_real_collector_cli_reaches_host_exit_status_without_private_messages(co
     assert store.checkpoint("ha-one") == journal.page(store.checkpoint("ha-one"))["next_cursor"]
 
 
+def test_growing_native_journal_completes_fixed_prefix_through_host_cli(config, monkeypatch, tmp_path, capsys):
+    from contextlib import redirect_stderr, redirect_stdout
+    from datetime import UTC, datetime
+    from io import StringIO
+
+    from custom_components.adaptive_solar.core.archive import ArchiveJournal, ArchiveStore
+
+    config["entries"] = config["entries"][:1]
+    journal = ArchiveJournal(tmp_path / "journal")
+    now = datetime(2026, 10, 29, tzinfo=UTC)
+    for n in range(2):
+        journal.append("event", {"n": n}, now)
+    generation = journal.stats()["generation"]
+    exported = []
+
+    class NativeSocket:
+        def __init__(self):
+            self.sent, self.step = [], 0
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def send_json(self, value):
+            self.sent.append(value)
+
+        async def receive_json(self):
+            self.step += 1
+            if self.step == 1:
+                return {"type": "auth_required"}
+            if self.step == 2:
+                return {"type": "auth_ok"}
+            request = self.sent[-1]
+            assert request["domain"] == "adaptive_solar" and request["service"] == "export_archive"
+            cursor = request["service_data"].get("cursor")
+            page = journal.page(cursor, limit=1)
+            status = {**journal.stats(), "enabled": True, "state": "active", "last_error": None,
+                      "pending_events": 0, "inflight_events": 0}
+            exported.append(page)
+            # The source keeps advancing after every snapshot. No empty page is ever available.
+            journal.append("event", {"arrived_after_snapshot": len(exported)}, now)
+            return {"type": "result", "id": 1, "success": True,
+                    "result": {"response": {"page": page, "status": status}}}
+
+    class NativeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def ws_connect(self, *_args, **_kwargs):
+            return NativeSocket()
+
+    monkeypatch.setattr(collector.aiohttp, "ClientSession", NativeClient)
+    monkeypatch.setenv("HA_URL", "https://example.invalid")
+    monkeypatch.setenv("HA_TOKEN", "private-collector-token")
+    monkeypatch.delenv("CREDENTIALS_DIRECTORY", raising=False)
+    monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
+
+    def process(command, **_kwargs):
+        stdout, stderr = StringIO(), StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            code = collector.main(command[2:])
+        return subprocess.CompletedProcess(command, code, stdout.getvalue(), stderr.getvalue())
+
+    monkeypatch.setattr(host.subprocess, "run", process)
+    cfg = tmp_path / "data/host.json"
+    cfg.write_text(json.dumps(config))
+    assert host.main(["ha", "--config", str(cfg)]) == 0
+    report = json.loads(capsys.readouterr().out)
+    summary = report["commands"][0]["collector"]
+    assert report["complete"] and summary["complete"] and summary["end_confirmed"]
+    assert summary["pages"] == summary["events"] == len(exported) == 2
+    assert not summary["page_limit_reached"] and not summary["failures"]
+    assert all(page["events"] for page in exported)
+    store = ArchiveStore(tmp_path / "data/archive")
+    checkpoint = store.checkpoint("ha-one")
+    assert checkpoint == exported[-1]["next_cursor"] == f"{generation}:2"
+    originals = [{key: value for key, value in event.items() if key != "source"}
+                 for event in store.iter_events(source="ha-one")]
+    assert originals == [page["events"][0] for page in exported]
+    assert journal.stats()["next_sequence"] == 5
+    serialized = json.dumps(report)
+    assert all(private not in serialized for private in
+               ("ha-one", "entry-one", generation, checkpoint, "private-collector-token", "example.invalid"))
+
+
 def test_success_exit_without_verified_collector_evidence_is_not_complete(config, monkeypatch):
     monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
     mock_process(monkeypatch, iter([0, 0]))

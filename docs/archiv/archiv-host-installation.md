@@ -8,10 +8,19 @@ Die Statusdatei nennt nur feste Statuswerte, Zaehler und Fehlerbooleans;
 rohe Producerfehler, Endpunkte, Tokens und Quellen-IDs werden nicht ins
 Journal uebernommen. Bestaetigte Checkpoints bleiben fuer den naechsten
 Lauf erhalten. Normale Pufferretention ohne Cursorverlust zaehlt nicht
-als neue Abholluecke. Collector und Runner muessen gemeinsam aktualisiert
-werden; eine reine Codevorbereitung aendert keinen bestehenden Hostdienst.
+als neue Abholluecke. Für den HA-Collector kann der Abschluss die feste,
+aus dem ersten Exportstatus belegte Sequenzgrenze bestätigen. Neue Ereignisse
+verschieben diese Grenze nicht; ohne passende Metadaten bleibt eine leere
+Abschlussseite erforderlich. Ein erfolgreicher Lauf bedeutet daher nicht,
+dass die laufende Quelle dauerhaft leer ist. Details stehen im
+[Seiten- und Abschlussvertrag](archive-storage-contract.md#seiten-lücken-und-wiederanlauf).
+Collector und Runner müssen einen kompatiblen Statusvertrag verwenden;
+eine reine Codevorbereitung ändert keinen bestehenden Hostdienst. Die begrenzte
+HA-Sammlung nutzt vorhandene Producer-Metadaten und benötigt kein neues
+Seitenschema oder HA-Update. Ein bestehender Prüfplan mit festen Softwarepins
+muss vor einem Hostupdate abgeschlossen oder ausdrücklich neu festgelegt werden.
 
-Stand: 30.10.2026. Die Vorlagen unter `deploy/` und der Runner
+Stand: 01.11.2026. Die Vorlagen unter `deploy/` und der Runner
 `scripts/archive_host.py` bereiten den Hostbetrieb vor. Ihre Existenz bedeutet
 keine Aktivierung. HA-Exportoptionen und produktive Hoständerungen benötigen den
 konkreten Inbetriebnahmeauftrag. Grundlagen und Datenvertrag stehen in
