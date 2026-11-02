@@ -163,18 +163,27 @@ Datenverträge und Anwenderverhalten blieben unverändert.
 
 ## 4. Nächster begründeter Schritt
 
+Der [lokale Phasenmesshelfer](performance-qualitaetsphasen.md) ergänzt die
+synthetische Baseline um vollständige eingefrorene Archive und ausdrücklich
+gepinnten Quellcode. Ein vollständiger lokaler Vier-Bindungs-Fall und eine
+positive Kontrolle wurden damit gegen die versionspassenden historischen
+Referenzen geprüft. Die konkrete Eingabe-/Versionszuordnung und deren
+operatorbezogene Laufzeit- und Integritätsbelege bleiben in der privaten
+Betriebsdokumentation. Im geprüften Fall liegen die wesentlichen Kosten vor
+`build_quality`, insbesondere im Archivscan mit Originalvalidierung und in der
+Konfigurationsaufbereitung; die reine Stundensuche ist nachrangig.
+
 Die Gesamtlaufzeit des identifizierten nativen Istwert-Pilotlaufs in Phasen
 zerlegen. Seine Originalmenge und Payloadstruktur unterscheiden sich erheblich
 von der kleinen synthetischen Baseline; ein Laufzeitverhältnis zwischen diesen
 beiden Aufbauten wäre kein Beschleunigungsnachweis. Timerpausierung allein
 beweist keine Lockwartezeit von null.
 
-Zunächst die Kosten der Originalprüfung und der erst anschließenden
-Zeitselektion auf einer begrenzten eingefrorenen realen lokalen Kopie getrennt
-erfassen. Den passenden Quellstand einschließlich der bereits vorhandenen
-kompakten Konfigurationsbelege verwenden und das Ergebnis gegen dessen Referenz
-prüfen. Laufzeit einer Diagnoseprobe muss weiterhin Wartezeit und eigene Arbeit
-getrennt berichten.
+Als ersten Optimierungskandidaten den Aufwand des vollständigen Quellscans und
+der wiederholten kanonischen Originalvalidierung untersuchen. Den passenden
+Quellstand einschließlich der bereits vorhandenen kompakten Konfigurationsbelege
+als unveränderten Referenzarm erhalten. Laufzeit einer Diagnoseprobe muss
+weiterhin Wartezeit und eigene Arbeit getrennt berichten.
 
 Erst danach eine gezielte Batchauswahl als einzelnen Optimierungskandidaten
 bewerten. Konfigurationsanker, referenzierte Payloadteile, Gegenbelege aus

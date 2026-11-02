@@ -52,6 +52,7 @@ privaten Archivhost voraus; die Prognoseintegration benötigt diesen Host nicht.
 - [Entwicklung](entwicklung/entwicklung.md): Umgebung, Tests, Beiträge und Veröffentlichung.
 - [Performanceanalyse und Rust](entwicklung/performance-uebergabe.md): Codebefunde, offene Messfragen und Arbeitsauftrag für eine spätere Optimierung.
 - [Lokale Performance-Bestandsaufnahme](entwicklung/performance-bestandsaufnahme.md): synthetischer Messhelfer, Laufzeitbaseline und Grenzen der Hostzuordnung.
+- [Qualitätsableitung in Phasen messen](entwicklung/performance-qualitaetsphasen.md): eingefrorene lokale Archive, versionspassende Quellen und getrennte Referenz-/Phasenläufe.
 - [Validierung](entwicklung/validierung.md): prospektiver Messplan und hashgebundener Reviewablauf.
 - [Fehlerfamilien prüfen](entwicklung/review-fehlerfamilien.md): gemeinsame Nachprüfung, Inventur der Schreibwege und Grenzen fokussierter Reviews.
 - [Vergleichsaufnahme](entwicklung/benchmark-aufnahme.md): Recorder-Istwerte und Referenzprognosen.
