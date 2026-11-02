@@ -1,8 +1,8 @@
 # Adaptive Solar 0.2.21
 
-Stand: 02.11.2026, **lokaler Releasekandidat**. Veröffentlichung, Release-CI,
-Downloadprüfung und produktive Installation sind noch nicht abgeschlossen.
-Zuletzt veröffentlicht ist [0.2.20](release-0.2.20.md).
+Stand: 02.11.2026, **veröffentlicht als v0.2.21** auf Commit
+`2dd940c3aa1a00d7291228f24ebaac90b56eef14`.
+[GitHub-Release und Pakete](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.21).
 
 ## Änderungen
 
@@ -51,7 +51,7 @@ keine automatische physische Quellenqualifikation.
 ## Upgrade und Rückweg
 
 Für das HA-Update den bisherigen Komponentenstand und die vorhandenen Optionen
-sichern, nach Veröffentlichung 0.2.21 über HACS herunterladen und Core einmal
+sichern, 0.2.21 über HACS herunterladen und Core einmal
 neu starten. Bestehende Einträge weiterverwenden; anschließend Einträge,
 Entity-IDs, Optionen, Historiendaten, Prognosen, Konfiguration und Repairs prüfen.
 Das Nachtprofil wird erst durch eine ausdrückliche Optionswahl aktiv. Es liegt
@@ -89,15 +89,48 @@ Code-/Verhaltensreviews sind in den
 Die Releasevorbereitung ändert daran Versionsmetadaten und öffentliche
 Status-/Releasehinweise; sie ist kein neuer externer vollständiger Quellreview.
 
-Die vorhandene CI führt Python-3.14-/native HA-Tests mit Coverage sowie eine
-separate HA-freie Archivhostinstallation aus. Abgeschlossene CI älterer Commits
-ersetzt keinen Lauf des späteren Releasecommits. Wheel, sdist,
-Integrations-ZIP und SHA256SUMS sind aus genau diesem Releasecommit zu bauen,
-auf vollständige öffentliche Komponentenbytes zu prüfen und nach Veröffentlichung
-erneut herunterzuladen. Das Integrations-ZIP enthält die Komponenten-Dateien
-direkt an seiner Wurzel, einschließlich `manifest.json` und `LICENSE`.
+Der genaue Releasecommit bestand erneut die lokale Vollsuite mit 2.453 Tests
+und 91,05 % Coverage. Die CI für [main](https://github.com/togo42/Adaptive-Solar/actions/runs/41508881355)
+und [v0.2.21](https://github.com/togo42/Adaptive-Solar/actions/runs/41508881427)
+bestand einschließlich nativer HA-Tests und separater HA-freier Hostinstallation.
+Alle 42 Komponentendateien stimmen zwischen Quellstand, Wheel, sdist und
+Integrations-ZIP überein. Eine frische reguläre Wheelinstallation bestand
+Abhängigkeitsprüfung und 35 Modulimporte. Alle vier veröffentlichten Assets
+wurden erneut heruntergeladen und ihre SHA256-Werte verglichen. Das ZIP enthält
+die Komponenten-Dateien direkt an seiner Wurzel, einschließlich `manifest.json`
+und `LICENSE`. ZIP-SHA256:
+`ad4f726850fff4246b01d326dcbb97a2ed001a0a7026b68ac27aa38c2d86e701`.
 
 Diese Prüfungen und einzelne Größenproben belegen weder langfristige
 Speicherkapazität noch einen Prognosevorsprung, einen produktiven ML-Fit oder
-eine erfolgreiche spätere Installation. Ein tatsächlicher HA-/Hostreadback
-wird erst nach Durchführung separat dokumentiert.
+eine physische Quellenqualifikation. Die folgende Installationsprüfung ist
+ein eigener, begrenzter Laufzeitnachweis.
+
+## Installation und Erhaltungsprüfung
+
+Am 02.11.2026 wurde 0.2.21 über natives HACS installiert und mit genau einem
+Core-Neustart unter unverändertem **Core 2026.10.4** aktiviert. Eine geschützte
+native Konfigurations-/SSL-Sicherung ohne Recorderdatenbank sowie eine gezielte
+Komponenten-/Historienkopie wurden vorher geprüft. Ein Restore wurde nicht getestet.
+Alle 42 installierten Komponentendateien stimmen mit dem Versionstag überein.
+
+Die vier bestehenden Einträge wurden weiterverwendet und anschließend über ihre
+native Optionsverwaltung auf `night_sparse_v1` gestellt. Ausschließlich dieses
+Optionsfeld durfte abweichen. Die übrigen Optionen, Anlagen-/Messzuordnungen,
+80 Entity-/Unique-IDs, vier Geräte, acht Stores, Historienfingerprints,
+vorab abgegrenzte abgeschlossene Messintervalle und Tagesbeginnwerte einschließlich
+Kurven und Provenienz blieben erhalten. Ebenso unverändert sind Energy- und Dashboardzuordnungen.
+
+Die Laufzeitprüfung bestätigte gültige Eingänge und drei vollständige Folgetage
+je Anlage, HACS ohne ausstehendes Update, gültige Konfiguration und keine aktiven
+Repairs, Adaptive-Solar-Laufzeitfehler oder blockierenden Startaufrufe. Vier neue
+Originalprognosen tragen den passenden Producerquellhash. Für zwei der vier Quellen wurde
+bereits ein neues Messintervall an diesem Hash geprüft; für die übrigen wurde
+kein künstlicher Messwert erzeugt. Historische Pufferverdrängung bleibt als
+Producerstatus sichtbar; sie belegt keine neue Collectorlücke.
+
+Private Belege: `data/release-0.2.21-20261102/runtime-audit-final.json` und
+`additional-audit-final.json`. Diese Prüfungen belegen Softwareherkunft und
+Erhaltung beim Update; sie qualifizieren keine physische Messquelle und zeigen
+keinen Prognosevorsprung. Ein vollständiges Tag-/Nachtfenster zur Messung der
+tatsächlichen Einsparung steht nach der abendlichen Aktivierung noch aus.

@@ -63,7 +63,23 @@ Main-Merge, Release oder produktives HA-/Hostdeployment. Die Auslagerung der
 Offlineanalyse bleibt der separat beschriebene Folgeschritt; Quellenpins werden
 nicht gelockert und die Guardpolicy bleibt unverändert.
 
-## Release 0.2.20: aktueller Stand
+## Release 0.2.21: aktueller Stand
+
+Stand: 02.11.2026. [Release 0.2.21](../releases/release-0.2.21.md) ist auf
+`2dd940c3aa1a00d7291228f24ebaac90b56eef14` veröffentlicht. Seine lokale Vollsuite
+bestand 2.453 Tests ohne Skips bei 91,05 % Coverage; Main- und Tag-CI sind grün.
+Quell-/Paketvergleich, reguläre Wheelinstallation und Rückdownload aller Assets
+sind abgeschlossen. Die Releasehinweise trennen diese Nachweise von der
+HA-/Hostinstallation und ihren Erhaltungsprüfungen.
+
+Der vollständige historische Codex-Review von 0.2.20 gilt weiter ausschließlich
+für seinen damaligen Quellstand. Die späteren Hostkorrekturen und Sparprofile
+haben gezielte unabhängige Subagentenreviews und die genannten Tests durchlaufen;
+das ist kein erneuter vollständiger externer Quellreview.
+
+<a id="release-0220-aktueller-stand"></a>
+
+## Release 0.2.20: historischer Stand
 
 Stand: 30.10.2026. Die Veröffentlichung ist unter
 [Tag v0.2.20](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.20)

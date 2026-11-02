@@ -17,12 +17,12 @@ Temperatur, Wind, horizontale Globalstrahlung und PV-Leistung unterstützen
 kurzfristige Korrekturen. Ohne qualifizierte Lernhistorie bleibt die Physik aktiv.
 Ein gemeinsamer Zähler kann keine Einzelstringverluste identifizieren.
 
-**Releasekandidat 0.2.21, Stand 02.11.2026.** Er ergänzt getrennte
+**Release 0.2.21, Stand 02.11.2026.** Er ergänzt getrennte
 Archivaufnahmeintervalle, kompakte Qualitätsdiagnosen und ein optionales
 Nachtprofil sowie begrenzte Qualitätsauswahl und HA-Collectorläufe. Vollständige
-Standardprofile, native Messung und Lerngates bleiben erhalten. Veröffentlichung,
-Release-CI und produktive Installation sind noch nicht bestätigt; zuletzt
-veröffentlicht ist [0.2.20](docs/releases/release-0.2.20.md).
+Standardprofile, native Messung und Lerngates bleiben erhalten. Version 0.2.21
+ist veröffentlicht und über HACS mit Erhaltungsprüfung installiert; die CI für
+`main` und den Versionstag ist erfolgreich.
 [Änderungen, Prüfstand und Upgrade](docs/releases/release-0.2.21.md).
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
@@ -123,10 +123,12 @@ Originaldateien und ein wiederaufbaubarer SQLite-Index sind die Speicherbasis.
 nach Pilotdaten und erneut nach drei und sechs Monaten bewertet werden.
 Reproduzierbarer Replay und Ensemblequantile ersetzen keine lokal gemessene Güte.
 
-Der Releasekandidat 0.2.21 bietet [Speichersparprofile](docs/archiv/speichersparprofile.md):
+Release 0.2.21 bietet [Speichersparprofile](docs/archiv/speichersparprofile.md):
 getrennte Aufnahmeintervalle für Istwerte und Referenzprognosen, kompakte
 Qualitätsberichte und eine optionale reduzierte Nachtdiagnostik. Bestehende
-Einstellungen bleiben erhalten; die Profile sind noch nicht produktiv abgenommen.
+Einstellungen bleiben ohne ausdrückliche Auswahl erhalten. Das Nachtprofil ist
+in einer Installation mit Erhaltungsprüfung aktiviert; ein vollständiges
+Tag-/Nachtfenster zur Verbrauchsmessung steht noch aus.
 
 ## Recherche und Quellen
 

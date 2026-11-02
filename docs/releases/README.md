@@ -1,9 +1,9 @@
 # Adaptive Solar: Versionshinweise
 
-Aktueller dokumentierter Release: **[0.2.20](release-0.2.20.md)**.
-Vorbereiteter Kandidat: **[0.2.21](release-0.2.21.md)**; Veröffentlichung,
-Release-CI und Installation sind noch nicht abgeschlossen.
-[Quellabnahme und Releaseprüfung](../entwicklung/pruefnachweise.md#release-0220-aktueller-stand)
+Aktueller dokumentierter Release: **[0.2.21](release-0.2.21.md)**.
+Veröffentlichung, CI für `main` und Versionstag sowie HA-Installation mit
+Erhaltungsprüfung sind abgeschlossen.
+[Quellabnahme und Releaseprüfung](release-0.2.21.md#prüfung-und-veröffentlichungsgrenzen)
 binden Review, Tests und Artefakte an ihre jeweiligen Quellstände.
 Die Hinweise beschreiben Änderungen und den Upgradepfad der jeweiligen Version.
 Historische Testzahlen gelten ausschließlich für den damals geprüften Quellstand;
@@ -11,7 +11,7 @@ siehe [Prüfnachweise](../entwicklung/pruefnachweise.md).
 
 | Version | Schwerpunkt |
 | --- | --- |
-| [0.2.21 – Kandidat](release-0.2.21.md) | Kompakte Qualitätsdiagnosen, getrennte Archivintervalle, optionales Nachtprofil und begrenzte Collectorläufe |
+| [0.2.21](release-0.2.21.md) | Kompakte Qualitätsdiagnosen, getrennte Archivintervalle, optionales Nachtprofil und begrenzte Collectorläufe |
 | [0.2.20](release-0.2.20.md) | Offline-Support-Guard, optierte Istwert-Quellenbindung und Aufnahme-/Zeitkorrekturen |
 | [0.2.19](release-0.2.19.md) | Aktuelle HA-Geräte-API und explizite Servicevalidierung/-Empfangszeit |
 | [0.2.18](release-0.2.18.md) | Gespeicherte Tagesbeginn-Stundenkurven und Archivhelfer |
