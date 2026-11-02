@@ -1,7 +1,8 @@
 # Sparsamere Archivierung vorbereiten
 
-Stand: 02.11.2026, vorbereiteter Entwicklungsstand, noch keine Release- oder
-Betriebsfreigabe. Die normalen Prognosen und das aktive Lernen benötigen nicht
+Stand: 02.11.2026, Bestandteil des [Releasekandidaten 0.2.21](../releases/release-0.2.21.md).
+Lokal geprüft; Veröffentlichung, Release-CI und produktive Aktivierung sind noch
+nicht bestätigt. Die normalen Prognosen und das aktive Lernen benötigen nicht
 die gesamte optionale Langzeitdiagnostik. Dieses Profil reduziert deren Umfang,
 ohne Messintervalle, Lernschwellen oder echte Empfangszeiten umzudeuten.
 
@@ -94,7 +95,7 @@ bewusst ausgelassenen Diagnosemeldungen oder Zwischenrevisionen.
 
 Zuerst bereits laufende, eingefrorene Auswertungen abschließen. Danach Host- und
 HA-Änderung getrennt aktivieren und prüfen: Die Hoständerung benötigt keinen
-HA-Neustart. Das Nachtprofil benötigt die vorbereitete HA-Version und eine
+HA-Neustart. Das Nachtprofil benötigt die HA-Version 0.2.21 und eine
 explizite Optionsänderung. Ein neuer HA-Quellstand hat einen neuen Producerhash;
 historische Quellenbindungen dürfen nicht stillschweigend auf ihn umgeschrieben
 werden. Neue Zeitabschnitte müssen passend geprüft und gebunden werden.

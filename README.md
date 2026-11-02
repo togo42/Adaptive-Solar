@@ -17,19 +17,20 @@ Temperatur, Wind, horizontale Globalstrahlung und PV-Leistung unterstützen
 kurzfristige Korrekturen. Ohne qualifizierte Lernhistorie bleibt die Physik aktiv.
 Ein gemeinsamer Zähler kann keine Einzelstringverluste identifizieren.
 
-**Dokumentierter Release: 0.2.20, Stand 30.10.2026.** Er ergänzt einen
-separaten Offline-Support-Guard, optionale Istwert-Qualitätsaufnahme mit
-Quellenbindung sowie Archiv-, Zeit- und Einheitenkorrekturen. Der HA-Lerner
-bleibt `ResidualLearner`; der Guard bleibt offline.
-[Änderungen und Upgrade](docs/releases/release-0.2.20.md),
-[Quellabnahme und Releaseprüfung](docs/entwicklung/pruefnachweise.md#release-0220-aktueller-stand).
+**Releasekandidat 0.2.21, Stand 02.11.2026.** Er ergänzt getrennte
+Archivaufnahmeintervalle, kompakte Qualitätsdiagnosen und ein optionales
+Nachtprofil sowie begrenzte Qualitätsauswahl und HA-Collectorläufe. Vollständige
+Standardprofile, native Messung und Lerngates bleiben erhalten. Veröffentlichung,
+Release-CI und produktive Installation sind noch nicht bestätigt; zuletzt
+veröffentlicht ist [0.2.20](docs/releases/release-0.2.20.md).
+[Änderungen, Prüfstand und Upgrade](docs/releases/release-0.2.21.md).
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
 
 ## Installation und Bedienung
 
 1. [Plattform und Abhängigkeiten prüfen](docs/anwendung/installation.md).
-   HACS-Mindestversion ist Core **2026.10.2**; die vollständige Suite für 0.2.20
+   HACS-Mindestversion ist Core **2026.10.2**; der Funktionsstand für 0.2.21
    wurde unter **2026.10.4 / Python 3.14** geprüft. Frühere Nachweise für .2/.3
    sind historisch. Für HAOS ist bislang nur **amd64 / CPython 3.14 / Musl**
    mit separat bereitgestellter Binärbasis qualifiziert;
@@ -122,7 +123,7 @@ Originaldateien und ein wiederaufbaubarer SQLite-Index sind die Speicherbasis.
 nach Pilotdaten und erneut nach drei und sechs Monaten bewertet werden.
 Reproduzierbarer Replay und Ensemblequantile ersetzen keine lokal gemessene Güte.
 
-Der vorbereitete Entwicklungsstand bietet [Speichersparprofile](docs/archiv/speichersparprofile.md):
+Der Releasekandidat 0.2.21 bietet [Speichersparprofile](docs/archiv/speichersparprofile.md):
 getrennte Aufnahmeintervalle für Istwerte und Referenzprognosen, kompakte
 Qualitätsberichte und eine optionale reduzierte Nachtdiagnostik. Bestehende
 Einstellungen bleiben erhalten; die Profile sind noch nicht produktiv abgenommen.

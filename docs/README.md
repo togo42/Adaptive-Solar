@@ -1,10 +1,11 @@
 # Adaptive Solar: Dokumentation
 
 Die [Projektübersicht](../README.md) beschreibt Zweck und Einstieg. Die aktuellen
-Anleitungen und Datenverträge beziehen sich auf **0.2.20**. Die
-[Releasehinweise](releases/release-0.2.20.md) trennen Offline-Guard, HA-Producer
-und optionalen Archivhost. [Quellabnahme und Releaseprüfung](entwicklung/pruefnachweise.md#release-0220-aktueller-stand)
-binden ihre Nachweise; ältere Versionen und Prüfungen bleiben historisch unter
+Anleitungen und Datenverträge beschreiben den **Releasekandidaten 0.2.21**;
+Veröffentlichung und produktive Installation stehen noch aus. Die
+[Releasehinweise](releases/release-0.2.21.md) trennen HA-Nachtprofil,
+optionalen Archivhost und ihre Prüfgrenzen. Zuletzt veröffentlicht ist
+[0.2.20](releases/release-0.2.20.md). Ältere Versionen und Prüfungen bleiben historisch unter
 [Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).
 
 ## Installation und Anwendung
