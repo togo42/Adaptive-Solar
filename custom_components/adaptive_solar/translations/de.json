@@ -15,9 +15,13 @@
           "irradiance_entity_id": "Horizontale Globalstrahlung außen (optional, unverschattet)",
           "archive_export": "Originaleingaben archivieren (privater Exportpuffer)",
           "physics_substeps": "Physik-Teilintervalle (1 = bisherig, >1 = Kandidat)",
-          "power_nowcast_window_minutes": "Nowcast-Glättungsfenster (0 = aus)"
+          "power_nowcast_window_minutes": "Nowcast-Glättungsfenster (0 = aus)",
+          "archive_source_report_profile": "Diagnoseumfang im Originalexport"
         },
-        "description": "Nur private, nichtkommerzielle Nutzung der kostenlosen Open-Meteo-API. Bestehende Wechselrichter und Strings werden beim Bearbeiten nacheinander angezeigt."
+        "description": "Nur private, nichtkommerzielle Nutzung der kostenlosen Open-Meteo-API. Bestehende Wechselrichter und Strings werden beim Bearbeiten nacheinander angezeigt.",
+        "data_description": {
+          "archive_source_report_profile": "Bei „Nachts sparsam“ werden gleichbleibende Nachtwerte seltener für die Diagnose gespeichert. Prognose, Messwerterfassung und Lernen bleiben unverändert. Wirkt nur bei aktiviertem Originalexport."
+        }
       },
       "inverter": {
         "title": "Wechselrichter",
@@ -95,9 +99,13 @@
           "irradiance_entity_id": "Horizontale Globalstrahlung außen (optional, unverschattet)",
           "archive_export": "Originaleingaben archivieren (privater Exportpuffer)",
           "physics_substeps": "Physik-Teilintervalle (1 = bisherig, >1 = Kandidat)",
-          "power_nowcast_window_minutes": "Nowcast-Glättungsfenster (0 = aus)"
+          "power_nowcast_window_minutes": "Nowcast-Glättungsfenster (0 = aus)",
+          "archive_source_report_profile": "Diagnoseumfang im Originalexport"
         },
-        "description": "Nur private, nichtkommerzielle Nutzung der kostenlosen Open-Meteo-API. Bestehende Wechselrichter und Strings werden beim Bearbeiten nacheinander angezeigt."
+        "description": "Nur private, nichtkommerzielle Nutzung der kostenlosen Open-Meteo-API. Bestehende Wechselrichter und Strings werden beim Bearbeiten nacheinander angezeigt.",
+        "data_description": {
+          "archive_source_report_profile": "Bei „Nachts sparsam“ werden gleichbleibende Nachtwerte seltener für die Diagnose gespeichert. Prognose, Messwerterfassung und Lernen bleiben unverändert. Wirkt nur bei aktiviertem Originalexport."
+        }
       },
       "inverter": {
         "title": "Wechselrichter",
@@ -207,6 +215,12 @@
       "options": {
         "ac": "AC-Wechselrichterausgang",
         "dc": "DC-Solarladereglerausgang (MPPT)"
+      }
+    },
+    "source_report_profile": {
+      "options": {
+        "full": "Vollständig (Standard)",
+        "night_sparse_v1": "Nachts sparsam"
       }
     }
   }

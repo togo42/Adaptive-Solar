@@ -21,7 +21,7 @@ from scripts.archive import collection_summary  # noqa: E402
 from scripts.replay_paths import validate_output  # noqa: E402
 
 GIB = 1024 ** 3
-JOBS = ("ha", "weather", "observations", "retention", "status")
+JOBS = ("ha", "weather", "actuals", "references", "observations", "retention", "status")
 INPUT_PATHS = ("site_json", "actual_config", "reference_config", "quality", "quality_bindings")
 
 
@@ -90,17 +90,29 @@ def commands(job, config, archive):
         return [[python, str(ROOT / "scripts/capture_weather.py"), "--archive", str(archive),
                  "--source", config["weather_source"], "--site-json", str(private_path(config["site_json"])),
                  "--hours", "193"]]
-    if job == "observations":
-        if config.get("quality") and config.get("quality_bindings"):
+    if job in {"actuals", "references", "observations"}:
+        actuals = job != "references"
+        references = job != "actuals"
+        if actuals and config.get("quality") and config.get("quality_bindings"):
             raise ValueError("Choose static quality or continuous bindings")
-        if config.get("quality_bindings") and not config.get("actual_config"):
+        if actuals and config.get("quality_bindings") and not config.get("actual_config"):
             raise ValueError("Continuous quality requires actual mapping")
+        if job == "actuals" and not config.get("actual_config"):
+            raise ValueError("Actual mapping required")
+        if job == "references" and not config.get("reference_config"):
+            raise ValueError("Reference mapping required")
+        if actuals and config.get("quality_diagnostics", "full") not in ("compact", "full"):
+            raise ValueError("Invalid quality diagnostics profile")
         command = [python, str(ROOT / "scripts/archive_observations.py"), "--archive", str(archive),
                    "--source", config["observations_source"], "--lookback-hours", "72", "--lag-minutes", "10"]
         for key, option in (("actual_config", "--actual-config"), ("reference_config", "--reference-config"),
                             ("quality", "--quality"), ("quality_bindings", "--quality-bindings")):
+            if (key == "reference_config" and not references) or (key != "reference_config" and not actuals):
+                continue
             if config.get(key):
                 command.extend([option, str(private_path(config[key]))])
+        if actuals and "quality_diagnostics" in config:
+            command.extend(["--quality-diagnostics", config["quality_diagnostics"]])
         if not config.get("actual_config") and not config.get("reference_config"):
             raise ValueError("Observation mapping required")
         return [command]
@@ -150,7 +162,7 @@ def run(job, config, *, config_path=None):
     with (state / "writer.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         try:
-            env = child_env() if job in {"ha", "observations"} else os.environ.copy()
+            env = child_env() if job in {"ha", "actuals", "references", "observations"} else os.environ.copy()
             planned = commands(job, config, archive)
             for command in planned:
                 report["capacity"] = capacity(archive, config)

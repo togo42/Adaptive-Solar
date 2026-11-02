@@ -8,6 +8,14 @@ Die [Speicherentscheidung](archiv-speicherung-und-transport.md) hält fest:
 zunächst Originaldateien und SQLite; PostgreSQL bei späterem Bedarf als
 zusätzliche Abfrageebene, ohne die Originale aufzugeben.
 
+Der vorbereitete Entwicklungsstand vom 02.11.2026 ergänzt
+[Speichersparprofile](speichersparprofile.md). Das kompakte Qualitätsberichtschema
+kennzeichnet bewusst ausgelassene Diagnosebeleglisten, während die bestehenden
+Capture-/Chunkumschläge und Leser erhalten bleiben. Das optionale Nachtprofil
+reduziert nur zukünftige zusätzliche Rohberichte und kennzeichnet seinen
+geringeren Diagnoseumfang. Bestehende Originale, Pins und Retention werden durch
+beide Optionen nicht umgeschrieben.
+
 ## Datenvertrag und Grenzen
 
 ### Prognose- und Lernzustand ab 0.2.16

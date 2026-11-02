@@ -19,7 +19,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from custom_components.adaptive_solar.core.archive import ArchiveError, ArchiveJournal, ArchiveStore, canonical_bytes  # noqa: E402
-from scripts import capture_actuals, capture_ha, continuous_quality  # noqa: E402
+from scripts import capture_actuals, capture_ha, continuous_quality, quality_capture  # noqa: E402
 from scripts.archive import collect, producer_status  # noqa: E402
 
 CHUNK_BYTES = 256 * 1024
@@ -130,10 +130,12 @@ def captures_from_archive(store, *, source, kind, dataset=None):
 
 async def archive_observations(store, *, source, ha_url, token, actual_mappings=None,
                                reference_mappings=None, quality=None, quality_bindings=None, cutoff=None, now=None,
-                               lookback_hours=72, lag_minutes=10, timeout=30):
+                               lookback_hours=72, lag_minutes=10, timeout=30, quality_diagnostics="full"):
     """Independent streams preserve useful reads when another source fails."""
     if not actual_mappings and not reference_mappings:
         raise ArchiveError("At least one explicit observation mapping is required")
+    if not isinstance(quality_diagnostics, str) or quality_diagnostics not in {"full", "compact"}:
+        raise ArchiveError("Unknown quality diagnostics profile")
     if not isinstance(source, str) or not source.strip() or len(source) > 200:
         raise ArchiveError("A bounded stable source identity is required")
     if quality_bindings is not None and not actual_mappings:
@@ -174,6 +176,8 @@ async def archive_observations(store, *, source, ha_url, token, actual_mappings=
                 try:
                     if quality_bindings is not None:
                         capture = await asyncio.to_thread(continuous_quality.derive, store, raw, quality_bindings)
+                        if quality_diagnostics == "compact":
+                            capture = await asyncio.to_thread(quality_capture.compact_capture, capture)
                         if len(canonical_bytes(capture)) > MAX_CAPTURE_BYTES:
                             raise ArchiveError("Quality report exceeds observation budget")
                     else:
@@ -228,6 +232,8 @@ def main(argv=None):
     masks.add_argument("--quality", type=Path, help="Explicit interval quality evidence; absent remains unknown")
     parser.add_argument("--cutoff", help="Aware fixed reference forecast deadline")
     parser.add_argument("--lookback-hours", type=int, default=72)
+    parser.add_argument("--quality-diagnostics", choices=("full", "compact"), default="full",
+                        help="Stored continuous-quality diagnostics; compact omits detailed evidence lists")
     parser.add_argument("--lag-minutes", type=int, default=10)
     parser.add_argument("--timeout", type=float, default=30)
     args = parser.parse_args(argv)
@@ -240,7 +246,8 @@ def main(argv=None):
         report = asyncio.run(archive_observations(ArchiveStore(_private_path(args.archive)), source=args.source,
             ha_url=os.environ.get("HA_URL", ""), token=os.environ.get("HA_TOKEN", ""),
             actual_mappings=actual, reference_mappings=reference, quality=read(args.quality), quality_bindings=read(args.quality_bindings), cutoff=cutoff,
-            lookback_hours=args.lookback_hours, lag_minutes=args.lag_minutes, timeout=args.timeout))
+            lookback_hours=args.lookback_hours, lag_minutes=args.lag_minutes, timeout=args.timeout,
+            quality_diagnostics=args.quality_diagnostics))
         print(json.dumps(report, sort_keys=True))
         return 0 if report["complete"] else 1
     except (ArchiveError, capture_actuals.CaptureError, capture_ha.CaptureError, OSError, ValueError, sqlite3.Error):

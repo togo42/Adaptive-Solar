@@ -7,6 +7,7 @@
   "site_json": "data/site.json",
   "actual_config": "data/actual-mapping.json",
   "reference_config": "data/reference-mapping.json",
+  "quality_diagnostics": "compact",
   "min_free_bytes": 2147483648,
   "operation_reserve_bytes": 1073741824,
   "min_free_percent": 15,

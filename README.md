@@ -122,6 +122,11 @@ Originaldateien und ein wiederaufbaubarer SQLite-Index sind die Speicherbasis.
 nach Pilotdaten und erneut nach drei und sechs Monaten bewertet werden.
 Reproduzierbarer Replay und Ensemblequantile ersetzen keine lokal gemessene Güte.
 
+Der vorbereitete Entwicklungsstand bietet [Speichersparprofile](docs/archiv/speichersparprofile.md):
+getrennte Aufnahmeintervalle für Istwerte und Referenzprognosen, kompakte
+Qualitätsberichte und eine optionale reduzierte Nachtdiagnostik. Bestehende
+Einstellungen bleiben erhalten; die Profile sind noch nicht produktiv abgenommen.
+
 ## Recherche und Quellen
 
 Die [Rechercheübersicht](docs/README.md#recherche-und-planung) erschließt Grundlagen,

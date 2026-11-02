@@ -48,6 +48,7 @@ privaten Archivhost voraus; die Prognoseintegration benötigt diesen Host nicht.
 | [Hashablage](archiv/archiv-hashablage.md) | Verzeichnislayout, Migration und Rückweg |
 | [Speicher-/Cursorvertrag](archiv/archive-storage-contract.md) | Originale, Transaktionen, Lücken, Pins und Retention |
 | [Speicherung und Transport](archiv/archiv-speicherung-und-transport.md) | Originaldateien/SQLite und spätere Datenbankoptionen |
+| [Speichersparprofile](archiv/speichersparprofile.md) | Vorbereitete getrennte Aufnahmeintervalle, kompakte Qualitätsberichte und optionale Nachtdiagnostik |
 
 ## Entwicklung und Validierung
 

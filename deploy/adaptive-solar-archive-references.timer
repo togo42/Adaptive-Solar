@@ -1,0 +1,11 @@
+[Unit]
+Description=Adaptive Solar archive reference forecasts schedule
+
+[Timer]
+OnCalendar=*-*-* *:24:00 UTC
+Persistent=true
+AccuracySec=10s
+Unit=adaptive-solar-archive-references.service
+
+[Install]
+WantedBy=timers.target

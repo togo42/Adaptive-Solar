@@ -20,7 +20,7 @@ HA-Sammlung nutzt vorhandene Producer-Metadaten und benötigt kein neues
 Seitenschema oder HA-Update. Ein bestehender Prüfplan mit festen Softwarepins
 muss vor einem Hostupdate abgeschlossen oder ausdrücklich neu festgelegt werden.
 
-Stand: 01.11.2026. Die Vorlagen unter `deploy/` und der Runner
+Stand: 02.11.2026. Die Vorlagen unter `deploy/` und der Runner
 `scripts/archive_host.py` bereiten den Hostbetrieb vor. Ihre Existenz bedeutet
 keine Aktivierung. HA-Exportoptionen und produktive Hoständerungen benötigen den
 konkreten Inbetriebnahmeauftrag. Grundlagen und Datenvertrag stehen in
@@ -88,9 +88,19 @@ Quellenqualifikation, Ankererhalt und der
 sind vor einer Hostaktivierung zu prüfen. Diese Funktion ist ab Release 0.2.20
 enthalten; ein HA-Update aktualisiert oder aktiviert den externen Host nicht.
 
+`quality_diagnostics` wählt optional `compact` oder `full`; ohne Schlüssel gilt
+weiterhin `full`. Die Beispielkonfiguration empfiehlt `compact`: Die vollständige
+Qualitätsableitung und ihre Gates bleiben erhalten, umfangreiche Beleglisten im
+Capture werden aber durch ausdrücklich gekennzeichnete Hash-/Anzahlbelege ersetzt.
+Stundenentscheidungen und Gründe, Masken, Konflikte, Quell-/Policy-/Codebindungen
+und echte Zeitstempel bleiben enthalten. Das Profil wird nur an `actuals` oder
+den kompatiblen `observations`-Job weitergegeben; der Referenzabruf verwendet es
+nicht. Details stehen beim [Qualitätsadapter](istwert-qualitaetsadapter.md).
+
 ## Zugangsdaten ohne dauerhafte Klartextdatei
 
-Die beiden HA-lesenden Dienste verwenden `LoadCredentialEncrypted=ha-auth:…`
+Die HA-lesenden Dienste (`ha`, `actuals`, `references` beziehungsweise der
+bisherige kombinierte Dienst `observations`) verwenden `LoadCredentialEncrypted=ha-auth:…`
 mit `~/.config/adaptive-solar-archive/ha-auth.cred`. Der entschlüsselte Inhalt ist
 ein JSON-Objekt mit genau `HA_URL` und `HA_TOKEN`. Nur der Runner liest die von
 systemd für den Dienst bereitgestellte Laufzeitdatei und setzt die Werte in der
@@ -102,31 +112,91 @@ stdin verschlüsseln; weder Tokenargumente noch Shell-History oder temporäre
 Klartextdateien verwenden. Vorher nativ prüfen, ob `systemd-creds --user encrypt`
 mit einem sicheren vorhandenen Schlüssel funktioniert. Einen fehlenden Hostschlüssel
 gegebenenfalls separat administrativ einrichten. `--with-key=null` ist keine
-geeignete Verschlüsselung. Ohne sichere Credentialbereitstellung die beiden
+geeignete Verschlüsselung. Ohne sichere Credentialbereitstellung die
 HA-lesenden Dienste nicht aktivieren. Vorhandene Helios-/ESS-Zugänge und deren
 Dienste bleiben unverändert.
 
 ## Timer und erste Aufnahme
 
-Die acht `deploy/adaptive-solar-archive-*.service`/`.timer` nach
-`~/.config/systemd/user/` übernehmen. `loginctl show-user "$USER" -p Linger`
+Für die getrennte Aufnahme die zehn Unitdateien für `ha`, `weather`, `actuals`,
+`references` und `retention` aus `deploy/` nach `~/.config/systemd/user/`
+übernehmen. Die beiden bisherigen `observations`-Vorlagen bleiben für kompatible
+Bestandsinstallationen erhalten und werden dabei nicht zusätzlich aktiviert.
+`loginctl show-user "$USER" -p Linger`
 muss für einen Betrieb ohne Login `Linger=yes` liefern. Timer verwenden die
-Zeitzone des Hosts und holen nach einem Ausfall einmalig einen fälligen Lauf nach.
+angegebene Zeitzone, sonst die des Hosts, und holen nach einem Ausfall einmalig
+einen fälligen Lauf nach.
 
 | Aufgabe | Zeitpunkt |
 | --- | --- |
 | HA-Originalexport | alle fünf Minuten |
 | Zusätzliche Wettermodelle | stündlich Minute 03 |
-| Recorder und Referenzen | stündlich Minute 12, 72 Stunden Rückblick, zehn Minuten Reserve |
+| Recorder-Istwerte und Qualitätsableitung (`actuals`) | alle sechs Stunden um 00:12, 06:12, 12:12 und 18:12 UTC; 72 Stunden Rückblick, zehn Minuten Reserve |
+| Referenzprognosen (`references`) | stündlich Minute 24 UTC |
 | Retention | täglich 03:37, 24 Kalendermonate, Pins bleiben erhalten |
 
 Vor dem Aktivieren jeden Dienst einmal kontrolliert starten. Erst nach erfolgreichem
-Original-/Cursor-/Quellenreadback, Kapazitätsprüfung und Statusprüfung die vier Timer
-mit `systemctl --user enable --now adaptive-solar-archive-{ha,weather,observations,retention}.timer`
+Original-/Cursor-/Quellenreadback, Kapazitätsprüfung und Statusprüfung die fünf Timer
+mit `systemctl --user enable --now adaptive-solar-archive-{ha,weather,actuals,references,retention}.timer`
 aktivieren. Der gemeinsame Dateilock serialisiert sämtliche Runneraufgaben.
 Einzelne fehlerhafte HA-Einträge verhindern keine Aufnahme der anderen Einträge;
 der Gesamtlauf meldet trotzdem Fehler. Ein Dienststart veröffentlicht keine
 Prognose und verändert keine HA-Modelloption.
+
+`actuals` reicht ausschließlich `actual_config` und die optionale `quality` oder
+`quality_bindings` weiter, `references` ausschließlich `reference_config`.
+Jeder Job verlangt seine eigene Mapping-Datei. Damit löst der stündliche
+Referenzabruf keine Recorderaufnahme oder Qualitätsableitung aus. Basisquelle,
+Suffixe `:actuals`/`:references`, Checkpoints, Rückblick und Qualitätsgates bleiben
+erhalten. Referenzprognosen sind eine Aufnahme des jeweils verfügbaren Stands;
+der 72-Stunden-Parameter begrenzt nur die Recorder-Istwerte und rekonstruiert
+keine früheren Referenzstände. Ein seltenerer Actuals-Lauf macht die abgeleiteten
+Qualitätsnachweise entsprechend später verfügbar; er qualifiziert keine Quelle.
+
+Die Actuals-Frequenz lässt sich ohne Host-JSON-Erweiterung über ein systemd-Drop-in
+ändern. Zum Beispiel setzt `systemctl --user edit adaptive-solar-archive-actuals.timer`
+mit folgendem Inhalt einen Zwölfstundenrhythmus:
+
+```ini
+[Timer]
+OnCalendar=
+OnCalendar=*-*-* 00/12:12:00 UTC
+```
+
+Vor einer autorisierten Aktivierung den Kalender mit `systemd-analyze calendar`
+prüfen, `daemon-reload` ausführen und den betroffenen Timer neu starten. Die leere
+erste `OnCalendar=`-Zeile entfernt den geerbten Kalender; andernfalls würden beide
+Zeitpläne gelten. Längere Ausfälle können trotz `Persistent=true` Lücken jenseits
+des unveränderten 72-Stunden-Rückblicks hinterlassen. Die Timerfrequenz ändert
+weder die HA-Producerfrequenz noch bestehende Originale.
+
+### Bestehenden kombinierten Beobachtungslauf umstellen
+
+Diese Schritte sind eine vorbereitete Migration, keine automatische Änderung
+einer vorhandenen Installation. Der alte Job `observations` und seine stündliche
+Timerdatei bleiben unverändert nutzbar und verwenden weiterhin beide konfigurierten
+Mappings. Die Existenz neuer Vorlagen ändert keinen installierten Timer.
+
+1. Vorher Softwarestand, Unit-/Drop-in-Dateien und aktive/aktivierte Timerzustände
+   sichern; neue Software und Units zunächst ohne Aktivierung bereitstellen.
+2. Nur `adaptive-solar-archive-observations.timer` stoppen und deaktivieren.
+   Einen bereits laufenden `observations.service` vollständig abwarten; nicht
+   zusammen mit den neuen Jobs weiterbetreiben. Der Writerlock verhindert zwar
+   gleichzeitige Schreibvorgänge, aber keine doppelten Aufnahmen nacheinander.
+3. Neue Units mit `daemon-reload` laden. Beide neuen Dienste einzeln kontrolliert
+   aufnehmen lassen und `actuals.json` beziehungsweise `references.json`,
+   Quellenidentitäten, Originale und fortgeschriebene Checkpoints prüfen.
+4. Erst nach erfolgreicher Abnahme die neuen `actuals`- und `references`-Timer
+   aktivieren. `observations.timer` bleibt inaktiv und deaktiviert. Die bisherigen
+   `ha`-, `weather`- und `retention`-Timer behalten ihre Zustände.
+
+Für den Rückweg zuerst beide neuen Timer stoppen und deaktivieren und ihre
+laufenden Dienste abwarten. Dann die gesicherten alten Units/Drop-ins laden und
+den zuvor aktiven `observations`-Timer wiederherstellen. Niemals kombinierte und
+getrennte Beobachtungstimer parallel aktivieren. Das gemeinsame Archiv, die
+Quellen und ihre Checkpoints werden weder zurückgesetzt noch umbenannt. Ein
+Software-Rollback verlangt zusätzlich die weiter unten beschriebene Prüfung der
+Archivformat- und Leserkompatibilität.
 
 ## Kapazität und Betriebsnachweis
 
@@ -148,7 +218,7 @@ Langfristprognose. Jobfehler und Kapazitätsstopp erscheinen zusätzlich als
 fehlgeschlagener systemd-Dienst; das ist noch keine externe Alarmierung.
 
 `status_dir` darf einen anderen privaten Statusordner wählen. Der Ordner,
-`writer.lock` und sämtliche fünf Jobnachweise müssen außerhalb des Archivs
+`writer.lock` und sämtliche sieben Jobnachweise müssen außerhalb des Archivs
 liegen, sowohl nach ihrem konfigurierten Pfad als auch nach Symlinkauflösung.
 Sie dürfen weder die mit `--config` gelesene Hostkonfiguration noch konfigurierte
 Standort-, Istwert-, Referenz- oder Qualitätsdateien oder Programmdateien
@@ -193,7 +263,8 @@ getrennte Einstellungen. Eine aus Originalen wiederaufgebaute Archivkopie
 belegt keine vollständige Hostwiederherstellung. Sicherung, Entschlüsselung
 und Restore auf einem getrennten Ziel prüfen und privat dokumentieren.
 
-Für Rollback zuerst ausschließlich die vier Archivtimer stoppen und deaktivieren,
+Für Rollback zuerst ausschließlich die tatsächlich gewählten Archivtimer stoppen
+und deaktivieren (fünf im getrennten oder vier im bisherigen kombinierten Betrieb),
 anschließend laufende Archivdienste kontrolliert beenden. Den bisherigen
 `current`-Link und die bisherigen Unitdateien gesichert zurücksetzen, `daemon-reload`
 ausführen und nativ nachlesen. Das gemeinsame `data/` mit Originalen und Cursor

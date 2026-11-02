@@ -299,7 +299,40 @@ Host-Probelauf am tatsächlichen Archivvolumen gemessen werden.
 
 Der archivierte Capture enthält die unveränderten Recorder-Rohdaten und deren
 ursprüngliche Empfangszeit, eine neue Normalisierung und `quality_derivation`
-mit Policykopie, Eingabe-/Programmhashes, Stundendiagnosen und Evidenzreferenzen.
+mit Policykopie, Eingabe-/Programmhashes und Stundendiagnosen. Mit
+`--quality-diagnostics full` (kompatibler Standard) enthält er auch alle
+Evidenzreferenzen. `--quality-diagnostics compact` speichert dagegen nach
+derselben vollständigen Ableitung bewusst weniger Diagnosedetails:
+
+- Der Bericht trägt das eigene Schema
+  `adaptive-solar-actual-quality-report-compact-v1` und das Profil
+  `decisions-and-evidence-digests-v1`.
+- `evidence_events` und `configuration_evidence` werden durch Eintragszahl und
+  SHA256 der jeweiligen vollständigen kanonischen Liste in `omitted_evidence`
+  ersetzt. Pro Stunde bleiben alle Entscheidungen, Abdeckungen und Gründe
+  erhalten; statt `evidence_event_ids` stehen Anzahl und Listenhash in
+  `evidence_event_count` und `evidence_event_ids_sha256`.
+- Unverändert bleiben Rohwerte, Normalisierung, positive und negative Masken,
+  Stundenstatus, alle Konfigurationskonflikt-IDs, vollständige Policy mit
+  Quellen-/Producer-/Konfigurationspins, Eingabe- und Programmhashes sowie
+  `as_of`, `generated_at`, `normalized_at` und `validated_at`.
+- `full_report_schema` und `full_report_sha256` binden das zuvor vollständig
+  abgeleitete Berichtsobjekt. Ein Hash rekonstruiert keine verworfene Liste und
+  ersetzt weder Originale noch eine spätere erneute Quellenprüfung. Der kompakte
+  Bericht verspricht ausdrücklich keinen vollständigen gespeicherten
+  Belegkatalog. Die Originalereignisse bleiben im Originalarchiv; alte Captures
+  werden nicht umgeschrieben.
+
+Die Option betrifft nur kontinuierlich abgeleitete Qualitätsberichte. Statische
+Masken, Referenzaufnahmen und der Offlinehelfer `continuous_quality` behalten
+ihren bisherigen Inhalt. Unbekannte Profilnamen werden abgewiesen. Der
+Archivleser und `export-observations` lesen alte vollständige sowie neue kompakte
+Captures unverändert aus; die Actualrecord-Auswertung nutzt weiterhin die
+unveränderten Rohdaten und Masken. Diagnoseprogramme, die die weggelassenen
+Detailarrays benötigen, müssen das Berichtsschema unterscheiden und können diese
+Details aus einem kompakten Capture allein nicht beziehen.
+
+Für vollständige Berichte und die Herleitung des kompakten Berichts gilt:
 Für kompakte Forecastbelege bezeichnet `event_set_sha256` das nach Quelle,
 Generation und Sequenz sortierte Manifest der Originalidentitäten/-hashes;
 `event_set_hash_format=original-envelope-reference-manifest-v1` ist Teil der
@@ -316,8 +349,13 @@ und Hashberechnung erfasst. Beide Helfer übernehmen diese Abschlusszeit auch
 für Normalisierung und Labelverfügbarkeit; ein Cutoff während der Berechnung
 erhält die neuen Labels noch nicht. Eine rückwärts springende Uhr bricht die
 Ableitung ab. Vor diesem Zeitpunkt bleiben
-die neuen Labels für historische Auswertungen unsichtbar. Ein Bericht oberhalb der 32-MiB-Grenze für Beobachtungscaptures wird ebenfalls
-als Ableitungsfehler behandelt. Eine fehlgeschlagene
+die neuen Labels für historische Auswertungen unsichtbar. Die kompakte Darstellung
+setzt keine neue Verfügbarkeitszeit und datiert keine Labels zurück.
+Die unveränderte 32-MiB-Grenze gilt für den tatsächlich gespeicherten gesamten
+Capture, beim kompakten Profil also nach Weglassen der Diagnoselisten. Bleibt
+auch dieser Capture zu groß, wird dies als Ableitungsfehler behandelt; die
+500.000-Ereignis-/512-MiB-Grenzen der vollständigen Herleitung bleiben unverändert.
+Eine fehlgeschlagene
 Ableitung wird als fehlerhafter Job gemeldet, der Rohcapture dennoch bewahrt.
 Eine erfolgreiche Aufnahme mit null freigegebenen Stunden bleibt als solche
 sichtbar (`quality_summary` zählt Abdeckung, Freigaben und Invalidierungen).

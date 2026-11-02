@@ -46,6 +46,7 @@ from .core.shading import (
 )
 from .core.archive import canonical_bytes
 from .archive_export import ArchiveExport, CONF_ARCHIVE_EXPORT, json_value, replay_events, software_provenance
+from .diagnostic_export import CONF_SOURCE_REPORT_PROFILE, FULL, calculate_night_plan
 from .weather import WeatherError
 from .snapshots import config_fingerprints, make_snapshot, provenance, validate_snapshot
 
@@ -565,7 +566,9 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
 
     def __init__(self, hass, entry, config: SiteConfig, client) -> None:
         super().__init__(hass, _LOGGER, config_entry=entry, name=DOMAIN, update_interval=timedelta(seconds=UPDATE_SECONDS))
-        self.export = ArchiveExport(hass, entry.entry_id, enabled=entry.options.get(CONF_ARCHIVE_EXPORT, entry.data.get(CONF_ARCHIVE_EXPORT, False)) is True)
+        self.export = ArchiveExport(hass, entry.entry_id,
+            enabled=entry.options.get(CONF_ARCHIVE_EXPORT, entry.data.get(CONF_ARCHIVE_EXPORT, False)) is True,
+            source_report_profile=entry.options.get(CONF_SOURCE_REPORT_PROFILE, entry.data.get(CONF_SOURCE_REPORT_PROFILE, FULL)))
         if self.export.enabled:
             client.archive_sink = self.export.record
         self._export_fit_samples = []
@@ -1102,6 +1105,15 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         payload = {**self._raw_state(state, event.data["entity_id"], reported_at=reported_at),
                    "event_type": event.event_type, "event_received_at": received}
         try:
+            if self.export.status.get("last_error") is not None:
+                self.export.report_policy.marker_ready = False
+            try:
+                keep = self.export.report_policy.keep(payload, self._raw_source_roles().get(event.data["entity_id"], {}), received)
+            except Exception:
+                self.export.report_policy.marker_ready = False
+                keep = True
+            if not keep:
+                return
             self.export.record("source_report", payload, received)
         except Exception:
             # Optional diagnostics must never change meter/control processing.
@@ -1382,6 +1394,26 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             decision_sink[inv.id] = decision
         return decision["status"]
 
+    async def _async_update_report_policy(self, now):
+        """Optional once/day executor work; failures preserve full raw diagnostics."""
+        policy = self.export.report_policy
+        if not self.export.enabled or policy.profile == FULL:
+            return
+        day = now.astimezone(ZoneInfo(self.site.timezone)).date().isoformat()
+        if policy.attempted_day == day:
+            return
+        try:
+            plan = await self.hass.async_add_executor_job(calculate_night_plan, self.site, now)
+        except Exception:
+            plan = None
+        policy.prepare(day, plan)
+        try:
+            self.export.record("source_report_policy", policy.marker(), now)
+            policy.marker_ready = self.export.status.get("last_error") is None
+        except Exception:
+            # Never let optional detail selection block forecasts or measurements.
+            policy.marker_ready = False
+
     async def _async_update_data(self):
         if self._closing:
             raise UpdateFailed("Coordinator is closed")
@@ -1391,6 +1423,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             except (OSError, ValueError):
                 _LOGGER.warning("Archive source provenance unavailable")
         now = datetime.now(UTC)
+        await self._async_update_report_policy(now)
         self._prune(now)
         try:
             forecasts = await self.client.async_forecasts(now)
