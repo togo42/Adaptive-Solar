@@ -5,6 +5,10 @@ Stand: 02.11.2026. Geprüfte Quellbasis:
 `codex/learning-support-guard`. Die Befunde beziehen sich auf diesen Checkout;
 installierte HA- und Archivhoststände wurden dafür nicht geprüft.
 
+Fortsetzung am 02.11.2026:
+[lokale Bestandsaufnahme und Laufzeitmessung](performance-bestandsaufnahme.md).
+Die folgenden Befunde bleiben an die oben genannte Ausgangsbasis gebunden.
+
 ## 1 Auftrag und Aussagegrenzen
 
 Ausgangspunkt ist die vom Nutzer als sehr langsam beschriebene Hostprobe auf
