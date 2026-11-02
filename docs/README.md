@@ -50,6 +50,7 @@ privaten Archivhost voraus; die Prognoseintegration benötigt diesen Host nicht.
 ## Entwicklung und Validierung
 
 - [Entwicklung](entwicklung/entwicklung.md): Umgebung, Tests, Beiträge und Veröffentlichung.
+- [Performanceanalyse und Rust](entwicklung/performance-uebergabe.md): Codebefunde, offene Messfragen und Arbeitsauftrag für eine spätere Optimierung.
 - [Validierung](entwicklung/validierung.md): prospektiver Messplan und hashgebundener Reviewablauf.
 - [Fehlerfamilien prüfen](entwicklung/review-fehlerfamilien.md): gemeinsame Nachprüfung, Inventur der Schreibwege und Grenzen fokussierter Reviews.
 - [Vergleichsaufnahme](entwicklung/benchmark-aufnahme.md): Recorder-Istwerte und Referenzprognosen.
