@@ -23,11 +23,21 @@ Die Bestandsaufnahme bestätigt folgende Strukturen im untersuchten Checkout:
 
 Die zusätzlich gelesenen privaten Betriebsbelege unterscheiden eine
 sperrdominierte Diagnoseprobe und eine aufwendige Qualitätsableitung.
-Das sind unterschiedliche Vorgänge. Diese historischen Belege ersetzen weder
-ein aktuelles Hostprofil noch die genaue Zuordnung des ursprünglichen
-Nutzeranlasses. Ihre Eingaben, Befehle und Installationsdetails bleiben in der
-privaten Betriebsdokumentation. Der dort belegte Hostquellstand unterscheidet
-sich außerdem in der Konfigurationsaufbereitung vom hier gemessenen Checkout.
+Nach Nutzerpräzisierung und erneutem Belegabgleich ist der Untersuchungsanlass
+dem vollständigen nativen Istwert-Pilotlauf zugeordnet. Die kürzere
+sperrdominierte Diagnoseprobe war ein anderer Lauf; deren Lockanteil erklärt
+die Laufzeit des vollständigen Piloten nicht. Der passende Receipt enthält
+Gesamtzeit und native Jobzeit. Die zugehörige frische Qualitätsprüfung liefert
+außerdem die chronologischen Endpunkte `as_of` und `validated_at`: Der weitaus
+größte Teil des Laufs liegt zwischen diesen beiden Zeitpunkten. Das grenzt den
+ersten Prüfbereich auf die Qualitätsableitung ein, ist aber keine Messung von
+CPU-Zeit oder einzelnen Unterphasen. Getrennte Zeiten für Lockwartezeit,
+Netzwerk, Originalprüfung, Auswahl, Qualitätskern, Stats und Kapazitätsprüfung
+fehlen weiterhin.
+Gesamtzeiten, Eingaben, Befehle, Archivvolumen und Installationsdetails bleiben
+in der privaten Betriebsdokumentation. Dieser Beleg ist noch kein vollständiges
+Hostprofil. Der belegte Hostquellstand unterscheidet sich außerdem in der
+Konfigurationsaufbereitung vom hier gemessenen Checkout.
 
 ## 2. Reproduzierbarer lokaler Messaufbau
 
@@ -152,6 +162,12 @@ genannten Gesamtbudget und Regressionen behoben. Produktive Implementierung,
 Datenverträge und Anwenderverhalten blieben unverändert.
 
 ## 4. Nächster begründeter Schritt
+
+Die Gesamtlaufzeit des identifizierten nativen Istwert-Pilotlaufs in Phasen
+zerlegen. Seine Originalmenge und Payloadstruktur unterscheiden sich erheblich
+von der kleinen synthetischen Baseline; ein Laufzeitverhältnis zwischen diesen
+beiden Aufbauten wäre kein Beschleunigungsnachweis. Timerpausierung allein
+beweist keine Lockwartezeit von null.
 
 Zunächst die Kosten der Originalprüfung und der erst anschließenden
 Zeitselektion auf einer begrenzten eingefrorenen realen lokalen Kopie getrennt
