@@ -98,6 +98,7 @@ Kapazitätsinventur oder vollständige Archivhost-Jobdauer.
 | `archive.iter_events_next` | Zeit ausschließlich in `next()` des nativen Generators; Arbeit des aufrufenden Consumers zählt nicht dazu |
 | `archive._read_original`, `gzip.read`, `json.loads` | Originallesen/-prüfung sowie darin überlappend Dekompression und Parsing |
 | `archive.validate_page`, `archive.validate_envelope`, `archive.canonical_bytes` | Überlappende Validierungs- und kanonische Serialisierungskosten |
+| `archive._validate_original_page`, `archive._validate_original_envelope`, `archive._canonical_json_bytes` | Zusätzliche Labels für den privaten Originalpfad, soweit im gewählten Quellstand vorhanden; der strenge Seitenscan bleibt darin enthalten |
 | `quality.configuration_from_forecast` | Erneute Originalprüfung und Aufbereitung kompakter Konfigurationsbelege, soweit im Quellstand vorhanden |
 | `quality._intervals`, `quality._hour` | Vorbereitung je Bindung und Kandidatenprüfungen der Stundensuche |
 
@@ -146,6 +147,11 @@ noch keine vollständige Provenienzgleichheit. Operatorbezogene Vergleichsbelege
 und konkrete Laufzeittabellen gehören unter `data/docs/betrieb/`.
 
 ## 5. Aus Messung einen Kandidaten ableiten
+
+Der erste lokale [Kandidat zur Originalvalidierung](performance-originalvalidierung.md)
+behält den vollständigen strengen Seitenbaumdurchlauf bei und vermeidet nur
+die beiden nachfolgenden Schlüsselbaumdurchläufe je Envelope. Öffentliche
+Validatoren, Prüfsummen, Formate und Grenzen bleiben erhalten.
 
 Den ersten Optimierungskandidaten anhand des größten bestätigten Kostenanteils
 wählen. Für Originallesen, Validierung, Selektion, Konfigurationsaufbereitung

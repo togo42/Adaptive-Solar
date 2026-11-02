@@ -185,6 +185,14 @@ Quellstand einschließlich der bereits vorhandenen kompakten Konfigurationsbeleg
 als unveränderten Referenzarm erhalten. Laufzeit einer Diagnoseprobe muss
 weiterhin Wartezeit und eigene Arbeit getrennt berichten.
 
+Fortsetzung vom 03.11.2026: Der lokale
+[Kandidat zur Originalvalidierung](performance-originalvalidierung.md) vermeidet
+zwei wiederholte Schlüsselbaumdurchläufe je Envelope nach einer weiterhin
+vollständigen strengen Seitenprüfung. Verhaltenstests, unabhängiger Review
+und der gebundene lokale Vergleich erfüllen die vorab dokumentierten Kriterien.
+Der vollständige Quellscan bleibt ein späteres Arbeitspaket; eine produktive
+Aktivierung ist daraus nicht abgeleitet.
+
 Erst danach eine gezielte Batchauswahl als einzelnen Optimierungskandidaten
 bewerten. Konfigurationsanker, referenzierte Payloadteile, Gegenbelege aus
 anderen Generationen, Originalprüfung und Auswahlbudgets bleiben erforderlich.

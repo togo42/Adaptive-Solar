@@ -30,6 +30,19 @@ class ArchiveError(ValueError):
     """Invalid archive data or an operation that cannot be completed safely."""
 
 
+def _canonical_json_bytes(value) -> bytes:
+    """Encode canonical JSON after the caller has established string keys.
+
+    Only fresh json.loads data already checked by the strict whole-page
+    canonical_bytes traversal may use this internal envelope encoder.
+    """
+    try:
+        return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                          allow_nan=False).encode("utf-8")
+    except (TypeError, ValueError, OverflowError, RecursionError) as exc:
+        raise ArchiveError("Archive data must be finite JSON") from exc
+
+
 def canonical_bytes(value) -> bytes:
     def check_keys(item):
         if isinstance(item, dict):
@@ -93,65 +106,85 @@ def parse_cursor(cursor):
         raise ArchiveError("Invalid archive cursor") from exc
 
 
-def validate_envelope(event):
-    if not isinstance(event, dict) or set(event) != {
-            "schema", "generation", "sequence", "event_id", "kind", "received_at", "payload", "sha256"}:
-        raise ArchiveError("Malformed archive envelope")
-    if type(event["schema"]) is not int or event["schema"] != SCHEMA:
-        raise ArchiveError("Unknown archive envelope schema")
-    _generation(event["generation"])
-    _int(event["sequence"], "sequence", 1)
-    _text(event["event_id"], "event ID")
-    _text(event["kind"], "kind", 128)
-    _stamp(event["received_at"])
-    if not isinstance(event["payload"], dict):
-        raise ArchiveError("Archive payload must be an object")
-    raw = canonical_bytes({k: v for k, v in event.items() if k != "sha256"})
-    if event["sha256"] != hashlib.sha256(raw).hexdigest():
-        raise ArchiveError("Archive envelope checksum mismatch")
-    if len(canonical_bytes(event)) > MAX_EVENT_BYTES:
-        raise ArchiveError("Archive event exceeds hard byte limit")
-    return event
+def _envelope_validator(decoded_json):
+    def validate_envelope(event):
+        if not isinstance(event, dict) or set(event) != {
+                "schema", "generation", "sequence", "event_id", "kind", "received_at", "payload", "sha256"}:
+            raise ArchiveError("Malformed archive envelope")
+        if type(event["schema"]) is not int or event["schema"] != SCHEMA:
+            raise ArchiveError("Unknown archive envelope schema")
+        _generation(event["generation"])
+        _int(event["sequence"], "sequence", 1)
+        _text(event["event_id"], "event ID")
+        _text(event["kind"], "kind", 128)
+        _stamp(event["received_at"])
+        if not isinstance(event["payload"], dict):
+            raise ArchiveError("Archive payload must be an object")
+        encode = _canonical_json_bytes if decoded_json else canonical_bytes
+        raw = encode({k: v for k, v in event.items() if k != "sha256"})
+        if event["sha256"] != hashlib.sha256(raw).hexdigest():
+            raise ArchiveError("Archive envelope checksum mismatch")
+        if len(encode(event)) > MAX_EVENT_BYTES:
+            raise ArchiveError("Archive event exceeds hard byte limit")
+        return event
+    validate_envelope.__qualname__ = "validate_envelope"
+    return validate_envelope
 
 
-def validate_page(page):
-    if not isinstance(page, dict) or set(page) != {
-            "schema", "generation", "oldest_sequence", "requested_cursor", "next_cursor", "events", "gap"}:
-        raise ArchiveError("Malformed archive page")
-    if type(page["schema"]) is not int or page["schema"] != SCHEMA:
-        raise ArchiveError("Unknown archive page schema")
-    gen = _generation(page["generation"])
-    oldest = _int(page["oldest_sequence"], "oldest sequence", 1)
-    request = parse_cursor(page["requested_cursor"])
-    nxt = parse_cursor(page["next_cursor"])
-    if nxt is None or nxt[0] != gen or not isinstance(page["events"], list):
-        raise ArchiveError("Malformed page cursor/events")
-    if len(page["events"]) > MAX_PAGE_EVENTS or len(canonical_bytes(page)) > MAX_PAGE_BYTES:
-        raise ArchiveError("Archive page exceeds hard limits")
-    gap = page["gap"]
-    if gap is not None:
-        if not isinstance(gap, dict) or set(gap) != {"reason", "from", "to"}:
-            raise ArchiveError("Malformed archive gap")
-        if gap["reason"] not in {"retention_or_overflow", "generation_changed"}:
-            raise ArchiveError("Unknown archive gap reason")
-        _int(gap["from"], "gap start")
-        _int(gap["to"], "gap end")
-    start = request[1] if request and request[0] == gen else 0
-    expected_gap = ("generation_changed" if request and request[0] != gen
-                    else "retention_or_overflow" if start < oldest - 1 else None)
-    if (gap is None) != (expected_gap is None) or (gap and gap["reason"] != expected_gap):
-        raise ArchiveError("Page must explicitly describe cursor discontinuity")
-    if gap and (gap["from"] != start + 1 or gap["to"] != oldest - 1):
-        raise ArchiveError("Archive gap range mismatch")
-    previous = max(start, oldest - 1)
-    for event in page["events"]:
-        validate_envelope(event)
-        if event["generation"] != gen or event["sequence"] != previous + 1:
-            raise ArchiveError("Archive page sequence discontinuity")
-        previous = event["sequence"]
-    if nxt[1] != previous:
-        raise ArchiveError("Archive next cursor does not match events")
-    return page
+def _page_validator(decoded_json):
+    def validate_page(page):
+        if not isinstance(page, dict) or set(page) != {
+                "schema", "generation", "oldest_sequence", "requested_cursor", "next_cursor", "events", "gap"}:
+            raise ArchiveError("Malformed archive page")
+        if type(page["schema"]) is not int or page["schema"] != SCHEMA:
+            raise ArchiveError("Unknown archive page schema")
+        gen = _generation(page["generation"])
+        oldest = _int(page["oldest_sequence"], "oldest sequence", 1)
+        request = parse_cursor(page["requested_cursor"])
+        nxt = parse_cursor(page["next_cursor"])
+        if nxt is None or nxt[0] != gen or not isinstance(page["events"], list):
+            raise ArchiveError("Malformed page cursor/events")
+        # Always retain the strict whole-tree key and recursion checks. Fresh
+        # decoded originals may omit only the subsequent per-envelope repeats.
+        if len(page["events"]) > MAX_PAGE_EVENTS or len(canonical_bytes(page)) > MAX_PAGE_BYTES:
+            raise ArchiveError("Archive page exceeds hard limits")
+        gap = page["gap"]
+        if gap is not None:
+            if not isinstance(gap, dict) or set(gap) != {"reason", "from", "to"}:
+                raise ArchiveError("Malformed archive gap")
+            if gap["reason"] not in {"retention_or_overflow", "generation_changed"}:
+                raise ArchiveError("Unknown archive gap reason")
+            _int(gap["from"], "gap start")
+            _int(gap["to"], "gap end")
+        start = request[1] if request and request[0] == gen else 0
+        expected_gap = ("generation_changed" if request and request[0] != gen
+                        else "retention_or_overflow" if start < oldest - 1 else None)
+        if (gap is None) != (expected_gap is None) or (gap and gap["reason"] != expected_gap):
+            raise ArchiveError("Page must explicitly describe cursor discontinuity")
+        if gap and (gap["from"] != start + 1 or gap["to"] != oldest - 1):
+            raise ArchiveError("Archive gap range mismatch")
+        previous = max(start, oldest - 1)
+        for event in page["events"]:
+            if decoded_json:
+                _validate_original_envelope(event)
+            else:
+                validate_envelope(event)
+            if event["generation"] != gen or event["sequence"] != previous + 1:
+                raise ArchiveError("Archive page sequence discontinuity")
+            previous = event["sequence"]
+        if nxt[1] != previous:
+            raise ArchiveError("Archive next cursor does not match events")
+        return page
+    validate_page.__qualname__ = "validate_page"
+    return validate_page
+
+
+# Factories share every structural check without adding runtime call frames to
+# the reference validator paths and their existing recursion-limit boundary.
+validate_envelope = _envelope_validator(False)
+validate_page = _page_validator(False)
+_validate_original_envelope = _envelope_validator(True)
+_validate_original_page = _page_validator(True)
 
 
 @contextmanager
@@ -568,7 +601,9 @@ class ArchiveStore:
             _int(value["ingest_order"], "ingest order", 1)
             _stamp(value["stored_at"])
             _stamp(value["archive_started_at"])
-            validate_page(value["page"])
+            # Only fresh hook-free decoded data enters the original-page path.
+            # Its full strict page traversal precedes every envelope check.
+            _validate_original_page(value["page"])
             return value
         except (OSError, EOFError, json.JSONDecodeError, UnicodeError, RecursionError, zlib.error) as exc:
             raise ArchiveError("Original file corrupt or unreadable") from exc

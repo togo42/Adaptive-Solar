@@ -315,7 +315,10 @@ def measured_worker(args):
             stack.enter_context(patch.object(gzip.GzipFile, "read", phases.wrap(gzip.GzipFile.read, "gzip.read")))
             stack.enter_context(patch.object(json, "loads", phases.wrap(json.loads, "json.loads")))
             # Aliases imported into source modules must all observe the same wrapped function.
-            for name in ("canonical_bytes", "validate_page", "validate_envelope"):
+            for name in ("canonical_bytes", "validate_page", "validate_envelope",
+                         "_canonical_json_bytes", "_validate_original_page", "_validate_original_envelope"):
+                if not hasattr(archive, name):
+                    continue
                 original = getattr(archive, name)
                 wrapped = phases.wrap(original, "archive." + name)
                 for module in list(sys.modules.values()):

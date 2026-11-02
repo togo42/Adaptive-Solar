@@ -92,6 +92,16 @@ prüfen diesen Vertrag. Eine gleiche noch gepufferte ID mit gleichem Inhalt ist
 idempotent; widersprüchlicher Inhalt wird abgelehnt. IDs bereits verworfener
 Pufferereignisse sind kein dauerhaftes Deduplizierungsregister.
 
+Implementierungsnachtrag vom 03.11.2026, lokaler Entwicklungskandidat:
+Beim Lesen frisch geparster Originalseiten bleibt ein vollständiger strenger
+kanonischer Seitenbaumdurchlauf erhalten. Danach dürfen die zwei
+Envelope-Serialisierungen den erneuten Python-Schlüsselbaumdurchlauf vermeiden;
+Bytes, Hashes, Rekursionsgrenzen, Schemas, Generationen und Größenprüfungen
+bleiben unverändert. Öffentliche Python-Validatoren bleiben streng. Das ändert
+weder diesen Datenvertrag noch das Speicherformat; Details und lokale
+Abnahmebedingungen stehen in der
+[Optimierungsbeschreibung](../entwicklung/performance-originalvalidierung.md).
+
 Startgrenzen des HA-Puffers sind 64 MiB serialisierte Ereignisse, 10.000
 Ereignisse und 72 Stunden. Zeitbereinigung erfolgt beim nächsten Append anhand
 des neuen Empfangszeitpunkts; ohne weitere Aufnahmen bleiben alte Daten bis

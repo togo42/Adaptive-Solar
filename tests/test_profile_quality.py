@@ -61,6 +61,9 @@ def test_real_clock_worker_parity_preserves_entire_frozen_input(frozen_case, tmp
     assert ordinary["as_of"] < phases["as_of"] <= phases["generated_at"]
     assert phases["phases"]["archive._read_original"]["calls"] == 15
     assert phases["phases"]["archive.iter_events_next"]["events_yielded"] == 1441
+    assert phases["phases"]["archive._validate_original_page"]["calls"] == 15
+    assert phases["phases"]["archive._validate_original_envelope"]["calls"] == 1441
+    assert phases["phases"]["archive._canonical_json_bytes"]["calls"] > 0
     assert phases["phase_markers"]["derive_to_build_wall_seconds"] > 0
     assert phases["phase_markers"]["build_to_derive_end_wall_seconds"] > 0
     assert all(p.read_bytes() == contents for p, contents in before.items())
