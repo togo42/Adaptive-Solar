@@ -182,6 +182,16 @@ Im neuen Receipt sind `files`/`file_manifest` die tatsächlich eingebetteten Ori
 
 Nur Kindprozesse: bei Grok `GROK_AUTO_COMPACT_THRESHOLD_PERCENT=100` und Auto-Updater aus, bei Codex `--ignore-user-config --ignore-rules --strict-config`; keine globale Konfigurationsänderung. Ausschließlich konkrete neue `updates.jsonl` (Grok) beziehungsweise `rollout-*-<session_id>.jsonl` (Codex): exakte gesendete Benutzerbytes, je Prompt eindeutiger erfolgreicher Turnabschluss (`end_turn` bzw. `task_complete`). Compaction/Tools/aktive Hintergrundaufgaben, unbekannte Ereignisse oder fehlende/mehrdeutige Metadaten verhindern `accepted`.
 
+Der Grok-Audit akzeptiert seit 03.11.2026 außerdem genau eine optionale native
+Startmeldung `session/update` mit exakt
+`{"sessionUpdate":"current_mode_update","currentModeId":"plan"}` vor den
+ersten Benutzerbytes. Andere Modi, spätere oder doppelte Modusmeldungen sowie
+unbekannte Felder werden zurückgewiesen. Optionale native `params._meta` dieser
+Startmeldung darf ausschließlich eine sitzungsgebundene `eventId` und einen
+ganzzahligen, nichtnegativen `agentTimestampMs` enthalten. Die Startmeldung
+bleibt Teil des vollständigen nativen Ereignishashs; Promptbytes, Modell/Effort,
+Modellaufrufzähler, Turnabschluss und Endantwort werden unverändert geprüft.
+
 Finales striktes JSON/nativer Exit, unveränderte Quellen/CLI/Prompts sind Pflicht. Auch im neuen Lauf werden der exakt angeforderte Effort, das Modell, genau ein Modellaufruf je Turn und die tatsächliche Endantwort nativ geprüft. ACK, partielles Urteil oder `mergeable` allein genügen nicht. Findings beheben/frisch reviewen; versionsgebundener Audit scheitert bei unbekanntem Format geschlossen. Receipts unter ignoriertem `reviews/private/`, veröffentlichter Nachweis nennt Scope/Bindung/Audit/Datum/Ergebnis/Grenzen. ESS-Deploy-/Node-RED-Regeln gelten hier nicht.
 
 Bei Codex darf dem abschließenden Review-JSON eine Fortschrittsmeldung vorausgehen.

@@ -596,6 +596,7 @@ def audit_context(session: str, prompts: list[bytes], *, grok_home: Path | None 
     prompt_ids: set[str] = set()
     usages, responses = [], {}
     last_index = None
+    startup_mode_seen = False
     for line in data.splitlines():
         event_count += 1
         try:
@@ -617,10 +618,25 @@ def audit_context(session: str, prompts: list[bytes], *, grok_home: Path | None 
             raise ValueError("Context audit detected compaction; full-source review is invalid")
         if kind in {"tool_call", "tool_call_update"}:
             raise ValueError("Context audit detected a forbidden tool call")
-        allowed = {"session/update": {"user_message_chunk", "agent_message_chunk", "agent_thought_chunk"},
+        allowed = {"session/update": {"user_message_chunk", "agent_message_chunk", "agent_thought_chunk",
+                                      "current_mode_update"},
                    "_x.ai/session/update": {"turn_completed", "background_tasks"}}
         if kind not in allowed.get(event["method"], set()):
             raise ValueError("Context audit has an unknown event type or method")
+        if kind == "current_mode_update":
+            native_meta = params.get("_meta")
+            if (startup_mode_seen or groups or output_started or completed
+                    or set(event) != {"timestamp", "method", "params"}
+                    or set(params) not in ({"sessionId", "update"}, {"sessionId", "update", "_meta"})
+                    or set(update) != {"sessionUpdate", "currentModeId"} or update["currentModeId"] != "plan"
+                    or ("_meta" in params and (
+                        not isinstance(native_meta, dict) or set(native_meta) != {"eventId", "agentTimestampMs"}
+                        or not isinstance(native_meta["eventId"], str)
+                        or re.fullmatch(re.escape(session) + r"-[0-9]+", native_meta["eventId"]) is None
+                        or type(native_meta["agentTimestampMs"]) is not int or native_meta["agentTimestampMs"] < 0))):
+                raise ValueError("Context audit requires one initial plan mode metadata event with known fields")
+            startup_mode_seen = True
+            continue
         if kind == "background_tasks":
             if update.get("tasks") != []:
                 raise ValueError("Context audit has unknown or active background tasks")

@@ -743,6 +743,96 @@ def completed_update(index=0):
             "usage": {}, "elapsed_ms": 10}
 
 
+@pytest.mark.parametrize("native_meta", [False, True])
+def test_initial_plan_mode_preserves_complete_native_context_checks(context_updates, native_meta):
+    home, session, write = context_updates
+    final = {"verdict": "mergeable", "findings": [], "summary": "Synthetic native context only."}
+    completion = completed_update()
+    completion["usage"] = {"modelCalls": 1, "numTurns": 1, "modelUsage": {"grok-4.7-build": {"modelCalls": 1}}}
+    path = write([{"sessionUpdate": "current_mode_update", "currentModeId": "plan"},
+                  user_update("Grüße"), {"sessionUpdate": "agent_message_chunk",
+                                         "content": {"type": "text", "text": json.dumps(final)}},
+                  completion], complete=False)
+    if native_meta:
+        rows = [json.loads(line) for line in path.read_text().splitlines()]
+        rows[0]["params"]["_meta"] = {"eventId": f"{session}-2", "agentTimestampMs": 1792886400000}
+        path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    path.with_name("summary.json").write_text(json.dumps({"current_model_id": "grok-4.7", "reasoning_effort": "xhigh"}))
+    result = review.audit_context(session, ["Grüße".encode()], grok_home=home, require_identity=True,
+                                  expected_review=final, expected_effort="xhigh")
+    assert result["event_count"] == 4
+    assert result["user_chunk_count"] == result["turn_completed_count"] == result["prompt_count"] == 1
+    assert result["compaction_count"] == result["tool_call_count"] == 0
+    assert result["updates_sha256"] == review.digest(path.read_bytes())
+    assert result["prompt_sha256"] == [review.digest("Grüße".encode())]
+    assert result["native_model_id"] == "grok-4.7" and result["reasoning_effort"] == "xhigh"
+    assert result["native_final_response_sha256"] == review.digest(json.dumps(final).encode())
+
+
+@pytest.mark.parametrize("mode", ["default", "acceptEdits", "PLAN", "", None, True, 0, {}, []])
+def test_initial_mode_must_be_exactly_plan(context_updates, mode):
+    home, session, write = context_updates
+    write([{"sessionUpdate": "current_mode_update", "currentModeId": mode}, user_update()])
+    with pytest.raises(ValueError, match="initial plan mode metadata"):
+        review.audit_context(session, [b"prompt"], grok_home=home)
+
+
+@pytest.mark.parametrize("position", ["duplicate", "after_user", "after_output", "after_completion"])
+def test_plan_mode_is_only_allowed_once_before_review_text(context_updates, position):
+    home, session, write = context_updates
+    mode = {"sessionUpdate": "current_mode_update", "currentModeId": "plan"}
+    updates = [mode]
+    if position == "duplicate":
+        updates.extend([mode, user_update()])
+    else:
+        updates.append(user_update())
+        if position == "after_output":
+            updates.append({"sessionUpdate": "agent_thought_chunk", "content": {"type": "text", "text": "synthetic"}})
+        elif position == "after_completion":
+            updates.append(completed_update())
+        updates.append(mode)
+    write(updates, complete=position != "after_completion")
+    with pytest.raises(ValueError, match="initial plan mode metadata"):
+        review.audit_context(session, [b"prompt"], grok_home=home)
+
+
+@pytest.mark.parametrize("mutation", ["missing_mode", "update_field", "event_field", "params_field",
+                                     "meta_unknown", "meta_type", "meta_event_type", "meta_event_session",
+                                     "meta_time_bool", "meta_time_negative", "wrong_method", "unknown_method"])
+def test_initial_plan_mode_rejects_unknown_or_malformed_metadata(context_updates, mutation):
+    home, session, write = context_updates
+    path = write([{"sessionUpdate": "current_mode_update", "currentModeId": "plan"}, user_update()])
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    event = rows[0]
+    params = event["params"]
+    params["_meta"] = {"eventId": f"{session}-2", "agentTimestampMs": 1792886400000}
+    if mutation == "missing_mode":
+        del params["update"]["currentModeId"]
+    elif mutation == "update_field":
+        params["update"]["content"] = {"type": "text", "text": "synthetic unknown field"}
+    elif mutation == "event_field":
+        event["unknown"] = "synthetic"
+    elif mutation == "params_field":
+        params["unknown"] = "synthetic"
+    elif mutation == "meta_unknown":
+        params["_meta"]["unknown"] = "synthetic"
+    elif mutation == "meta_type":
+        params["_meta"] = []
+    elif mutation == "meta_event_type":
+        params["_meta"]["eventId"] = 2
+    elif mutation == "meta_event_session":
+        params["_meta"]["eventId"] = "00000000-0000-4000-8000-000000000002-2"
+    elif mutation == "meta_time_bool":
+        params["_meta"]["agentTimestampMs"] = True
+    elif mutation == "meta_time_negative":
+        params["_meta"]["agentTimestampMs"] = -1
+    else:
+        event["method"] = "_x.ai/session/update" if mutation == "wrong_method" else "unknown/update"
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    with pytest.raises(ValueError, match="initial plan mode metadata|unknown event type or method"):
+        review.audit_context(session, [b"prompt"], grok_home=home)
+
+
 @pytest.mark.parametrize("kind", ["auto_compact_started", "compaction_checkpoint", "auto_compact_completed"])
 def test_each_compaction_event_individually_rejects_context(context_updates, kind):
     home, session, write = context_updates
