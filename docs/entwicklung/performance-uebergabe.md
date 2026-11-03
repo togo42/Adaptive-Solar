@@ -9,6 +9,13 @@ Fortsetzung am 02.11.2026:
 [lokale Bestandsaufnahme und Laufzeitmessung](performance-bestandsaufnahme.md).
 Die folgenden Befunde bleiben an die oben genannte Ausgangsbasis gebunden.
 
+Fortsetzung am 03.11.2026: Die [Originalvalidierung](performance-originalvalidierung.md)
+vermeidet redundante Baumdurchläufe. Ein [lokaler Auswahlprototyp](performance-archivauswahl.md)
+trennt vollständigen Kaltaufbau und gebundene Wiederverwendung;
+die [Rustbewertung](performance-rust.md) beschreibt den möglichen Hostumfang
+und den noch fehlenden Rust-Laufzeitnachweis. Diese Entwicklungsschritte sind
+keine produktive Aktivierung.
+
 ## 1 Auftrag und Aussagegrenzen
 
 Ausgangspunkt ist die vom Nutzer als sehr langsam beschriebene Hostprobe auf

@@ -1,6 +1,6 @@
 # Qualitätsableitung auf eingefrorenen Archiven messen
 
-Stand: 02.11.2026. Diese Anleitung ergänzt die
+Stand: 03.11.2026. Diese Anleitung ergänzt die
 [Bestandsaufnahme](performance-bestandsaufnahme.md) um eine Phasenmessung auf
 einer vollständigen lokalen Archivkopie. Sie autorisiert keine Produktivprobe.
 Originale, Quellenpolicy und operatorbezogene Ergebnisse bleiben unter
@@ -91,7 +91,7 @@ Kapazitätsinventur oder vollständige Archivhost-Jobdauer.
 
 | Messpunkt | Inhalt |
 | --- | --- |
-| `wall_seconds`, `cpu_seconds` | Tatsächliche synchrone Ableitung ohne Imports, Eingabehashing oder Ausgabeaufbereitung des Messhelfers |
+| `wall_seconds`, `cpu_seconds` | Tatsächliche synchrone Ableitung ohne Imports, globale Eingabeinventur oder Ausgabeaufbereitung; mit explizitem Auswahlplan einschließlich dessen Eingangs-/Abschlussprüfung |
 | `derive_to_build_wall_seconds` | Rohprüfung, Quellscan, Selektion, Konfigurationsaufbereitung und Payloadauflösung vor Eintritt in `build_quality` |
 | `quality.build_quality` | Qualitätskern einschließlich Ereignis-/Bindungsprüfung, Intervallaufbereitung, Stundenentscheidungen und Evidenzhashes |
 | `build_to_derive_end_wall_seconds` | Nachgelagerte Provenienzergänzung und Capture-Normalisierung im untersuchten `derive` |
@@ -164,3 +164,19 @@ unveränderte Referenz geprüft werden. Die Abnahme schützt Originalbytes,
 Quellen-/Generations-/Konfigurations-/Producerpins, vollständige Gegenbelege,
 Einheiten, Lücken, Gates, DST-Verhalten und echte Verfügbarkeit. Die Regeln der
 [Übergabe](performance-uebergabe.md#4-messung-und-abnahme) gelten weiterhin.
+
+Der zusätzliche [Auswahlprototyp](performance-archivauswahl.md) bindet einen
+einmal vollständig geprüften Archiv-/Abfragesatz. `--selection-plan` verlangt
+zusätzlich `--selection-plan-sha256`; beide Optionen sind ausschließlich für
+die ausdrücklich gebundene lokale Wiederverwendung vorgesehen. Beide
+Byteprüfungen des Auswahlscopes liegen innerhalb seiner gemessenen Laufzeit.
+Entsprechend enthält `derive_to_build_wall_seconds` dann auch Planlesen und
+Eingangsprüfung; `build_to_derive_end_wall_seconds` enthält zusätzlich die
+Abschlussprüfung. Diese beiden Marker sind mit Plan keine reinen
+Verbraucherphasen. `selection_status` zeigt die tatsächlich geplanten
+Batchbesuche und Headroom-Fallbacks; geplante Besuche sind keine separaten
+I/O-Messungen.
+Der Kaltaufbau gehört als eigener Messfall zum Vergleich. `collection_evidence`
+projiziert nach dem Timing zusätzlich die im Quellstand verfügbaren Original-
+und Konfigurationsbelegzähler/-hashes; der vollständige stabile Entscheidungs-
+hash bleibt die maßgebliche Gleichheitsprüfung.

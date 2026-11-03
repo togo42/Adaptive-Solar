@@ -490,6 +490,13 @@ class ArchiveStore:
     def _db(self, path=None, *, check_integrity=False):
         return _connect(path or self.root / "index.sqlite3", "host", check_integrity=check_integrity)
 
+    def _read_lock(self, *, source=None):
+        return _lock(self.root)
+
+    def _event_batches(self, conn, source):
+        return conn.execute("SELECT hash FROM batches WHERE (? IS NULL OR source=?) ORDER BY ingest_order,hash",
+                            (source, source)).fetchall()
+
     @staticmethod
     def _tables(conn):
         conn.execute("CREATE TABLE IF NOT EXISTS batches(hash TEXT PRIMARY KEY,source TEXT,ingest_order INTEGER,stored_at TEXT,bytes INTEGER)")
@@ -715,9 +722,8 @@ class ArchiveStore:
         """Yield originals in ingestion order. Each compressed read is strictly bounded."""
         if source is not None:
             _text(source, "source")
-        with _lock(self.root), self._db() as conn:
-            rows = conn.execute("SELECT hash FROM batches WHERE (? IS NULL OR source=?) ORDER BY ingest_order,hash",
-                                (source, source)).fetchall()
+        with self._read_lock(source=source), self._db() as conn:
+            rows = self._event_batches(conn, source)
             selected = None
             if dataset is not None:
                 pins = self._pins()
@@ -762,7 +768,7 @@ class ArchiveStore:
         selected = None
         pinned = None
         if dataset is not None:
-            with _lock(self.root):
+            with self._read_lock(source=source):
                 pins = self._pins()
                 if dataset not in pins:
                     raise ArchiveError("Unknown pinned dataset")
@@ -779,7 +785,7 @@ class ArchiveStore:
         try:
             yield resolve
             if dataset is not None:
-                with _lock(self.root):
+                with self._read_lock(source=source):
                     pins = self._pins()
                     if dataset not in pins or tuple(pins[dataset]) != pinned:
                         raise ArchiveError("Pinned dataset changed during reference read")
@@ -794,7 +800,7 @@ class ArchiveStore:
             _text(identifier, "event ID")
         if len(set(event_ids)) != len(event_ids):
             raise ArchiveError("Duplicate replay reference")
-        with _lock(self.root), self._db() as conn:
+        with self._read_lock(source=source), self._db() as conn:
             references = {}
             for offset in range(0, len(event_ids), 200):
                 chunk = event_ids[offset:offset + 200]

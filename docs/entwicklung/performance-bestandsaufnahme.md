@@ -200,6 +200,13 @@ Ein schnellerer Vollscan erlaubt keinen Verzicht auf diese Evidenz. Ein Profil
 mit vielen Aufrufen der kanonischen Serialisierung ist ebenfalls keine
 Freigabe, Prüfungen oder Hashbindungen zu entfernen.
 
+Der anschließende [Auswahlprototyp](performance-archivauswahl.md) begrenzt die
+Untersuchung auf eine vollständig gebundene Archivkopie und Abfrage. Kaltaufbau
+und Wiederverwendung bleiben getrennte Messfälle. Die konkrete
+[Rustbewertung](performance-rust.md) priorisiert einen optionalen gebündelten
+Hosthelfer; eine Rustimplementierung oder deren Beschleunigung ist damit noch
+nicht nachgewiesen.
+
 Coordinator-Worker, aktive ML-Vorhersagen, Export, Ereignisloop-Latenz,
 Netzwerk, Kapazitätsprüfung und produktive Locks sind weitere getrennte
 Messaufträge. Aus diesem lokalen Start folgen keine produktiven Änderungen,

@@ -108,6 +108,11 @@ muss Anker, Gegenbelege anderer Generationen, Payloadabhängigkeiten und
 Auswahlbudgets vollständig erhalten. Auch Änderungen an Trainingsjoin,
 Physik-/ML-Aufrufen und Historienpflege sind getrennte Arbeitspakete.
 
+Der anschließende [lokale Auswahlprototyp](performance-archivauswahl.md)
+untersucht diese Auswahl nur für einen vollständig gebundenen eingefrorenen
+Satz. Sein vollständiger Kaltaufbau und seine Wiederverwendung werden getrennt
+gemessen; er ersetzt keinen fortlaufenden Archivscan im Produktivbetrieb.
+
 Format und Datenverträge bleiben unverändert; es gibt keine Migration und
 keine neue Abhängigkeit. Lokale Implementierung, Tests, unabhängiger Review
 und Laufzeitvergleich sind getrennt von Release, Installation und produktiver

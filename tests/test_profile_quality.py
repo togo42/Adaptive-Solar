@@ -165,3 +165,74 @@ def test_interrupted_layout_migration_keeps_identical_hash_set(frozen_case):
         max_archive_bytes=4 * profile_quality.GIB, max_decompressed_bytes=4 * profile_quality.GIB,
     ))
     assert inventory["batches"] == 16 and inventory["indexed_batches"] == 15
+
+
+def build_selection_plan(fixture, source, path):
+    """Build with precisely the modules the isolated worker will consume."""
+    script = """
+import json, sys
+from pathlib import Path
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1])
+from scripts import profile_quality, frozen_quality_selection as selection
+from custom_components.adaptive_solar.core.archive import ArchiveStore
+root = Path(sys.argv[2])
+class Reader(ArchiveStore):
+    def __init__(self):
+        self.root = root / 'archive'
+        self.originals = self.root / 'originals'
+    def _db(self, *args, **kwargs):
+        return profile_quality.readonly_db(self.root)
+reader = Reader()
+query = selection.query_from_capture(json.loads((root / 'raw.json').read_text()),
+                                     json.loads((root / 'bindings.json').read_text()))
+plan = selection.build_plan(reader, query)
+Path(sys.argv[3]).write_text(json.dumps(plan, allow_nan=False))
+print(selection.plan_sha256(plan))
+"""
+    result = subprocess.run([sys.executable, "-I", "-B", "-c", script, str(source), str(fixture), str(path)],
+                            check=True, capture_output=True, text=True, env=profile_quality.worker_environment())
+    return result.stdout.strip()
+
+
+def test_pinned_selection_workers_match_full_scan_and_include_verification(frozen_case, tmp_path):
+    _, source = frozen_case
+    fixture = tmp_path / "two-days"
+    benchmark_quality.prepare_fixture(fixture, 2, 100)
+    plan_path = tmp_path / "selection.json"
+    pin = build_selection_plan(fixture, source, plan_path)
+    before = {p: p.read_bytes() for p in fixture.rglob("*") if p.is_file()}
+    baseline, selected = tmp_path / "baseline", tmp_path / "selected"
+    assert profile_quality.main(arguments(fixture, source, baseline)) == 0
+    assert profile_quality.main(arguments(fixture, source, selected) + [
+        "--selection-plan", str(plan_path), "--selection-plan-sha256", pin]) == 0
+    full = json.loads((baseline / "complete.json").read_text())
+    planned = json.loads((selected / "complete.json").read_text())
+    assert all(run["decision_sha256"] == full["runs"][0]["decision_sha256"] for run in planned["runs"])
+    assert all(run["selection_plan_sha256"] == pin and run["selection_verification_included_in_timing"]
+               and run["availability_chronology_verified"] for run in planned["runs"])
+    assert all(not run["selection_status"]["active"]
+               and run["selection_status"]["headroom_fallbacks"] == 0
+               and run["selection_status"]["scheduled_batches"] < run["selection_status"]["candidate_batches"]
+               for run in planned["runs"])
+    assert (planned["runs"][1]["phases"]["archive._read_original"]["calls"]
+            < full["runs"][1]["phases"]["archive._read_original"]["calls"])
+    assert all(p.read_bytes() == value for p, value in before.items())
+    full_manifest = json.loads((baseline / "input-manifest.json").read_text())
+    planned_manifest = json.loads((selected / "input-manifest.json").read_text())
+    assert "selection_plan_file_sha256" not in full_manifest
+    assert planned_manifest["selection_plan_file_sha256"] == profile_quality.file_hash(plan_path)
+
+
+def test_selection_plan_requires_external_pin_and_wrong_pin_never_completes(frozen_case, tmp_path):
+    fixture, source = frozen_case
+    plan_path = tmp_path / "selection.json"
+    build_selection_plan(fixture, source, plan_path)
+    output = tmp_path / "results"
+    with pytest.raises(SystemExit):
+        profile_quality.main(arguments(fixture, source, output) + ["--selection-plan", str(plan_path)])
+    assert not output.exists()
+    with pytest.raises(subprocess.CalledProcessError):
+        profile_quality.main(arguments(fixture, source, output) + [
+            "--selection-plan", str(plan_path), "--selection-plan-sha256", "0" * 64])
+    assert not (output / "complete.json").exists()

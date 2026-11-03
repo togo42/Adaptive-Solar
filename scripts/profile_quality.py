@@ -137,13 +137,20 @@ def inventories(args):
                 source_files.append(path)
     if not source_files or len(source_files) > 2000 or sum(p.stat().st_size for p in source_files) > 128 * MIB:
         raise ValueError("Pinned public source inventory exceeds budget")
-    return {"archive": {str(p.relative_to(archive)): file_hash(p) for p in sorted(files)},
+    result = {"archive": {str(p.relative_to(archive)): file_hash(p) for p in sorted(files)},
             "sources": {str(p.relative_to(source)): file_hash(p) for p in sorted(source_files)},
             "raw_sha256": file_hash(args.raw), "bindings_sha256": file_hash(args.bindings),
             "batches": len(originals), "indexed_batches": indexed_batches, "indexed_events": events,
             "compressed_original_bytes": size, "archive_file_bytes": sum(p.stat().st_size for p in files),
             "gzip_isize_bytes": decompressed,
             "gzip_isize_note": "Resource inventory only; native original reader still checks every consumed original"}
+    plan = getattr(args, "selection_plan", None)
+    if plan is not None:
+        if plan.is_symlink() or not plan.is_file() or plan.stat().st_size > 128 * MIB:
+            raise ValueError("Selection plan is missing, aliased or oversized")
+        result["selection_plan_file_sha256"] = file_hash(plan)
+        result["selection_plan_sha256"] = args.selection_plan_sha256
+    return result
 
 
 class BlockHA(MetaPathFinder):
@@ -153,13 +160,16 @@ class BlockHA(MetaPathFinder):
         return None
 
 
-def load_sources(source_root):
+def load_sources(source_root, *, selection=False):
     sys.dont_write_bytecode = True
     sys.meta_path.insert(0, BlockHA())
     sys.path.insert(0, str(source_root.resolve()))
-    modules = {name: importlib.import_module(name) for name in (
+    names = (
         "custom_components.adaptive_solar.core.archive", "custom_components.adaptive_solar.core.actual_quality",
-        "scripts.continuous_quality", "scripts.capture_actuals", "scripts.actual_quality_io")}
+        "scripts.continuous_quality", "scripts.capture_actuals", "scripts.actual_quality_io")
+    if selection:
+        names += ("scripts.frozen_quality_selection",)
+    modules = {name: importlib.import_module(name) for name in names}
     origins = {}
     for name, module in list(sys.modules.items()):
         if (name == "homeassistant" or name.startswith("homeassistant.")):
@@ -252,6 +262,8 @@ def validate_worker_output(args):
     if args.worker_mode == "cprofile":
         outputs.extend([args.output.with_suffix(".prof"), args.output.with_suffix(".txt")])
     protected_files = {p.resolve() for p in (args.raw, args.bindings, args.expected_manifest)}
+    if getattr(args, "selection_plan", None) is not None:
+        protected_files.add(args.selection_plan.resolve())
     protected_roots = [p.resolve() for p in (args.archive, args.source_root)]
     for path in outputs:
         if (path.exists() or path.is_symlink() or path.resolve() in protected_files
@@ -277,7 +289,7 @@ def measured_worker(args):
         if event in {"socket.connect", "socket.bind", "socket.getaddrinfo", "subprocess.Popen", "os.system"}:
             raise RuntimeError("Network and child execution forbidden inside measured worker")
     sys.addaudithook(no_network)
-    modules, origins = load_sources(args.source_root)
+    modules, origins = load_sources(args.source_root, selection=args.selection_plan is not None)
     archive = modules["custom_components.adaptive_solar.core.archive"]
     quality = modules["custom_components.adaptive_solar.core.actual_quality"]
     continuous = modules["scripts.continuous_quality"]
@@ -329,9 +341,25 @@ def measured_worker(args):
         if profiler:
             profiler.enable()
         wall, cpu = time.perf_counter(), time.process_time()
+        selection_status = None
         if phases:
             phases.started = wall
-        result = continuous.derive(reader, raw, bindings)
+        if args.selection_plan is None:
+            result = continuous.derive(reader, raw, bindings)
+        else:
+            selector = modules["scripts.frozen_quality_selection"]
+            with args.selection_plan.open("rb") as stream:
+                plan_bytes = stream.read(128 * MIB + 1)
+            if len(plan_bytes) > 128 * MIB:
+                raise ValueError("Selection plan exceeds byte budget")
+            plan = json.loads(plan_bytes)
+            query = selector.query_from_capture(raw, bindings)
+            # Include both plan verification and its closing integrity barrier
+            # in the selected worker's elapsed time, not just the smaller scan.
+            with selector.selection_scope(reader, plan, expected_plan_sha256=args.selection_plan_sha256,
+                                          query=query) as selected:
+                result = continuous.derive(selected, raw, bindings)
+            selection_status = selected.selection_status
         elapsed, cpu_elapsed = time.perf_counter() - wall, time.process_time() - cpu
         real_finished_at = datetime.now(UTC)
         if profiler:
@@ -361,6 +389,16 @@ def measured_worker(args):
                "input_manifest_sha256": digest(before), "input_bytes_unchanged": True,
                "input_raw_and_receipt_preserved": True,
                "availability_chronology_verified": True, "real_finished_at": real_finished_at.isoformat()}
+    # Diagnostic projection after timing; the decision hash still binds the
+    # complete stable report, including implementations without compact proofs.
+    metrics["collection_evidence"] = {key: report[key] for key in
+        ("original_event_count", "event_set_sha256", "configuration_evidence_sha256") if key in report}
+    if "configuration_evidence" in report:
+        metrics["collection_evidence"]["configuration_evidence_count"] = len(report["configuration_evidence"])
+    if args.selection_plan is not None:
+        metrics.update(selection_plan_sha256=args.selection_plan_sha256,
+                       selection_verification_included_in_timing=True,
+                       selection_status=selection_status)
     if phases:
         phases.markers["build_to_derive_end_wall_seconds"] = elapsed + wall - phases.build_ended
         metrics.update(phases=phases.values, phase_markers=phases.markers,
@@ -387,7 +425,8 @@ def environment(args):
             "source_label": args.source_label,
             "cache_state": "Original byte hashing immediately before measurement primes OS cache; no cold-cache claim",
             "reader_scope": "Pinned native original validation/selection; readonly SQLite; no initialization/reconcile/writer lock",
-            "timing_scope": "derive only; imports/input hashing/result hashing/output writing excluded; no host/HA/network"}
+            "timing_scope": ("derive and optional selection-scope verification; imports/global input hashing/"
+                             "result hashing/output writing excluded; no host/HA/network")}
 
 
 def worker_environment():
@@ -410,6 +449,8 @@ def main(argv=None):
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--timeout", type=int, default=900, help="Per-worker seconds, at most 1800")
     parser.add_argument("--cprofile", action="store_true", help="Additional separate cProfile run; can be much slower")
+    parser.add_argument("--selection-plan", type=Path, help="Explicit frozen query plan from the same source root")
+    parser.add_argument("--selection-plan-sha256", help="Externally pinned canonical plan-document SHA256")
     parser.add_argument("--max-batches", type=int, default=50000)
     parser.add_argument("--max-events", type=int, default=2000000)
     parser.add_argument("--max-archive-bytes", type=int, default=4 * GIB)
@@ -418,6 +459,11 @@ def main(argv=None):
     parser.add_argument("--worker-mode", choices=("ordinary", "phases", "cprofile"), help=argparse.SUPPRESS)
     parser.add_argument("--expected-manifest", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+    if ((args.selection_plan is None) != (args.selection_plan_sha256 is None)
+            or args.selection_plan_sha256 is not None
+            and (len(args.selection_plan_sha256) != 64
+                 or any(c not in "0123456789abcdef" for c in args.selection_plan_sha256))):
+        parser.error("Selection plan requires its externally pinned canonical document SHA256")
     if (platform.system() != "Linux" or not 1 <= args.repeats <= 5 or not 1 <= args.timeout <= 1800
             or not 1 <= args.max_batches <= 50000 or not 1 <= args.max_events <= 2000000
             or not MIB <= args.max_archive_bytes <= 4 * GIB
@@ -426,6 +472,8 @@ def main(argv=None):
         parser.error("Requires Linux and bounded repeats/time/archive/events/memory")
     for name in ("archive", "raw", "bindings", "source_root", "output"):
         setattr(args, name, getattr(args, name).absolute())
+    if args.selection_plan is not None:
+        args.selection_plan = args.selection_plan.absolute()
     os.umask(0o077)
     if args.worker_mode:
         resource.setrlimit(resource.RLIMIT_AS, (args.memory_bytes, args.memory_bytes))
@@ -434,7 +482,8 @@ def main(argv=None):
     output = args.output.resolve()
     if (args.output.exists() or args.output.is_symlink()
             or any(output.is_relative_to(path.resolve()) for path in (args.archive, args.source_root))
-            or output in {args.raw.resolve(), args.bindings.resolve()}):
+            or output in {args.raw.resolve(), args.bindings.resolve()}
+            or args.selection_plan is not None and output == args.selection_plan.resolve()):
         parser.error("Output must be a new directory outside frozen inputs and source tree")
     frozen = inventories(args)
     args.output.mkdir(parents=True, exist_ok=False)
@@ -450,6 +499,9 @@ def main(argv=None):
                      "max_decompressed_bytes", "memory_bytes"):
             command.extend(["--" + name.replace("_", "-"), str(getattr(args, name))])
         command.extend(["--output", str(worker_output)])
+        if args.selection_plan is not None:
+            command.extend(["--selection-plan", str(args.selection_plan),
+                            "--selection-plan-sha256", args.selection_plan_sha256])
         started = time.perf_counter()
         subprocess.run(command, check=True, timeout=args.timeout, env=worker_environment())
         run = json.loads(worker_output.read_text())
