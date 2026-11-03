@@ -1,0 +1,20 @@
+[package]
+name = "archive-probe"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "GPL-3.0-only"
+
+[lib]
+name = "_archive_probe"
+crate-type = ["cdylib"]
+
+[dependencies]
+flate2 = "=1.1.5"
+pyo3 = { version = "=0.28.2", features = ["extension-module"] }
+serde_json = { version = "=1.0.145", features = ["arbitrary_precision"] }
+sha2 = "=0.10.9"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

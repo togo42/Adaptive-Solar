@@ -236,3 +236,28 @@ def test_selection_plan_requires_external_pin_and_wrong_pin_never_completes(froz
         profile_quality.main(arguments(fixture, source, output) + [
             "--selection-plan", str(plan_path), "--selection-plan-sha256", "0" * 64])
     assert not (output / "complete.json").exists()
+
+
+def test_rust_binary_pin_is_checked_before_output_or_loading(frozen_case, tmp_path):
+    fixture, source = frozen_case
+    module = tmp_path / "untrusted.so"
+    module.write_bytes(b"never load this synthetic binary")
+    original = module.read_bytes()
+    output = tmp_path / "results"
+    with pytest.raises(SystemExit):
+        profile_quality.main(arguments(fixture, source, output) + ["--rust-module", str(module)])
+    with pytest.raises(ValueError, match="binary pin"):
+        profile_quality.main(arguments(fixture, source, output) + [
+            "--rust-module", str(module), "--rust-module-sha256", "0" * 64])
+    assert not output.exists()
+    assert module.read_bytes() == original
+
+
+def test_rust_and_frozen_selection_are_independent_experiment_arms(frozen_case, tmp_path):
+    fixture, source = frozen_case
+    output = tmp_path / "results"
+    with pytest.raises(SystemExit):
+        profile_quality.main(arguments(fixture, source, output) + [
+            "--rust-module", str(tmp_path / "module.so"), "--rust-module-sha256", "0" * 64,
+            "--selection-plan", str(tmp_path / "plan.json"), "--selection-plan-sha256", "0" * 64])
+    assert not output.exists()

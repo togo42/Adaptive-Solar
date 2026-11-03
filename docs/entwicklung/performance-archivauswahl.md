@@ -120,6 +120,7 @@ eine eigene, hier nicht implementierte Architekturänderung.
 Die mögliche Ersparnis hängt von Archivalter, Batchzuschnitt und Policyperioden
 ab. Enthalten die meisten Batches relevante Evidenz, begrenzt das bereits den
 Gewinn durch diese Auswahl. Ein [Rustbaustein](performance-rust.md) könnte
-zusätzlich Python-Schleifen und Objektaufbereitung bündeln; dazu fehlt ein
-verhaltensgleicher End-to-End-Messnachweis. Weder der Plan noch diese Bewertung
+zusätzlich Python-Schleifen und Objektaufbereitung bündeln. Der folgende
+[Rustversuch](performance-rust-probe.md) beginnt mit der Originalvalidierung
+und verwendet keinen zuvor aufgebauten Auswahlplan. Weder der Plan noch diese Bewertung
 ändert Quellenqualifikation, Prognosegüte oder produktive Freigaben.

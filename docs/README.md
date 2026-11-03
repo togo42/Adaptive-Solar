@@ -55,7 +55,8 @@ privaten Archivhost voraus; die Prognoseintegration benötigt diesen Host nicht.
 - [Qualitätsableitung in Phasen messen](entwicklung/performance-qualitaetsphasen.md): eingefrorene lokale Archive, versionspassende Quellen und getrennte Referenz-/Phasenläufe.
 - [Originalvalidierung optimieren](entwicklung/performance-originalvalidierung.md): redundante Schlüsselbaumdurchläufe vermeiden, ohne den Seiten- und Envelopevertrag zu lockern.
 - [Gezielte Archivauswahl](entwicklung/performance-archivauswahl.md): vollständiger Planaufbau, gebundene Wiederverwendung und getrennte Messung der Aufbaukosten.
-- [Rust für die Archivverarbeitung](entwicklung/performance-rust.md): sinnvoller Hostumfang, bytegleiche Prüfsummen und noch fehlender Geschwindigkeitsnachweis.
+- [Rust für die Archivverarbeitung](entwicklung/performance-rust.md): sinnvoller Hostumfang und Anforderungen an identische Prüfsummen und Fehlerfälle.
+- [Rust-Originalreader prüfen](entwicklung/performance-rust-probe.md): optionaler Rustkern, frameerhaltender Python-Fallback und getrennte Differential-/Hosttests.
 - [Validierung](entwicklung/validierung.md): prospektiver Messplan und hashgebundener Reviewablauf.
 - [Fehlerfamilien prüfen](entwicklung/review-fehlerfamilien.md): gemeinsame Nachprüfung, Inventur der Schreibwege und Grenzen fokussierter Reviews.
 - [Vergleichsaufnahme](entwicklung/benchmark-aufnahme.md): Recorder-Istwerte und Referenzprognosen.

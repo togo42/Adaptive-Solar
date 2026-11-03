@@ -150,6 +150,15 @@ def inventories(args):
             raise ValueError("Selection plan is missing, aliased or oversized")
         result["selection_plan_file_sha256"] = file_hash(plan)
         result["selection_plan_sha256"] = args.selection_plan_sha256
+    rust = getattr(args, "rust_module", None)
+    if rust is not None:
+        if (rust.is_symlink() or not rust.is_file() or rust.resolve() != rust.absolute()
+                or rust.stat().st_size > 128 * MIB):
+            raise ValueError("Rust module must be a bounded, canonical regular file")
+        actual = file_hash(rust)
+        if actual != args.rust_module_sha256:
+            raise ValueError("Rust module does not match its external binary pin")
+        result["rust_module_sha256"] = actual
     return result
 
 
@@ -160,7 +169,7 @@ class BlockHA(MetaPathFinder):
         return None
 
 
-def load_sources(source_root, *, selection=False):
+def load_sources(source_root, *, selection=False, rust=False):
     sys.dont_write_bytecode = True
     sys.meta_path.insert(0, BlockHA())
     sys.path.insert(0, str(source_root.resolve()))
@@ -169,6 +178,8 @@ def load_sources(source_root, *, selection=False):
         "scripts.continuous_quality", "scripts.capture_actuals", "scripts.actual_quality_io")
     if selection:
         names += ("scripts.frozen_quality_selection",)
+    if rust:
+        names += ("scripts.rust_archive_probe",)
     modules = {name: importlib.import_module(name) for name in names}
     origins = {}
     for name, module in list(sys.modules.items()):
@@ -264,6 +275,8 @@ def validate_worker_output(args):
     protected_files = {p.resolve() for p in (args.raw, args.bindings, args.expected_manifest)}
     if getattr(args, "selection_plan", None) is not None:
         protected_files.add(args.selection_plan.resolve())
+    if getattr(args, "rust_module", None) is not None:
+        protected_files.add(args.rust_module.resolve())
     protected_roots = [p.resolve() for p in (args.archive, args.source_root)]
     for path in outputs:
         if (path.exists() or path.is_symlink() or path.resolve() in protected_files
@@ -289,7 +302,8 @@ def measured_worker(args):
         if event in {"socket.connect", "socket.bind", "socket.getaddrinfo", "subprocess.Popen", "os.system"}:
             raise RuntimeError("Network and child execution forbidden inside measured worker")
     sys.addaudithook(no_network)
-    modules, origins = load_sources(args.source_root, selection=args.selection_plan is not None)
+    modules, origins = load_sources(args.source_root, selection=args.selection_plan is not None,
+                                    rust=args.rust_module is not None)
     archive = modules["custom_components.adaptive_solar.core.archive"]
     quality = modules["custom_components.adaptive_solar.core.actual_quality"]
     continuous = modules["scripts.continuous_quality"]
@@ -312,8 +326,12 @@ def measured_worker(args):
         yield
 
     profiler = cProfile.Profile() if args.worker_mode == "cprofile" else None
+    rust_stats = None
     with ExitStack() as stack:
         stack.enter_context(patch.object(archive, "_lock", frozen_lock))
+        if args.rust_module is not None:
+            rust_stats = stack.enter_context(modules["scripts.rust_archive_probe"].rust_original_reader(
+                archive, args.rust_module, args.rust_module_sha256))
         if phases:
             for name in ("build_quality", "_events", "_bindings", "_intervals", "_config_changes", "_hour",
                          "configuration_from_forecast", "_configuration_inputs", "_forecast"):
@@ -399,6 +417,8 @@ def measured_worker(args):
         metrics.update(selection_plan_sha256=args.selection_plan_sha256,
                        selection_verification_included_in_timing=True,
                        selection_status=selection_status)
+    if rust_stats is not None:
+        metrics["rust_probe"] = dict(rust_stats)
     if phases:
         phases.markers["build_to_derive_end_wall_seconds"] = elapsed + wall - phases.build_ended
         metrics.update(phases=phases.values, phase_markers=phases.markers,
@@ -424,7 +444,8 @@ def environment(args):
             "harness_sha256": file_hash(Path(__file__)), "recorded_at": datetime.now(UTC).isoformat(),
             "source_label": args.source_label,
             "cache_state": "Original byte hashing immediately before measurement primes OS cache; no cold-cache claim",
-            "reader_scope": "Pinned native original validation/selection; readonly SQLite; no initialization/reconcile/writer lock",
+            "reader_scope": ("Pinned original validation/selection; optional hash-pinned Rust validation with native Python fallback; "
+                             "readonly SQLite; no initialization/reconcile/writer lock"),
             "timing_scope": ("derive and optional selection-scope verification; imports/global input hashing/"
                              "result hashing/output writing excluded; no host/HA/network")}
 
@@ -451,6 +472,8 @@ def main(argv=None):
     parser.add_argument("--cprofile", action="store_true", help="Additional separate cProfile run; can be much slower")
     parser.add_argument("--selection-plan", type=Path, help="Explicit frozen query plan from the same source root")
     parser.add_argument("--selection-plan-sha256", help="Externally pinned canonical plan-document SHA256")
+    parser.add_argument("--rust-module", type=Path, help="Optional experimental Rust original reader; frozen local inputs only")
+    parser.add_argument("--rust-module-sha256", help="Externally pinned Rust extension binary SHA256")
     parser.add_argument("--max-batches", type=int, default=50000)
     parser.add_argument("--max-events", type=int, default=2000000)
     parser.add_argument("--max-archive-bytes", type=int, default=4 * GIB)
@@ -459,6 +482,13 @@ def main(argv=None):
     parser.add_argument("--worker-mode", choices=("ordinary", "phases", "cprofile"), help=argparse.SUPPRESS)
     parser.add_argument("--expected-manifest", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+    if ((args.rust_module is None) != (args.rust_module_sha256 is None)
+            or args.rust_module_sha256 is not None
+            and (len(args.rust_module_sha256) != 64
+                 or any(c not in "0123456789abcdef" for c in args.rust_module_sha256))):
+        parser.error("Rust module requires its externally pinned binary SHA256")
+    if args.rust_module is not None and args.selection_plan is not None:
+        parser.error("Rust and frozen selection are separate experiment arms")
     if ((args.selection_plan is None) != (args.selection_plan_sha256 is None)
             or args.selection_plan_sha256 is not None
             and (len(args.selection_plan_sha256) != 64
@@ -474,6 +504,8 @@ def main(argv=None):
         setattr(args, name, getattr(args, name).absolute())
     if args.selection_plan is not None:
         args.selection_plan = args.selection_plan.absolute()
+    if args.rust_module is not None:
+        args.rust_module = args.rust_module.absolute()
     os.umask(0o077)
     if args.worker_mode:
         resource.setrlimit(resource.RLIMIT_AS, (args.memory_bytes, args.memory_bytes))
@@ -483,7 +515,8 @@ def main(argv=None):
     if (args.output.exists() or args.output.is_symlink()
             or any(output.is_relative_to(path.resolve()) for path in (args.archive, args.source_root))
             or output in {args.raw.resolve(), args.bindings.resolve()}
-            or args.selection_plan is not None and output == args.selection_plan.resolve()):
+            or args.selection_plan is not None and output == args.selection_plan.resolve()
+            or args.rust_module is not None and output == args.rust_module.resolve()):
         parser.error("Output must be a new directory outside frozen inputs and source tree")
     frozen = inventories(args)
     args.output.mkdir(parents=True, exist_ok=False)
@@ -502,6 +535,9 @@ def main(argv=None):
         if args.selection_plan is not None:
             command.extend(["--selection-plan", str(args.selection_plan),
                             "--selection-plan-sha256", args.selection_plan_sha256])
+        if args.rust_module is not None:
+            command.extend(["--rust-module", str(args.rust_module),
+                            "--rust-module-sha256", args.rust_module_sha256])
         started = time.perf_counter()
         subprocess.run(command, check=True, timeout=args.timeout, env=worker_environment())
         run = json.loads(worker_output.read_text())

@@ -1,8 +1,9 @@
 # Rust für die Archivverarbeitung bewerten
 
-Stand: 03.11.2026. Rust wurde als mögliche spätere Umsetzung eines begrenzten
-Hostbausteins betrachtet. Es gibt in diesem Arbeitsstand weder eine
-Rustimplementierung noch einen gemessenen Rust-Geschwindigkeitsvorteil.
+Stand: 03.11.2026. Diese Bewertung begründet den begrenzten Hostumfang eines
+Rustversuchs. Der anschließende [optionale Originalreader](performance-rust-probe.md)
+setzt zunächst die Originalvalidierung um. Implementierung, Differentialtests,
+isolierter Laufzeitnachweis und produktive Aktivierung bleiben getrennte Schritte.
 
 ## 1. Nachgewiesener Restaufwand
 
@@ -28,7 +29,7 @@ mitmessen. Viele kleine Übergaben pro Ereignis sind kein geeigneter
 Geschwindigkeitsnachweis. Die [PyO3-Performancehinweise](https://pyo3.rs/main/performance.html)
 beschreiben unter anderem Konvertierungs- und Allokationskosten.
 
-Ein konkreter erster Schnitt wäre
+Eine konkrete spätere Erweiterung wäre
 `scan_validate_project_batches(paths, query)`: vollständige Batchprüfung,
 anschließend originalgetreue ausgewählte Ereignisbytes und Abhängigkeitsbelege
 gebündelt zurückgeben. Große irrelevante Wetterpayloads müssten dann keine
@@ -72,7 +73,7 @@ kann Originalformatierung erhalten; Originaltext ersetzt jedoch nicht den
 kanonischen Envelopehash. Ein schneller Parser allein ist deshalb noch kein
 verhaltensgleicher Archivreader.
 
-## 4. Nächster Rust-Nachweis
+## 4. Rust-Nachweis
 
 Ein begrenzter Versuch beginnt mit synthetischen Originalen und absichtlich
 beschädigten Eingaben. Zuerst werden Bytes, Hashes und Ablehnungen gegen die
@@ -82,7 +83,7 @@ Buildprofil müssen reproduzierbar gebunden sein; ein Rustmikrobenchmark ohne
 Übergaben belegt keinen Hostvorteil.
 
 Die konkrete lokale Toolchain-Verfügbarkeit und Installationsdetails gehören
-in die private Betriebsdokumentation. Eine spätere Umsetzung bleibt optional
-für den Archivhost und erzeugt keine neue Rust-Pflichtabhängigkeit der
-HA-Integration. Eine Portierung oder produktive Aktivierung ist durch diese
-Bewertung nicht umgesetzt.
+in die private Betriebsdokumentation. Der Versuch bleibt optional für den
+Archivhost und erzeugt keine neue Rust-Pflichtabhängigkeit der HA-Integration.
+Die Bewertung allein belegt weder einen Geschwindigkeitsvorteil noch eine
+produktive Aktivierung; dafür gelten die getrennten Nachweise der Rustprobe.

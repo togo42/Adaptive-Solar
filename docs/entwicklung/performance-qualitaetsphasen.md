@@ -180,3 +180,11 @@ Der Kaltaufbau gehört als eigener Messfall zum Vergleich. `collection_evidence`
 projiziert nach dem Timing zusätzlich die im Quellstand verfügbaren Original-
 und Konfigurationsbelegzähler/-hashes; der vollständige stabile Entscheidungs-
 hash bleibt die maßgebliche Gleichheitsprüfung.
+
+Der getrennte [Rustversuch](performance-rust-probe.md) nutzt stattdessen
+`--rust-module PATH --rust-module-sha256 SHA256`. Binärdatei und Adapter werden
+zusätzlich gebunden; Import, AST-Aufbau und abschließende Pinhashes bleiben
+außerhalb der inneren Ableitungszeit. Rustlesen, Pythondekodierung und native
+Fallbacks liegen innerhalb. `rust_probe` berichtet deren tatsächliche Zähler
+und die qualifizierten Quellen. Beide Optionen verlangen einen eigenen Arm
+ohne Auswahlplan; der normale Reader bleibt der Standard.

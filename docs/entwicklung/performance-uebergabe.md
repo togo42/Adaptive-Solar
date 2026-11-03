@@ -12,8 +12,9 @@ Die folgenden Befunde bleiben an die oben genannte Ausgangsbasis gebunden.
 Fortsetzung am 03.11.2026: Die [Originalvalidierung](performance-originalvalidierung.md)
 vermeidet redundante Baumdurchläufe. Ein [lokaler Auswahlprototyp](performance-archivauswahl.md)
 trennt vollständigen Kaltaufbau und gebundene Wiederverwendung;
-die [Rustbewertung](performance-rust.md) beschreibt den möglichen Hostumfang
-und den noch fehlenden Rust-Laufzeitnachweis. Diese Entwicklungsschritte sind
+die [Rustbewertung](performance-rust.md) beschreibt den möglichen Hostumfang.
+Der anschließende [Rustversuch](performance-rust-probe.md) trennt
+Implementierung, Differentialtests und isolierten Laufzeitnachweis. Diese Entwicklungsschritte sind
 keine produktive Aktivierung.
 
 ## 1 Auftrag und Aussagegrenzen

@@ -204,8 +204,9 @@ Der anschließende [Auswahlprototyp](performance-archivauswahl.md) begrenzt die
 Untersuchung auf eine vollständig gebundene Archivkopie und Abfrage. Kaltaufbau
 und Wiederverwendung bleiben getrennte Messfälle. Die konkrete
 [Rustbewertung](performance-rust.md) priorisiert einen optionalen gebündelten
-Hosthelfer; eine Rustimplementierung oder deren Beschleunigung ist damit noch
-nicht nachgewiesen.
+Hosthelfer. Der folgende [Rustversuch](performance-rust-probe.md) portiert
+zunächst die Originalvalidierung und prüft Verhaltensgleichheit und Laufzeit
+getrennt; eine produktive Aktivierung folgt daraus nicht.
 
 Coordinator-Worker, aktive ML-Vorhersagen, Export, Ereignisloop-Latenz,
 Netzwerk, Kapazitätsprüfung und produktive Locks sind weitere getrennte

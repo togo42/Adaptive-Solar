@@ -26,5 +26,6 @@ build/
 dist/
 /data/
 /artifacts/
+/rust/**/target/
 /reviews/private/
 /.coverage
