@@ -218,6 +218,13 @@ Seite zählt nicht als Seitenlimitfehler. `state=gap` und historische
 `dropped_events` allein sind kein Fehler des aktuellen Laufs, wenn normale
 Ringpufferretention keinen Cursorverlust bewirkt und `last_error` leer ist.
 
+Zeitretention entfernt nur das zusammenhängende abgelaufene Sequenzpräfix.
+Ein rückdatiert empfangenes Ereignis hinter einem jüngeren Eintrag darf diesen
+nicht vorzeitig entfernen. Solche älteren Einträge bleiben bis zur späteren
+Präfixretention oder bis zu einer harten Ereignis-/Bytekapazitätsgrenze erhalten;
+isoliertes Löschen würde eine Lücke innerhalb der exportierten Sequenzen erzeugen.
+Die Kapazitätsgrenzen dürfen weiterhin auch jüngere Präfixeinträge verdrängen.
+
 Dieser Abschluss belegt den begrenzten Journaltransfer. Er bestätigt weder eine
 dauerhaft leere Quelle noch vollständige fachliche Aufnahmen nach der Laufgrenze,
 physische Quellenqualität oder Prognosegüte. Wetter- und Beobachtungsjournale

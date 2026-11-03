@@ -66,6 +66,63 @@ def test_journal_retention_prefix_and_generation_gap(tmp_path):
     assert first["sequence"] == 1
 
 
+@pytest.mark.parametrize("batch", [False, True])
+def test_retention_keeps_young_prefix_before_backdated_receipt(tmp_path, batch):
+    j = journal(tmp_path, retention_hours=1)
+    young = j.append("weather_response", {}, NOW, "young")
+    backdated = j.append("weather_response", {}, NOW - timedelta(hours=2), "backdated")
+    items = [("weather_response", {}, NOW + timedelta(minutes=1), "latest")]
+    if batch:
+        items.append(("weather_response", {}, NOW - timedelta(hours=3), "batch-backdated"))
+        added = j.append_many(items)
+    else:
+        added = [j.append(*items[0])]
+    page = j.page()
+    assert page["events"] == [young, backdated, *added]
+    assert page["gap"] is None
+    assert j.stats()["dropped_events"] == 0
+    restarted = journal(tmp_path, retention_hours=1)
+    assert restarted.verify()
+    assert restarted.append_many(items) == added
+    assert restarted.page() == page
+
+
+def test_retention_prunes_only_expired_prefix_and_keeps_exact_cutoff(tmp_path):
+    j = journal(tmp_path, retention_hours=1)
+    events = j.append_many([
+        ("weather_response", {}, NOW - timedelta(hours=2), "expired-prefix"),
+        ("weather_response", {}, NOW - timedelta(hours=1), "exact-cutoff"),
+        ("weather_response", {}, NOW - timedelta(hours=3), "expired-interior"),
+    ])
+    latest = j.append("weather_response", {}, NOW, "latest")
+    page = j.page()
+    assert page["events"] == [*events[1:], latest]
+    assert page["gap"] == {"reason": "retention_or_overflow", "from": 1, "to": 1}
+    assert j.stats()["dropped_events"] == 1
+    assert j.verify()
+    # Once the younger barrier itself expires, the whole old prefix can leave.
+    newest = j.append("weather_response", {}, NOW + timedelta(hours=2), "newest")
+    assert j.page()["events"] == [newest]
+    assert j.stats()["dropped_events"] == 4
+
+
+@pytest.mark.parametrize("bound", ["events", "bytes"])
+def test_capacity_still_prunes_young_prefix_before_backdated_receipt(tmp_path, bound):
+    limits = {"max_events": 2} if bound == "events" else {"max_bytes": 2048, "max_event_bytes": 2048}
+    j = journal(tmp_path, retention_hours=1, **limits)
+    payload = {"value": "x" * 600} if bound == "bytes" else {}
+    j.append("weather_response", payload, NOW, "young")
+    backdated = j.append("weather_response", payload, NOW - timedelta(hours=2), "backdated")
+    latest = j.append("weather_response", payload, NOW + timedelta(minutes=1), "latest")
+    page = j.page()
+    assert page["events"] == [backdated, latest]
+    assert page["gap"] == {"reason": "retention_or_overflow", "from": 1, "to": 1}
+    stats = j.stats()
+    assert stats["dropped_events"] == 1
+    assert stats["events"] <= j.max_events and stats["event_bytes"] <= j.max_bytes
+    assert j.verify()
+
+
 def test_parallel_read_write_has_contiguous_consistent_pages(tmp_path):
     j = journal(tmp_path)
     def write(i):
@@ -392,9 +449,10 @@ def test_batch_chunks_and_manifest_publish_atomically_and_retry(tmp_path):
     assert restarted.stats()["dropped_events"] == 2
 
 
-def test_mid_batch_write_failure_rolls_back_pruning_rows_and_cursor(tmp_path, monkeypatch):
+@pytest.mark.parametrize("pruning", ["capacity", "retention"])
+def test_mid_batch_write_failure_rolls_back_pruning_rows_and_cursor(tmp_path, monkeypatch, pruning):
     import custom_components.adaptive_solar.core.archive as module
-    j = journal(tmp_path, max_events=3)
+    j = journal(tmp_path, max_events=3 if pruning == "capacity" else 10, retention_hours=1)
     first, second = append(j, 0), append(j, 1)
     real_connect = module._connect
     def fail_on_second(*args, **kwargs):
@@ -403,7 +461,8 @@ def test_mid_batch_write_failure_rolls_back_pruning_rows_and_cursor(tmp_path, mo
                      "WHEN NEW.event_id='fail' BEGIN SELECT RAISE(ABORT,'simulated write failure'); END")
         return conn
     monkeypatch.setattr(module, "_connect", fail_on_second)
-    batch = [("chunk", {"i": i}, NOW, identifier) for i, identifier in enumerate(("first", "fail", "manifest"))]
+    received = NOW if pruning == "capacity" else NOW + timedelta(hours=2)
+    batch = [("chunk", {"i": i}, received, identifier) for i, identifier in enumerate(("first", "fail", "manifest"))]
     with pytest.raises(sqlite3.IntegrityError, match="simulated"):
         j.append_many(batch)
     assert j.page()["events"] == [first, second]

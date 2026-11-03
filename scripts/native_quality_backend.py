@@ -39,6 +39,7 @@ SUPPORTED_FACTORY_SOURCES = frozenset({
 })
 SUPPORTED_ARCHIVE_SOURCES = frozenset({
     "2788a9e113dd80a348a6d70c1be055e7ae97509046592a93cad2a8fa73694660",
+    "eadc990a6269fc2258416b9e1f14cf61c976cd0ed247084cb7e74a0beb8dc03f",
 })
 _HEX = re.compile(r"[0-9a-f]{64}\Z")
 _SHARED_KEYS = types.MappingProxyType({key: key for key in (

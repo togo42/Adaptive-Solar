@@ -400,10 +400,11 @@ class ArchiveJournal:
             # Validate the whole batch before mutations. Prune old rows before
             # allocation, reusing free pages while retaining this complete batch.
             cutoff = (_stamp(max(item[2] for item in normalized)) - timedelta(hours=self.retention_hours)).isoformat()
-            newest_expired = conn.execute("SELECT max(sequence) FROM events WHERE received_at<?", (cutoff,)).fetchone()[0]
-            dropped = 0
-            if newest_expired:
-                dropped += conn.execute("DELETE FROM events WHERE sequence<=?", (newest_expired,)).rowcount
+            # Receipt times may arrive out of order. Only an expired prefix
+            # can be removed without losing younger rows or creating a hole.
+            first_retained = conn.execute("SELECT min(sequence) FROM events WHERE received_at>=?", (cutoff,)).fetchone()[0]
+            prefix_end = (sequence if first_retained is None else first_retained) - 1
+            dropped = conn.execute("DELETE FROM events WHERE sequence<=?", (prefix_end,)).rowcount
             rows, size = conn.execute("SELECT count(*),coalesce(sum(length(raw)),0) FROM events").fetchone()
             while rows + len(prepared) > self.max_events or size + total_bytes > self.max_bytes:
                 seq, length = conn.execute("SELECT sequence,length(raw) FROM events ORDER BY sequence LIMIT 1").fetchone()
