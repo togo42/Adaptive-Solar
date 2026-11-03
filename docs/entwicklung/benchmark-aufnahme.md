@@ -225,6 +225,16 @@ Gewinnquote auf nur 29 vollständigen Tagen reicht nicht. `paired_target_days`
 auf Berichtsebene zählt dagegen Tage mit gepaarten Intervallaufgaben und ist
 allein kein Bereitschaftsnachweis.
 
+Die Energie-Horizont- und Stratum-Gates mitteln ausschließlich diese
+vollständigen Tagesgruppen mit gleichem Gewicht je Tag und gleichen
+Originanteilen innerhalb des Tages. Ihr `count` zählt vollständige
+Stufen-/Horizont-/Zieltaggruppen. MAE mittelt absolute Originfehler, Bias
+vorzeichenbehaftete und RMSE deren Quadrate vor dem abschließenden Wurzelziehen;
+die [genauen Formeln](validierung.md#3-vorläufige-annahmekriterien) verhindern
+Fehlerauslöschung und ein Übergewicht von Tagen mit mehr Origins.
+Die vollständige Liste `energy_pairs`, Missingness und deskriptive
+Einzel-Origin-/Intervallmetriken bleiben als Rohbelege erhalten.
+
 Ohne `--bootstrap`: `not_evaluated`. Policy `paired-target-day-bootstrap-v1`: mindestens30 gemeinsam vollständige Zieltage; Origins/Strata/Referenzen desselben Tages gemeinsam ziehen. Defaults:95% Familienkonfidenz/Bonferroni, mindestens20.000 Resamples, Seed`20261024`; nur Familiengröße darf die CI-Auflösung erhoehen. `--bootstrap-resamples`, `--bootstrap-seed`, `--bootstrap-confidence` vor Sichtung fixieren; Ergebnis dokumentiert sie.
 
 Primäre Energie-Strata, deskriptives Gate,5%-Skill-Untergrenze/negative MAE-Differenz-Obergrenze sowie Grenzen von `accepted_conditional`: [Annahmekriterien](validierung.md#3-vorläufige-annahmekriterien). Repräsentative austauschbare Tage bleiben eine Annahme; keine Ganzjahres-/Produktionsfreigabe.

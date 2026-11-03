@@ -385,7 +385,7 @@ Quell-/Qualitätszeiten. `evaluate.py --actual-captures` lehnt gleichzeitig
 nichtleere Inline-`actuals` ab, statt Qualitätsinvalidierungen an ihnen
 vorbeizulassen. Ablauf/Formate: [Aufnahmeleitfaden](../entwicklung/benchmark-aufnahme.md).
 
-`core/evaluation.py` bewertet archivierte statt neu rekonstruierte Prognosen auf identischen Fenstern/Cutoffs. Gemeinsamer Lead geht vom Cutoff bis Fenstermitte, Issuezeiten wählen nur zulässige Snapshots. Ganze gemessene Istintervalle bleiben ungeschnitten, Prognosemittel zuschneidbar, fehlende Werte niemals Null. `interval_task_identity=[cutoff,inverter_id,start,end]`: Intervallzählung/-energie ist Taskexposition, dauergewichtet, keine unabhängige Stichprobe/einmalige Erzeugung. Schätzer/Gates bleiben unverändert.
+`core/evaluation.py` bewertet archivierte statt neu rekonstruierte Prognosen auf identischen Fenstern/Cutoffs. Gemeinsamer Lead geht vom Cutoff bis Fenstermitte, Issuezeiten wählen nur zulässige Snapshots. Ganze gemessene Istintervalle bleiben ungeschnitten, Prognosemittel zuschneidbar, fehlende Werte niemals Null. `interval_task_identity=[cutoff,inverter_id,start,end]`: Intervallzählung/-energie ist Taskexposition, dauergewichtet, keine unabhängige Stichprobe/einmalige Erzeugung.
 
 Je Stratum/Referenz liefern nur vollständige geplante Origins eines Zieltags mittleren Fehler/eine Stimme; Gesamtquote ist das Minimum. `statistical_validation.py` resampelt alle Strata/Referenzen desselben Tages gemeinsam. Familienkonfidenz, Bonferroni, Seed/Resamples versioniert; keine Ersatzaussage bei fehlenden Strata/gescheitertem deskriptivem Gate. [Vorabkriterien/Reviewaudit](../entwicklung/validierung.md) und Testdatenfluss sind keine Feldgüte; fairer prospektiver Vergleich bleibt nötig.
 
@@ -394,6 +394,18 @@ vollständige Tagesmenge wie die Tagesgewinnquote: Sämtliche geplanten Origins
 des Tages müssen vollständig gepaart sein. Bei weniger als 30 solchen Tagen
 sperren Bereitschaft und Tagesgewinnprüfung auch ohne Bootstrap; Tage mit nur
 einem erfolgreichen Teil der geplanten Origins erhöhen diesen Nenner nicht.
+
+Energie-Horizontwerte (`scores.*.by_horizon.*.energy`) und Stratumwerte
+(`strata.*.scores`) für die 5-%-/2-%-Gates verwenden genau dieselben vollständigen
+Tagesgruppen. `count` zählt vollständige Stufen-/Horizont-/Zieltaggruppen; jeder
+Tag hat gleiches Gewicht und seine Origins gleiche Anteile. MAE und Bias mitteln
+absolute beziehungsweise vorzeichenbehaftete Originfehler zunächst je Tag.
+RMSE zieht die Wurzel erst nach dem Mittel der je Tag gemittelten quadrierten
+Originfehler. Die Policyfelder `energy_gate_count_scope`,
+`energy_gate_weighting` und `energy_gate_rmse` benennen diesen Vertrag.
+`energy_pairs`, Missingness und deskriptive Einzel-Origin-/Intervallwerte
+bleiben vollständig erhalten. Numerische Gateschwellen und Bootstrapverfahren
+bleiben unverändert.
 
 
 ## Abregelungsprüfung und Bestandsdaten ab 0.2.11

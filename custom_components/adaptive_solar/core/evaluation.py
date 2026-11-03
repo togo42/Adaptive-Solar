@@ -185,6 +185,21 @@ def _energy_metrics(rows: list[tuple[float, float]]) -> dict:
             "bias_kwh": sum(errors) / len(errors)}
 
 
+def _daily_energy_metrics(groups: Iterable[Sequence[dict]], source: str) -> dict:
+    """Give each complete stratum/day one weight, averaging origin moments."""
+    moments = []
+    for rows in groups:
+        errors = [row["forecasts_kwh"][source] - row["actual_kwh"] for row in rows]
+        moments.append((sum(abs(error) for error in errors) / len(errors),
+                        sum(error * error for error in errors) / len(errors),
+                        sum(errors) / len(errors)))
+    if not moments:
+        return _energy_metrics([])
+    return {"count": len(moments), "mae_kwh": sum(row[0] for row in moments) / len(moments),
+            "rmse_kwh": math.sqrt(sum(row[1] for row in moments) / len(moments)),
+            "bias_kwh": sum(row[2] for row in moments) / len(moments)}
+
+
 def _lead(hours: float) -> str:
     for boundary, label in ((6, "0-6h"), (24, "6-24h"), (48, "24-48h"), (96, "48-96h")):
         if hours < boundary:
@@ -243,8 +258,10 @@ def evaluate_forecasts(
     Lead groups use the declared common cutoff to the target-window midpoint,
     independent of each source's selected archived issue timestamp.
     The daily-win threshold applies separately to each declared inverter/horizon
-    stratum. Repeated origins within one stratum/day use mean absolute energy
-    error and count as one day only when every planned origin is paired. The
+    stratum. Energy gates and daily wins share complete stratum/target days:
+    every planned origin must be paired. Origins share their day's weight;
+    MAE/bias average absolute/signed errors and RMSE averages squared errors
+    before taking the square root, preserving opposing origin errors. The
     minimum-day gate uses that same complete-origin denominator. The
     top-level daily_win_fraction is the minimum stratum fraction (null if any
     stratum has no complete day), never a pooled or weighted success fraction.
@@ -349,6 +366,23 @@ def evaluate_forecasts(
                          "inverter_id": inverter, "kind": "day" if full_day else "rest_of_day",
                          "horizon": horizon,
                          "actual_kwh": actual_total, "forecasts_kwh": totals})
+    expected_pairs_by_stratum = defaultdict(list)
+    energy_rows_by_day = defaultdict(list)
+    for (cutoff, target_day, inverter), horizon in sorted(group_horizons.items()):
+        expected_pairs_by_stratum[inverter, horizon].append(
+            {"cutoff": cutoff.isoformat(), "target_day": target_day.isoformat()})
+    for row in energies:
+        energy_rows_by_day[row["inverter_id"], row["horizon"], row["target_day"]].append(row)
+    complete_days_by_stratum = {}
+    complete_energy_groups = {}
+    for (inverter, horizon), expected_pairs in expected_pairs_by_stratum.items():
+        expected_origins = Counter(row["target_day"] for row in expected_pairs)
+        complete_days = {day for day, count in expected_origins.items()
+                         if len(energy_rows_by_day[inverter, horizon, day]) == count}
+        key = f"{inverter}|{horizon}"
+        complete_days_by_stratum[key] = complete_days
+        complete_energy_groups[inverter, horizon] = [energy_rows_by_day[inverter, horizon, day]
+                                                    for day in sorted(complete_days)]
     scores = {}
     for source in sources:
         rows = [(window, (actual, values[source], (window.end - window.start).total_seconds() / 3600))
@@ -373,8 +407,9 @@ def evaluate_forecasts(
                           "by_lead": {key: _metrics(value) for key, value in by_lead.items()},
                           "by_inverter_lead": {f"{key[0]}|{key[1]}": _metrics(value)
                                                for key, value in by_inverter_lead.items()},
-                          "by_horizon": {key: {**_metrics(value), "energy": _energy_metrics([
-                              (x["actual_kwh"], x["forecasts_kwh"][source]) for x in energies if x["horizon"] == key])}
+                          "by_horizon": {key: {**_metrics(value), "energy": _daily_energy_metrics(
+                              (group for (_, horizon), groups in complete_energy_groups.items()
+                               if horizon == key for group in groups), source)}
                               for key, value in by_horizon.items()},
                           "daylight_intervals": _metrics([row for window, row in rows if window.daylight is True]),
                           "night_intervals": _metrics([row for window, row in rows if window.daylight is False]),
@@ -421,7 +456,6 @@ def evaluate_forecasts(
     if unsupported_energy_groups:
         reasons.append("incomplete_declared_energy_schedule")
     strata = {}
-    complete_days_by_stratum = {}
     for inverter, horizon in sorted({(inverter, horizon)
                                      for (_, _, inverter), horizon in group_horizons.items()}):
         scope_windows = [window for window in eligible if window.inverter_id == inverter
@@ -429,23 +463,14 @@ def evaluate_forecasts(
         expected_duration = sum((row.end - row.start).total_seconds() for row in scope_windows)
         common_duration = sum((row.end - row.start).total_seconds() for row in scope_windows
                               if (row.cutoff, row.start, row.end, row.inverter_id) in paired_map)
-        energy_rows = [x for x in energies if x["inverter_id"] == inverter and x["horizon"] == horizon]
-        expected_pairs = [
-            {"cutoff": cutoff.isoformat(), "target_day": target_day.isoformat()}
-            for (cutoff, target_day, group_inverter), group_horizon in sorted(group_horizons.items())
-            if group_inverter == inverter and group_horizon == horizon]
-        expected_origins = Counter(row["target_day"] for row in expected_pairs)
-        paired_origins = Counter(row["target_day"] for row in energy_rows)
-        complete_days = {day for day, count in expected_origins.items() if paired_origins[day] == count}
         key = f"{inverter}|{horizon}"
-        complete_days_by_stratum[key] = complete_days
         strata[key] = {
             "inverter_id": inverter, "horizon": horizon,
-            "expected_pairs": expected_pairs,
+            "expected_pairs": expected_pairs_by_stratum[inverter, horizon],
             "coverage": common_duration / expected_duration if expected_duration else 0.0,
-            "complete_target_days": len(complete_days),
-            "scores": {source: _energy_metrics([(x["actual_kwh"], x["forecasts_kwh"][source])
-                                                 for x in energy_rows]) for source in sources}}
+            "complete_target_days": len(complete_days_by_stratum[key]),
+            "scores": {source: _daily_energy_metrics(complete_energy_groups[inverter, horizon], source)
+                       for source in sources}}
     if any(x["coverage"] < min_coverage for x in strata.values()):
         reasons.append("insufficient_per_horizon_inverter_coverage")
     if not strata or any(x["complete_target_days"] < min_paired_days for x in strata.values()):
@@ -546,5 +571,8 @@ def evaluate_forecasts(
                        "min_daily_win_fraction": min_daily_win_fraction,
                        "daily_win_scope": "each_declared_inverter_horizon_stratum",
                        "complete_target_day_scope": "all_declared_origins_within_inverter_horizon_stratum",
+                       "energy_gate_count_scope": "complete_inverter_horizon_target_days",
+                       "energy_gate_weighting": "equal_target_days_equal_origins_within_day",
+                       "energy_gate_rmse": "sqrt_mean_target_day_mean_squared_origin_errors",
                        "min_relative_improvement": min_relative_improvement,
                        "max_inverter_worsening": max_inverter_worsening}}

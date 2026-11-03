@@ -32,6 +32,20 @@ gehört bereits zum deskriptiven Gate und gilt unabhängig von `--bootstrap`.
 Die aggregierte Anzahl von Tagen mit irgendeinem gepaarten Intervall ersetzt
 diese stratumweise Vollständigkeit nicht.
 
+Die Energie-Gates in `scores.*.by_horizon.*.energy` und `strata.*.scores`
+verwenden dieselben vollständigen Stratum-Zieltage. Jeder Tag erhält dasselbe
+Gewicht; seine Origins teilen dieses Tagesgewicht. Für deren einzelne
+Energiefehler `e = Prognose - Ist` gelten
+`MAE = mean_Tag(mean_Origin(abs(e)))`,
+`Bias = mean_Tag(mean_Origin(e))` und
+`RMSE = sqrt(mean_Tag(mean_Origin(e²)))`. Gegenläufige Originfehler bleiben
+dadurch in MAE und RMSE sichtbar. `count` zählt vollständige
+Stufen-/Horizont-/Zieltaggruppen, im Horizontaggregat über die beteiligten
+Stufen. Ein leichter gepaarter Origin eines sonst unvollständigen Tages kann
+so weder die 5-%-Horizont- noch die 2-%-Stufengrenze verbessern.
+`energy_pairs`, Missingness und die deskriptiven Intervall-/Einzel-Origin-Werte
+führen ihre ursprünglichen Einzelbelege vollständig weiter.
+
 Primär Tages-/Resttagenergie-MAE(kWh), zusätzlich dauergewichtete Leistungs-MAE/RMSE(W), Energie-Bias/Abdeckung nach Stufe/Horizont; Tageslicht getrennt von Nacht. Intervallaggregate zählen deklarierte Forecasttasks, nicht unabhängige oder einmalige physische Zielstunden. Gesamtwerte dürfen Einzelverschlechterung nicht verdecken.
 
 Vor Sichtung der Daten bestätigen/einfrieren:

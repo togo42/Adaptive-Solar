@@ -33,6 +33,86 @@ def evaluate(forecasts, actuals, windows, **kwargs):
     return evaluate_forecasts(forecasts, actuals, windows, as_of=EPOCH + timedelta(days=400), **kwargs)
 
 
+def origin_energy_report(days, *, missing=()):
+    """Declare per-origin signed kWh errors, keeping missing attempts explicit."""
+    forecasts, actuals, windows = [], [], []
+    for day, origins in enumerate(days):
+        start, end = EPOCH + timedelta(days=day), EPOCH + timedelta(days=day + 1)
+        actuals.append(ActualRecord(start, end, "wr", 1000, end))
+        for origin, (candidate_error, reference_error) in enumerate(origins):
+            cutoff = start - timedelta(days=1) + timedelta(seconds=10 * origin)
+            windows.append(EvaluationWindow(cutoff, start, end, "wr"))
+            for source in ("adaptive", "helios", "open_meteo"):
+                error = candidate_error if source == "adaptive" else reference_error
+                power = None if (day, origin, source) in missing else 1000 + error * 1000 / 24
+                forecasts.append(ForecastRecord(source, cutoff, start, end, "wr", power))
+    return evaluate(forecasts, actuals, windows, sources=("adaptive", "helios", "open_meteo"),
+                    min_paired_intervals=1)
+
+
+def test_incomplete_origin_day_cannot_supply_the_five_percent_energy_gate():
+    from custom_components.adaptive_solar.core.statistical_validation import paired_day_bootstrap
+
+    report = origin_energy_report([[(.98, 1)] * 2] * 30 + [[(0, 10)] * 2],
+                                  missing={(30, 1, "helios")})
+    horizon, key = "day_1_at_00:00", "wr|day_1_at_00:00"
+    assert report["comparison_eligible"]
+    assert report["strata"][key]["complete_target_days"] == 30
+    assert len(report["energy_pairs"]) == 61
+    assert report["scores"]["adaptive"]["daily_energy"]["count"] == 61
+    assert len(report["missing"]) == 1 and report["missing"][0]["missing_sources"] == ["helios"]
+    for source, expected in (("adaptive", .98), ("helios", 1), ("open_meteo", 1)):
+        for metrics in (report["scores"][source]["by_horizon"][horizon]["energy"],
+                        report["strata"][key]["scores"][source]):
+            assert metrics["count"] == 30
+            assert metrics["mae_kwh"] == pytest.approx(expected)
+    for source in ("helios", "open_meteo"):
+        improvement = report["improvement"][source]
+        assert improvement["daily_win_by_inverter_horizon"][key]["daily_win_fraction"] == 1
+        assert not improvement["by_horizon"][horizon]
+        assert not improvement["supports_improvement_on_paired_archive"]
+    assert not report["supports_improvement_over_both_references_on_paired_archive"]
+    bootstrap = paired_day_bootstrap(report, n_resamples=1000)
+    assert bootstrap["joint_target_day_count"] == 30
+    assert bootstrap["strata"][key]["complete_target_days"] == 30
+    assert bootstrap["strata"][key]["comparisons"]["helios"]["candidate_mae_kwh"] == pytest.approx(.98)
+    assert not bootstrap["descriptive_gate_passed"] and not bootstrap["accepted"]
+
+
+def test_incomplete_origin_day_cannot_hide_the_two_percent_stratum_worsening():
+    report = origin_energy_report([[(1.03, 1)] * 2] * 30 + [[(0, 10)] * 2],
+                                  missing={(30, 1, "helios")})
+    key = "wr|day_1_at_00:00"
+    assert report["comparison_eligible"] and len(report["energy_pairs"]) == 61
+    assert report["strata"][key]["scores"]["adaptive"]["mae_kwh"] == pytest.approx(1.03)
+    assert report["strata"][key]["scores"]["helios"]["mae_kwh"] == pytest.approx(1)
+    assert report["policy"]["max_inverter_worsening"] == .02
+    assert not report["improvement"]["helios"]["by_inverter_horizon"][key]
+
+
+def test_energy_gate_days_share_equal_weight_with_different_origin_counts():
+    report = origin_energy_report([[(0, 2)], [(4, 2)] * 3])
+    key = "wr|day_1_at_00:00"
+    for metric in (report["strata"][key]["scores"]["adaptive"],
+                   report["scores"]["adaptive"]["by_horizon"]["day_1_at_00:00"]["energy"]):
+        assert metric == {"count": 2, "mae_kwh": pytest.approx(2),
+                          "rmse_kwh": pytest.approx(8**.5), "bias_kwh": pytest.approx(2)}
+    assert report["improvement"]["helios"]["daily_win_by_inverter_horizon"][key]["daily_win_fraction"] == .5
+    assert len(report["energy_pairs"]) == report["scores"]["adaptive"]["daily_energy"]["count"] == 4
+    assert report["scores"]["adaptive"]["daily_energy"]["mae_kwh"] == pytest.approx(3)
+    assert report["policy"]["energy_gate_count_scope"] == "complete_inverter_horizon_target_days"
+    assert report["policy"]["energy_gate_weighting"] == "equal_target_days_equal_origins_within_day"
+
+
+def test_energy_gate_origin_errors_keep_absolute_and_squared_moments():
+    report = origin_energy_report([[(-3, 2), (3, 2)], [(1, 2), (3, 2)]])
+    for metric in (report["strata"]["wr|day_1_at_00:00"]["scores"]["adaptive"],
+                   report["scores"]["adaptive"]["by_horizon"]["day_1_at_00:00"]["energy"]):
+        assert metric == {"count": 2, "mae_kwh": pytest.approx(2.5),
+                          "rmse_kwh": pytest.approx(7**.5), "bias_kwh": pytest.approx(1)}
+    assert report["policy"]["energy_gate_rmse"] == "sqrt_mean_target_day_mean_squared_origin_errors"
+
+
 def daily_win_masking_report(scope, *, wins_per_five=2):
     """Large daily wins mask a smaller stratum's mostly losing days pre-fix."""
     forecasts, actuals, windows = [], [], []
