@@ -33,12 +33,13 @@ def synthetic_weather(config: SiteConfig, issued: datetime) -> tuple[WeatherFore
     local = issued.astimezone(ZoneInfo(config.timezone))
     end = datetime.combine(local.date() + timedelta(days=config.forecast_days), time(), ZoneInfo(config.timezone)).astimezone(UTC)
     start = issued.astimezone(UTC).replace(minute=0, second=0, microsecond=0)
-    times = pd.date_range(start + timedelta(minutes=30), end, freq="h", inclusive="left")
+    cells = tuple((moment.to_pydatetime(), min(moment.to_pydatetime() + timedelta(hours=1), end))
+                  for moment in pd.date_range(start, end, freq="h", inclusive="left"))
+    times = pd.DatetimeIndex([left + (right - left) / 2 for left, right in cells])
     clear = pvlib.location.Location(config.latitude, config.longitude).get_clearsky(times)
-    points = tuple(WeatherPoint(moment.to_pydatetime() - timedelta(minutes=30),
-                               moment.to_pydatetime() + timedelta(minutes=30),
+    points = tuple(WeatherPoint(left, right,
                                float(row.ghi), float(row.dni), float(row.dhi), 20, 2, 0)
-                   for moment, row in clear.iterrows())
+                   for (left, right), (_, row) in zip(cells, clear.iterrows(), strict=True))
     return (WeatherForecast(config.weather_models[0], issued, points),)
 
 

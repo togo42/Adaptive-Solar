@@ -83,6 +83,28 @@ def test_forecast_cli_offline_example_preserves_offsets_and_dst(offline_process,
     assert forecast["model_status"]["weather:ecmwf_ifs025"] == "unavailable"
 
 
+@pytest.mark.parametrize("zone_name", ["Asia/Kolkata", "Asia/Kathmandu", "Australia/Darwin", "America/St_Johns"])
+def test_synthetic_cli_covers_fractional_offset_horizon(offline_process, tmp_path, zone_name):
+    config = json.loads((ROOT / "examples/site.json").read_text())
+    config.update(timezone=zone_name, forecast_days=1)
+    source, output = tmp_path / "site.json", tmp_path / "forecast.json"
+    source.write_text(json.dumps(config))
+    zone = ZoneInfo(zone_name)
+    issued = datetime(2026, 6, 21, 0, 10, tzinfo=zone)
+    run = offline_process("forecast.py", "--config", source, "--synthetic", "--as-of", issued.isoformat(), "--output", output)
+    assert run.returncode == 0, run.stderr
+    result = json.loads(output.read_text())["forecast"]
+    end = datetime(2026, 6, 22, tzinfo=zone).astimezone(timezone.utc)
+    for stage in config["inverters"]:
+        points = [row for row in result["points"] if row["inverter_id"] == stage["id"]]
+        assert datetime.fromisoformat(points[0]["start"]) == issued
+        assert datetime.fromisoformat(points[-1]["end"]) == end
+        assert all(left["end"] == right["start"] for left, right in zip(points, points[1:]))
+        seconds = sum((datetime.fromisoformat(row["end"]) - datetime.fromisoformat(row["start"])).total_seconds() for row in points)
+        assert seconds == (end - issued.astimezone(timezone.utc)).total_seconds()
+        assert (datetime.fromisoformat(points[-1]["end"]) - datetime.fromisoformat(points[-1]["start"])).total_seconds() in (900, 1800)
+
+
 def test_forecast_cli_shared_inverter_clips_once_after_unequal_strings(offline_process, tmp_path):
     config = json.loads((ROOT / "examples/site.json").read_text())
     config["forecast_days"] = 1

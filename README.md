@@ -83,6 +83,13 @@ Synthetische Offline-Demo:
     --as-of 2026-06-21T08:00:00+02:00 --output artifacts/demo.json
 ```
 
+Die synthetische Demo erzeugt ausschließlich das erste konfigurierte
+Wettermodell; weitere Modelle werden ausdrücklich als nicht verfügbar berichtet.
+Clear-Sky-Werte sind Mittelpunktnäherungen der jeweiligen Zelle. Die letzte,
+gegebenenfalls verkürzte Zelle reicht auch bei halben/viertel Zeitzonenoffsets
+bis zum lokalen Ende des Prognosehorizonts. Das ist ein Softwarebeispiel,
+kein archivierter Wetter- oder Gütenachweis.
+
 `--live` ruft Open-Meteo auf und ist nicht rückdatierbar. Die Forecast- und
 Auswertungs-CLI schützen Eingaben sowie Quell- und Ressourcendateien gegen
 Ausgabe-Aliase. Berichte bleiben außerhalb von `scripts/` und

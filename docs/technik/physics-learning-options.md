@@ -1,6 +1,7 @@
 # Physik- und Schattenoptionen als überprüfbare Kandidaten
 
-Stand: 27.10.2026. Die folgenden Optionen sind generische numerische
+Stand: 03.11.2026, einschließlich Entwicklungskorrekturen nach 0.2.21; keine
+neue produktive Aktivierung. Die folgenden Optionen sind generische numerische
 Modellannahmen. Verhaltenstests belegen Rechenverträge, keine Verbesserung der
 Prognosegüte. Ein Vergleich braucht vorab festgelegte Kriterien und tatsächlich
 vorab archivierte Prognosen gegen dieselben Messungen.
@@ -85,6 +86,15 @@ Ausgangsstufe und Sonnenstandsbin. Ihr gemeinsamer Faktor ist eine Näherung bei
 unterschiedlich verschatteten Strings, kein identifizierter Einzelstringverlust.
 Diffusstrahlung wird nicht pauschal mit dem Faktor abgeschwächt.
 
+Die gemeinsame Lernentscheidung weist Leistung ab 98 Prozent der Stufengrenze
+auch dann zurück, wenn ein direkter Aufrufer irrtümlich ein freies Kontrollflag
+übergibt; Werte oberhalb der bisherigen 110-Prozent-Plausibilitätsgrenze können
+dadurch ebenfalls keine Probe schreiben. Der optionale Beobachtungs-Fallback
+verwendet die jüngste frische Leistungsprobe. Deren explizite Freigabe ersetzt
+ältere ungültige Leistungsberichte; separate Abregelungsentscheidungen am oder
+nach dem Leistungsbericht sperren ihn weiterhin. Zukunftsberichte und veraltete
+Historie werden nicht als aktuelle Kontrollentscheidung verwendet.
+
 Die Freigabe benötigt mindestens fünf verschiedene UTC-Viertelstunden aus
 mindestens zwei verschiedenen UTC-Tagen innerhalb der letzten 45 Tage. Tage
 werden über ihren jeweiligen Median gleich gewichtet. Der Median der absoluten
@@ -138,6 +148,9 @@ angefordert. Wiederholungen desselben Berichts erzeugen keine neue Beobachtung.
 Der Verlauf ist flüchtig und wird bei fehlender/ungültiger Leistung oder einer
 geänderten überwachten Freigabephase verworfen. Das umfasst auch eine zwischen
 zwei Aktualisierungen registrierte Abregelungs-/Validitätsunterbrechung.
+Fehlt eine Stufe im übergebenen aktuellen Phasenmapping, werden auch ihre
+gespeicherten Berichte und ihre alte Phasenidentität verworfen. Explizit aktuelle
+Kontrollentscheidungen bleiben unabhängig davon für den Prognosekern sichtbar.
 
 Jeder nutzbare Leistungsbericht bekommt eine eigene Momentanreferenz mit
 demselben Wettermodellkohort, GHI-Regime und Lernmodus. Umweltwerte müssen vor

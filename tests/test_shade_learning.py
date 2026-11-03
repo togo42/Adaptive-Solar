@@ -158,6 +158,41 @@ def test_observation_fallback_preserves_stage_selection_and_control_rejection():
     assert result["accepted"] is False
 
 
+@pytest.mark.parametrize("age", [60, 901])
+@pytest.mark.parametrize("invalid", ["curtailed", "over_cap"])
+def test_fallback_new_clear_power_supersedes_older_invalid_report(age, invalid):
+    old = Observation(T0 - timedelta(seconds=age), "i", curtailed=invalid == "curtailed",
+                      power_w=6000 if invalid == "over_cap" else None)
+    result = evaluate_shade_step(
+        SITE, SITE.inverters[0], (), T0,
+        (old, Observation(T0, "i", power_w=1200, ghi_w_m2=800)), BeamShadeTable(),
+        solar_position_fn=lambda *_: SolarPosition(40, 182, 50),
+        clear_sky_ghi_fn=lambda *_: 1000.0, reference_powers_fn=lambda *_: (200, 2200),
+    )
+    assert result["accepted"] and result["factor"] == .5
+    assert result["reasons"] == []
+
+
+def test_fallback_future_control_cannot_block_current_clear_power():
+    result = evaluate_shade_step(
+        SITE, SITE.inverters[0], (), T0,
+        (Observation(T0 + timedelta(seconds=1), "i", curtailed=True),
+         Observation(T0, "i", power_w=1200, ghi_w_m2=800)), BeamShadeTable(),
+        solar_position_fn=lambda *_: SolarPosition(40, 182, 50),
+        clear_sky_ghi_fn=lambda *_: 1000.0, reference_powers_fn=lambda *_: (200, 2200),
+    )
+    assert result["accepted"] and result["reasons"] == []
+
+
+def test_explicit_false_control_flag_cannot_admit_over_cap_power():
+    table = BeamShadeTable()
+    before = deepcopy(table.to_dict())
+    result = step(table, inputs={"power_w": 6000, "curtailed_or_invalid": False})
+    assert not result["accepted"]
+    assert result["reasons"] == ["at_cap"]
+    assert table.to_dict() == before
+
+
 def test_reference_uses_power_instant_and_independent_ghi_clear_sky_instant():
     earlier = T0 - timedelta(seconds=120)
     calls = []

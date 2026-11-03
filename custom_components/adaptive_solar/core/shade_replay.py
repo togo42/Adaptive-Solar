@@ -250,8 +250,25 @@ def _stage_input(learning, inv, site, now):
                 expected = "valid" if state == "on" and not restored else "invalid" if state in {"on", "off"} else "unknown"
             if qualification.get("status") != expected:
                 raise ValueError("control qualification disagrees with original raw state")
-            predates = (role.startswith("curtailment_") and expected == "clear" and parsed["power_time"] is not None
-                        and parsed["power_time"] <= max(timestamp(raw["last_changed"]), timestamp(raw["last_updated"])))
+            predates = False
+            if role.startswith("curtailment_"):
+                predates = (expected == "clear" and parsed["power_time"] is not None
+                            and parsed["power_time"] <= max(timestamp(raw["last_changed"]), timestamp(raw["last_updated"])))
+            else:
+                phases = learning.get("measurement_valid_since")
+                if "measurement_valid_since" in learning and (not isinstance(phases, dict)
+                        or set(phases) != {stage.id for stage in site.inverters if stage.measurement_valid_entity_id}):
+                    raise ValueError("incomplete measurement validity phase provenance")
+                since = phases.get(inv.id) if phases is not None else None
+                if since is not None:
+                    since = timestamp(since)
+                    if expected != "valid" or not timestamp(raw["last_changed"]) <= since <= now:
+                        raise ValueError("measurement validity phase disagrees with raw source or cutoff")
+                # A legacy current on-state cannot prove monitoring startup or
+                # a restored/on recovery. Preserve blocked legacy inputs, but
+                # never qualify an unblocked power report without its phase.
+                predates = (parsed["power_time"] is not None
+                            and (since is None or parsed["power_time"] <= since))
             if (expected in {"active", "unknown", "invalid"} or predates) and not parsed["curtailed_or_invalid"]:
                 raise ValueError("invalid control was admitted to shade learning")
     return parsed

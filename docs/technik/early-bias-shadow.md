@@ -25,6 +25,14 @@ müssen dieselben Sonnenstands-/Schattenphasen unterstützen und nach dem Abglei
 mindestens ihre eigenen Tage/Stunden erreichen. Der unterstützte Leadbereich ist
 die Schnittmenge der Bereiche beider Blöcke.
 
+Die Entwicklungskorrektur nach 0.2.21 verschärft die gemeinsame Phasenprüfung:
+Je Sonnenstandsfenster darf die gemeinsame Spannweite aller Trainings- und
+Holdoutfaktoren höchstens `SHADE_BASELINE_TOLERANCE = 0,10` betragen. Zusätzlich
+muss jeder Faktor zur gespeicherten Holdoutreferenz passen; unverschattete und
+freigegebene verschattete Baselines bleiben getrennt. Ein mittlerer Anker allein
+reicht nicht: 0,40 und 0,60 passen jeweils zu 0,50, ihre gemeinsame Spannweite
+von 0,20 wird dennoch als `incompatible_shade_support` zurückgewiesen.
+
 ## Niedrige Modellkapazität
 
 Pro Trainingszieltag wird ein mit eindeutiger Messdauer gewichteter Quotient

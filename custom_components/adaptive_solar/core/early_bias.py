@@ -18,7 +18,7 @@ from .learning import (
     _valid_shade_factor, _vector, _weights, feature_regime, lead_bin,
 )
 from .models import TrainingSample, finite_number, utc_time
-from .shading import feature_shade_bin, shade_factors_compatible
+from .shading import SHADE_BASELINE_TOLERANCE, feature_shade_bin, shade_factors_compatible
 
 MIN_BIAS_DAYS = 14
 MIN_BIAS_HOURS = 48
@@ -116,7 +116,8 @@ class EarlyBiasShadow:
         shade = {}
         for window, values in trained_shade.items():
             others = validated_shade.get(window)
-            if others and all(shade_factors_compatible(value, others[-1]) for value in values + others):
+            if (others and max(values + others) - min(values + others) <= SHADE_BASELINE_TOLERANCE + 1e-9
+                    and all(shade_factors_compatible(value, others[-1]) for value in values + others)):
                 shade[window] = others[-1]
         if any(feature_shade_bin(r.features) not in shade for r in train + validation):
             report["state"] = "incompatible_shade_support"

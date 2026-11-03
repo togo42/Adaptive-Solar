@@ -176,8 +176,9 @@ def instantaneous_weather(config: SiteConfig, weather: WeatherPoint, at: datetim
         instantaneous = _clear_components(config.latitude, config.longitude, at)
         means = _clear_component_means(config.latitude, config.longitude, weather.start, weather.end)
     except (PhysicsUnavailable, OSError):
-        # Missing bundled climatology or an invalid shape must not remove the
-        # interval forecast. Unexpected code/library errors still propagate.
+        # Missing shape disables the optional instantaneous nowcast reference.
+        # The interval integrator deliberately turns None into a missing cell;
+        # the legacy midpoint path does not need this shape. Other errors propagate.
         return None
     components = []
     for original, instant, mean, cap in zip((weather.ghi_w_m2, weather.dni_w_m2, weather.dhi_w_m2),

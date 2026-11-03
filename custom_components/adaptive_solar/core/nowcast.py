@@ -11,6 +11,7 @@ class PowerObservationHistory:
 
     No interpolation or persistence. Missing/invalid power or a changed validity
     phase discards the stage's preceding cohort before any new report is added.
+    Stages omitted from the current phase mapping lose their retained history.
     The caller supplies phase identity from independently monitored boundaries.
     """
 
@@ -23,6 +24,10 @@ class PowerObservationHistory:
     def update(self, observations, now, phases):
         now = utc_time(now)
         incoming = tuple(observations)
+        for stage in self._rows.keys() | self._phases.keys():
+            if stage not in phases:
+                self._rows.pop(stage, None)
+                self._phases.pop(stage, None)
         for stage, phase in phases.items():
             own = [obs for obs in incoming if obs.inverter_id == stage]
             valid = any(obs.power_w is not None and not obs.curtailed for obs in own) and not any(obs.curtailed for obs in own)

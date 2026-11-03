@@ -101,9 +101,13 @@ def evaluate_shade_step(
         power_time = power_obs.time if power_obs is not None else None
         ghi = ghi_obs.ghi_w_m2 if ghi_obs is not None else None
         ghi_time = ghi_obs.time if ghi_obs is not None else None
-        curtailed_or_invalid = any(
-            o.curtailed or (o.power_w is not None and o.power_w > inv.output_cap_w * 1.1)
-            for o in own
+        # A later explicitly clear power report supersedes preceding invalid
+        # reports. Separate control decisions at/after that report still block
+        # it; neither future decisions nor stale history certify this phase.
+        curtailed_or_invalid = power_obs is not None and (
+            power_obs.curtailed or power_obs.power_w > inv.output_cap_w * 1.1
+            or any(o.curtailed and power_obs.time <= o.time <= now
+                   and (now - o.time).total_seconds() <= SENSOR_MAX_AGE_SECONDS for o in own)
         )
     inputs = {
         "power_w": raw_power, "power_time": power_time,
@@ -138,7 +142,7 @@ def evaluate_shade_step(
             reasons.add("low_clearness")
     ref_powers = reference_at(config, forecasts, now, inv.id, eval_time, observations)
     cap_limit = policy.max_cap_fraction * inv.output_cap_w
-    if raw_power is not None and raw_power <= inv.output_cap_w * 1.1 and raw_power >= cap_limit:
+    if raw_power is not None and raw_power >= cap_limit:
         reasons.add("at_cap")
     p0_w = p1_w = beam_w = factor = None
     accepted = False

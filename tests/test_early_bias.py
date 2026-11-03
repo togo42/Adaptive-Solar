@@ -126,6 +126,20 @@ def test_conflicting_duplicate_labels_and_incompatible_shade_phase_fail_closed()
     assert report(learner)["state"] == "incompatible_shade_support"
 
 
+@pytest.mark.parametrize("low,high,anchor,state", [
+    (.4, .6, .5, "incompatible_shade_support"),
+    (.4, .5, .45, "shadow_ready"),
+])
+def test_holdout_anchor_cannot_hide_incompatible_shade_extremes(low, high, anchor, state):
+    samples = [replace(row, features={**row.features, "beam_shade_factor":
+               anchor if (row.start - EPOCH).days >= 11
+               else low if (row.start - EPOCH).days < 6 else high}) for row in rows()]
+    learner = EarlyBiasShadow(output_caps={"i": CAP}).fit(samples, EPOCH + timedelta(days=15))
+    assert report(learner)["state"] == state
+    predicted = learner.predict("i", samples[-1].features, 1000, CAP)
+    assert predicted.status == ("shadow_bias_candidate" if state == "shadow_ready" else "physics_shadow_unavailable")
+
+
 async def test_coordinator_shadow_never_changes_published_points_and_is_atomic(hass, monkeypatch):
     config = SiteConfig(52, 13, "UTC", (StringConfig("s", "i", 5, 30, 180),), (InverterConfig("i", 5),))
     entry = MockConfigEntry(domain="adaptive_solar", data={"site": config.to_dict()})

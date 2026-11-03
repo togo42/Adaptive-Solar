@@ -39,6 +39,30 @@ Historyfingerprint. Hinzufügen, Entfernen oder Wechseln beginnt eine neue
 Historie; alte Labels werden dieser neuen Quelle nicht zugeschrieben. Die
 allgemeinen Abdeckungs-, Rand-, Mindestdauer-, Reset- und Gap-Gates bleiben bestehen.
 
+## Gültigkeitsphase im Schatten-Replay
+
+Die Entwicklungskorrektur nach 0.2.21 ergänzt den optionalen Rohdatenexport
+unter `forecast_issued.shade_learning` additiv um
+`measurement_valid_since`: je Stufe mit konfigurierter Gültigkeitsquelle den
+tatsächlich überwachten gültigen Phasenbeginn als UTC-Zeit oder `null` bei
+fehlender Freigabe. Diese Werte werden vor der Workerberechnung zusammen mit
+den normalisierten Eingaben eingefroren. Monitoringstart, Wiederanlauf aus einem
+restaurierten Zustand und eine erkannte `off`/`on`-Unterbrechung bleiben dadurch
+von einem bloß bereits vorhandenen `on` unterscheidbar.
+
+Der Replay lässt eine ungesperrte Leistungsprobe nur streng nach dieser Grenze
+zu. Der Phasenbeginn muss mindestens beim ursprünglichen `last_changed` des
+aktuellen gültigen Sensors liegen und darf nicht nach dem Ausgabecutoff liegen.
+`last_updated` verschiebt die Gültigkeitsphase nicht: wiederholtes gültiges `on`
+und reine Attributupdates ohne Unterbrechung sperren keine bereits neue Probe.
+
+Ältere Captures ohne Phasenbeleg bleiben für bereits gesperrte oder fehlende
+Leistung lesbar. Sie können keine ungesperrte Leistungsprobe mit konfigurierter
+Gültigkeitsquelle freigeben; ein aktueller Rohzustand allein ersetzt die fehlende
+Monitoringprovenienz nicht. Captures ohne konfigurierte Gültigkeitsquelle sind
+von diesem zusätzlichen Beleg nicht betroffen. Hashes und reproduzierbare
+Berechnung beweisen weiterhin weder Authentizität noch physische Quellenqualität.
+
 ## Vertrag des externen Qualitätsadapters
 
 `on` muss die Frische **aller** erforderlichen Originalquellen und eine gesicherte

@@ -46,6 +46,25 @@ def test_history_clears_on_missing_power_invalidity_or_recovered_phase():
     assert history.update((latest,), latest.time, {"i": ("clear", 2)}) == (latest,)
 
 
+@pytest.mark.parametrize("elapsed", [30, 120])
+@pytest.mark.parametrize("keep_other", [False, True])
+def test_omitted_phase_discards_history_even_before_expiry(elapsed, keep_other):
+    history = PowerObservationHistory(1)
+    removed = Observation(T, "i", power_w=500)
+    other = Observation(T, "j", power_w=700)
+    history.update((removed, other), T, {"i": "clear", "j": "clear"})
+    now = T + timedelta(seconds=elapsed)
+    newest = Observation(now, "j", power_w=900)
+    phases = {"j": "clear"} if keep_other else {}
+    result = history.update((newest,) if keep_other else (), now, phases)
+    assert removed not in result
+    assert set(history._phases) == set(phases)
+    assert set(history._rows) == set(phases)
+    assert all(now - timedelta(minutes=1) <= row.time <= now for row in result)
+    if keep_other:
+        assert result == ((newest, other) if elapsed < 60 else (newest,))
+
+
 def test_normalized_history_cancels_solar_trend_and_suppresses_latest_spike(monkeypatch):
     observations = [Observation(T - timedelta(minutes=10-index*5), "i", power_w=value)
                     for index, value in enumerate((550, 1100, 1650))]

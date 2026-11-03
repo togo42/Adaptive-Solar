@@ -1,5 +1,6 @@
 """Behavioral chronological learning replay with original raw weather closure."""
 from copy import deepcopy
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -20,11 +21,14 @@ from tests.test_weather import payload as raw_weather
 NOW = datetime(2026, 6, 1, 10, tzinfo=UTC)
 
 
-def bundle(tmp_path, *, times=None, seed=None, blocked=False, future_ghi=False, weather_gap=False, state_padding=0):
+def bundle(tmp_path, *, times=None, seed=None, blocked=False, future_ghi=False, weather_gap=False, state_padding=0,
+           validity_phase=None, power_age=0):
     times = times or [NOW + timedelta(minutes=15 * i) for i in range(3)]
     site = SiteConfig(52.52, 13.41, "Europe/Berlin", (StringConfig("s", "i", 5, 30, 180),),
                       (InverterConfig("i", 20, power_entity_id="sensor.power"),),
                       weather_models=("best_match",), irradiance_entity_id="sensor.ghi")
+    if validity_phase is not None:
+        site = replace(site, inverters=(replace(site.inverters[0], measurement_valid_entity_id="binary_sensor.valid"),))
     journal = ArchiveJournal(tmp_path / "journal")
     table = seed.copy() if seed else BeamShadeTable()
     forecasts = []
@@ -36,18 +40,19 @@ def bundle(tmp_path, *, times=None, seed=None, blocked=False, future_ghi=False, 
             raw["hourly"]["shortwave_radiation"][2:] = [None] * 3
         weather = parse_forecast(raw, "best_match", now, site)
         receipt = journal.append("weather_response", {"model": "best_match", "status": "available", "raw_response": raw}, now)
-        source_ghi = clear_sky_ghi(site, now) * .7
+        power_at = now - timedelta(seconds=power_age)
+        source_ghi = clear_sky_ghi(site, power_at) * .7
         ghi = None if future_ghi else source_ghi
-        observations = (Observation(now, "i", power_w=1000),) + ((Observation(now, "i", ghi_w_m2=ghi),) if ghi is not None else ())
-        stage_input = {"power_w": 1000., "power_time": now, "ghi_w_m2": ghi, "ghi_time": now if ghi is not None else None,
+        observations = (Observation(power_at, "i", power_w=1000),) + ((Observation(power_at, "i", ghi_w_m2=ghi),) if ghi is not None else ())
+        stage_input = {"power_w": 1000., "power_time": power_at, "ghi_w_m2": ghi, "ghi_time": power_at if ghi is not None else None,
                        "curtailed_or_invalid": blocked}
         before = table.to_dict()
         decision = evaluate_shade_step(site, site.inverters[0], (weather,), now, observations, table, stage_input)
         snapshot = {}
         for entity_id, value, unit, role in (("sensor.power", 1000, "W", "power_i"),
                                             ("sensor.ghi", source_ghi, "W/m²", "irradiance")):
-            snapshot[entity_id] = {"entity_id": entity_id, "state": str(value), "last_changed": now.isoformat(),
-                                   "last_updated": now.isoformat(), "last_reported": now.isoformat(),
+            snapshot[entity_id] = {"entity_id": entity_id, "state": str(value), "last_changed": power_at.isoformat(),
+                                   "last_updated": power_at.isoformat(), "last_reported": power_at.isoformat(),
                                    "attributes": {"unit_of_measurement": unit},
                                    "quality": {role: {"status": "valid", "normalized_value": value}}}
             if future_ghi and role == "irradiance":
@@ -60,6 +65,12 @@ def bundle(tmp_path, *, times=None, seed=None, blocked=False, future_ghi=False, 
                     "initial_state_scope": "unverified_preexisting_history",
                     "policy_version": ShadeLearningPolicy().version, "inputs": {"i": stage_input},
                     "decisions": {"i": decision}, "raw_state_snapshot": snapshot}
+        if validity_phase is not None:
+            phase = now + timedelta(seconds=validity_phase)
+            learning["measurement_valid_since"] = {"i": phase}
+            snapshot["binary_sensor.valid"] = {"entity_id": "binary_sensor.valid", "state": "on",
+                "last_changed": phase.isoformat(), "last_updated": now.isoformat(), "last_reported": now.isoformat(),
+                "attributes": {}, "quality": {"measurement_valid_i": {"status": "valid"}}}
         payload = {"site": site.to_dict(), "weather": json_value((weather,)), "observations": json_value(observations),
                    "issued_at": now.isoformat(), "computed_at": now.isoformat(), "software": software,
                    "result": json_value(ForecastEngine(site, table).forecast((weather,), now, observations)),
@@ -93,6 +104,43 @@ def test_continuous_replay_exact_decisions_and_independent_candidate_divergence(
     assert report["steps"][-1]["candidates"]["strict"]["shading"] == {"schema": 3, "inverters": {}, "released": {}}
     assert report["accuracy_status"].startswith("unevaluated")
     assert report["residual_learning"] == "disabled_in_candidates"
+
+
+@pytest.mark.parametrize("phase,power_age", [(-60, 120), (-60, 60)])
+def test_full_replay_rejects_power_not_strictly_after_validity_recovery(tmp_path, phase, power_age):
+    forecasts, rows = bundle(tmp_path, times=[NOW], validity_phase=phase, power_age=power_age)
+    assert forecasts[0]["payload"]["shade_learning"]["decisions"]["i"]["accepted"]
+    with pytest.raises(ValueError, match="invalid control"):
+        replay_shading(forecasts, rows)
+
+
+def test_full_replay_keeps_original_validity_phase_across_attribute_updates(tmp_path):
+    forecasts, rows = bundle(tmp_path, times=[NOW], validity_phase=-120, power_age=60)
+    report = replay_shading(forecasts, rows)
+    assert report["baseline"]["accepted"]
+    assert report["steps"][0]["baseline"]["decisions"]["i"]["accepted"]
+
+
+@pytest.mark.parametrize("blocked", [False, True])
+def test_legacy_validity_capture_without_monitoring_phase_never_qualifies_power(tmp_path, blocked):
+    forecasts, rows = bundle(tmp_path, times=[NOW], validity_phase=-120, power_age=60, blocked=blocked)
+    forecasts[0]["payload"]["shade_learning"].pop("measurement_valid_since")
+    if blocked:
+        report = replay_shading(forecasts, rows)
+        assert report["baseline"]["accepted"]
+        assert not report["steps"][0]["baseline"]["decisions"]["i"]["accepted"]
+    else:
+        with pytest.raises(ValueError, match="invalid control"):
+            replay_shading(forecasts, rows)
+
+
+@pytest.mark.parametrize("phase", [None, {}, {"other": NOW.isoformat()}, {"i": (NOW + timedelta(seconds=1)).isoformat()},
+                                     {"i": (NOW - timedelta(minutes=3)).isoformat()}])
+def test_replay_rejects_invalid_or_contradictory_monitoring_phase(tmp_path, phase):
+    forecasts, rows = bundle(tmp_path, times=[NOW], validity_phase=-120, power_age=60)
+    forecasts[0]["payload"]["shade_learning"]["measurement_valid_since"] = phase
+    with pytest.raises(ValueError, match="measurement validity phase"):
+        replay_shading(forecasts, rows)
 
 
 def test_omitted_rejected_step_is_rejected_even_when_table_did_not_change(tmp_path):
@@ -288,8 +336,8 @@ def test_all_configured_environment_sources_and_observation_closure_are_required
         replay_shading(forecasts, rows)
 
 
-@pytest.mark.parametrize("candidate_options", [False, True])
-async def test_native_capture_through_pinned_store_to_subprocess_streaming_cli(hass, tmp_path, candidate_options):
+@pytest.mark.parametrize("candidate_options,validity_source", [(False, False), (True, False), (False, True)])
+async def test_native_capture_through_pinned_store_to_subprocess_streaming_cli(hass, tmp_path, candidate_options, validity_source):
     import asyncio
     import json
     from pathlib import Path
@@ -303,12 +351,14 @@ async def test_native_capture_through_pinned_store_to_subprocess_streaming_cli(h
 
     hass.config.config_dir = str(tmp_path)
     instance = configured(hass)
-    if candidate_options:
+    if candidate_options or validity_source:
         from dataclasses import replace
         from custom_components.adaptive_solar.coordinator import AdaptiveSolarCoordinator
 
-        site = replace(instance.site, physics_substeps=4, power_nowcast_window_minutes=15,
-                       strings=tuple(replace(string, iam_ashrae_b0=.05, wind_speed_factor=.8) for string in instance.site.strings))
+        site = (replace(instance.site, physics_substeps=4, power_nowcast_window_minutes=15,
+                        strings=tuple(replace(string, iam_ashrae_b0=.05, wind_speed_factor=.8) for string in instance.site.strings))
+                if candidate_options else replace(instance.site, inverters=tuple(
+                    replace(stage, measurement_valid_entity_id="binary_sensor.valid") for stage in instance.site.inverters)))
         instance = AdaptiveSolarCoordinator(hass, instance.config_entry, site, instance.client)
     with freeze_time(NOW, real_asyncio=True):
         raw = raw_weather(start=NOW - timedelta(hours=1), count=6)
@@ -318,6 +368,8 @@ async def test_native_capture_through_pinned_store_to_subprocess_streaming_cli(h
                                NOW, identifier)
         instance.client.receipt_ids = {"best_match": identifier}
         instance.client.async_forecasts.return_value = (weather,)
+        if validity_source:
+            hass.states.async_set("binary_sensor.valid", "on")
         instance.async_start_tracking()
         instance.async_commit_setup()
         for offset in (0, 5):
@@ -328,6 +380,12 @@ async def test_native_capture_through_pinned_store_to_subprocess_streaming_cli(h
                 hass.states.async_set("sensor.wind", "3", {"unit_of_measurement": "m/s"})
                 await instance._async_update_data()
         page = await instance.export.page()
+        if validity_source:
+            issued = [hydrate_forecast(event, page["page"]["events"])["payload"]
+                      for event in page["page"]["events"] if event["kind"] == "forecast_issued"]
+            assert [row["shade_learning"]["measurement_valid_since"] for row in issued] == [{"i": NOW.isoformat()}] * 2
+            assert issued[0]["shade_learning"]["inputs"]["i"]["curtailed_or_invalid"] is True
+            assert issued[1]["shade_learning"]["inputs"]["i"]["curtailed_or_invalid"] is False
         if candidate_options:
             issued = [hydrate_forecast(event, page["page"]["events"])["payload"]
                       for event in page["page"]["events"] if event["kind"] == "forecast_issued"]

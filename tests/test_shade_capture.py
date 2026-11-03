@@ -145,6 +145,45 @@ async def test_capture_before_after_accepted_rejected_and_session_seed(hass):
         await instance.async_close()
 
 
+async def test_export_freezes_monitored_validity_phase_through_start_restore_and_burst(hass):
+    original = configured(hass)
+    site = replace(original.site, inverters=tuple(replace(stage, measurement_valid_entity_id="binary_sensor.valid")
+                                                  for stage in original.site.inverters))
+    instance = AdaptiveSolarCoordinator(hass, original.config_entry, site, original.client)
+    with freeze_time(NOW - timedelta(seconds=60), real_asyncio=True):
+        hass.states.async_set("binary_sensor.valid", "on")
+        hass.states.async_set("sensor.power", "1000", {"unit_of_measurement": "W"})
+    try:
+        with freeze_time(NOW, real_asyncio=True):
+            await instance._async_update_data()  # Cached on does not prove monitoring.
+            instance.async_start_tracking()
+            instance.async_commit_setup()
+        for second in range(1, 8):
+            with freeze_time(NOW + timedelta(seconds=second), real_asyncio=True):
+                if second in (1, 5, 7):
+                    hass.states.async_set("sensor.power", "1000", {"unit_of_measurement": "W"})
+                elif second == 2:
+                    hass.states.async_set("binary_sensor.valid", "on", {"diagnostic": "updated"})
+                elif second == 3:
+                    hass.states.async_set("binary_sensor.valid", "on", {"restored": True})
+                elif second == 4:
+                    hass.states.async_set("binary_sensor.valid", "on")
+                elif second == 6:
+                    hass.states.async_set("binary_sensor.valid", "off")
+                    hass.states.async_set("binary_sensor.valid", "on")
+                await hass.async_block_till_done()
+                await instance._async_update_data()
+        events = (await instance.export.page())["page"]["events"]
+        steps = [hydrate_forecast(event, events)["payload"]["shade_learning"]
+                 for event in events if event["kind"] == "forecast_issued"]
+        expected = [None, NOW, NOW, None, NOW + timedelta(seconds=4), NOW + timedelta(seconds=4),
+                    NOW + timedelta(seconds=6), NOW + timedelta(seconds=6)]
+        assert [row["measurement_valid_since"]["i"] for row in steps] == [at.isoformat() if at else None for at in expected]
+        assert [row["inputs"]["i"]["curtailed_or_invalid"] for row in steps] == [True, False, False, True, True, False, True, False]
+    finally:
+        await instance.async_close()
+
+
 @pytest.mark.parametrize("failure", ["serialize", "overflow"])
 async def test_missing_export_attempt_stays_in_step_chain_and_restart_has_new_session(hass, failure):
     instance = configured(hass)
