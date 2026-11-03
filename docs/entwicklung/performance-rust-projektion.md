@@ -4,6 +4,15 @@ Stand: 03.11.2026. Dieser optionale Entwicklungsversuch erweitert den
 [Rust-Originalreader](performance-rust-probe.md). Er ist kein produktiv
 aktivierter Archivreader und keine Abhängigkeit der HA-Integration.
 
+Der qualifizierte Protokoll-2-Stand besteht die Differentialtests sowie die
+vorab festgelegten Laufzeit-, CPU- und Speicherkriterien im lokalen und im
+isolierten Hostvergleich. Beide Vergleiche verwenden dieselbe Binärdatei,
+identische eingefrorene Eingaben und zwei uninstrumentierte Läufe je Arm in
+ABBA-Reihenfolge. Entscheidungen, Originalreferenzen und Konfigurationsbelege
+stimmen exakt überein. Der frühere Volltupelansatz wurde wegen überschrittenem
+Speicherkriterium verworfen. Einzelwerte, Fingerprints und unabhängig
+nachgerechnete Abnahmen bleiben in der privaten Betriebsdokumentation.
+
 ## 1. Ziel und erhaltene Evidenz
 
 Der Originalreader spart Validierungsschleifen, baut anschließend aber weiterhin
