@@ -62,6 +62,26 @@ async def test_invalid_timezone_duplicate_id_and_invalid_horizon_are_form_errors
     assert result["errors"] == {"base": "invalid_string"}
 
 
+async def test_native_empty_model_list_points_to_models_and_can_be_corrected(hass, enable_custom_integrations):
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {**SITE, "weather_models": []})
+    assert result["errors"] == {"weather_models": "invalid_weather_models"}
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], SITE)
+    assert result["step_id"] == "inverter"
+
+
+@pytest.mark.parametrize("field,value", [("forecast_days", "bad"), ("physics_substeps", "bad"),
+                                        ("physics_substeps", 3), ("forecast_days", True),
+                                        ("power_nowcast_window_minutes", 2.5)])
+async def test_direct_site_handler_invalid_numbers_are_not_timezone_errors(hass, enable_custom_integrations, field, value):
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
+    handler = hass.config_entries.flow._progress[result["flow_id"]]
+    before = dict(handler._site)
+    result = await handler.async_step_site({**SITE, field: value})
+    assert result["errors"] == {"base": "invalid_site"}
+    assert handler._site == before
+
+
 async def test_options_edit_existing_equipment_and_preserve_stable_id(hass, enable_custom_integrations):
     site = SiteConfig(52, 13, "Europe/Berlin", (StringConfig("south", "roof", 5, 30, 180),), (InverterConfig("roof", 5),))
     entry = MockConfigEntry(domain=DOMAIN, data={"site": site.to_dict()})

@@ -3,6 +3,10 @@
 """Adaptive Solar integration; importing the offline core never imports HA."""
 from __future__ import annotations
 
+import logging
+
+_LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(hass, entry) -> bool:
     """Set up one site from a UI config entry."""
@@ -18,21 +22,53 @@ async def async_setup_entry(hass, entry) -> bool:
     config = SiteConfig.from_dict(entry.options.get(CONF_SITE, entry.data[CONF_SITE]))
     coordinator = coordinator_module.AdaptiveSolarCoordinator(hass, entry, config, weather_module.OpenMeteoClient(async_get_clientsession(hass), config))
     services_module = None
+    forwarding_started = False
+    remove_options_listener = None
     try:
         services_module = await async_import_module(hass, f"{__package__}.services")
         await coordinator.async_restore()
         await coordinator.async_config_entry_first_refresh()
         entry.runtime_data = coordinator
         coordinator.async_start_tracking()
+        forwarding_started = True
         await hass.config_entries.async_forward_entry_setups(entry, [Platform.SENSOR])
         services_module.async_register_reference_service(hass, entry.entry_id)
+        remove_options_listener = entry.add_update_listener(_async_update_options)
+        # The wrapper is idempotent: rollback and HA's failed-setup callbacks
+        # can both release the same listener.
+        def remove_listener():
+            nonlocal remove_options_listener
+            if remove_options_listener is not None:
+                remove_options_listener()
+                remove_options_listener = None
+
+        entry.async_on_unload(remove_listener)
+        coordinator.async_commit_setup(defer_writes=True)
     except BaseException:
-        await coordinator.async_close()
+        # Revoke a partially completed commit before yielding during rollback.
+        # No initial writer may run while HA marks this entry SETUP_ERROR.
+        coordinator.async_abort_setup()
+        if remove_options_listener is not None:
+            try:
+                remove_listener()
+            except BaseException:
+                _LOGGER.exception("Error releasing options listener after failed Adaptive Solar setup")
+        if forwarding_started:
+            try:
+                if not await hass.config_entries.async_unload_platforms(entry, [Platform.SENSOR]):
+                    _LOGGER.error("Could not fully unload platforms after failed Adaptive Solar setup")
+            except BaseException:
+                _LOGGER.exception("Error unloading platforms after failed Adaptive Solar setup")
+        try:
+            await coordinator.async_close()
+        except BaseException:
+            _LOGGER.exception("Error closing coordinator after failed Adaptive Solar setup")
         if services_module is not None:
-            services_module.async_unregister_reference_service(hass, entry.entry_id)
+            try:
+                services_module.async_unregister_reference_service(hass, entry.entry_id)
+            except BaseException:
+                _LOGGER.exception("Error releasing services after failed Adaptive Solar setup")
         raise
-    entry.async_on_unload(entry.add_update_listener(_async_update_options))
-    coordinator.async_commit_setup()
     return True
 
 

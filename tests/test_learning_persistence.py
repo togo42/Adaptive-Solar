@@ -239,7 +239,7 @@ async def test_unrecognized_or_corrupt_primary_is_never_overwritten(hass, invali
     await fresh.async_close()
 
 
-@pytest.mark.parametrize("failure", ["weather", "platform"])
+@pytest.mark.parametrize("failure", ["weather", "platform", "commit"])
 async def test_real_failed_reload_never_schedules_or_saves_over_existing_history(hass, enable_custom_integrations, failure):
     with freeze_time(NOW + timedelta(hours=2)):
         first, entry, _ = await saved_history(hass)
@@ -252,15 +252,25 @@ async def test_real_failed_reload_never_schedules_or_saves_over_existing_history
             instance = AdaptiveSolarCoordinator(*args, **kwargs)
             instance._store.async_save = AsyncMock(wraps=instance._store.async_save)
             instance._store.async_delay_save = Mock(wraps=instance._store.async_delay_save)
+            if failure == "commit":
+                commit = instance.async_commit_setup
+
+                def failed_commit(**options):
+                    commit(**options)
+                    raise RuntimeError("commit failure after deferred activation")
+
+                instance.async_commit_setup = failed_commit
             created.append(instance)
             return instance
 
         weather = WeatherForecast("best_match", NOW + timedelta(hours=2), (
             WeatherPoint(NOW + timedelta(hours=2), NOW + timedelta(hours=3), 600, 400, 200, 20, 2, 30),))
+        forward = hass.config_entries.async_forward_entry_setups
         with patch("custom_components.adaptive_solar.coordinator.AdaptiveSolarCoordinator", side_effect=create), \
              patch("custom_components.adaptive_solar.weather.OpenMeteoClient.async_forecasts", new=AsyncMock(
                  side_effect=WeatherError("unavailable") if failure == "weather" else None, return_value=(weather,))), \
-             patch.object(hass.config_entries, "async_forward_entry_setups", new=AsyncMock(side_effect=RuntimeError("platform failure"))):
+             patch.object(hass.config_entries, "async_forward_entry_setups", new=AsyncMock(
+                 side_effect=RuntimeError("platform failure") if failure == "platform" else None, wraps=forward)):
             assert await hass.config_entries.async_setup(entry.entry_id) is False
             await hass.async_block_till_done()
         created[0]._store.async_save.assert_not_called()

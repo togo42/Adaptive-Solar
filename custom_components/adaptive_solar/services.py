@@ -171,7 +171,7 @@ def async_unregister_reference_service(hass, owner_entry_id):
     owners.discard(owner_entry_id)
     if owners:
         return
-    hass.services.async_remove(DOMAIN, SERVICE)
-    hass.services.async_remove(DOMAIN, RESTORE_SERVICE)
-    hass.services.async_remove(DOMAIN, EXPORT_SERVICE)
+    for name in (SERVICE, RESTORE_SERVICE, EXPORT_SERVICE):
+        if hass.services.has_service(DOMAIN, name):
+            hass.services.async_remove(DOMAIN, name)
     hass.data.pop(_OWNERS, None)

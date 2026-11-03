@@ -64,6 +64,17 @@ def snapshot_curve(snapshot, inverter_ids):
             for index, cell in enumerate(curves[ids[0]])]
 
 
+def _within_energy_cap(value, limit):
+    """Only numerical roundoff may exceed the original physical output cap."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return (math.isfinite(value) and value >= 0
+                and (value <= limit or math.isclose(value, limit, rel_tol=1e-12, abs_tol=1e-12)))
+    except OverflowError:
+        return False
+
+
 def validate_snapshot(day, snapshot, metadata, site: SiteConfig, *, strict_curve=True):
     """Validate original limits/timezone, never reinterpret old energy at new caps."""
     if (not isinstance(day, str) or date.fromisoformat(day).isoformat() != day
@@ -91,9 +102,8 @@ def validate_snapshot(day, snapshot, metadata, site: SiteConfig, *, strict_curve
         raise ValueError("snapshot issued after day start")
     for key, cap in caps.items():
         value = energies[key]
-        if (isinstance(cap, bool) or not isinstance(cap, (int, float)) or not math.isfinite(cap) or not 0 < cap <= 1e6
-                or isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)
-                or not 0 <= value <= cap * (end - start).total_seconds() / 3600 * 1.1):
+        if (isinstance(cap, bool) or not isinstance(cap, (int, float)) or not 0 < cap <= 1e6
+                or not _within_energy_cap(value, cap * (end - start).total_seconds() / 3600)):
             raise ValueError("invalid day-start energy")
     clean = deepcopy(snapshot)
     if "forecast" in clean:
@@ -123,8 +133,7 @@ def _validate_curve(curves, ids, start, end, caps, energies):
             value = cell["energy_kwh"]
             expected_end = min(cursor + timedelta(hours=1), end)
             if (begin != cursor or stop != expected_end or stop <= begin
-                    or isinstance(value, bool) or not isinstance(value, (int, float))
-                    or not math.isfinite(value) or not 0 <= value <= caps[key] * (stop - begin).total_seconds() / 3600 * 1.1):
+                    or not _within_energy_cap(value, caps[key] * (stop - begin).total_seconds() / 3600)):
                 raise ValueError("invalid day-start curve coverage or energy")
             cursor, total = stop, total + value
         if cursor != end or not math.isclose(total, energies[key], rel_tol=1e-12, abs_tol=1e-12):

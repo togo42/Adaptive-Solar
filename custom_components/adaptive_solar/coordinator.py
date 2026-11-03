@@ -617,6 +617,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self._closing = False
         self._save_pending = False
         self._persistence_active = False
+        self._setup_commit_handle = None
         self._store_writable = False
         self._history_storage_status = "not_loaded"
         # Old geometry/bindings must never train a newly configured system.
@@ -950,15 +951,37 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
         self.async_update_listeners()
 
     @callback
-    def async_commit_setup(self) -> None:
+    def async_commit_setup(self, *, defer_writes=False) -> None:
         """Enable writes only after first refresh and platform setup succeeded."""
+        self._persistence_active = self._store_writable and not self._closing
+        self._comparison_persistence_active = self._comparison_store_writable and not self._closing
+        if defer_writes:
+            # Native ConfigEntry sets LOADED without yielding after our setup
+            # returns. A synchronous commit failure can cancel this callback
+            # before any export worker or Store delay-save is activated.
+            self._setup_commit_handle = self.hass.loop.call_soon(self._async_start_setup_writes)
+        else:
+            self._async_start_setup_writes()
+
+    @callback
+    def _async_start_setup_writes(self) -> None:
+        self._setup_commit_handle = None
+        if self._closing:
+            return
         self.export.activate()
         if self._store_writable and not self._closing:
-            self._persistence_active = True
             self._schedule_save()
         if self._comparison_store_writable and not self._closing:
-            self._comparison_persistence_active = True
             self._schedule_comparison_save()
+
+    @callback
+    def async_abort_setup(self) -> None:
+        """Revoke a deferred commit before platform/coordinator rollback yields."""
+        self._closing = True
+        self._persistence_active = self._comparison_persistence_active = False
+        if self._setup_commit_handle is not None:
+            self._setup_commit_handle.cancel()
+            self._setup_commit_handle = None
 
     @callback
     def async_start_tracking(self) -> None:
@@ -1486,6 +1509,8 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
             }
 
         output_caps = {inv.id: inv.output_cap_w for inv in self.site.inverters}
+        measurement_valid_since = {inv.id: self._measurement_since(inv) for inv in self.site.inverters
+                                   if inv.measurement_valid_entity_id}
 
         def calculate():
             shade_learning = None
@@ -1507,6 +1532,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                     "initial_state_scope": "unverified_preexisting_history" if previous_step_id is None else "captured_previous_step",
                     "raw_state_snapshot": raw_state_snapshot,
                     "observation_sources": observation_sources,
+                    "measurement_valid_since": measurement_valid_since,
                 }
             beam_shade_by_inv = {
                 inv.id: self._evaluate_beam_shade_stage(
@@ -1901,20 +1927,47 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
 
     async def async_close(self) -> None:
         self._closing = True
-        if self._unsub is not None:
-            self._unsub()
-            self._unsub = None
-        if self._unsub_reports is not None:
-            self._unsub_reports()
-            self._unsub_reports = None
-        await self.async_shutdown()
-        await self.export.close()
+        if self._setup_commit_handle is not None:
+            self._setup_commit_handle.cancel()
+            self._setup_commit_handle = None
+        first_error = None
+
+        def failed(error):
+            nonlocal first_error
+            if first_error is None:
+                first_error = error
+            else:
+                _LOGGER.error("Additional Adaptive Solar close failure", exc_info=(type(error), error, error.__traceback__))
+
+        for attr in ("_unsub", "_unsub_reports"):
+            if unsubscribe := getattr(self, attr):
+                try:
+                    unsubscribe()
+                except BaseException as error:
+                    failed(error)
+                finally:
+                    setattr(self, attr, None)
+
+        async def finish(action):
+            try:
+                await action()
+            except BaseException as error:
+                failed(error)
+
+        await finish(self.async_shutdown)
+        await finish(self.export.close)
         if self._comparison_save_task is not None:
-            await self._comparison_save_task
+            await finish(lambda: self._comparison_save_task)
         if self._persistence_active:
             self._persistence_active = False
-            await self._store.async_save(self._stored())
+            await finish(lambda: self._store.async_save(self._stored()))
         if self._comparison_persistence_active:
-            self._comparison_archive.prune(datetime.now(UTC))
-            await self._async_save_comparison()
-            self._comparison_persistence_active = False
+            try:
+                self._comparison_archive.prune(datetime.now(UTC))
+                await finish(self._async_save_comparison)
+            except BaseException as error:
+                failed(error)
+            finally:
+                self._comparison_persistence_active = False
+        if first_error is not None:
+            raise first_error

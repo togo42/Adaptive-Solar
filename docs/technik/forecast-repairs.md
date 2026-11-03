@@ -54,6 +54,14 @@ aus Standort, Zeitzone sowie Stufenkennungen und AC-/DC-Ausgangstypen. Numerisch
 Tagesgrenzen verwenden diese ursprünglichen Grenzen und die echte 23/24/25-Stunden-
 Dauer. Der historische Wert darf daher eine später abgesenkte Stufengrenze
 überschreiten, ohne als neue Prognose oder Messenergie ausgegeben zu werden.
+Tagesenergie und jede gespeicherte Stundenzeile dürfen die **ursprüngliche**
+Ausgangsgrenze multipliziert mit ihrer echten UTC-Dauer nicht überschreiten;
+zugelassen ist nur numerische Rundung mit absoluter/relativer Toleranz `1e-12`.
+Die frühere zehnprozentige Plausibilitätsmarge entfällt. Ein darüber liegender
+Operatorimport wird vor dem Speichern abgelehnt. Ein entsprechender vorhandener
+Store bleibt nach den bestehenden Regeln unverändert und nur lesend erhalten;
+eine beschädigte optionale Stundenkurve allein entfernt nur diese Kurve, solange
+die ursprüngliche Tagessumme gültig bleibt.
 
 Bei Dämpfungs-, Horizont-, String-/Leistungs- oder Messquellenänderungen werden
 inkompatible Lernarchive, Istintervalle, Anker und Schattentabellen weiterhin nicht

@@ -61,23 +61,37 @@ class _Editor:
         errors = {}
         if user_input is not None:
             try:
-                ZoneInfo(user_input["timezone"])
-                if not user_input["weather_models"]:
-                    raise ValueError("no weather models")
-                self._site.pop("temperature_entity_id", None)
-                self._site.pop("wind_entity_id", None)
-                self._site.pop("irradiance_entity_id", None)
-                user_input = dict(user_input)
-                self._archive_export = user_input.pop(CONF_ARCHIVE_EXPORT, getattr(self, "_archive_export", False))
-                self._source_report_profile = user_input.pop(CONF_SOURCE_REPORT_PROFILE, getattr(self, "_source_report_profile", FULL))
-                self._site.update(user_input)
-                self._site["forecast_days"] = int(user_input["forecast_days"])
-                for key in ("physics_substeps", "power_nowcast_window_minutes"):
-                    if key in user_input:
-                        self._site[key] = int(user_input[key])
-                return await self.async_step_inverter()
-            except (ZoneInfoNotFoundError, ValueError):
+                ZoneInfo(user_input.get("timezone"))
+            except (ZoneInfoNotFoundError, TypeError, ValueError):
                 errors["timezone"] = "invalid_timezone"
+            models = user_input.get("weather_models")
+            if (not isinstance(models, (list, tuple)) or not models
+                    or any(not isinstance(model, str) or not model.strip() for model in models)):
+                errors["weather_models"] = "invalid_weather_models"
+            try:
+                values = dict(user_input)
+                for key, minimum, maximum in (("forecast_days", 1, MAX_FORECAST_DAYS),
+                                               ("physics_substeps", 1, 12),
+                                               ("power_nowcast_window_minutes", 0, 15)):
+                    if key not in values and key != "forecast_days":
+                        continue
+                    raw = values[key]
+                    integer = int(raw)
+                    if isinstance(raw, bool) or float(raw) != integer or not minimum <= integer <= maximum:
+                        raise ValueError("invalid integer setting")
+                    values[key] = integer
+                if values.get("physics_substeps", 1) not in {1, 2, 4, 6, 12}:
+                    raise ValueError("invalid physics substeps")
+            except (KeyError, TypeError, ValueError, OverflowError):
+                errors["base"] = "invalid_site"
+            if not errors:
+                # Validate before mutating an in-progress options edit.
+                self._archive_export = values.pop(CONF_ARCHIVE_EXPORT, getattr(self, "_archive_export", False))
+                self._source_report_profile = values.pop(CONF_SOURCE_REPORT_PROFILE, getattr(self, "_source_report_profile", FULL))
+                for key in ("temperature_entity_id", "wind_entity_id", "irradiance_entity_id"):
+                    self._site.pop(key, None)
+                self._site.update(values)
+                return await self.async_step_inverter()
         schema = {}
         field(schema, CONF_ARCHIVE_EXPORT, getattr(self, "_archive_export", False), selector.BooleanSelector())
         field(schema, CONF_SOURCE_REPORT_PROFILE, getattr(self, "_source_report_profile", FULL),

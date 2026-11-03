@@ -220,7 +220,7 @@ async def test_control_snapshot_exists_even_without_power_measurement(hass, stat
 
 
 @pytest.mark.parametrize("day,hours", [("2026-03-29", 23), ("2026-10-25", 25)])
-async def test_valid_dst_snapshot_and_interval_at_the_live_tolerance_are_retained(hass, day, hours):
+async def test_dst_snapshot_at_physical_cap_and_interval_at_live_tolerance_are_retained(hass, day, hours):
     from freezegun import freeze_time
     from zoneinfo import ZoneInfo
 
@@ -228,7 +228,7 @@ async def test_valid_dst_snapshot_and_interval_at_the_live_tolerance_are_retaine
     start = datetime.fromisoformat(day).replace(tzinfo=ZoneInfo("Europe/Berlin")).astimezone(UTC)
     payload = {**instance._stored(), "archive": [],
                "intervals": [measured(start, start + timedelta(hours=1), power=5500)],
-               "daily_snapshots": {day: {"issued_at": (start - timedelta(hours=1)).isoformat(), "energies": {"i": 5 * hours * 1.1}}}}
+               "daily_snapshots": {day: {"issued_at": (start - timedelta(hours=1)).isoformat(), "energies": {"i": 5 * hours}}}}
     seed_store(instance._store, payload)
     with freeze_time(start + timedelta(hours=2)):
         await instance.async_restore()
