@@ -247,25 +247,32 @@ def _bindings(payload, events, mappings, as_of, generated, configurations=None):
     return result
 
 
-def _intervals(events, binding, as_of):
+def _intervals(events, binding, as_of, start, end):
     """Only positive original deltas, no absent-negative-event inference."""
     unique = {}
+    start, end = max(start, binding["start"]), min(end, binding["end"])
+    if start >= end:
+        return []
     for event in events:
         p = event["payload"]
         if (event["kind"] != "qualified_interval" or event["source"] != binding["source"]
-                or p.get("inverter_id") != binding["source_inverter_id"]):
+                or p.get("inverter_id") != binding["source_inverter_id"]
+                or timestamp(event["received_at"]) > as_of):
+            continue
+        # Availability and target/source scope precede semantic validation.
+        # Original envelope integrity is still checked for the complete input.
+        a, b = timestamp(p["start"]), timestamp(p["end"])
+        if b <= start or a >= end:
             continue
         if set(p) - {"curtailment_measurement_contract", "source_binding"} != _INTERVAL_KEYS:
             raise ValueError("unexpected original measurement payload fields")
-        a, b, observed, received = (timestamp(v) for v in (p["start"], p["end"], p["observed_at"], event["received_at"]))
+        observed, received = timestamp(p["observed_at"]), timestamp(event["received_at"])
         if not a < b <= observed <= received:
             raise ValueError("invalid measured interval chronology")
         duration = (b - a).total_seconds()
         finite_number(p["energy_kwh"], "original energy", 0)
         if duration > MAX_ENERGY_GAP_SECONDS:
             raise ValueError("event is not an original bounded meter delta")
-        if received > as_of or b <= binding["start"] or a >= binding["end"]:
-            continue
         reasons = []
         source_pin = p.get("source_binding")
         expected_pin = {"schema": 1, "energy_entity_id": binding["statistic_id"],
@@ -371,7 +378,25 @@ def build_quality(events, bindings, mappings, *, start, end, as_of, generated_at
     events, mapping = _events(events), _mappings(mappings)
     configuration_rows, original_references = (None, None) if configurations is None else _configuration_inputs(configurations, events)
     binding_rows = _bindings(bindings, events, mapping, as_of, generated, configuration_rows)
-    prepared = {b["id"]: (_intervals(events, b, as_of), _config_changes(events, b, as_of, configuration_rows)) for b in binding_rows}
+    prepared = {b["id"]: (_intervals(events, b, as_of, start, end), _config_changes(events, b, as_of, configuration_rows))
+                for b in binding_rows}
+    # A configuration attestation covers its whole binding period. Its explicit
+    # contradiction must therefore revoke old hours outside the current raw
+    # query too. One range mask per binding keeps arbitrarily long policies
+    # bounded without manufacturing raw observations or per-hour diagnostics.
+    period_masks = {}
+    for binding in binding_rows:
+        if (not prepared[binding["id"]][1]
+                or any(reason.startswith("configuration_") for reason in binding["unavailable"])):
+            continue
+        first = binding["start"].replace(minute=0, second=0, microsecond=0)
+        stop = min(binding["end"], as_of).replace(minute=0, second=0, microsecond=0)
+        if first < binding["start"] and first < stop:
+            first += timedelta(hours=1)
+        if first < stop:
+            period_masks[binding["id"]] = {
+                "inverter_id": binding["inverter_id"], "start": first.isoformat(), "end": stop.isoformat(),
+                "quality": "invalid", "complete_coverage": False, "curtailed": None, "counter_reset": None}
     hours, masks = [], []
     summary = {scope: {"total_hours": 0, "covered_hours": 0, "qualified_hours": 0, "invalidated_hours": 0, "reasons": Counter()}
                for scope in mapping}
@@ -417,14 +442,19 @@ def build_quality(events, bindings, mappings, *, start, end, as_of, generated_at
             if eligible:
                 masks.append({"inverter_id": scope, "start": row["start"], "end": row["end"],
                               "quality": "valid", "complete_coverage": True, "curtailed": False, "counter_reset": False})
-            elif invalidated:
+            elif invalidated and binding["id"] not in period_masks:
                 masks.append({"inverter_id": scope, "start": row["start"], "end": row["end"],
                               "quality": "invalid", "complete_coverage": False, "curtailed": None, "counter_reset": None})
         hour = stop
+    masks.extend(period_masks.values())
     for stat in summary.values():
         stat["reasons"] = dict(sorted(stat["reasons"].items()))
     binding_checks = [{"id": b["id"], "sha256": b["binding_sha256"], "unavailable": b["unavailable"],
                        "configuration_conflicts": prepared[b["id"]][1]} for b in binding_rows]
+    for check in binding_checks:
+        if check["id"] in period_masks:
+            mask = period_masks[check["id"]]
+            check["invalidated_period"] = {"start": mask["start"], "end": mask["end"]}
     evidence_events = sorted(used.values(), key=lambda e: (e["source"], e["event_id"]))
     bindings_hash, mappings_hash = digest(bindings), digest(mappings)
     events_hash = digest(events if original_references is None else original_references)

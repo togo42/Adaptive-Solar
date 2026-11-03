@@ -99,7 +99,27 @@ def test_duplicate_circular_horizon_and_bad_bounds_rejected():
     with pytest.raises(ValueError, match="bracket"):
         ForecastPoint(T, T + timedelta(hours=1), "i", 100, 100, 200, 300)
     with pytest.raises(ValueError):
-        TrainingSample(T, T, T + timedelta(hours=1), T, "i", 1, 2, {"x": float("nan")})
+        TrainingSample(T, T, T + timedelta(hours=1), T + timedelta(hours=1), "i", 1, 2, {"x": float("nan")})
+
+
+@pytest.mark.parametrize("issued,observed,message", [
+    (T + timedelta(microseconds=1), T + timedelta(hours=1), "issue"),
+    (T, T + timedelta(hours=1) - timedelta(microseconds=1), "observation"),
+])
+def test_training_sample_rejects_hindcast_or_unfinalized_label(issued, observed, message):
+    with pytest.raises(ValueError, match=message):
+        TrainingSample(issued, T, T + timedelta(hours=1), observed, "i", 100, 120, {})
+
+
+@pytest.mark.parametrize("date", ["2026-03-29T00:30:00+00:00", "2026-10-25T00:30:00+00:00"])
+def test_training_sample_accepts_real_restinterval_boundaries_across_dst(date):
+    start = datetime.fromisoformat(date) + timedelta(minutes=20)
+    end = start + timedelta(minutes=40)
+    local = ZoneInfo("Europe/Berlin")
+    row = TrainingSample(start.astimezone(local), start.astimezone(local), end.astimezone(local),
+                         end.astimezone(local), "i", 100, 120, {})
+    assert row.issued_at == row.start == start
+    assert row.observed_at == row.end == end
 
 
 def test_weather_validation_and_sorting():

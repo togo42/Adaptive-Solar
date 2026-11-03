@@ -72,6 +72,32 @@ def test_slow_counter_hour_offset_uses_whole_real_deltas_and_original_forecast(c
                    / 3600000 for row in endpoint) == pytest.approx(2)
 
 
+@pytest.mark.parametrize("value", [True, False, float("nan"), float("inf"), -1, 1e9 + 1, 10**1000, "100"])
+def test_original_integration_rejects_invalid_baselines_on_used_support(value):
+    cells = forecast_cells(count=2)
+    support = ((NOW + timedelta(minutes=5), NOW + timedelta(hours=1, minutes=5)),)
+    assert integrate_original(cells, support) is not None
+    cells[0]["baseline_w"] = value
+    assert integrate_original(cells, support) is None
+
+
+@pytest.mark.parametrize("value", [0, 1e9])
+def test_original_integration_keeps_valid_baseline_bounds_and_ignores_unused_bad_cells(value):
+    cells = forecast_cells(count=2)
+    cells[0]["baseline_w"] = value
+    cells[1]["baseline_w"] = True
+    baseline, features = integrate_original(cells, ((NOW, NOW + timedelta(hours=1)),))
+    assert baseline == features["baseline_w"] == value
+
+
+def test_endpoint_join_omits_unvalidated_boolean_baseline_instead_of_learning_one_watt():
+    cells = forecast_cells(count=2)
+    for cell in cells:
+        cell["baseline_w"] = True
+    rows = counter_series(NOW + timedelta(minutes=5), [900] * 4)
+    assert join_training(cells, rows, as_of=NOW + timedelta(hours=2)) == []
+
+
 def qualified(row, lineage="a" * 32):
     return {**row, "measurement_contract": MEASUREMENT_CONTRACT, "continuity_id": lineage,
             "boundary_reason": None}

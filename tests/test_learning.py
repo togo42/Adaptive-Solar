@@ -126,7 +126,11 @@ def test_night_missing_features_and_caps_are_safe():
 def test_labels_after_as_of_and_current_interval_issues_are_excluded():
     rows = synthetic_days(count=4)
     after = [replace(row, observed_at=EPOCH + timedelta(days=100)) for row in rows]
-    late_issue = [replace(row, issued_at=row.start + timedelta(minutes=5)) for row in rows]
+    late_issue = [replace(row) for row in rows]
+    # Public TrainingSample construction now rejects these times. Retain the
+    # learner's independent gate against deliberately forged internal objects.
+    for row in late_issue:
+        object.__setattr__(row, "issued_at", row.start + timedelta(minutes=5))
     learner = ResidualLearner().fit(after + late_issue, EPOCH + timedelta(days=50))
     assert learner.status["wr"]["unique_intervals"] == 0
     assert learner.status["wr"]["rejected_rows"] == 2 * len(rows)

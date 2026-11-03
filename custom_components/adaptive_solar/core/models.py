@@ -361,6 +361,10 @@ class TrainingSample:
         _interval(self)
         object.__setattr__(self, "issued_at", utc_time(self.issued_at, "issued_at"))
         object.__setattr__(self, "observed_at", utc_time(self.observed_at, "observed_at"))
+        if self.issued_at > self.start:
+            raise ValueError("training issue must not follow target start")
+        if self.observed_at < self.end:
+            raise ValueError("training observation must not precede target end")
         _identifier(self.inverter_id, "inverter_id")
         _number_fields(self, (("baseline_w", 0, 1e9), ("actual_w", 0, 1e9)))
         object.__setattr__(self, "features", _features(self.features))

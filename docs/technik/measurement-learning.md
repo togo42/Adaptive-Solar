@@ -1,6 +1,7 @@
 # Messdaten und Lernfenster aus echten Zählerberichten
 
-Stand: 30.10.2026; Datenvertrag ab Version 0.2.15. Die beschriebenen
+Stand: 03.11.2026; Datenvertrag ab Version 0.2.15 mit veröffentlichten
+Ergänzungen aus 0.2.20/0.2.21. Die beschriebenen
 Softwareprüfungen belegen Datenverarbeitung, keine physische Zählerqualität,
 produktive Aktivierung oder bessere Prognosen.
 
@@ -13,7 +14,7 @@ Phase. Reset, ungültiger/unverfügbarer Zähler, ungültige Messfreigabe,
 Abregelung, unplausibler Sprung, zu lange Berichtlücke und Neustart beenden sie.
 Anker und zurückgehaltene Berichte werden weiterhin nicht restauriert.
 
-**Ergänzung im unveröffentlichten Kandidaten 0.2.20:** Einheiten numerischer
+**Seit der veröffentlichten Version 0.2.20:** Einheiten numerischer
 HA-Quellen müssen Zeichenketten aus der jeweils
 unterstützten Einheitenmenge sein. Listen, Objekte und andere Typen gelten als
 ungültige Beobachtung; optionale Leistungs-, GHI-, Temperatur- und Windquellen
@@ -49,6 +50,15 @@ Verlust je Rand und mindestens 30 Minuten ursprüngliche Zieldauer. Fehlende
 Randenergie wird nicht interpoliert.
 
 ## Konflikte vor der Auswahl von Zielteilen
+
+Entwicklungskorrektur nach 0.2.21: Bereits `TrainingSample` verlangt
+`issued_at <= start` und `observed_at >= end` bezogen auf die tatsächlichen
+Zielgrenzen. Join und Fit behalten ihre zusätzlichen Chronologie- und
+As-of-Prüfungen. Ein aktuelles Restintervall verwendet seinen beschnittenen
+Beginn; der Mittelpunktvorlauf wird nicht rückdatiert.
+Die Originalintegration prüft `baseline_w` wie `ForecastPoint` auf eine endliche
+reelle Zahl ohne Boolean im Bereich 0 bis 1e9 W. Unvalidierte Endpunktfenster
+werden bei ungültiger Baseline ausgelassen; `True` wird nicht zu 1 W umgedeutet.
 
 Jeder Join filtert Messstücke zunächst nach tatsächlicher Empfangsverfügbarkeit
 und finalisiertem Ende. Anschließend werden exakte Duplikate entdoppelt und

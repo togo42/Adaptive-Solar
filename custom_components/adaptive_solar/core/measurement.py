@@ -13,7 +13,7 @@ import math
 from ..const import (MAX_MEASUREMENT_GAP_SECONDS_PER_HOUR,
                      MAX_MEASUREMENT_SINGLE_GAP_SECONDS, MEASUREMENT_CONTRACT,
                      MAX_MEASUREMENT_PARTS_PER_ROW)
-from .models import utc_time
+from .models import finite_number, utc_time
 
 
 @dataclass(frozen=True)
@@ -209,6 +209,10 @@ def integrate_original(rows, support):
                 schema = set(features)
             if set(features) != schema or any(isinstance(v, bool) or not isinstance(v, (float, int))
                                                or not math.isfinite(v) for v in features.values()):
+                return None
+            try:
+                finite_number(row["baseline_w"], "original baseline_w", 0, 1e9)
+            except (KeyError, ValueError, OverflowError):
                 return None
             seconds = (right - left).total_seconds()
             used.append((seconds, row))

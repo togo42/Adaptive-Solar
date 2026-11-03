@@ -28,6 +28,16 @@ qualifizierte Dateistände sein. Ein neu berechneter Manifesthash allein
 qualifiziert keinen beliebigen neuen Verbraucher. Die unterstützte Laufzeit
 ist CPython 3.14 mit GIL; ein anderer Stand benötigt eine neue Abnahme.
 
+Die Entwicklungskorrektur nach 0.2.21 qualifiziert zusätzlich den Adapterstand
+mit kausaler Intervallfilterung und periodenweiten negativen Qualitätsmasken.
+Die opaque Konfigurationsfabrik und das Projektionsprotokoll bleiben unverändert.
+Python- und echter Rustpfad werden sowohl für reguläre Freigabe als auch für
+eine Konfigurationssperre über das aktuelle Rohabfragefenster hinaus verglichen;
+Manipulations-, Quellenpin- und API-Sperren bleiben aktiv. Der zusätzliche
+qualifizierte Dateistand ersetzt weder die neun aktuellen Manifestpins noch
+eine Abnahme des konkreten Hostumfangs. Ein bestehendes Runtime-Manifest muss
+bei einem Quellupdate neu erstellt und gesondert geprüft werden.
+
 Bekannte Konfigurationsfehler wie falsche Quellen-, Runtime-, Manifest- oder
 Binärpins beenden die angeforderte Aktivierung geschlossen. Sie werden nicht
 als erfolgreich verwendeter Rustpfad gemeldet. Bei einer vom Kern nicht

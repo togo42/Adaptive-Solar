@@ -739,12 +739,27 @@ def test_decoding_shares_only_fixed_contract_keys_and_preserves_all_values():
     assert subject._SHARED_KEYS == before
 
 
-def test_real_kernel_live_archive_matches_full_reference_and_uses_native_read_lock(tmp_path, monkeypatch, policy_store):
+@pytest.mark.parametrize("configuration_conflict", [False, True])
+def test_real_kernel_live_archive_matches_full_reference_and_uses_native_read_lock(tmp_path, monkeypatch, policy_store,
+                                                                               configuration_conflict):
     import fcntl
 
     binary = os.environ.get("ADAPTIVE_SOLAR_TEST_NATIVE_QUALITY_BINARY")
     if not binary:
         pytest.skip("Explicit real native-quality binary was not requested")
+    if configuration_conflict:
+        from tests.test_archive_observations import ingest
+
+        case = policy_store.case
+        payload = deepcopy(case[0][0]["payload"])
+        stamp = case[3] + timedelta(hours=1)
+        payload["issued_at"] = stamp.isoformat()
+        payload["software"]["source_sha256"] = "b" * 64
+        journal = archive.ArchiveJournal(tmp_path / "journal")
+        journal.append("forecast_issued", payload, stamp, "native-period-conflict")
+        ingest(journal, policy_store.store, "test-source")
+        # The whole first hour is outside this shortened current raw query.
+        policy_store.raw = capture(start=stamp, end=case[4], received=case[-1])
     root = Path(subject.__file__).resolve().parents[1]
     library = Path(binary).resolve()
     manifest = {"schema": "adaptive-solar-native-quality-runtime-v1", "protocol_version": 2,
@@ -771,11 +786,14 @@ def test_real_kernel_live_archive_matches_full_reference_and_uses_native_read_lo
     with (tmp_path / "writer.lock").open("a") as writer_lock:
         fcntl.flock(writer_lock, fcntl.LOCK_EX)
         expected = derive(policy_store)
+        if configuration_conflict:
+            mask, = expected["quality"]["intervals"]
+            assert mask["quality"] == "invalid" and mask["start"] < policy_store.raw["raw"]["target_start"]
         locks.clear()
         assert canonical(derive(policy_store, backend)) == canonical(expected)
         assert policy_store.store.root in locks
     assert canonical(policy_store.raw) == raw
     assert backend.stats["sources_projected"] == 1
-    assert backend.stats["configuration_proofs"] == 1
+    assert backend.stats["configuration_proofs"] == 1 + configuration_conflict
     assert backend.stats["source_fallbacks"] == 0
     assert backend.stats["closed"]

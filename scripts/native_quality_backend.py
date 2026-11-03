@@ -36,6 +36,8 @@ DEPENDENCIES = ("pvlib", "scikit-learn", "numpy", "pandas", "aiohttp")
 SUPPORTED_FACTORY_SOURCES = frozenset({
     "27d5929efca61383470054a232fb1de7c65460c3e154275b4936563ea2570ef6",
     "cd230e944b3fa7d2ec3be4e11be3933b5baae79ff873c8460f83c2b9ad860e6e",
+    # Causal interval filtering and period-wide masks; opaque proof factory unchanged.
+    "e50ea6610301d317bee090efd14b113c6a6bf45131463ee21072d0d3871d30db",
 })
 SUPPORTED_ARCHIVE_SOURCES = frozenset({
     "2788a9e113dd80a348a6d70c1be055e7ae97509046592a93cad2a8fa73694660",

@@ -1,6 +1,7 @@
 # Istwerte offline aus archivierten Messnachweisen qualifizieren
 
-Stand: 30.10.2026, enthalten ab Release 0.2.20; eine Timeraktivierung erfolgt
+Stand: 03.11.2026, Grundfunktion ab Release 0.2.20 mit nachfolgend
+gekennzeichneten Entwicklungskorrekturen nach 0.2.21; eine Timeraktivierung erfolgt
 separat und ausdrücklich. Der Adapter liest lokale
 Originalauszüge, prüft Stundenabdeckung und erzeugt eine neue Qualitätsrevision
 für den bestehenden [Recorder-Collector](../entwicklung/benchmark-aufnahme.md).
@@ -167,6 +168,18 @@ Ereignisse dürfen bei der Auswahl nicht weggelassen werden. Ein solcher Auszug
 ist keine Vollarchivprüfung. Die CLI öffnet keinen Archivindex, stellt keine
 Netzverbindung her und erzeugt keine automatische Quellenattestierung.
 
+Entwicklungskorrektur nach 0.2.21: Die vollständigen gelieferten Envelopes werden weiter auf Integrität und
+widersprüchliche Identitäten geprüft. Vor den fachlichen Deltaurteilen filtert
+der Adapter jedoch nach Quelle, Stufe, tatsächlichem Empfang bis einschließlich
+`as_of` sowie Überlappung mit Ziel- und Bindungszeitraum. Eine erst später
+verfügbare oder für diese Ableitung fremde semantisch ungültige Delta-Payload
+bricht die historische Ableitung deshalb nicht ab. Tatsächlich verwendbare
+Originale bleiben streng: ungültige Chronologie, zusätzliche Nutzdatenfelder,
+negative Energie oder mehr als 900 Sekunden Dauer brechen die Ableitung ab;
+aus einer solchen Vertragsverletzung wird keine positive Freigabe oder
+automatisch erfundene negative Messbehauptung. Die Offline-Eingabeprovenienz
+bindet weiterhin alle gelieferten Original-Envelopes, auch ausgefilterte.
+
 ```bash
 .venv/bin/python scripts/qualify_actuals.py \
     --events-json data/quality-input/events-roof.json \
@@ -214,6 +227,25 @@ Der vorhandene Captureauswerter sperrt dadurch auch ältere positive Revisionen
 und fordert deren explizite Klärung. Reine Datenlücken oder fehlende
 Attestierungen werden ausgelassen und widerrufen keine frühere belegte Freigabe.
 `hours.mask_status` unterscheidet `valid`, `invalid` und `omitted`.
+
+Entwicklungskorrektur nach 0.2.21: Ein Konfigurations-, Producer- oder Generationswiderspruch in einer gebundenen
+Konfigurationsaufnahme widerruft die Freigabe aller vollständig vergangenen,
+ganz innerhalb dieser Bindung liegenden UTC-Stunden bis `as_of`. Die negative
+Revision wird als zusammenhängende Bereichsmaske in `quality.intervals`
+publiziert, auch außerhalb des aktuellen Recorder-Abfragefensters. Pro
+betroffener Bindung nennt `binding_checks[].invalidated_period` deren tatsächliche
+Grenzen. Das hält auch lange Bindungen kompakt. `hours` und die Zähler in
+`summary` beschreiben weiterhin ausschließlich das aktuelle Zielstundenfenster.
+Eine ungeprüfte oder erst später verfügbare Konfigurationszuordnung darf auch
+diesen Widerruf nicht auslösen.
+
+Der bestehende Captureauswerter wendet solche negativen Bereichsmasken auch
+auf ältere disjunkte positive Captures an. Ihre Wirkung beginnt erst mit der
+tatsächlichen neuen Qualitätsverfügbarkeit; ursprüngliche Rohdaten und
+Empfangszeiten bleiben erhalten. Widersprechende Revisionen werden ausdrücklich
+gesperrt und benötigen Klärung. Es werden weder zusätzliche Recorderwerte noch
+rückwirkend damals bekannte Labels erzeugt. Die Bereichsmasken verwenden
+unverändert den vorhandenen Qualitätsvertrag mit `schema_version: 1`.
 Eine leere Liste ist ein gültiges Prüfergebnis; `validated: true` bestätigt dann
 nur die Durchführung der Ableitung.
 
