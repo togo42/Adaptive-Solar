@@ -83,6 +83,7 @@ def archive_response(journal, request, raw: bytes | None, received_at, *, produc
             if ensemble:
                 parsed = parse_members(payload, product, received_at, site)
                 coverage = {"expected_members": parsed.expected_members, "parsed_members": len(parsed.members),
+                            "cohort_complete": len(parsed.members) == parsed.expected_members,
                             "missing_members": list(parsed.missing_members),
                             "rejected_members": {str(key): value for key, value in parsed.rejected_members.items()},
                             "member_intervals": {member.model: len(member.points) for member in parsed.members}}
@@ -166,7 +167,8 @@ async def collect(args):
     journal = ArchiveJournal(args.archive / f"weather-staging-{source_key}", max_bytes=128 * 1024 * 1024)
     # Drain an earlier interrupted invocation before collecting new responses.
     recovery = flush_journal(journal, store, source)
-    report = {"capture_schema": 1, "records": [], "recovery": recovery, "transfers": [], "complete": False}
+    report = {"capture_schema": 1, "records": [], "recovery": recovery, "transfers": [], "complete": False,
+              "capture_complete": False, "ensemble_cohort_complete": None}
     if not recovery["complete"]:
         return report
     records = []
@@ -198,11 +200,18 @@ async def collect(args):
                 transfer = flush_journal(journal, store, source)
                 report["transfers"].append(transfer)
                 records.append({"event_id": event["event_id"], "product": product,
+                                "ensemble": ensemble,
                                 "received_at": event["received_at"], "status": event["payload"]["status"],
                                 "coverage": event["payload"]["coverage"]})
     report["records"] = records
     report["complete"] = bool(records) and all(row["status"] == "available" for row in records) and all(
         transfer["complete"] for transfer in report["transfers"])
+    # Legacy complete/exit status describes durable capture, not EPS qualification.
+    report["capture_complete"] = report["complete"]
+    ensembles = [row for row in records if row["ensemble"]]
+    report["ensemble_cohort_complete"] = all(
+        row["status"] == "available" and row["coverage"].get("cohort_complete") is True
+        for row in ensembles) if ensembles else None
     return report
 
 

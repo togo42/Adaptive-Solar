@@ -372,6 +372,14 @@ def test_evaluate_cli_reads_comparison_branch_and_preserves_input(offline_proces
     report = json.loads(output.read_text())
     assert report["paired_intervals"] == 1 and not report["comparison_eligible"]
     assert source.read_bytes() == original
+    # No implicit external family or automatic addition of internal arms.
+    undeclared = json.loads(schedule.read_text())
+    del undeclared["sources"]
+    schedule.write_text(json.dumps(undeclared))
+    previous_report = output.read_bytes()
+    process = offline_process("evaluate.py", schedule, "--comparison-archive", source, "--output", output)
+    assert process.returncode != 0 and "explicit input.sources" in process.stderr
+    assert output.read_bytes() == previous_report and source.read_bytes() == original
     process = offline_process("evaluate.py", schedule, "--comparison-archive", source, "--output", source)
     assert process.returncode != 0 and source.read_bytes() == original
 

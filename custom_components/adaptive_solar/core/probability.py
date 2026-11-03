@@ -114,15 +114,18 @@ def combine_families(distributions: tuple[EnergyDistribution, ...], family_weigh
     total = sum(family_weights.values())
     if total <= 0:
         raise ValueError("zero family weight")
-    values, weights, ids = [], [], []
+    values, weights, ids, excluded = [], [], [], []
     for distribution in distributions:
         values.extend(distribution.values_kwh)
         weights.extend(w * family_weights[distribution.family] / total for w in distribution.weights)
         ids.extend(f"{distribution.product}:{member}" for member in distribution.member_ids)
+        excluded.extend(f"{distribution.product}:{member}" for member in distribution.excluded_members)
     first = distributions[0]
+    incomplete = any(len(d.member_ids) < d.expected_members or "incomplete" in d.status for d in distributions)
+    status = "raw_family_mixture_uncalibrated" + ("_incomplete_cohort" if incomplete else "")
     return EnergyDistribution("mixture", "+".join(d.product for d in distributions), first.start, first.end,
                               tuple(values), tuple(weights), tuple(ids), sum(d.expected_members for d in distributions),
-                              status="raw_family_mixture_uncalibrated")
+                              excluded_members=tuple(excluded), status=status)
 
 
 @dataclass(frozen=True)
@@ -183,8 +186,11 @@ def calibrate_bias(distribution: EnergyDistribution, cases: tuple[CalibrationCas
                                                   "family": distribution.family, "product": distribution.product,
                                                   "window_seconds": (distribution.end - distribution.start).total_seconds(),
                                                   "cases": eligible})).hexdigest()
+    status = "empirical_median_bias_corrected_spread_unvalidated"
+    if len(distribution.member_ids) < distribution.expected_members or "incomplete" in distribution.status:
+        status += "_incomplete_cohort"
     return replace(distribution, values_kwh=tuple(max(0, v + bias) for v in distribution.values_kwh),
-                   status="empirical_median_bias_corrected_spread_unvalidated", calibration_sha256=fingerprint)
+                   status=status, calibration_sha256=fingerprint)
 
 
 def probability_scores(distribution: EnergyDistribution, actual_kwh: float, thresholds=()) -> dict:

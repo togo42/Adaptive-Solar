@@ -2,7 +2,7 @@
 Description=Adaptive Solar archive weather schedule
 
 [Timer]
-OnCalendar=*-*-* *:03:00
+OnCalendar=*-*-* *:03:00 UTC
 Persistent=true
 AccuracySec=10s
 Unit=adaptive-solar-archive-weather.service

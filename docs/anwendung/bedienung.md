@@ -1,6 +1,6 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 29.10.2026, Funktionsumfang 0.2.18. [Versionshinweise](../releases/release-0.2.18.md) und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung. [Installation](installation.md),
+Stand: 03.11.2026, Funktionsumfang 0.2.21. [Versionshinweise](../releases/release-0.2.21.md) und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung. [Installation](installation.md),
 [Datenverträge](../technik/implementation-contract.md), [Datenschutz](datenschutz.md).
 
 ## 1. Anlagenaufteilung vorbereiten
@@ -189,8 +189,11 @@ Sonnenfenster (`azimuth_bin_deg`, `elevation_bin_deg`), den wirksamen Faktor
 freigegebener Fenster der Stufe (`filled_bins`) und den letzten (auch mehrteiligen)
 Ablehnungsgrund (`last_rejection`).
 Für Lernlabels gelten mindestens 92 % Messabdeckung des ursprünglichen Ziels
-und höchstens drei Minuten fehlende Zeit je Rand. Der längste zusammenhängende
-gültige Messblock zählt; Lücken werden nicht aufgefüllt.
+und höchstens drei Minuten fehlende Zeit je Rand. Innerhalb eines Blocks mit
+nachgewiesener gleicher Kontinuitätsphase sind zusätzlich höchstens eine Sekunde
+je Lücke und zusammen fünf Sekunden je Stunde ursprünglicher Zieldauer erlaubt.
+Alte Messstücke ohne Phasenbeleg müssen exakt aneinandergrenzen. Fehlende Zeit
+liefert weder Energie noch Messdauer; [Messdatenvertrag](../technik/measurement-learning.md).
 `training_quality.policy.max_missing_edge_seconds` nennt die absolute Randgrenze.
 Kurze auffällige Zählerdifferenzen können bis zu einem echten Folgebericht
 innerhalb von höchstens 15 Minuten ab dem ursprünglichen Anker zurückgehalten werden;

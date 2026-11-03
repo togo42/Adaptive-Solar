@@ -1,6 +1,7 @@
 # Originaldaten archivieren und Prognosen wiederholen
 
-Stand: 29.10.2026, Funktionsumfang 0.2.18. [Versionshinweise](../releases/README.md)
+Stand: 03.11.2026, veröffentlichter Funktionsumfang 0.2.21 mit nachfolgend
+gekennzeichneten Entwicklungskorrekturen. [Versionshinweise](../releases/README.md)
 und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung.
 Der Archivhost wird unabhängig von HACS aktualisiert.
 Die [Hostinstallation](archiv-host-installation.md) beschreibt Dienste, Timer,
@@ -128,6 +129,15 @@ ICON-D2 nicht bereits durch zwei Kalendertage abgeschnitten wird. Die Ausgabe
 bleibt auf die eingestellten lokalen Prognosetage beschränkt. Die Host-Aufnahme
 ändert weder die HA-Modellauswahl noch deren deterministische Gleichgewichtung.
 
+Entwicklungskorrektur nach 0.2.21: `capture_complete` benennt den erfolgreichen
+Abruf und dauerhaften Transfer nutzbarer Antworten; `complete` und Exit 0 bleiben
+als kompatible Transferaussage erhalten. `ensemble_cohort_complete` prüft getrennt,
+ob alle abgefragten Ensembleprodukte sämtliche erwarteten Mitglieder liefern
+(ohne Ensembleabfrage `null`). Jede Ensemble-Coverage enthält zusätzlich
+`cohort_complete`, Mitgliedszahlen und Missingness. Eine erfolgreiche Aufnahme
+von beispielsweise 1/51 Mitgliedern ist damit kein Vollständigkeitsnachweis;
+das spätere Replay prüft weiterhin das ausdrücklich gewählte Quorum.
+
 ## 4. Istenergie und Referenzprognosen
 
 Die bestehenden [Recorder-/Referenzzuordnungen](../entwicklung/benchmark-aufnahme.md) lassen sich
@@ -153,14 +163,15 @@ Intervall. HA-Quellberichte und qualifizierte Intervalle werden zusätzlich im
 HA-Export bewahrt; ihre Zuordnung zu externen Recorder-Messgrenzen muss der
 Vergleich ausdrücklich prüfen.
 
-Im Entwicklungsstand ergänzt der
+Seit 0.2.20 ergänzt der
 [Offline-Qualitätsadapter](istwert-qualitaetsadapter.md) diese Zuordnung:
 Er prüft Originalintervalle gegen explizit belegte Quellenbindungen und erzeugt
 Stundenmasken samt Ausschlussbericht. Ungeprüfte Bindungen liefern nur
 Abdeckungsdiagnosen. Mit `--quality-bindings` beziehungsweise Hostschlüssel `quality_bindings` kann
-der Kandidat nach jedem Recorder-Abruf eine neue Maske ableiten. Er benötigt
+der Host nach jedem Recorder-Abruf eine neue Maske ableiten. Er benötigt
 neue Originaldeltas mit Quellenpins und eine begrenzte qualifizierte v2-Policy.
-Die Funktion ist vorbereitet, noch nicht in den Timern aktiviert.
+Die Funktionsverfügbarkeit aktiviert keine Timer; dafür ist eine ausdrücklich
+konfigurierte und geprüfte Hostaufnahme erforderlich.
 
 Referenzfristen mit `--cutoff ISO_ZEIT_MIT_OFFSET` vorgeben. Der tatsächliche
 Gruppenempfang entscheidet über Rechtzeitigkeit. Zu spät gelieferte Daten werden
@@ -335,6 +346,12 @@ Fiktives Zeitfenster durch eine zum Archiv passende künftige Entscheidung erset
 ```
 
 Jedes Mitglied durchläuft die gemeinsame PV-Physik und Ausgangsbegrenzung.
+Die Entwicklungskorrektur nach 0.2.21 verlangt dafür einen homogenen
+AC- oder DC-Standort. Gemischte Standorte werden vor der Mitgliedsberechnung
+abgelehnt; getrennte Standortdateien und jeweils dazu passende Istwerte verwenden.
+`measurement_boundary` im Bericht nennt `output_type`, die physische Messgrenze,
+Stufenkennungen und die synchrone Summenbildung. Ein ausdrücklich übergebener
+Istwert sowie Kalibrierungsbelege müssen genau diese Summe betreffen.
 Zeitintervalle und Ausgabestufen werden zuerst innerhalb desselben Mitglieds
 summiert. Erst aus diesen vollständigen Energieszenarien entstehen Q10/Q50/Q90
 und `probability_below` für **Energie strikt kleiner als** die jeweilige Schwelle.
@@ -364,6 +381,11 @@ unabhängig von ihren 20 bzw. 51 Mitgliedern. Reicht ICON-D2 nicht über das ges
 48-Stunden-Fenster, bleibt für dieses Fenster nur ein vollständiger längerer Arm.
 Für das kürzere 24-Stunden-Fenster kann ICON weiterhin teilnehmen. Es werden keine
 ICON-Mitgliedsnummern an gleichnamige IFS-Mitglieder angehängt.
+
+Bei ausdrücklich gesenktem Quorum behält auch die Familienmischung den Status
+`incomplete_cohort`, erwartete/tatsächliche Mitgliedszahlen und mit Produktnamen
+qualifizierte Ausschlüsse. Familiengewichte bleiben von der Mitgliederzahl
+unabhängig; fehlende Mitglieder liefern keine Nullenergie.
 
 Die Ausgabe bezeichnet die Verteilung als **unkalibriert**. Optional bewertet
 `--actual-kwh` einen ausdrücklich qualifizierten späteren Istwert mit CRPS,

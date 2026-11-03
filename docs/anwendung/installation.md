@@ -1,6 +1,6 @@
 # Adaptive Solar installieren und aktualisieren
 
-Stand: 30.10.2026; Releaseanleitung für 0.2.20. Veröffentlichungs- und
+Stand: 03.11.2026; Releaseanleitung für 0.2.21. Veröffentlichungs- und
 historische Testangaben stehen in den [Prüfnachweisen](../entwicklung/pruefnachweise.md). Die hier beschriebenen Schritte
 werden vom Betreiber auf der eigenen Installation ausgeführt. Projektprüfungen und
 ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
@@ -17,7 +17,7 @@ ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 | ARM/aarch64, Raspberry Pi, andere Python-ABIs | Bisher nicht qualifiziert; kein passender Build-/Installationsnachweis im Projekt |
 
 Die HACS-Untergrenze 2026.10.2 entspricht dem ältesten geprüften Core. Sie ist keine
-Zusage für alle späteren Versionen. Die vollständige Release-Suite für 0.2.20 prüft Core 2026.10.4;
+Zusage für alle späteren Versionen. Die vollständige Release-Suite für 0.2.21 prüft Core 2026.10.4;
 die Nachweise für .2/.3 stammen aus früheren Releases. Versionsdetails stehen in den [Prüfnachweisen](../entwicklung/pruefnachweise.md). Runtimepins stehen im
 [Manifest](../../custom_components/adaptive_solar/manifest.json): pvlib 0.16.1 und
 scikit-learn 1.9.1. Ein früherer erfolgreicher Import anderer Versionen reicht nicht.
@@ -160,6 +160,19 @@ Originalintervalle mit passenden Producerpins und gesondert geprüfte
 Konfigurations-, Mess- und Abregelungsbindungen. Alte Originale aus 0.2.18/0.2.19
 erhalten durch das Update keine fehlenden Pins. Ein HACS-Update installiert
 keine externen Hosthelfer und aktiviert keine Archivtimer.
+
+**[Version 0.2.21](../releases/release-0.2.21.md):**
+Vor dem HACS-Update Komponentenstand und Optionen sichern, danach einmal Core
+neu starten und Abschnitt 5 prüfen. Das optionale Nachtprofil
+`archive_source_report_profile: night_sparse_v1` wird nur durch ausdrückliche
+Optionswahl aktiv. Es ändert weder Anlagenphysik noch Mess-/Lerngates.
+Kompakte Qualitätsdiagnosen und die getrennten Hostjobs `actuals`/`references`
+benötigen einen eigenen Hostwechsel gemäß [Hostinstallation](../archiv/archiv-host-installation.md).
+Vor der Streamtrennung den kombinierten `observations`-Timer deaktivieren und
+seinen laufenden Dienst auslaufen lassen; neue Timer erst nach geprüften
+Einzelaufnahmen aktivieren. Kombinierte und getrennte Aufnahme nicht parallel
+betreiben. Bestehende Originale, Pins und Checkpoints erhalten; neue
+Producerhashes nur für neue, gesondert belegte Zeiträume binden.
 
 Historisch für 0.2.13: Featurevertrag, passende Forecast-/Messhistorie,
 Schattentabellen und echte Tagesbeginn-Snapshots erhalten. Die

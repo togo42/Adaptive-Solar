@@ -47,6 +47,13 @@ def weather_probabilities(manifests, dependency_events, site, cutoff, start, end
     cutoff, start, end = timestamp(cutoff) if isinstance(cutoff, str) else cutoff, start, end
     if start < cutoff or end <= start:
         raise ValueError("target window must start at or after decision cutoff")
+    output_types = {stage.output_type for stage in site.inverters}
+    if len(output_types) != 1:
+        raise ValueError("EPS energy requires one homogeneous AC/DC measurement boundary; replay stages separately")
+    measurement_boundary = {"output_type": next(iter(output_types)),
+                            "measurement_boundary": site.inverters[0].measurement_boundary,
+                            "stage_ids": [stage.id for stage in site.inverters],
+                            "aggregation": "sum_synchronous_stage_outputs"}
     latest = {}
     for event in manifests:
         received = timestamp(event["received_at"])
@@ -85,7 +92,8 @@ def weather_probabilities(manifests, dependency_events, site, cutoff, start, end
             diagnostics[family] = {"selected_product": choice.product, "selection": "first_complete_in_declared_priority",
                                    "priority": list(order), "quorum": quorum}
     if not selected:
-        return {"status": "unavailable", "diagnostics": diagnostics, "distributions": {}}
+        return {"status": "unavailable", "measurement_boundary": measurement_boundary,
+                "diagnostics": diagnostics, "distributions": {}}
     if len(selected) > 1:
         distributions["family_mixture"] = combine_families(tuple(selected))
     summaries = {}
@@ -105,7 +113,8 @@ def weather_probabilities(manifests, dependency_events, site, cutoff, start, end
                 summary["calibration_status"] = str(err)
         summaries[product] = summary
     return {"status": "raw_probabilities", "decision_cutoff": cutoff.isoformat(), "start": start.isoformat(),
-            "end": end.isoformat(), "diagnostics": diagnostics, "distributions": summaries,
+            "end": end.isoformat(), "measurement_boundary": measurement_boundary,
+            "diagnostics": diagnostics, "distributions": summaries,
             "warning": "Raw weather-ensemble spread and bias-corrected spread have no validated local reliability."}
 
 

@@ -2,7 +2,7 @@
 Description=Adaptive Solar archive ha schedule
 
 [Timer]
-OnCalendar=*-*-* *:00/5:00
+OnCalendar=*-*-* *:00/5:00 UTC
 Persistent=true
 AccuracySec=10s
 Unit=adaptive-solar-archive-ha.service

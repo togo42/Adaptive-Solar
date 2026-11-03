@@ -6,6 +6,9 @@ und [Validierungsgrenzen](validierung.md) ergänzen diesen Einstieg.
 ## 1. Prüfumgebung reproduzieren
 
 Python 3.14 für native HA-Tests verwenden; Python ab 3.13 gilt für den HA-freien Kern.
+Die nativen Kalenderregressionen benötigen außerdem `systemd-analyze` (wie auf
+dem Ubuntu-CI-Runner). Sie werten die ausgelieferten Timervorlagen lokal über
+beide DST-Wechsel aus und starten keine Dienste oder Timer.
 Eine frische Umgebung verhindert Altlasten im HA-Testplugin. Reguläre Paketinstallation
 verwenden: PEP660-Editable kann HAs Namespace-Erkennung stören.
 

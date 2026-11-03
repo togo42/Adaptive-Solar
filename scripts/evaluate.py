@@ -140,6 +140,8 @@ def main():
         payload = json.loads(args.input.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
             raise ValueError("Evaluation input must be an object")
+        if args.comparison_archive and "sources" not in payload:
+            raise ValueError("--comparison-archive requires explicit input.sources declaring the comparison family")
         for field in ("windows", "forecasts", "actuals", "sources"):
             if field in payload and not isinstance(payload[field], list):
                 raise ValueError(f"Evaluation {field} must be a list")

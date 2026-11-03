@@ -33,7 +33,7 @@ def test_flush_reports_generation_change_and_retains_confirmed_checkpoint(tmp_pa
     assert weather.flush_journal(second, store, "weather")["complete"]
 
 
-@pytest.mark.parametrize("case", ["normal", "generation_gap", "final_limit"])
+@pytest.mark.parametrize("case", ["normal", "partial", "generation_gap", "final_limit"])
 @freeze_time(NOW)
 def test_weather_cli_completion_reaches_host_exit(tmp_path, monkeypatch, capsys, case):
     monkeypatch.setattr(host, "ROOT", tmp_path)
@@ -49,7 +49,10 @@ def test_weather_cli_completion_reaches_host_exit(tmp_path, monkeypatch, capsys,
         old.append("event", {}, NOW)
         assert weather.flush_journal(old, store, "weather")["complete"]
         shutil.rmtree(path)
-    payload = json.dumps(eps_payload()).encode()
+    raw = eps_payload()
+    if case == "partial":
+        raw["hourly"] = {key: value for key, value in raw["hourly"].items() if "_member" not in key}
+    payload = json.dumps(raw).encode()
     requests = []
     class Response:
         status = 200
@@ -95,7 +98,8 @@ def test_weather_cli_completion_reaches_host_exit(tmp_path, monkeypatch, capsys,
     monkeypatch.setattr(host.subprocess, "run", process)
     code = host.main(["weather", "--config", str(cfg)])
     report = json.loads(capsys.readouterr().out)
-    assert (code == 0) == report["complete"] == reports[0]["complete"] == (case == "normal")
+    assert (code == 0) == report["complete"] == reports[0]["complete"] == (case in {"normal", "partial"})
+    assert reports[0]["capture_complete"] == reports[0]["complete"]
     if case == "generation_gap":
         assert reports[0]["recovery"]["gaps"][0]["reason"] == "generation_changed"
         assert not requests
@@ -103,3 +107,8 @@ def test_weather_cli_completion_reaches_host_exit(tmp_path, monkeypatch, capsys,
         assert reports[0]["transfers"][0]["page_limit_reached"]
     else:
         assert reports[0]["records"][0]["status"] == "available"
+        assert reports[0]["ensemble_cohort_complete"] == (case == "normal")
+        coverage = reports[0]["records"][0]["coverage"]
+        assert coverage["cohort_complete"] == (case == "normal")
+        assert coverage["parsed_members"] == (20 if case == "normal" else 1)
+        assert coverage["expected_members"] == 20

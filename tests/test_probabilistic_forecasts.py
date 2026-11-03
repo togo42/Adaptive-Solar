@@ -47,6 +47,25 @@ def test_different_family_member_counts_do_not_determine_family_weights():
         combine_families((icon, replace(ifs, end=NOW + timedelta(hours=48))))
 
 
+def test_family_mixture_keeps_incomplete_cohort_and_qualified_exclusion_names():
+    icon = replace(distribution(count=1), expected_members=20, excluded_members=("bad",),
+                   status="raw_ensemble_uncalibrated_incomplete_cohort")
+    ifs = replace(distribution("ifs", "europe", 2), excluded_members=("bad",), expected_members=3,
+                  status="raw_ensemble_uncalibrated_incomplete_cohort")
+    mixed = combine_families((icon, ifs))
+    summary = mixed.summary()
+    assert summary["status"] == "raw_family_mixture_uncalibrated_incomplete_cohort"
+    assert summary["member_count"] == 3 and summary["expected_members"] == 23
+    assert summary["excluded_members"] == ["d2:bad", "europe:bad"]
+    assert mixed.weights == (.5, .25, .25)
+    # A calibrated child's status can differ; actual counts must still warn.
+    assert "incomplete_cohort" in combine_families((replace(icon, status="bias_corrected"),)).status
+
+
+def test_complete_family_mixture_retains_complete_status():
+    assert combine_families((distribution(), distribution("ifs", "europe"))).status == "raw_family_mixture_uncalibrated"
+
+
 @pytest.mark.parametrize("month,day,hours", [(3, 29, 23), (10, 25, 25)])
 def test_member_windows_integrate_both_dst_days_without_24_hour_assumption(month, day, hours):
     local = datetime(2026, month, day, tzinfo=ZoneInfo("Europe/Berlin"))
@@ -92,6 +111,14 @@ def test_chronological_calibration_excludes_future_labels_and_wrong_strata():
         calibrate_bias(distribution(), (*prior, prior[0]), NOW)
     with pytest.raises(ValueError, match="cutoff"):
         calibrate_bias(distribution(), prior, NOW + timedelta(seconds=1))
+
+
+def test_bias_correction_retains_incomplete_cohort_evidence():
+    raw = replace(distribution(count=1), expected_members=20, excluded_members=("bad",),
+                  status="raw_ensemble_uncalibrated_incomplete_cohort")
+    corrected = calibrate_bias(raw, cases(20), NOW)
+    assert corrected.status == "empirical_median_bias_corrected_spread_unvalidated_incomplete_cohort"
+    assert corrected.excluded_members == ("bad",) and corrected.expected_members == 20
 
 
 def test_raw_spread_is_never_presented_as_calibrated():

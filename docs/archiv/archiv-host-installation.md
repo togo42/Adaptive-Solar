@@ -127,10 +127,21 @@ muss für einen Betrieb ohne Login `Linger=yes` liefern. Timer verwenden die
 angegebene Zeitzone, sonst die des Hosts, und holen nach einem Ausfall einmalig
 einen fälligen Lauf nach.
 
+Entwicklungskorrektur nach 0.2.21: Die Vorlagen für `ha`, `weather` und den
+kompatiblen kombinierten Job `observations` verwenden nun ausdrücklich UTC,
+wie bereits `actuals` und `references`. Damit bleibt die physische Kadenz über
+beide Sommerzeitwechsel erhalten. Die Retention bleibt ein lokaler täglicher
+Kalendertermin um 03:37; ihre Tagesabstände können 23 oder 25 Stunden betragen.
+Installierte Unitdateien werden dadurch nicht automatisch geändert. Beim
+gesonderten Hostupdate Vorlagen und Drop-ins prüfen, Kalender mit
+`systemd-analyze calendar` kontrollieren und erst danach die betroffenen Timer
+neu laden. Ein UTC-Stundentermin verändert in Berlin die angezeigte lokale
+Stunde, aber nicht die Minute; `actuals` bleibt auf seinen bisherigen UTC-Terminen.
+
 | Aufgabe | Zeitpunkt |
 | --- | --- |
-| HA-Originalexport | alle fünf Minuten |
-| Zusätzliche Wettermodelle | stündlich Minute 03 |
+| HA-Originalexport | alle fünf Minuten UTC |
+| Zusätzliche Wettermodelle | stündlich Minute 03 UTC |
 | Recorder-Istwerte und Qualitätsableitung (`actuals`) | alle sechs Stunden um 00:12, 06:12, 12:12 und 18:12 UTC; 72 Stunden Rückblick, zehn Minuten Reserve |
 | Referenzprognosen (`references`) | stündlich Minute 24 UTC |
 | Retention | täglich 03:37, 24 Kalendermonate, Pins bleiben erhalten |
@@ -174,7 +185,7 @@ weder die HA-Producerfrequenz noch bestehende Originale.
 
 Diese Schritte sind eine vorbereitete Migration, keine automatische Änderung
 einer vorhandenen Installation. Der alte Job `observations` und seine stündliche
-Timerdatei bleiben unverändert nutzbar und verwenden weiterhin beide konfigurierten
+Timerdatei bleiben kompatibel nutzbar und verwenden weiterhin beide konfigurierten
 Mappings. Die Existenz neuer Vorlagen ändert keinen installierten Timer.
 
 1. Vorher Softwarestand, Unit-/Drop-in-Dateien und aktive/aktivierte Timerzustände

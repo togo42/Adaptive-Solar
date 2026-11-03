@@ -1,5 +1,8 @@
 # Prüfung der Grok-Befunde vom 03.11.2026
 
+Historischer Prüfstand vor den anschließenden
+[Korrekturen der offenen Themen](grok-befundkorrekturen-20261103.md).
+
 Geprüfte Implementierung: `4a74f4b4fab52b48d0a070463f8b1f64eedf9dd8`. Drei Subagenten und eine anschließende Gegenprüfung haben sämtliche **41 Einzelmeldungen aus zwölf Berichten** auf **35 eigenständige Themen** abgebildet. Doppelte Meldungen werden gemeinsam bewertet. Dieser Auftrag prüft und dokumentiert; er verändert keine funktionale Implementierung, produktive Konfiguration oder Qualitätsregel.
 
 Grok-Meldungen sind Prüfkandidaten. Maßgeblich sind tatsächliche Aufrufpfade, bestehende Verträge und reproduzierbares Verhalten. Es wurden ausschließlich lokale synthetische Daten und installierte Testabhängigkeiten verwendet. Eine Betroffenheit produktiver Anlagen wurde in diesem Audit nicht erhoben.

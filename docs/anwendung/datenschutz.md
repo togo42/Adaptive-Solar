@@ -1,6 +1,6 @@
 # Datenschutz und Datenflüsse von Adaptive Solar
 
-Stand: 29.10.2026; beschrieben ist Version 0.2.18, keine
+Stand: 03.11.2026; beschrieben ist Version 0.2.21, keine
 Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 
 ## 1. Externe Verbindungen
@@ -10,6 +10,7 @@ Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 | Wetterabruf | HTTPS `api.open-meteo.com/v1/forecast`: Breitengrad, Längengrad, Modellkennung, Wettervariablen, Horizont, Einheiten und UTC-Zeitformat; außerdem netzbedingt die öffentliche Quell-IP |
 | HACS-Installation/Update | GitHub über HACS; unterliegt dessen eigener Implementierung und Bedingungen |
 | Optionale lokale CLI `forecast.py --live` | Derselbe Wetterabruf für die explizit ausgewählte Standortdatei |
+| Optionaler Host-Wettercollector `capture_weather.py` | HTTPS `api.open-meteo.com/v1/forecast` für deterministische Produkte und `ensemble-api.open-meteo.com/v1/ensemble` für Ensembleprodukte; Standortkoordinaten, Modellkennung, Wettervariablen, Horizont, Einheiten und Zeitformat sowie netzbedingt die öffentliche Quell-IP |
 | Optionaler Archivcollector ab 0.2.16 | Authentifizierter Abruf vom gewählten HA zum privat eingerichteten Archivhost; vollständige Originaleingaben und Ausgaben einschließlich Standort, Entitybindungen und Lernzeilen. Die HA-Option allein richtet keinen externen Transfer ein |
 | Separat gestarteter externer Review | Nur der ausdrücklich vorbereitete öffentliche Quelltextumfang geht an den Reviewer; kein Bestandteil des normalen HA-Betriebs |
 
@@ -122,7 +123,7 @@ Diese privaten Zeitreihen können Betriebs- und Nutzungsmuster sichtbar machen.
 Software-/Bibliotheksstände und Inhaltsprüfsummen verbinden diese Daten; sie
 anonymisieren den Inhalt nicht. Ausführbare Modell-Pickles werden nicht gespeichert.
 
-Der vorbereitete Entwicklungsstand bietet zusätzlich das optionale
+Seit Version 0.2.21 gibt es zusätzlich das optionale
 [Nachtprofil und kompakte Hostberichte](../archiv/speichersparprofile.md).
 Das Nachtprofil reduziert ausschließlich unveränderte, nichtkritische
 Diagnosemeldungen; Mess- und Kontrollberichte bleiben erhalten. Kompakte

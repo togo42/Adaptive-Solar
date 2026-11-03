@@ -130,6 +130,10 @@ Capture-Revision weiter bewertet werden. Reiner Inlinebetrieb bleibt möglich.
 Die Quellen werden ausdrücklich gewählt, etwa
 `["adaptive", "operative_baseline", "shadow:early_bias"]`; für einen anderen
 Vergleich ergänzt oder ersetzt man sie durch einen konkreten `nwp:<model>`-Arm.
+Die Entwicklungskorrektur nach 0.2.21 verlangt bei `--comparison-archive` deshalb
+ein explizites `sources` im Eingabedokument und bricht sonst mit verständlicher
+Fehlermeldung vor der Berichtveröffentlichung ab. Sie ergänzt keine Quellen
+automatisch; eine bewusst gewählte Teilfamilie bleibt erhalten.
 Ein Cutoff 18:00:00 kann einen erst um 18:07:12 archivierten Capture nicht nutzen.
 Ein vorab festgelegter späterer gemeinsamer Cutoff muss diese tatsächliche
 Verfügbarkeit berücksichtigen.

@@ -167,6 +167,9 @@ def test_host_eps_replays_per_member_physics_full_cohort_and_raw_scores(tmp_path
     report = weather_probabilities(manifests, rows, site(), NOW, NOW, NOW + timedelta(hours=2),
                                    thresholds=(2, 5), actual_kwh=4)
     assert report["status"] == "raw_probabilities"
+    assert report["measurement_boundary"] == {
+        "output_type": "ac", "measurement_boundary": site().inverters[0].measurement_boundary,
+        "stage_ids": ["i"], "aggregation": "sum_synchronous_stage_outputs"}
     assert report["diagnostics"]["ifs"]["selected_product"] == "ecmwf_ifs_europe_ensemble"
     d2 = report["distributions"]["dwd_icon_d2_eps"]
     assert d2["member_count"] == 20 and d2["expected_members"] == 20
@@ -175,6 +178,30 @@ def test_host_eps_replays_per_member_physics_full_cohort_and_raw_scores(tmp_path
     mixture = report["distributions"]["family_mixture"]
     assert mixture["member_count"] == 71
     assert sum(value for key, value in mixture["weights"].items() if key.startswith("dwd_icon")) == pytest.approx(.5)
+
+
+@pytest.mark.parametrize("scoring", [False, True])
+def test_eps_replay_rejects_mixed_measurement_boundaries_before_forecasting(monkeypatch, scoring):
+    config = site()
+    mixed = replace(config, inverters=(*config.inverters, InverterConfig("dc", output_type="dc", max_output_kw=2)),
+                    strings=(*config.strings, StringConfig("dc_string", "dc", 2, 30, 180)))
+    monkeypatch.setattr("scripts.replay_archive.member_results", lambda *_: pytest.fail("mixed site reached physics"))
+    with pytest.raises(ValueError, match="homogeneous AC/DC measurement boundary"):
+        weather_probabilities([], [], mixed, NOW, NOW, NOW + timedelta(hours=2),
+                              actual_kwh=4 if scoring else None)
+
+
+def test_eps_dc_replay_declares_single_boundary(tmp_path):
+    config = replace(site(), inverters=(InverterConfig("i", output_type="dc", max_output_kw=5),))
+    journal = ArchiveJournal(tmp_path / "journal")
+    product = "dwd_icon_d2_eps"
+    event = archive_response(journal, eps_request(product, config), json.dumps(eps_payload()).encode(), NOW,
+                             product=product, ensemble=True, http_status=200, site=config)
+    report = weather_probabilities([event], journal.page(limit=100)["events"], config, NOW, NOW,
+                                   NOW + timedelta(hours=2), actual_kwh=4)
+    assert report["status"] == "raw_probabilities" and report["distributions"][product]["scores"]
+    assert report["measurement_boundary"]["output_type"] == "dc"
+    assert report["measurement_boundary"]["measurement_boundary"] == config.inverters[0].measurement_boundary
 
 
 def test_host_short_model_never_stitches_to_ifs_and_failed_latest_invalidates(tmp_path):
