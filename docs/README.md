@@ -64,6 +64,7 @@ privaten Archivhost voraus; die Prognoseintegration benötigt diesen Host nicht.
 - [Archiv-Laufzeittelemetrie](entwicklung/archiv-laufzeittelemetrie.md): begrenzte Phasenbelege und getrennte Timeout-/Betriebssystemfehler für Archivjobs.
 - [Validierung](entwicklung/validierung.md): prospektiver Messplan und hashgebundener Reviewablauf.
 - [Fehlerfamilien prüfen](entwicklung/review-fehlerfamilien.md): gemeinsame Nachprüfung, Inventur der Schreibwege und Grenzen fokussierter Reviews.
+- [Grok-Befunde unabhängig geprüft](entwicklung/grok-befundpruefung-20261103.md): vollständige Zuordnung von 41 Meldungen zu 35 Themen mit Primärbelegen und Prüfgrenzen.
 - [Vergleichsaufnahme](entwicklung/benchmark-aufnahme.md): Recorder-Istwerte und Referenzprognosen.
 - [Prüfnachweise](entwicklung/pruefnachweise.md): historische Quell-/Releasebezüge und Aussagegrenzen.
 - [Dokumentationspflege](entwicklung/dokumentationspflege.md): Ablageregeln und Konsistenzprüfung.
