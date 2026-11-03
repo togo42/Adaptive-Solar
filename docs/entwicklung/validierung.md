@@ -68,8 +68,9 @@ bewerten. Ein fokussierter lokaler Nachreview ist keine neue externe Vollabnahme
 die folgenden Transfer-, Integritäts- und Abschlussregeln bleiben erhalten.
 
 Seit der Korrektur vom 29.10.2026 gehoeren auch ausgelieferte `.service`-
-und `.timer`-Dateien ausdruecklich zum oeffentlichen Textscope. Alle acht
-systemd-Vorlagen unter `deploy/` werden vollstaendig samt Hash/Byteoffsets
+und `.timer`-Dateien ausdruecklich zum oeffentlichen Textscope. Alle zwoelf
+systemd-Vorlagen unter `deploy/` (einschliesslich der getrennten Actuals-/
+Referenzjobs und der bisherigen Observations-Vorlagen) werden vollstaendig samt Hash/Byteoffsets
 eingebettet und bis zum Abschluss auf Aenderungen geprueft. Aeltere
 Receipts mit Endungs-Allowlist ohne diese Dateien bleiben historische
 Textpruefungen; sie belegen keine vollstaendige Pruefung der ausgelieferten
