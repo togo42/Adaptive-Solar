@@ -159,6 +159,8 @@ def inventories(args):
         if actual != args.rust_module_sha256:
             raise ValueError("Rust module does not match its external binary pin")
         result["rust_module_sha256"] = actual
+        if getattr(args, "rust_projection", False):
+            result["rust_quality_projection"] = True
     return result
 
 
@@ -169,7 +171,7 @@ class BlockHA(MetaPathFinder):
         return None
 
 
-def load_sources(source_root, *, selection=False, rust=False):
+def load_sources(source_root, *, selection=False, rust=False, projection=False):
     sys.dont_write_bytecode = True
     sys.meta_path.insert(0, BlockHA())
     sys.path.insert(0, str(source_root.resolve()))
@@ -180,6 +182,8 @@ def load_sources(source_root, *, selection=False, rust=False):
         names += ("scripts.frozen_quality_selection",)
     if rust:
         names += ("scripts.rust_archive_probe",)
+    if projection:
+        names += ("scripts.rust_quality_projection",)
     modules = {name: importlib.import_module(name) for name in names}
     origins = {}
     for name, module in list(sys.modules.items()):
@@ -251,7 +255,9 @@ class Phases:
     def generator(self, original):
         @functools.wraps(original)
         def measured(*args, **kwargs):
+            begin, cpu = time.perf_counter(), time.process_time()
             iterator = iter(original(*args, **kwargs))
+            self.add("archive.iter_events_open", time.perf_counter() - begin, time.process_time() - cpu)
             try:
                 while True:
                     begin, cpu = time.perf_counter(), time.process_time()
@@ -264,7 +270,9 @@ class Phases:
                              events_yielded=1)
                     yield value
             finally:
-                iterator.close()
+                close = getattr(iterator, "close", None)
+                if close is not None:
+                    close()
         return measured
 
 
@@ -303,7 +311,7 @@ def measured_worker(args):
             raise RuntimeError("Network and child execution forbidden inside measured worker")
     sys.addaudithook(no_network)
     modules, origins = load_sources(args.source_root, selection=args.selection_plan is not None,
-                                    rust=args.rust_module is not None)
+                                    rust=args.rust_module is not None, projection=args.rust_projection)
     archive = modules["custom_components.adaptive_solar.core.archive"]
     quality = modules["custom_components.adaptive_solar.core.actual_quality"]
     continuous = modules["scripts.continuous_quality"]
@@ -327,9 +335,13 @@ def measured_worker(args):
 
     profiler = cProfile.Profile() if args.worker_mode == "cprofile" else None
     rust_stats = None
+    projection_stats = None
     with ExitStack() as stack:
         stack.enter_context(patch.object(archive, "_lock", frozen_lock))
-        if args.rust_module is not None:
+        if args.rust_projection:
+            projection_stats = stack.enter_context(modules["scripts.rust_quality_projection"].projected_quality_reader(
+                archive, continuous, quality, args.rust_module, args.rust_module_sha256, raw, bindings))
+        elif args.rust_module is not None:
             rust_stats = stack.enter_context(modules["scripts.rust_archive_probe"].rust_original_reader(
                 archive, args.rust_module, args.rust_module_sha256))
         if phases:
@@ -419,6 +431,8 @@ def measured_worker(args):
                        selection_status=selection_status)
     if rust_stats is not None:
         metrics["rust_probe"] = dict(rust_stats)
+    if projection_stats is not None:
+        metrics["rust_projection"] = dict(projection_stats)
     if phases:
         phases.markers["build_to_derive_end_wall_seconds"] = elapsed + wall - phases.build_ended
         metrics.update(phases=phases.values, phase_markers=phases.markers,
@@ -474,6 +488,7 @@ def main(argv=None):
     parser.add_argument("--selection-plan-sha256", help="Externally pinned canonical plan-document SHA256")
     parser.add_argument("--rust-module", type=Path, help="Optional experimental Rust original reader; frozen local inputs only")
     parser.add_argument("--rust-module-sha256", help="Externally pinned Rust extension binary SHA256")
+    parser.add_argument("--rust-projection", action="store_true", help="Experimental compact-consumer native selection/projection")
     parser.add_argument("--max-batches", type=int, default=50000)
     parser.add_argument("--max-events", type=int, default=2000000)
     parser.add_argument("--max-archive-bytes", type=int, default=4 * GIB)
@@ -482,6 +497,8 @@ def main(argv=None):
     parser.add_argument("--worker-mode", choices=("ordinary", "phases", "cprofile"), help=argparse.SUPPRESS)
     parser.add_argument("--expected-manifest", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+    if args.rust_projection and args.rust_module is None:
+        parser.error("Native quality projection requires the pinned Rust module")
     if ((args.rust_module is None) != (args.rust_module_sha256 is None)
             or args.rust_module_sha256 is not None
             and (len(args.rust_module_sha256) != 64
@@ -538,6 +555,8 @@ def main(argv=None):
         if args.rust_module is not None:
             command.extend(["--rust-module", str(args.rust_module),
                             "--rust-module-sha256", args.rust_module_sha256])
+        if args.rust_projection:
+            command.append("--rust-projection")
         started = time.perf_counter()
         subprocess.run(command, check=True, timeout=args.timeout, env=worker_environment())
         run = json.loads(worker_output.read_text())

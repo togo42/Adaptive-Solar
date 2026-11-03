@@ -3,19 +3,54 @@
 use flate2::read::MultiGzDecoder;
 use pyo3::ffi;
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use pyo3::types::{PyBytes, PyTuple};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::ffi::{c_char, c_double, c_int, CStr, CString};
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 const HARD_PAGE_BYTES: usize = 4 * 1024 * 1024;
 const HARD_EVENT_BYTES: usize = 1024 * 1024;
 const MAX_INTEGER: i64 = i64::MAX;
 const ADD_DOT_ZERO: c_int = 0x02;
+
+thread_local! {
+    // Raw protocol 1 keeps its existing None/error behavior. A source-wide
+    // projection must additionally preserve Python exceptions dispatched by
+    // signal handlers during CPython's numeric conversion routines.
+    static PROJECTION_ERROR: RefCell<Option<Option<PyErr>>> = const { RefCell::new(None) };
+}
+
+struct ProjectionErrorScope;
+
+impl ProjectionErrorScope {
+    fn start() -> Option<Self> {
+        PROJECTION_ERROR.with(|state| {
+            let mut slot = state.borrow_mut();
+            if slot.is_some() {
+                None
+            } else {
+                *slot = Some(None);
+                Some(Self)
+            }
+        })
+    }
+
+    fn take(&self) -> Option<PyErr> {
+        PROJECTION_ERROR.with(|state| state.borrow_mut().as_mut().and_then(Option::take))
+    }
+}
+
+impl Drop for ProjectionErrorScope {
+    fn drop(&mut self) {
+        PROJECTION_ERROR.with(|state| *state.borrow_mut() = None);
+    }
+}
 
 // CPython's own decimal conversion and repr, rather than a Rust approximation
 // of the archive's Python JSON float formatting. This is intentionally cp314,
@@ -37,7 +72,21 @@ unsafe extern "C" {
 
 fn clear_python_error() {
     // Every exported operation holds Python's GIL.
-    unsafe { ffi::PyErr_Clear() }
+    unsafe {
+        PROJECTION_ERROR.with(|state| {
+            let mut slot = state.borrow_mut();
+            if let Some(captured) = slot.as_mut() {
+                if !ffi::PyErr_Occurred().is_null() {
+                    let error = PyErr::fetch(Python::assume_attached());
+                    if captured.is_none() {
+                        *captured = Some(error);
+                    }
+                }
+            } else {
+                ffi::PyErr_Clear();
+            }
+        });
+    }
 }
 
 fn sha(bytes: &[u8]) -> String {
@@ -288,7 +337,7 @@ fn generation(value: &Value) -> Option<&str> {
     .then_some(value)
 }
 
-fn utc_stamp(value: &Value) -> Option<()> {
+fn utc_parts(value: &Value) -> Option<[u32; 7]> {
     let value = value.as_str()?.as_bytes();
     if !(value.len() == 25 || value.len() == 32) || &value[value.len() - 6..] != b"+00:00" {
         return None;
@@ -323,13 +372,26 @@ fn utc_stamp(value: &Value) -> Option<()> {
         }
         _ => return None,
     };
-    (year > 0
-        && day > 0
-        && day <= days
-        && digits(11, 13)? < 24
-        && digits(14, 16)? < 60
-        && digits(17, 19)? < 60)
-        .then_some(())
+    let hour = digits(11, 13)?;
+    let minute = digits(14, 16)?;
+    let second = digits(17, 19)?;
+    (year > 0 && day > 0 && day <= days && hour < 24 && minute < 60 && second < 60).then_some([
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        second,
+        if value.len() == 32 {
+            digits(20, 26)?
+        } else {
+            0
+        },
+    ])
+}
+
+fn utc_stamp(value: &Value) -> Option<()> {
+    utc_parts(value).map(|_| ())
 }
 
 fn cursor(value: &Value) -> Option<Option<(&str, i64)>> {
@@ -345,7 +407,12 @@ fn cursor(value: &Value) -> Option<Option<(&str, i64)>> {
     Some(Some((gen, seq.parse().ok()?)))
 }
 
-fn validate(value: &Value, max_page: usize, max_event: usize, max_events: usize) -> Option<()> {
+fn validate(
+    value: &Value,
+    max_page: usize,
+    max_event: usize,
+    max_events: usize,
+) -> Option<Vec<usize>> {
     let wrapper = object(
         value,
         &[
@@ -418,6 +485,7 @@ fn validate(value: &Value, max_page: usize, max_event: usize, max_events: usize)
         }
     }
     let mut previous = start.max(oldest - 1);
+    let mut canonical_lengths = Vec::with_capacity(events.len());
     for event in events {
         let envelope = object(
             event,
@@ -445,22 +513,28 @@ fn validate(value: &Value, max_page: usize, max_event: usize, max_events: usize)
         if envelope["sha256"].as_str()? != sha(&canonical) {
             return None;
         }
-        encoder.encode(event, max_event, false)?;
+        canonical_lengths.push(encoder.encode(event, max_event, false)?.len());
         if event_gen != gen || sequence != previous.checked_add(1)? {
             return None;
         }
         previous = sequence;
     }
-    (next_seq == previous && next_seq <= MAX_INTEGER).then_some(())
+    (next_seq == previous && next_seq <= MAX_INTEGER).then_some(canonical_lengths)
 }
 
-fn read_impl(
+struct ValidatedOriginal {
+    raw: Vec<u8>,
+    value: Value,
+    canonical_lengths: Vec<usize>,
+}
+
+fn read_validated(
     path: &Path,
     max_page: usize,
     max_event: usize,
     max_events: usize,
     max_depth: usize,
-) -> Option<Vec<u8>> {
+) -> Option<ValidatedOriginal> {
     if max_page == 0
         || max_page > HARD_PAGE_BYTES
         || max_event == 0
@@ -500,8 +574,22 @@ fn read_impl(
     }
     audit_shape(&raw, max_depth)?;
     let value: Value = serde_json::from_slice(&raw).ok()?;
-    validate(&value, max_page, max_event, max_events)?;
-    Some(raw)
+    let canonical_lengths = validate(&value, max_page, max_event, max_events)?;
+    Some(ValidatedOriginal {
+        raw,
+        value,
+        canonical_lengths,
+    })
+}
+
+fn read_impl(
+    path: &Path,
+    max_page: usize,
+    max_event: usize,
+    max_events: usize,
+    max_depth: usize,
+) -> Option<Vec<u8>> {
+    read_validated(path, max_page, max_event, max_events, max_depth).map(|original| original.raw)
 }
 
 #[pyfunction(signature = (path, max_page_bytes, max_event_bytes, max_page_events, max_depth=64))]
@@ -528,10 +616,627 @@ fn read_original<'py>(
     result.map(|raw| PyBytes::new(py, &raw))
 }
 
+type Stamp = [u32; 7];
+
+struct ProjectionQuery {
+    source: String,
+    start: Stamp,
+    end: Stamp,
+    periods: Vec<(Stamp, Stamp)>,
+    anchors: HashSet<String>,
+    query_sha256: String,
+    bindings_sha256: String,
+}
+
+impl ProjectionQuery {
+    fn parse(raw: &[u8], max_depth: usize) -> Option<Self> {
+        if raw.len() > 1024 * 1024 {
+            return None;
+        }
+        audit_shape(raw, max_depth)?;
+        let value: Value = serde_json::from_slice(raw).ok()?;
+        let row = object(
+            &value,
+            &[
+                "schema",
+                "source",
+                "target_start",
+                "target_end",
+                "periods",
+                "bindings_sha256",
+            ],
+        )?;
+        if integer(&row["schema"], 0)? != 1 {
+            return None;
+        }
+        let source = text(&row["source"], 256)?.to_owned();
+        let start = utc_parts(&row["target_start"])?;
+        let end = utc_parts(&row["target_end"])?;
+        if start >= end || start[4..].iter().any(|v| *v != 0) || end[4..].iter().any(|v| *v != 0) {
+            return None;
+        }
+        let binding_hash = row["bindings_sha256"].as_str()?;
+        if binding_hash.len() != 64
+            || !binding_hash
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
+            return None;
+        }
+        let inputs = row["periods"].as_array()?;
+        if inputs.len() > 1024 {
+            return None;
+        }
+        let mut periods = Vec::with_capacity(inputs.len());
+        let mut anchors = HashSet::new();
+        for item in inputs {
+            let period = object(item, &["valid_from", "valid_to", "config_event_id"])?;
+            let a = utc_parts(&period["valid_from"])?;
+            let b = utc_parts(&period["valid_to"])?;
+            if a >= b {
+                return None;
+            }
+            periods.push((a, b));
+            anchors.insert(period["config_event_id"].as_str()?.to_owned());
+        }
+        let query_sha256 = sha(&Encoder::new().encode(&value, 1024 * 1024, false)?);
+        Some(Self {
+            source,
+            start,
+            end,
+            periods,
+            anchors,
+            query_sha256,
+            bindings_sha256: binding_hash.to_owned(),
+        })
+    }
+
+    fn relevant(&self, event: &Value) -> Option<bool> {
+        let payload = event.get("payload")?.as_object()?;
+        match event.get("kind")?.as_str()? {
+            "qualified_interval" => Some(
+                utc_parts(payload.get("start")?)? < self.end
+                    && utc_parts(payload.get("end")?)? > self.start,
+            ),
+            "forecast_issued" => {
+                if self.anchors.contains(event.get("event_id")?.as_str()?) {
+                    return Some(true);
+                }
+                let stamp = utc_parts(payload.get("issued_at")?)?;
+                Some(self.periods.iter().any(|(a, b)| *a <= stamp && stamp < *b))
+            }
+            _ => Some(false),
+        }
+    }
+}
+
+struct ConfigurationData {
+    canonical: Vec<u8>,
+    reference: Vec<u8>,
+    original_full_working_size: usize,
+    anchor: bool,
+    original_batch_sha256: String,
+    event_id: String,
+    received_at: String,
+    issued_at: String,
+    computed_at: String,
+}
+
+impl ConfigurationData {
+    fn memory(&self) -> usize {
+        self.canonical.capacity()
+            + self.reference.capacity()
+            + self.original_batch_sha256.capacity()
+            + self.event_id.capacity()
+            + self.received_at.capacity()
+            + self.issued_at.capacity()
+            + self.computed_at.capacity()
+            + 256
+    }
+}
+
+/// Only the validating Rust factory can create this immutable capability.
+#[pyclass(frozen, weakref, module = "_archive_probe")]
+struct VerifiedConfiguration {
+    data: Arc<ConfigurationData>,
+}
+
+#[pymethods]
+impl VerifiedConfiguration {
+    #[getter]
+    fn configuration_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.data.canonical)
+    }
+
+    #[getter]
+    fn reference_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.data.reference)
+    }
+
+    #[getter]
+    fn original_full_working_size(&self) -> usize {
+        self.data.original_full_working_size
+    }
+    #[getter]
+    fn anchor(&self) -> bool {
+        self.data.anchor
+    }
+    #[getter]
+    fn original_batch_sha256(&self) -> &str {
+        &self.data.original_batch_sha256
+    }
+
+    fn __contains__(&self, key: &str) -> bool {
+        matches!(
+            key,
+            "kind" | "received_at" | "event_id" | "payload" | "issued_at" | "computed_at"
+        )
+    }
+
+    fn __getitem__(slf: PyRef<'_, Self>, key: &str, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let value = match key {
+            "kind" => "forecast_issued",
+            "received_at" => &slf.data.received_at,
+            "event_id" => &slf.data.event_id,
+            "issued_at" => &slf.data.issued_at,
+            "computed_at" => &slf.data.computed_at,
+            "payload" => return Ok(slf.into_pyobject(py)?.into_any().unbind()),
+            _ => return Err(pyo3::exceptions::PyKeyError::new_err(key.to_owned())),
+        };
+        Ok(value.into_pyobject(py)?.into_any().unbind())
+    }
+
+    #[pyo3(signature = (key, default=None))]
+    fn get(
+        slf: PyRef<'_, Self>,
+        key: &str,
+        default: Option<Py<PyAny>>,
+        py: Python<'_>,
+    ) -> PyResult<Py<PyAny>> {
+        if slf.__contains__(key) {
+            Self::__getitem__(slf, key, py)
+        } else {
+            Ok(default.unwrap_or_else(|| py.None()))
+        }
+    }
+}
+
+#[derive(Clone)]
+enum ProjectionItem {
+    Interval(Vec<u8>),
+    Configuration(Arc<ConfigurationData>),
+}
+
+#[pyclass(frozen, module = "_archive_probe")]
+struct VerifiedQualitySource {
+    items: Mutex<Option<Vec<ProjectionItem>>>,
+    selected_events: usize,
+    source: String,
+    query_sha256: String,
+    bindings_sha256: String,
+    original_files: usize,
+    original_events: usize,
+    retained_bytes: usize,
+}
+
+impl VerifiedQualitySource {
+    // Construction is entirely native and unpublished until full validation.
+    fn pending(&mut self) -> &mut Vec<ProjectionItem> {
+        self.items
+            .get_mut()
+            .expect("unpublished source mutex")
+            .as_mut()
+            .expect("unpublished source items")
+    }
+}
+
+fn item_to_python(py: Python<'_>, item: ProjectionItem) -> PyResult<Py<PyAny>> {
+    Ok(match item {
+        ProjectionItem::Interval(value) => PyBytes::new(py, &value).into_any().unbind(),
+        ProjectionItem::Configuration(value) => {
+            Py::new(py, VerifiedConfiguration { data: value })?.into_any()
+        }
+    })
+}
+
+/// Consumes only already validated selected items. No constructor is exported.
+#[pyclass(frozen, module = "_archive_probe")]
+struct VerifiedQualityItems {
+    items: Mutex<std::vec::IntoIter<ProjectionItem>>,
+}
+
+#[pymethods]
+impl VerifiedQualityItems {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        // Release the mutex before Python allocations (and possible callbacks).
+        let item = self
+            .items
+            .lock()
+            .map_err(|_| pyo3::exceptions::PyRuntimeError::new_err("items mutex poisoned"))?
+            .next();
+        item.map(|value| item_to_python(py, value)).transpose()
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        Ok(self
+            .items
+            .lock()
+            .map_err(|_| pyo3::exceptions::PyRuntimeError::new_err("items mutex poisoned"))?
+            .len())
+    }
+
+    fn close(&self) -> PyResult<()> {
+        let remaining = {
+            let mut items = self
+                .items
+                .lock()
+                .map_err(|_| pyo3::exceptions::PyRuntimeError::new_err("items mutex poisoned"))?;
+            std::mem::replace(&mut *items, Vec::new().into_iter())
+        };
+        drop(remaining);
+        Ok(())
+    }
+}
+
+#[pymethods]
+impl VerifiedQualitySource {
+    fn items<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
+        // Compatibility inspection only: measured consumers use take_items().
+        // Never hold a Rust mutex while invoking Python allocation callbacks.
+        let snapshot = self
+            .items
+            .lock()
+            .map_err(|_| pyo3::exceptions::PyRuntimeError::new_err("source mutex poisoned"))?
+            .as_ref()
+            .ok_or_else(|| {
+                pyo3::exceptions::PyRuntimeError::new_err("source items already consumed")
+            })?
+            .clone();
+        let out = snapshot
+            .into_iter()
+            .map(|item| item_to_python(py, item))
+            .collect::<PyResult<Vec<_>>>()?;
+        PyTuple::new(py, out)
+    }
+
+    fn take_items(&self, py: Python<'_>) -> PyResult<Py<VerifiedQualityItems>> {
+        let items = self
+            .items
+            .lock()
+            .map_err(|_| pyo3::exceptions::PyRuntimeError::new_err("source mutex poisoned"))?
+            .take()
+            .ok_or_else(|| {
+                pyo3::exceptions::PyRuntimeError::new_err("source items already consumed")
+            })?;
+        Py::new(
+            py,
+            VerifiedQualityItems {
+                items: Mutex::new(items.into_iter()),
+            },
+        )
+    }
+
+    #[getter]
+    fn source(&self) -> &str {
+        &self.source
+    }
+    #[getter]
+    fn query_sha256(&self) -> &str {
+        &self.query_sha256
+    }
+    #[getter]
+    fn bindings_sha256(&self) -> &str {
+        &self.bindings_sha256
+    }
+    #[getter]
+    fn original_files(&self) -> usize {
+        self.original_files
+    }
+    #[getter]
+    fn original_events(&self) -> usize {
+        self.original_events
+    }
+    #[getter]
+    fn selected_events(&self) -> usize {
+        self.selected_events
+    }
+    #[getter]
+    fn retained_bytes(&self) -> usize {
+        self.retained_bytes
+    }
+}
+
+fn original_reference(event: &Value, source: &str) -> Option<Map<String, Value>> {
+    let mut reference = Map::new();
+    for (key, value) in event.as_object()? {
+        if key != "payload" {
+            reference.insert(key.clone(), value.clone());
+        }
+    }
+    reference.insert("source".into(), Value::String(source.into()));
+    Some(reference)
+}
+
+fn working_size(canonical_event_len: usize, source: &str) -> Option<usize> {
+    let mut suffix = vec![b','];
+    Encoder::string(&mut suffix, "source");
+    suffix.push(b':');
+    Encoder::string(&mut suffix, source);
+    canonical_event_len.checked_add(suffix.len())
+}
+
+fn configuration(
+    event: &Value,
+    source: &str,
+    batch_sha: &str,
+    canonical_event_len: usize,
+    anchor: bool,
+) -> Option<Arc<ConfigurationData>> {
+    let payload = event.get("payload")?.as_object()?;
+    // Existing native reconstruction remains authoritative for chunked payloads.
+    if payload.contains_key("payload_ref") {
+        return None;
+    }
+    let issued = payload.get("issued_at")?;
+    let computed = payload.get("computed_at").unwrap_or(issued);
+    let received = event.get("received_at")?;
+    if !(utc_parts(issued)? <= utc_parts(computed)? && utc_parts(computed)? <= utc_parts(received)?)
+    {
+        return None;
+    }
+    let site = payload.get("site")?;
+    let producer = payload.get("software")?.get("source_sha256")?;
+    let producer_hash = producer.as_str()?;
+    if producer_hash.len() != 64
+        || !producer_hash
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    {
+        return None;
+    }
+    let reference = Value::Object(original_reference(event, source)?);
+    let mut encoder = Encoder::new();
+    let site_sha = sha(&encoder.encode(site, HARD_EVENT_BYTES, false)?);
+    let mut value = Map::new();
+    value.insert(
+        "schema".into(),
+        Value::String("verified-original-forecast-configuration-v1".into()),
+    );
+    value.insert("original".into(), reference.clone());
+    value.insert("dependencies".into(), Value::Array(vec![]));
+    value.insert("issued_at".into(), issued.clone());
+    value.insert("computed_at".into(), computed.clone());
+    value.insert("site_sha256".into(), Value::String(site_sha));
+    value.insert("producer_sha256".into(), producer.clone());
+    value.insert(
+        "anchor_site".into(),
+        if anchor { site.clone() } else { Value::Null },
+    );
+    Some(Arc::new(ConfigurationData {
+        canonical: encoder.encode(&Value::Object(value), HARD_EVENT_BYTES + 65536, false)?,
+        reference: encoder.encode(&reference, HARD_EVENT_BYTES, false)?,
+        original_full_working_size: working_size(canonical_event_len, source)?,
+        anchor,
+        original_batch_sha256: batch_sha.into(),
+        event_id: event.get("event_id")?.as_str()?.into(),
+        received_at: received.as_str()?.into(),
+        issued_at: issued.as_str()?.into(),
+        computed_at: computed.as_str()?.into(),
+    }))
+}
+
+fn project_quality_source_impl(
+    py: Python<'_>,
+    paths: Vec<String>,
+    query_json: &[u8],
+    max_page_bytes: usize,
+    max_event_bytes: usize,
+    max_page_events: usize,
+    max_depth: usize,
+    max_retained_bytes: usize,
+    max_selected_events: usize,
+) -> PyResult<Option<VerifiedQualitySource>> {
+    if paths.len() > 50000
+        || max_retained_bytes > 536870912
+        || max_selected_events > 500000
+        || max_retained_bytes == 0
+        || max_selected_events == 0
+        || max_depth == 0
+        || max_depth > 64
+        || paths.iter().any(|p| p.len() > 4096)
+    {
+        return Ok(None);
+    }
+    let Some(query) = ProjectionQuery::parse(query_json, max_depth) else {
+        return Ok(None);
+    };
+    let mut result = VerifiedQualitySource {
+        items: Mutex::new(Some(Vec::new())),
+        selected_events: 0,
+        source: query.source.clone(),
+        query_sha256: query.query_sha256.clone(),
+        bindings_sha256: query.bindings_sha256.clone(),
+        original_files: 0,
+        original_events: 0,
+        retained_bytes: 0,
+    };
+    let mut seen: HashSet<(Arc<str>, i64)> = HashSet::new();
+    let mut generations: HashMap<String, Arc<str>> = HashMap::new();
+    let mut item_memory = 0usize;
+    let path_memory: usize = paths.iter().map(|p| p.capacity() + 32).sum();
+    for path in &paths {
+        py.check_signals()?;
+        // Reserve a conservative bound for one bounded decoded/validated batch;
+        // persistent item/key allocations below are counted separately.
+        let memory = item_memory
+            .saturating_add(result.pending().capacity() * 64)
+            .saturating_add(seen.capacity() * 64)
+            .saturating_add(generations.len() * 256)
+            .saturating_add(path_memory)
+            .saturating_add(max_page_bytes.saturating_mul(72));
+        if memory > max_retained_bytes {
+            return Ok(None);
+        }
+        let Some(original) = read_validated(
+            Path::new(path),
+            max_page_bytes,
+            max_event_bytes,
+            max_page_events,
+            max_depth,
+        ) else {
+            clear_python_error();
+            return Ok(None);
+        };
+        if original.value.get("source").and_then(Value::as_str) != Some(query.source.as_str()) {
+            return Ok(None);
+        }
+        result.original_files += 1;
+        let Some(events) = original
+            .value
+            .get("page")
+            .and_then(|p| p.get("events"))
+            .and_then(Value::as_array)
+        else {
+            return Ok(None);
+        };
+        let batch = Path::new(path)
+            .file_name()
+            .and_then(|p| p.to_str())
+            .and_then(|p| p.strip_suffix(".json.gz"))
+            .unwrap_or("");
+        for (event, canonical_len) in events.iter().zip(original.canonical_lengths.iter()) {
+            result.original_events += 1;
+            if result.original_events > 2000000 {
+                return Ok(None);
+            }
+            let Some(gen) = event.get("generation").and_then(Value::as_str) else {
+                return Ok(None);
+            };
+            let interned = generations
+                .entry(gen.to_owned())
+                .or_insert_with(|| Arc::from(gen))
+                .clone();
+            let Some(sequence) = event.get("sequence").and_then(|v| integer(v, 1)) else {
+                return Ok(None);
+            };
+            // Source is fixed and checked on every wrapper. Dedup precedes all
+            // kind/time predicates, including otherwise irrelevant originals.
+            if !seen.insert((interned, sequence)) {
+                continue;
+            }
+            let memory = item_memory
+                .saturating_add(result.pending().capacity() * 64)
+                .saturating_add(seen.capacity() * 64)
+                .saturating_add(generations.len() * 256)
+                .saturating_add(path_memory)
+                .saturating_add(max_page_bytes.saturating_mul(72));
+            if memory > max_retained_bytes {
+                return Ok(None);
+            }
+            let Some(relevant) = query.relevant(event) else {
+                return Ok(None);
+            };
+            if !relevant {
+                continue;
+            }
+            if result.pending().len() >= max_selected_events {
+                return Ok(None);
+            }
+            let item = if event.get("kind").and_then(Value::as_str) == Some("forecast_issued") {
+                let anchor = event
+                    .get("event_id")
+                    .and_then(Value::as_str)
+                    .is_some_and(|id| query.anchors.contains(id));
+                let Some(proof) =
+                    configuration(event, &query.source, batch, *canonical_len, anchor)
+                else {
+                    return Ok(None);
+                };
+                result.retained_bytes = result.retained_bytes.saturating_add(proof.canonical.len());
+                item_memory = item_memory.saturating_add(proof.memory());
+                ProjectionItem::Configuration(proof)
+            } else {
+                let Some(mut value) = event.as_object().cloned() else {
+                    return Ok(None);
+                };
+                value.insert("source".into(), Value::String(query.source.clone()));
+                let Some(bytes) =
+                    Encoder::new().encode(&Value::Object(value), max_retained_bytes, false)
+                else {
+                    return Ok(None);
+                };
+                result.retained_bytes = result.retained_bytes.saturating_add(bytes.len());
+                item_memory = item_memory.saturating_add(bytes.capacity());
+                ProjectionItem::Interval(bytes)
+            };
+            if result.retained_bytes > max_retained_bytes || item_memory > max_retained_bytes {
+                return Ok(None);
+            }
+            result.pending().push(item);
+            result.selected_events += 1;
+            let memory = item_memory
+                .saturating_add(result.pending().capacity() * 64)
+                .saturating_add(seen.capacity() * 64)
+                .saturating_add(generations.len() * 256)
+                .saturating_add(path_memory)
+                .saturating_add(max_page_bytes.saturating_mul(72));
+            if memory > max_retained_bytes {
+                return Ok(None);
+            }
+        }
+        py.check_signals()?;
+    }
+    Ok(Some(result))
+}
+
+#[pyfunction(signature = (paths, query_json, max_page_bytes, max_event_bytes, max_page_events, max_depth=64, max_retained_bytes=536870912, max_selected_events=500000))]
+fn project_quality_source(
+    py: Python<'_>,
+    paths: Vec<String>,
+    query_json: &[u8],
+    max_page_bytes: usize,
+    max_event_bytes: usize,
+    max_page_events: usize,
+    max_depth: usize,
+    max_retained_bytes: usize,
+    max_selected_events: usize,
+) -> PyResult<Option<VerifiedQualitySource>> {
+    let Some(errors) = ProjectionErrorScope::start() else {
+        return Ok(None);
+    };
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        project_quality_source_impl(
+            py,
+            paths,
+            query_json,
+            max_page_bytes,
+            max_event_bytes,
+            max_page_events,
+            max_depth,
+            max_retained_bytes,
+            max_selected_events,
+        )
+    }))
+    .unwrap_or(Ok(None));
+    if let Some(error) = errors.take() {
+        return Err(error);
+    }
+    result
+}
+
 #[pymodule(gil_used = true)]
 fn _archive_probe(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(read_original, module)?)?;
+    module.add_function(wrap_pyfunction!(project_quality_source, module)?)?;
+    module.add_class::<VerifiedConfiguration>()?;
+    module.add_class::<VerifiedQualitySource>()?;
+    module.add_class::<VerifiedQualityItems>()?;
     module.add("PROTOCOL_VERSION", 1)?;
+    module.add("QUALITY_PROJECTION_VERSION", 2)?;
     module.add("MAX_FAST_DEPTH", 64)?;
     Ok(())
 }

@@ -139,7 +139,8 @@ Langfristprognose. Jobfehler und Kapazitätsstopp erscheinen zusätzlich als
 fehlgeschlagener systemd-Dienst; das ist noch keine externe Alarmierung.
 
 `status_dir` darf einen anderen privaten Statusordner wählen. Der Ordner,
-`writer.lock` und sämtliche fünf Jobnachweise müssen außerhalb des Archivs
+`writer.lock`, sämtliche fünf Jobnachweise und deren feste
+`JOB-runtime.json`-Sidecars müssen außerhalb des Archivs
 liegen, sowohl nach ihrem konfigurierten Pfad als auch nach Symlinkauflösung.
 Sie dürfen weder die mit `--config` gelesene Hostkonfiguration noch konfigurierte
 Standort-, Istwert-, Referenz- oder Qualitätsdateien oder Programmdateien
@@ -149,6 +150,18 @@ Verzeichnisanlage. Eine ungültige Konfiguration endet mit Exitcode 2 und
 schreibt keinen Status. Insbesondere sind `data/archive/originals/status` und
 eine Hostkonfiguration unter `data/host-status/status.json` unzulässig.
 Der Standard `data/host-status` bleibt erhalten.
+
+Der Repository-Runner ergänzt einen per `run_id` korrelierten, begrenzten
+`JOB-runtime.json`-Nachweis. Er trennt Timeout und Betriebssystemfehler beim
+Kindstart, misst Lockwartezeit, Kapazitätsprüfung, Kindaufruf, Statistik,
+tatsächliches Ergebnisschreiben und Lockschluss. Wandzeiten sind monoton;
+CPUzeiten gelten nur für den jeweiligen Prozess und enthalten bei
+`child_run` keine KindCPU. Die eigene Sidecarveröffentlichung ist ausgenommen.
+Fehlende oder nicht zur `run_id` passende Sidecars sind eine Nachweislücke;
+ein Telemetrie-Schreibfehler startet keine zweite Erfassung. API, Teilergebnisse
+und Aussagegrenzen beschreibt [Laufzeittelemetrie](../entwicklung/archiv-laufzeittelemetrie.md).
+Die hier beschriebene kombinierte Repositoryaufgabe `observations` darf einen
+neueren installierten Hostrunner mit getrennten Aufgaben nicht zurückstufen.
 
 ```bash
 current/.venv/bin/python current/scripts/archive_host.py status --config current/data/host.json

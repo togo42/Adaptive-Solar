@@ -14,6 +14,21 @@ from scripts import benchmark_quality, profile_quality
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_phase_measurement_accepts_a_projected_non_generator_iterator():
+    phases = profile_quality.Phases()
+    reader = phases.generator(lambda: map(lambda value: value + 1, (1, 2)))
+    assert list(reader()) == [2, 3]
+    assert phases.values["archive.iter_events_open"]["calls"] == 1
+    assert phases.values["archive.iter_events_next"]["events_yielded"] == 2
+
+
+def test_projection_requires_explicit_binary_before_creating_any_output(tmp_path):
+    with pytest.raises(SystemExit) as error:
+        profile_quality.main([*arguments(tmp_path, tmp_path, tmp_path / "out"), "--rust-projection"])
+    assert error.value.code == 2
+    assert not (tmp_path / "out").exists()
+
+
 def test_worker_environment_omits_credentials_and_sets_thread_limits(monkeypatch):
     monkeypatch.setenv("PROFILE_TEST_SECRET", "synthetic-test-secret")
     monkeypatch.setenv("HTTPS_PROXY", "https://synthetic.invalid")

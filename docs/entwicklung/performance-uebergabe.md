@@ -17,6 +17,10 @@ Der anschließende [Rustversuch](performance-rust-probe.md) trennt
 Implementierung, Differentialtests und isolierten Laufzeitnachweis. Diese Entwicklungsschritte sind
 keine produktive Aktivierung.
 
+Die weitere Fortsetzung trennt [Diensttelemetrie](archiv-laufzeittelemetrie.md)
+für den bestehenden tatsächlichen Job von der experimentellen
+[nativen Auswahl und Konfigurationsprojektion](performance-rust-projektion.md).
+
 ## 1 Auftrag und Aussagegrenzen
 
 Ausgangspunkt ist die vom Nutzer als sehr langsam beschriebene Hostprobe auf

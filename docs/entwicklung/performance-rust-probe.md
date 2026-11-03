@@ -19,9 +19,10 @@ Die Python-Anbindung dekodiert diese mit `json.loads`; Ereignisselektion,
 Payloadreferenzen, Quellen-/Generationsgegenbelege, Qualitätsgates und echte
 Verfügbarkeitszeiten bleiben beim bisherigen Verbraucher.
 
-Das ist zunächst eine Portierung der Validierungsschleifen. Es gibt noch keine
-native Queryprojektion, die alle irrelevanten Pythonobjekte vermeidet. Jedes
-vom nativen Quellscan verbrauchte Original wird in jedem Lauf neu geprüft;
+Das ist eine Portierung der Validierungsschleifen. Der getrennte
+[Projektionsversuch](performance-rust-projektion.md) untersucht anschließend
+die Vermeidung irrelevanter Pythonobjekte. Im Originalreader wird jedes
+vom nativen Quellscan verbrauchte Original in jedem Lauf neu geprüft;
 ein früherer Planaufbau oder Validierungscache gehört nicht zu diesem Versuch.
 
 Serde verarbeitet JSON mit `arbitrary_precision`. Die tatsächliche

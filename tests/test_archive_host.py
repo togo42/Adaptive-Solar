@@ -142,7 +142,8 @@ def test_writer_lock_covers_children_and_timeouts_do_not_block_other_entries(con
     report = host.run("ha", config)
     assert calls == 3 and process[0][0][-1] == "entry-two"
     assert not report["complete"]
-    assert report["commands"][0] == {"returncode": None, "status": "failed_or_timed_out"}
+    assert report["commands"][0] == {"returncode": None, "status": "failed_or_timed_out",
+                                      "exit_kind": "timeout", "timeout_seconds": 1200}
     assert report["commands"][1]["returncode"] == 0 and report["commands"][1]["collector"]["complete"]
 
 
@@ -264,7 +265,7 @@ def test_main_cannot_replace_its_own_configuration_with_status(config, tmp_path,
 
 
 @pytest.mark.parametrize("key", ["site_json", "actual_config", "reference_config", "quality", "quality_bindings"])
-@pytest.mark.parametrize("output", ["weather.json", "writer.lock"])
+@pytest.mark.parametrize("output", ["weather.json", "writer.lock", "status-runtime.json"])
 def test_main_protects_all_configured_inputs_even_for_status_job(config, tmp_path, capsys, key, output):
     source = tmp_path / "data/host-status" / output
     source.parent.mkdir()
@@ -350,3 +351,150 @@ def test_main_default_status_preserves_originals_and_archive_reopens(config, mon
         assert json.loads((tmp_path / "data/host-status/status.json").read_text()) == report
         assert ArchiveStore(store.root).checkpoint("ha-one") == checkpoint
         assert original.read_bytes() == before
+
+
+@pytest.mark.parametrize("error,kind", [(subprocess.TimeoutExpired(["private-command"], 1200), "timeout"),
+                                       (OSError("private-error"), "os_error")])
+def test_child_failure_categories_preserve_other_entry_and_sanitized_evidence(config, monkeypatch, tmp_path, error, kind):
+    monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
+    mock_process(monkeypatch, iter([0]))
+    original, calls = host.subprocess.run, []
+    def process(command, **kwargs):
+        calls.append(command)
+        if len(calls) == 1:
+            raise error
+        return original(command, **kwargs)
+    monkeypatch.setattr(host.subprocess, "run", process)
+    report = host.run("ha", config)
+    runtime = json.loads((tmp_path / "data/host-status/ha-runtime.json").read_text())
+    assert len(calls) == 3 and report["commands"][1]["returncode"] == 0
+    assert report["commands"][0]["exit_kind"] == kind
+    assert report["commands"][0]["timeout_seconds"] == 1200
+    assert runtime["run_id"] == report["runtime_metrics"]["run_id"]
+    assert runtime["phase_summary"]["child_run"]["outcomes"] == {kind: 1, "completed": 1}
+    assert not runtime["job_complete"] and runtime["open_phases"] == 0
+    assert "private" not in json.dumps([report, runtime])
+
+
+@pytest.mark.parametrize("error,kind", [(subprocess.TimeoutExpired(["private-command"], 300), "timeout"),
+                                       (OSError("private-error"), "os_error")])
+def test_stats_failure_is_separate_and_retains_partial_phase_evidence(config, monkeypatch, tmp_path, error, kind):
+    def process(*_args, **_kwargs):
+        raise error
+    monkeypatch.setattr(host.subprocess, "run", process)
+    report = host.run("status", config)
+    runtime = json.loads((tmp_path / "data/host-status/status-runtime.json").read_text())
+    assert report["reason"] == "job_failed" and not report["complete"]
+    assert report["stats_process"] == {"returncode": None, "exit_kind": kind, "timeout_seconds": 300}
+    assert runtime["phase_summary"]["stats"]["outcomes"] == {kind: 1}
+    assert runtime["phase_summary"]["result_write"]["outcomes"] == {"completed": 1}
+    assert runtime["phase_summary"]["lock_close"]["outcomes"] == {"completed": 1}
+    assert "private" not in json.dumps(runtime)
+
+
+def test_actual_lock_wait_status_write_and_close_precede_runtime_publication(config, monkeypatch, tmp_path):
+    import fcntl
+    from scripts.runtime_metrics import PhaseRecorder
+
+    class Clock:
+        now = 0
+        def __call__(self):
+            return self.now
+    clock = Clock()
+    monkeypatch.setattr(host, "PhaseRecorder", lambda job: PhaseRecorder(job, clock=clock, cpu_clock=clock))
+    mock_process(monkeypatch, iter([]))
+    monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
+    original_flock, original_open, original_write = fcntl.flock, Path.open, host.write_status
+    def flock(handle, operation):
+        if operation == fcntl.LOCK_EX:
+            clock.now += 3
+        return original_flock(handle, operation)
+    class Handle:
+        def __init__(self, handle):
+            self.handle = handle
+        def fileno(self):
+            return self.handle.fileno()
+        def close(self):
+            clock.now += 7
+            self.handle.close()
+    def open_path(path, *args, **kwargs):
+        handle = original_open(path, *args, **kwargs)
+        return Handle(handle) if path.name == "writer.lock" else handle
+    def write(path, value):
+        if path.name == "status-runtime.json":
+            # The matching final result is already durable and the writer lock released.
+            with original_open(path.parent / "writer.lock", "a") as lock:
+                original_flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            assert json.loads((path.parent / "status.json").read_text())["runtime_metrics"]["run_id"] == value["run_id"]
+            clock.now += 100
+        else:
+            clock.now += 5
+        original_write(path, value)
+    monkeypatch.setattr(host.fcntl, "flock", flock)
+    monkeypatch.setattr(Path, "open", open_path)
+    monkeypatch.setattr(host, "write_status", write)
+    report = host.run("status", config)
+    runtime = json.loads((tmp_path / "data/host-status/status-runtime.json").read_text())
+    assert runtime["elapsed_ns"] == runtime["process_cpu_elapsed_ns"] == 15
+    assert runtime["phase_summary"]["lock_wait"]["duration_ns"] == 3
+    assert runtime["phase_summary"]["result_write"]["duration_ns"] == 5
+    assert runtime["phase_summary"]["lock_close"]["duration_ns"] == 7
+    assert clock.now == 115
+    assert runtime["excludes"] == "own_runtime_sidecar_publication"
+    assert json.loads((tmp_path / "data/host-status/status.json").read_text()) == report
+
+
+def test_status_write_failure_keeps_original_exception_and_close_evidence(config, monkeypatch, tmp_path):
+    import fcntl
+
+    mock_process(monkeypatch, iter([]))
+    monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
+    original_write, error = host.write_status, OSError("private-storage-error")
+    def write(path, value):
+        if path.name == "status.json":
+            raise error
+        original_write(path, value)
+    monkeypatch.setattr(host, "write_status", write)
+    with pytest.raises(OSError) as raised:
+        host.run("status", config)
+    assert raised.value is error
+    runtime = json.loads((tmp_path / "data/host-status/status-runtime.json").read_text())
+    assert runtime["run_exit_kind"] == "raised" and runtime["job_complete"] is None
+    assert runtime["phase_summary"]["result_write"]["outcomes"] == {"os_error": 1}
+    assert runtime["phase_summary"]["lock_close"]["outcomes"] == {"completed": 1}
+    assert runtime["open_phases"] == 0 and "private" not in json.dumps(runtime)
+    with (tmp_path / "data/host-status/writer.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def test_runtime_write_failure_does_not_change_capture_success(config, monkeypatch, tmp_path, capsys):
+    mock_process(monkeypatch, iter([0, 0]))
+    monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
+    original_write = host.write_status
+    def write(path, value):
+        if path.name == "ha-runtime.json":
+            raise OSError("private-storage-error")
+        original_write(path, value)
+    monkeypatch.setattr(host, "write_status", write)
+    report = host.run("ha", config)
+    assert report["complete"]
+    assert json.loads((tmp_path / "data/host-status/ha.json").read_text()) == report
+    assert not (tmp_path / "data/host-status/ha-runtime.json").exists()
+    assert capsys.readouterr().err == "Archive runtime telemetry could not be persisted.\n"
+
+
+@pytest.mark.parametrize("value", ["private-stats-value", {"private": "value"}, True, -1, float("nan"), float("inf")])
+def test_statistics_accept_only_nonnegative_finite_numeric_counters(config, monkeypatch, tmp_path, value):
+    mock_process(monkeypatch, iter([]))
+    native = host.subprocess.run
+    def process(command, **kwargs):
+        result = native(command, **kwargs)
+        values = json.loads(result.stdout)
+        values["events"] = value
+        return subprocess.CompletedProcess(command, 0, json.dumps(values), "")
+    monkeypatch.setattr(host.subprocess, "run", process)
+    report = host.run("status", config)
+    assert not report["complete"] and report["reason"] == "job_failed"
+    assert "archive" not in report
+    runtime = json.loads((tmp_path / "data/host-status/status-runtime.json").read_text())
+    assert "private" not in json.dumps([report, runtime], allow_nan=False)

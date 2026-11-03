@@ -57,6 +57,8 @@ privaten Archivhost voraus; die Prognoseintegration benötigt diesen Host nicht.
 - [Gezielte Archivauswahl](entwicklung/performance-archivauswahl.md): vollständiger Planaufbau, gebundene Wiederverwendung und getrennte Messung der Aufbaukosten.
 - [Rust für die Archivverarbeitung](entwicklung/performance-rust.md): sinnvoller Hostumfang und Anforderungen an identische Prüfsummen und Fehlerfälle.
 - [Rust-Originalreader prüfen](entwicklung/performance-rust-probe.md): optionaler Rustkern, frameerhaltender Python-Fallback und getrennte Differential-/Hosttests.
+- [Native Auswahl und Projektion](entwicklung/performance-rust-projektion.md): vollständige Originalprüfung mit weniger Pythonobjekten und gebundenen Konfigurationsbelegen.
+- [Archiv-Laufzeittelemetrie](entwicklung/archiv-laufzeittelemetrie.md): begrenzte Phasenbelege und getrennte Timeout-/Betriebssystemfehler für Archivjobs.
 - [Validierung](entwicklung/validierung.md): prospektiver Messplan und hashgebundener Reviewablauf.
 - [Fehlerfamilien prüfen](entwicklung/review-fehlerfamilien.md): gemeinsame Nachprüfung, Inventur der Schreibwege und Grenzen fokussierter Reviews.
 - [Vergleichsaufnahme](entwicklung/benchmark-aufnahme.md): Recorder-Istwerte und Referenzprognosen.

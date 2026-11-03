@@ -188,3 +188,12 @@ außerhalb der inneren Ableitungszeit. Rustlesen, Pythondekodierung und native
 Fallbacks liegen innerhalb. `rust_probe` berichtet deren tatsächliche Zähler
 und die qualifizierten Quellen. Beide Optionen verlangen einen eigenen Arm
 ohne Auswahlplan; der normale Reader bleibt der Standard.
+
+Der getrennte [Projektionsversuch](performance-rust-projektion.md) ergänzt
+`--rust-projection`. Er verlangt denselben expliziten Binärpin und einen
+qualifizierten kompakten Verbraucher. Der native Scan sämtlicher
+Quelloriginale und die Projektion liegen innerhalb der Ableitung;
+`archive.iter_events_open` erfasst in Phasenläufen auch den Aufwand vor dem
+ersten Ereignis. `rust_projection` berichtet die tatsächliche Quellenabdeckung
+und ganze Quellen betreffende Fallbacks. Die normale HA-Installation aktiviert
+keinen dieser Entwicklungsarme.

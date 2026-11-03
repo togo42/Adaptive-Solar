@@ -111,6 +111,8 @@ Export und Collector werden bewusst eingerichtet; die Prognose benötigt keinen
 Archivhost. Die [Hostinstallation](docs/archiv/archiv-host-installation.md)
 verwendet eine [eigene Laufzeit ohne HA Core](docs/archiv/archiv-runtime-ohne-ha.md).
 HACS aktualisiert weder externe Hostdienste noch Dashboardressourcen.
+Die [Laufzeittelemetrie](docs/entwicklung/archiv-laufzeittelemetrie.md) trennt
+Lockwartezeit, Kindaufrufe, Statistik und Timeout-/Betriebssystemfehler.
 
 Originaldateien und ein wiederaufbaubarer SQLite-Index sind die Speicherbasis.
 24 Monate Retention sind eine Einstellung; der tatsächliche Platzbedarf muss

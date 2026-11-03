@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import fcntl
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -19,10 +20,13 @@ if str(ROOT) not in sys.path:
 
 from scripts.archive import collection_summary  # noqa: E402
 from scripts.replay_paths import validate_output  # noqa: E402
+from scripts.runtime_metrics import PhaseRecorder  # noqa: E402
 
 GIB = 1024 ** 3
 JOBS = ("ha", "weather", "observations", "retention", "status")
 INPUT_PATHS = ("site_json", "actual_config", "reference_config", "quality", "quality_bindings")
+CHILD_TIMEOUT_SECONDS = 1200
+STATS_TIMEOUT_SECONDS = 300
 
 
 def private_path(value):
@@ -127,7 +131,25 @@ def write_status(path, value):
         Path(name).unlink(missing_ok=True)
 
 
+def _process_status(returncode, exit_kind, timeout_seconds):
+    return {"returncode": returncode, "exit_kind": exit_kind, "timeout_seconds": timeout_seconds}
+
+
+def _publish_runtime(recorder, state, job, report, *, raised=False):
+    # A status file cannot truthfully contain its own completed write/close
+    # duration. This separate bounded receipt is published after lock close.
+    metrics = recorder.finish(run_exit_kind="raised" if raised else "returned",
+                              job_complete=None if raised else report["complete"])
+    try:
+        write_status(state / f"{job}-runtime.json", metrics)
+    except Exception:
+        # Observability must neither retry captures nor expose private errors.
+        # Consumers require matching run_id; stale/missing sidecars are gaps.
+        print("Archive runtime telemetry could not be persisted.", file=sys.stderr)
+
+
 def run(job, config, *, config_path=None):
+    recorder = PhaseRecorder(job)
     archive_path = Path(config["archive"])
     if not archive_path.is_absolute():
         archive_path = ROOT / archive_path
@@ -141,57 +163,90 @@ def run(job, config, *, config_path=None):
         inputs.append(private_path(config_path))
     # Validate the entire configured output set before creating either directory.
     # Keep lexical paths here so output symlinks cannot hide behind resolve().
-    for output in (state, state / "writer.lock", *(state / f"{name}.json" for name in JOBS)):
+    for output in (state, state / "writer.lock", *(state / f"{name}.json" for name in JOBS),
+                   *(state / f"{name}-runtime.json" for name in JOBS)):
         validate_output(output, archive_path, inputs)
     archive.mkdir(parents=True, exist_ok=True, mode=0o700)
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
-    report = {"schema": 1, "job": job, "started_at": datetime.now(UTC).isoformat(), "commands": [], "complete": True}
+    report = {"schema": 1, "job": job, "started_at": datetime.now(UTC).isoformat(), "commands": [], "complete": True,
+              "runtime_metrics": {"schema": 1, "run_id": recorder.run_id, "file": f"{job}-runtime.json"}}
     # All timer jobs share this lock, including retention and stats/index reconciliation.
-    with (state / "writer.lock").open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        try:
-            env = child_env() if job in {"ha", "observations"} else os.environ.copy()
-            planned = commands(job, config, archive)
-            for command in planned:
-                report["capacity"] = capacity(archive, config)
-                if job != "retention" and not report["capacity"]["allowed"]:
-                    report.update(complete=False, reason="capacity_guard")
-                    break
-                try:
-                    result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=1200)
-                except (OSError, subprocess.TimeoutExpired):
-                    report["commands"].append({"returncode": None, "status": "failed_or_timed_out"})
-                    report["complete"] = False
-                    continue
-                # Capture tools already sanitize errors, but their full output remains private.
-                # Do not copy source IDs, credentials, endpoints or raw provider messages into journal.
-                status = {"returncode": result.returncode}
-                if job == "ha":
+    try:
+        with recorder.phase("lock_open"):
+            lock = (state / "writer.lock").open("a")
+        with recorder.lock_file(lock):
+            with recorder.phase("lock_wait"):
+                fcntl.flock(lock, fcntl.LOCK_EX)
+            try:
+                with recorder.phase("job_prepare"):
+                    env = child_env() if job in {"ha", "observations"} else os.environ.copy()
+                    planned = commands(job, config, archive)
+                for ordinal, command in enumerate(planned):
+                    with recorder.phase("capacity", ordinal=ordinal):
+                        report["capacity"] = capacity(archive, config)
+                    if job != "retention" and not report["capacity"]["allowed"]:
+                        report.update(complete=False, reason="capacity_guard")
+                        break
                     try:
-                        status["collector"] = collection_summary(json.loads(result.stdout))
-                        if not status["collector"]["complete"]:
-                            status["status"] = "incomplete_collection"
-                            report["complete"] = False
-                    except (ValueError, TypeError, KeyError):
-                        status["status"] = "invalid_collector_status"
+                        result = recorder.process("child_run", subprocess.run, command, ordinal=ordinal,
+                                                  env=env, capture_output=True, text=True, timeout=CHILD_TIMEOUT_SECONDS)
+                    except subprocess.TimeoutExpired:
+                        report["commands"].append({**_process_status(None, "timeout", CHILD_TIMEOUT_SECONDS),
+                                                   "status": "failed_or_timed_out"})
                         report["complete"] = False
-                report["commands"].append(status)
-                if result.returncode:
-                    report["complete"] = False
-            stats = subprocess.run([sys.executable, str(ROOT / "scripts/archive.py"), "--root", str(archive), "stats"],
-                                   capture_output=True, text=True, timeout=300)
-            if stats.returncode == 0:
-                values = json.loads(stats.stdout)
-                report["archive"] = {key: values[key] for key in (
-                    "batches", "events", "compressed_bytes", "index_bytes", "observation_days",
-                    "compressed_bytes_per_day", "projected_24_month_compressed_bytes")}
-            else:
-                report.update(complete=False, stats_failed=True)
-            report["capacity"] = capacity(archive, config)
-        except (ValueError, TypeError, KeyError, OSError, subprocess.TimeoutExpired):
-            report.update(complete=False, reason="job_failed")
-        report["finished_at"] = datetime.now(UTC).isoformat()
-        write_status(state / f"{job}.json", report)
+                        continue
+                    except OSError:
+                        report["commands"].append({**_process_status(None, "os_error", CHILD_TIMEOUT_SECONDS),
+                                                   "status": "failed_or_timed_out"})
+                        report["complete"] = False
+                        continue
+                    # Raw child output stays out of both status and telemetry.
+                    status = _process_status(result.returncode, "exited", CHILD_TIMEOUT_SECONDS)
+                    if job == "ha":
+                        try:
+                            status["collector"] = collection_summary(json.loads(result.stdout))
+                            if not status["collector"]["complete"]:
+                                status["status"] = "incomplete_collection"
+                                report["complete"] = False
+                        except (ValueError, TypeError, KeyError):
+                            status["status"] = "invalid_collector_status"
+                            report["complete"] = False
+                    report["commands"].append(status)
+                    if result.returncode:
+                        report["complete"] = False
+                try:
+                    stats = recorder.process("stats", subprocess.run,
+                        [sys.executable, str(ROOT / "scripts/archive.py"), "--root", str(archive), "stats"],
+                        capture_output=True, text=True, timeout=STATS_TIMEOUT_SECONDS)
+                except subprocess.TimeoutExpired:
+                    report["stats_process"] = _process_status(None, "timeout", STATS_TIMEOUT_SECONDS)
+                    raise
+                except OSError:
+                    report["stats_process"] = _process_status(None, "os_error", STATS_TIMEOUT_SECONDS)
+                    raise
+                report["stats_process"] = _process_status(stats.returncode, "exited", STATS_TIMEOUT_SECONDS)
+                if stats.returncode == 0:
+                    values = json.loads(stats.stdout)
+                    counters = {key: values[key] for key in (
+                        "batches", "events", "compressed_bytes", "index_bytes", "observation_days",
+                        "compressed_bytes_per_day", "projected_24_month_compressed_bytes")}
+                    if any(type(value) not in (int, float) or value < 0
+                           or isinstance(value, float) and not math.isfinite(value) for value in counters.values()):
+                        raise ValueError("Invalid archive statistics")
+                    report["archive"] = counters
+                else:
+                    report.update(complete=False, stats_failed=True)
+                with recorder.phase("capacity", ordinal=len(planned)):
+                    report["capacity"] = capacity(archive, config)
+            except (ValueError, TypeError, KeyError, OSError, subprocess.TimeoutExpired):
+                report.update(complete=False, reason="job_failed")
+            report["finished_at"] = datetime.now(UTC).isoformat()
+            with recorder.phase("result_write"):
+                write_status(state / f"{job}.json", report)
+    except BaseException:
+        _publish_runtime(recorder, state, job, report, raised=True)
+        raise
+    _publish_runtime(recorder, state, job, report)
     return report
 
 
