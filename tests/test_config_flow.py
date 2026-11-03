@@ -74,3 +74,35 @@ async def test_options_edit_existing_equipment_and_preserve_stable_id(hass, enab
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert entry.options["site"]["inverters"][0]["max_ac_kw"] == 4
     assert entry.options["site"]["strings"][0]["id"] == "south"
+
+
+@pytest.mark.parametrize("profile", ["full", "night_sparse_v1"])
+async def test_native_diagnostic_profile_is_opt_in_and_separate_from_site(hass, enable_custom_integrations, profile):
+    from custom_components.adaptive_solar.diagnostic_export import CONF_SOURCE_REPORT_PROFILE
+    from custom_components.adaptive_solar.snapshots import config_fingerprints
+
+    site = SiteConfig(52, 13, "Europe/Berlin", (StringConfig("south", "roof", 5, 30, 180),),
+                      (InverterConfig("roof", 5),))
+    entry = MockConfigEntry(domain=DOMAIN, data={"site": site.to_dict()})
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["data_schema"](SITE)[CONF_SOURCE_REPORT_PROFILE] == "full"
+    with pytest.raises(vol.Invalid):
+        result["data_schema"]({**SITE, CONF_SOURCE_REPORT_PROFILE: "unknown"})
+    result = await hass.config_entries.options.async_configure(result["flow_id"],
+        {**SITE, "archive_export": True, CONF_SOURCE_REPORT_PROFILE: profile})
+    result = await hass.config_entries.options.async_configure(result["flow_id"], INV)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], STRING)
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert entry.options.get(CONF_SOURCE_REPORT_PROFILE, "full") == profile
+    assert CONF_SOURCE_REPORT_PROFILE not in entry.options["site"]
+    physical = SiteConfig.from_dict(entry.options["site"])
+    expected = config_fingerprints(physical)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["data_schema"](SITE)[CONF_SOURCE_REPORT_PROFILE] == profile
+    result = await hass.config_entries.options.async_configure(result["flow_id"],
+        {**SITE, "archive_export": True, CONF_SOURCE_REPORT_PROFILE: "full"})
+    result = await hass.config_entries.options.async_configure(result["flow_id"], INV)
+    await hass.config_entries.options.async_configure(result["flow_id"], STRING)
+    assert entry.options.get(CONF_SOURCE_REPORT_PROFILE, "full") == "full"
+    assert config_fingerprints(SiteConfig.from_dict(entry.options["site"])) == expected

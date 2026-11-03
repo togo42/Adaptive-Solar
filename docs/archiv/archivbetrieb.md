@@ -62,6 +62,16 @@ zurück. Erst das dauerhaft gespeicherte Original erlaubt dessen Fortschreiben;
 Wiederholungen sind idempotent. Bei einer neuen Journalgeneration oder verdrängten
 Ereignissen meldet der Collector eine Lücke. Sie wird nicht durch Nullwerte ersetzt.
 
+Bei fortlaufend eintreffenden Ereignissen beendet der HA-Collector einen Lauf,
+sobald er den aus dem ersten Exportstatus belegten Journalstand dauerhaft
+übernommen hat. Spätere Ereignisse verschieben diesen Stand nicht. Ganze
+empfangene Seiten werden gespeichert; der nächste Lauf setzt am gespeicherten
+Cursor fort. Ohne passende Grenzmetadaten bleibt eine leere Abschlussseite
+erforderlich. Ein vor bestätigtem Abschluss erreichtes Seitenlimit sowie Lücken,
+Producerfehler und offene Schreibvorgänge bleiben Fehlerbedingungen. Der Abschluss bestätigt den begrenzten
+Transfer, keine Quellenqualifikation; siehe
+[Datenvertrag](archive-storage-contract.md#seiten-lücken-und-wiederanlauf).
+
 Die Hosterweiterung nach 0.2.17 schreibt Originalpakete unter
 `originals/<erste-zwei-Hashzeichen>/<vollständiger-Hash>.json.gz`.
 Bestehende flache Archive bleiben lesbar. Migration, Rückweg und Kompatibilität

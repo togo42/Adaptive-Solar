@@ -1,7 +1,7 @@
 # Istwerte offline aus archivierten Messnachweisen qualifizieren
 
-Stand: 30.10.2026, Entwicklungskandidat. Der Adapter gehört noch nicht zum
-veröffentlichten Release 0.2.18 und ist in keinem Timer aktiviert. Er liest lokale
+Stand: 30.10.2026, enthalten ab Release 0.2.20; eine Timeraktivierung erfolgt
+separat und ausdrücklich. Der Adapter liest lokale
 Originalauszüge, prüft Stundenabdeckung und erzeugt eine neue Qualitätsrevision
 für den bestehenden [Recorder-Collector](../entwicklung/benchmark-aufnahme.md).
 Er verändert weder HA noch Originalarchive und bescheinigt keine Prognosegüte.
@@ -50,8 +50,8 @@ Nachtstunden benötigen belegte Abdeckung; es werden keine Nullwerte erfunden.
 
 ## 2. Warum eine zusätzliche Quellenbindung nötig ist
 
-Die bis Release 0.2.18 exportierten `qualified_interval` enthalten weder
-Konfigurations-/Softwarehash noch Energie-Entity. Der neue Entwicklungskandidat
+Die bis Release 0.2.19 exportierten `qualified_interval` enthalten weder
+Konfigurations-/Softwarehash noch Energie-Entity. Release 0.2.20
 ergänzt diese Angaben direkt am Originaldelta (Abschnitt 5). Die Journalgeneration kann einen Reload überleben.
 Ein benachbarter Forecast mit Standortkonfiguration belegt deshalb allein keine
 durchgehend unveränderte Zuordnung. SHA256 bestätigt unveränderte Bytes und
@@ -228,7 +228,7 @@ Der Offlineadapter verändert weder Timer noch deren Konfiguration.
 
 ## 5. Fortlaufende Quellenbindung und Qualitätsaufnahme
 
-Der Entwicklungskandidat ergänzt jedes exportierte Originaldelta um
+Release 0.2.20 ergänzt jedes exportierte Originaldelta um
 `source_binding` mit `schema: 1`, `energy_entity_id`, `config_sha256` und
 `producer_sha256`. Die Hashes beziehen sich wie beim Anker auf kanonisches
 `site`-JSON und den Python-Quellumfang der Integration. Die Softwareprovenienz
@@ -274,9 +274,24 @@ Writerlock umfasst Aufnahme und Ableitung. HA wird dabei nur gelesen.
 Die Auswahl umfasst alle aufbewahrten Originalintervalle der gebundenen Quellen,
 die Zielstunden berühren, sowie Anker und alle Konfigurationsaufnahmen in den
 Bindungsperioden. Andere Generationen werden als Widersprüche mitgeprüft.
-Payload-Chunks werden quellen-/generationsgebunden aufgelöst. Die Auswahl ist
-auf 500.000 Ereignisse und 512 MiB kanonische Ereignisbytes begrenzt; ein
-fehlender Anker oder überschrittenes Budget erzeugt keine Ersatzfreigabe.
+Payload-Chunks werden quellen-/generationsgebunden aufgelöst, nachdem der
+Archiviterator seinen Lock freigegeben hat. Vollständige Original-Envelopes,
+Payload-Chunks, rekonstruierter Payloadhash und Chronologie werden geprüft.
+Danach behält der fortlaufende Adapter je Forecast nur einen internen,
+unveränderlichen Konfigurationsbeleg: Originalidentität und Originalhash,
+Zeitangaben, Site-Digest und Producerwert; der gewählte Anker enthält zusätzlich
+die vollständige Sitekonfiguration. Wetter-, Ergebnis- und Zustandsarrays werden
+nicht für jeden Forecast im Qualitätskontext aufbewahrt. Kein Forecast in einer
+Bindungsperiode wird dadurch von der Widerspruchsprüfung ausgenommen; auch
+spätere Rückwechsel und andere Generationen bleiben mit ihren Original-IDs
+sichtbar. Ein JSON-Datensatz kann sich nicht selbst als geprüfter Beleg ausgeben.
+
+Die Auswahl bleibt auf 500.000 originale Ereignisse einschließlich referenzierter
+Chunks und 512 MiB des gehaltenen Qualitätskontexts begrenzt. Ein voller
+Forecast wird jeweils einzeln innerhalb dieses Budgets geprüft und danach
+kompaktiert; die kumulativ gelesenen Originalbytes dürfen deshalb größer sein.
+Vollständige Messintervalle werden unverändert übernommen. Ein fehlender Anker
+oder überschrittenes Budget erzeugt keine Ersatzfreigabe.
 Sehr lange Policies können vor Ablauf am Budget oder an der Retention scheitern;
 Perioden und Ankererhalt gehören zur Betriebsplanung. Die Auswahl scannt
 die aufbewahrten Batches der gebundenen Quellen; ihre Laufzeit muss im
@@ -284,18 +299,76 @@ Host-Probelauf am tatsächlichen Archivvolumen gemessen werden.
 
 Der archivierte Capture enthält die unveränderten Recorder-Rohdaten und deren
 ursprüngliche Empfangszeit, eine neue Normalisierung und `quality_derivation`
-mit Policykopie, Eingabe-/Programmhashes, Stundendiagnosen und Evidenzreferenzen.
+mit Policykopie, Eingabe-/Programmhashes und Stundendiagnosen. Mit
+`--quality-diagnostics full` (kompatibler Standard) enthält er auch alle
+Evidenzreferenzen. `--quality-diagnostics compact` speichert dagegen nach
+derselben vollständigen Ableitung bewusst weniger Diagnosedetails:
+
+- Der Bericht trägt das eigene Schema
+  `adaptive-solar-actual-quality-report-compact-v1` und das Profil
+  `decisions-and-evidence-digests-v1`.
+- `evidence_events` und `configuration_evidence` werden durch Eintragszahl und
+  SHA256 der jeweiligen vollständigen kanonischen Liste in `omitted_evidence`
+  ersetzt. Pro Stunde bleiben alle Entscheidungen, Abdeckungen und Gründe
+  erhalten; statt `evidence_event_ids` stehen Anzahl und Listenhash in
+  `evidence_event_count` und `evidence_event_ids_sha256`.
+- Unverändert bleiben Rohwerte, Normalisierung, positive und negative Masken,
+  Stundenstatus, alle Konfigurationskonflikt-IDs, vollständige Policy mit
+  Quellen-/Producer-/Konfigurationspins, Eingabe- und Programmhashes sowie
+  `as_of`, `generated_at`, `normalized_at` und `validated_at`.
+- `full_report_schema` und `full_report_sha256` binden das zuvor vollständig
+  abgeleitete Berichtsobjekt. Ein Hash rekonstruiert keine verworfene Liste und
+  ersetzt weder Originale noch eine spätere erneute Quellenprüfung. Der kompakte
+  Bericht verspricht ausdrücklich keinen vollständigen gespeicherten
+  Belegkatalog. Die Originalereignisse bleiben im Originalarchiv; alte Captures
+  werden nicht umgeschrieben.
+
+Die Option betrifft nur kontinuierlich abgeleitete Qualitätsberichte. Statische
+Masken, Referenzaufnahmen und der Offlinehelfer `continuous_quality` behalten
+ihren bisherigen Inhalt. Unbekannte Profilnamen werden abgewiesen. Der
+Archivleser und `export-observations` lesen alte vollständige sowie neue kompakte
+Captures unverändert aus; die Actualrecord-Auswertung nutzt weiterhin die
+unveränderten Rohdaten und Masken. Diagnoseprogramme, die die weggelassenen
+Detailarrays benötigen, müssen das Berichtsschema unterscheiden und können diese
+Details aus einem kompakten Capture allein nicht beziehen.
+
+Für vollständige Berichte und die Herleitung des kompakten Berichts gilt:
+Für kompakte Forecastbelege bezeichnet `event_set_sha256` das nach Quelle,
+Generation und Sequenz sortierte Manifest der Originalidentitäten/-hashes;
+`event_set_hash_format=original-envelope-reference-manifest-v1` ist Teil der
+gehashten Qualitätsprovenienz. `original_event_count` nennt dessen Umfang.
+`configuration_evidence` enthält die geprüften Forecast-/Chunkreferenzen und
+`configuration_evidence_sha256` bindet diese Belege zusätzlich. Die großen
+Originalpayloads bleiben ausschließlich im unveränderten Originalarchiv.
+Der bisherige Offlineadapter mit vollständigen JSON-Eingaben behält seine
+bisherige Hashsemantik über die vollständigen Original-Envelopes. Die beiden
+Hashdarstellungen sind nicht austauschbar; Konfigurations-, Quellen-,
+Abdeckungs- und Freigaberegeln bleiben gleich.
 `validated_at` wird erst nach abgeschlossener Stundenprüfung, Evidenzsortierung
 und Hashberechnung erfasst. Beide Helfer übernehmen diese Abschlusszeit auch
 für Normalisierung und Labelverfügbarkeit; ein Cutoff während der Berechnung
 erhält die neuen Labels noch nicht. Eine rückwärts springende Uhr bricht die
 Ableitung ab. Vor diesem Zeitpunkt bleiben
-die neuen Labels für historische Auswertungen unsichtbar. Ein Bericht oberhalb der 32-MiB-Grenze für Beobachtungscaptures wird ebenfalls
-als Ableitungsfehler behandelt. Eine fehlgeschlagene
+die neuen Labels für historische Auswertungen unsichtbar. Die kompakte Darstellung
+setzt keine neue Verfügbarkeitszeit und datiert keine Labels zurück.
+Die unveränderte 32-MiB-Grenze gilt für den tatsächlich gespeicherten gesamten
+Capture, beim kompakten Profil also nach Weglassen der Diagnoselisten. Bleibt
+auch dieser Capture zu groß, wird dies als Ableitungsfehler behandelt; die
+500.000-Ereignis-/512-MiB-Grenzen der vollständigen Herleitung bleiben unverändert.
+Eine fehlgeschlagene
 Ableitung wird als fehlerhafter Job gemeldet, der Rohcapture dennoch bewahrt.
 Eine erfolgreiche Aufnahme mit null freigegebenen Stunden bleibt als solche
 sichtbar (`quality_summary` zählt Abdeckung, Freigaben und Invalidierungen).
 Bestehende negative Masken werden auch beim lokalen Probelauf nicht freigegeben.
+
+Eine reine Archivhostaktualisierung dieser Konfigurationsprüfung ändert keine
+produktive HA-Installation. Da das Kernmodul zum Komponentenquellhash gehört,
+kann der neue Hostquellhash vom weiterhin installierten HA-Producer abweichen.
+Der Producerpin einer Quellenpolicy muss weiterhin den tatsächlich auf HA
+installierten Producer bezeichnen; er darf nicht durch den Hosthash ersetzt
+werden. Alte Releasequellen und ihre unveränderte Laufzeit bleiben für
+historische strenge Replayprüfungen erhalten. Die Qualitätsreparatur lockert
+deren Quell-/Bibliotheksabgleich nicht und ist keine Quellenqualifikation.
 
 ### Lokalen Probelauf vorbereiten und abnehmen
 

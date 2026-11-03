@@ -122,6 +122,15 @@ Diese privaten Zeitreihen können Betriebs- und Nutzungsmuster sichtbar machen.
 Software-/Bibliotheksstände und Inhaltsprüfsummen verbinden diese Daten; sie
 anonymisieren den Inhalt nicht. Ausführbare Modell-Pickles werden nicht gespeichert.
 
+Der vorbereitete Entwicklungsstand bietet zusätzlich das optionale
+[Nachtprofil und kompakte Hostberichte](../archiv/speichersparprofile.md).
+Das Nachtprofil reduziert ausschließlich unveränderte, nichtkritische
+Diagnosemeldungen; Mess- und Kontrollberichte bleiben erhalten. Kompakte
+Qualitätsberichte behalten Entscheidungen und Herkunft, aber nicht jede
+Belegreferenz. Diese Optionen ändern weder Recorder noch alte Archive oder
+Sicherungskopien und sind keine Anonymisierung. Ohne explizite Auswahl bleibt
+die vollständige Diagnoseaufnahme aktiv.
+
 Die lokale Obergrenze beträgt 72 Stunden, 64 MiB Ereignisbytes und 10.000
 Ereignisse; Byte-/Zeilengrenzen können das Zeitfenster verkürzen. Zeitbereinigung
 erfolgt beim nächsten Append, nicht allein durch Zeitablauf. Dateioverhead,

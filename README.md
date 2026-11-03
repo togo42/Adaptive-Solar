@@ -17,17 +17,20 @@ Temperatur, Wind, horizontale Globalstrahlung und PV-Leistung unterstützen
 kurzfristige Korrekturen. Ohne qualifizierte Lernhistorie bleibt die Physik aktiv.
 Ein gemeinsamer Zähler kann keine Einzelstringverluste identifizieren.
 
-**Dokumentierter Release: 0.2.18, Stand 29.10.2026.** Neu sind gespeicherte
-[Stundenkurven der Tagesbeginnprognose](docs/technik/day-start-curve.md).
-[Änderungen und Upgrade](docs/releases/release-0.2.18.md),
-[historische Quell- und Testnachweise](docs/entwicklung/pruefnachweise.md).
+**Release 0.2.21, Stand 02.11.2026.** Er ergänzt getrennte
+Archivaufnahmeintervalle, kompakte Qualitätsdiagnosen und ein optionales
+Nachtprofil sowie begrenzte Qualitätsauswahl und HA-Collectorläufe. Vollständige
+Standardprofile, native Messung und Lerngates bleiben erhalten. Version 0.2.21
+ist veröffentlicht und über HACS mit Erhaltungsprüfung installiert; die CI für
+`main` und den Versionstag ist erfolgreich.
+[Änderungen, Prüfstand und Upgrade](docs/releases/release-0.2.21.md).
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
 
 ## Installation und Bedienung
 
 1. [Plattform und Abhängigkeiten prüfen](docs/anwendung/installation.md).
-   HACS-Mindestversion ist Core **2026.10.2**; die vollständige Suite für 0.2.18
+   HACS-Mindestversion ist Core **2026.10.2**; der Funktionsstand für 0.2.21
    wurde unter **2026.10.4 / Python 3.14** geprüft. Frühere Nachweise für .2/.3
    sind historisch. Für HAOS ist bislang nur **amd64 / CPython 3.14 / Musl**
    mit separat bereitgestellter Binärbasis qualifiziert;
@@ -84,13 +87,16 @@ Synthetische Offline-Demo:
 Auswertungs-CLI schützen Eingaben sowie Quell- und Ressourcendateien gegen
 Ausgabe-Aliase. Berichte bleiben außerhalb von `scripts/` und
 `custom_components/` und werden nach erneuter Pfadprüfung atomar veröffentlicht.
-Der Entwicklungsstand enthält außerdem einen separaten
+Die Integration enthält außerdem einen separaten
 [Offline-Kandidaten zur Prüfung der Trainingsabdeckung](docs/technik/learning-support-guard.md)
 des Residual-Lerners. Er verändert keine produktiven HA-Prognosen.
 Ein weiterer [Offline-Adapter qualifiziert Recorder-Iststunden](docs/archiv/istwert-qualitaetsadapter.md)
 aus Originalintervallen und belegten Quellenbindungen; ungeprüfte Quellen bleiben Diagnose.
-Der Kandidat unterstützt auch optionale fortlaufende Qualitätsaufnahme mit
+Der Qualitätsadapter unterstützt auch optionale fortlaufende Aufnahme mit
 Quellenpins je Originaldelta und einen lokalen Probelauf ohne HA-Zugriff.
+Für die fortlaufende Qualitätsprüfung werden vollständige Forecastoriginale
+einzeln geprüft und danach als kompakte Konfigurationsbelege aufbewahrt;
+die unveränderten Originale und alle Konfigurationswidersprüche bleiben gebunden.
 Die nachfolgende lokale Überarbeitung schützt auch Hoststatusziele, bündelt die
 Ausgabeauswahl der Auswerter und trennt die gemeinsame Qualitäts-Einlesehilfe
 von den CLIs. Der [Ablauf für Fehlerfamilien](docs/entwicklung/review-fehlerfamilien.md)
@@ -118,6 +124,13 @@ Originaldateien und ein wiederaufbaubarer SQLite-Index sind die Speicherbasis.
 24 Monate Retention sind eine Einstellung; der tatsächliche Platzbedarf muss
 nach Pilotdaten und erneut nach drei und sechs Monaten bewertet werden.
 Reproduzierbarer Replay und Ensemblequantile ersetzen keine lokal gemessene Güte.
+
+Release 0.2.21 bietet [Speichersparprofile](docs/archiv/speichersparprofile.md):
+getrennte Aufnahmeintervalle für Istwerte und Referenzprognosen, kompakte
+Qualitätsberichte und eine optionale reduzierte Nachtdiagnostik. Bestehende
+Einstellungen bleiben ohne ausdrückliche Auswahl erhalten. Das Nachtprofil ist
+in einer Installation mit Erhaltungsprüfung aktiviert; ein vollständiges
+Tag-/Nachtfenster zur Verbrauchsmessung steht noch aus.
 
 ## Recherche und Quellen
 

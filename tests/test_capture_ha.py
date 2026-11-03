@@ -266,6 +266,144 @@ def test_cli_missing_token_and_outside_private_scope_fail_without_secret_logs(tm
     assert TOKEN not in run.stderr + run.stdout
 
 
+@pytest.mark.parametrize("parent_alias", [False, True])
+def test_cli_rejects_output_symlink_before_capture_and_preserves_unrelated_json(tmp_path, monkeypatch, parent_alias):
+    monkeypatch.setattr(capture, "ROOT", tmp_path)
+    private = tmp_path / "data"
+    private.mkdir()
+    config = private / "mapping.json"
+    config.write_text(json.dumps({"mappings": list(mapping(("first",)))}))
+    target = private / "unrelated.json"
+    original = b'{"unrelated":"preserve this JSON"}\n'
+    target.write_bytes(original)
+    output = private / "capture.jsonl"
+    output.symlink_to(target)
+    if parent_alias:
+        alias = private / "parent-alias"
+        alias.symlink_to(private, target_is_directory=True)
+        output = alias / output.name
+    collector = AsyncMock(return_value={"groups": []})
+    monkeypatch.setattr(capture, "capture_forecasts", collector)
+    monkeypatch.setattr(sys, "argv", ["capture_ha", "--config", str(config), "--output", str(output)])
+    result = capture.main()
+    assert target.read_bytes() == original
+    assert output.is_symlink()
+    assert result == 2
+    collector.assert_not_called()
+
+
+@pytest.mark.parametrize("alias_kind", ["leaf", "parent_leaf", "parent_input", "boundary_escape"])
+def test_real_cli_rejects_output_alias_before_network(tmp_path, alias_kind):
+    root = tmp_path / "repo"
+    (root / "scripts").mkdir(parents=True)
+    private = root / "data"
+    private.mkdir()
+    for script in (SCRIPT, SCRIPT.with_name("replay_paths.py")):
+        shutil.copyfile(script, root / "scripts" / script.name)
+    config = private / "mapping.json"
+    config.write_text(json.dumps({"mappings": list(mapping(("first",)))}))
+    target = private / "unrelated.json"
+    original = b'{"unrelated":"preserve this JSON"}\n'
+    target.write_bytes(original)
+    output = private / "capture.jsonl"
+    output.symlink_to(target)
+    if alias_kind in {"parent_leaf", "parent_input"}:
+        alias = private / "parent-alias"
+        alias.symlink_to(private, target_is_directory=True)
+        output = alias / (config.name if alias_kind == "parent_input" else output.name)
+    elif alias_kind == "boundary_escape":
+        outside = root / "outside"
+        outside.mkdir()
+        target = outside / "unrelated.json"
+        target.write_bytes(original)
+        alias = private / "escape"
+        alias.symlink_to(outside, target_is_directory=True)
+        output = alias / target.name
+    config_before = config.read_bytes()
+    marker = tmp_path / "network-attempt"
+    (tmp_path / "sitecustomize.py").write_text(
+        "import os\nfrom pathlib import Path\nimport aiohttp\n"
+        "def forbidden_network(*args, **kwargs):\n"
+        "    Path(os.environ['CAPTURE_NETWORK_MARKER']).write_text('attempted')\n"
+        "    raise AssertionError('unexpected capture network setup')\n"
+        "aiohttp.ClientSession = forbidden_network\n")
+    env = {**os.environ, "PYTHONPATH": str(tmp_path), "HA_URL": "http://ha.invalid",
+           "HA_TOKEN": TOKEN, "CAPTURE_NETWORK_MARKER": str(marker)}
+    run = subprocess.run([sys.executable, str(root / "scripts/capture_ha.py"), "--config", str(config),
+                          "--output", str(output)], env=env, capture_output=True, text=True, timeout=10)
+    assert not marker.exists(), run.stderr
+    assert run.returncode == 2
+    expected = ("inside ignored data/" if alias_kind == "boundary_escape" else
+                "paths must differ" if alias_kind == "parent_input" else "output must be separate")
+    assert expected in run.stderr
+    assert target.read_bytes() == original
+    assert config.read_bytes() == config_before
+    if alias_kind in {"leaf", "parent_leaf"}:
+        assert output.is_symlink()
+    assert TOKEN not in run.stdout + run.stderr
+
+
+@pytest.mark.parametrize("outside_exists", [False, True])
+def test_cli_pins_parent_alias_before_capture_can_retarget_it(tmp_path, monkeypatch, outside_exists):
+    monkeypatch.setattr(capture, "ROOT", tmp_path)
+    private, outside = tmp_path / "data", tmp_path / "outside"
+    safe = private / "safe"
+    safe.mkdir(parents=True)
+    outside.mkdir()
+    config = private / "mapping.json"
+    config.write_text(json.dumps({"mappings": list(mapping(("first",)))}))
+    alias = private / "alias"
+    alias.symlink_to(safe, target_is_directory=True)
+    output = alias / "capture.jsonl"
+    safe_output = safe / output.name
+    safe_output.write_bytes(b"{}\n")
+    outside_output = outside / output.name
+    original = b'{"outside":"preserve this JSON"}\n'
+    if outside_exists:
+        outside_output.write_bytes(original)
+
+    async def retarget(*args, **kwargs):
+        alias.unlink()
+        alias.symlink_to(outside, target_is_directory=True)
+        return {"groups": []}
+
+    monkeypatch.setattr(capture, "capture_forecasts", retarget)
+    monkeypatch.setattr(sys, "argv", ["capture_ha", "--config", str(config), "--output", str(output)])
+    assert capture.main() == 0
+    if outside_exists:
+        assert outside_output.read_bytes() == original
+    else:
+        assert not outside_output.exists()
+    assert len(safe_output.read_text().splitlines()) == 2
+
+
+def test_cli_rechecks_pinned_parent_boundary_after_capture(tmp_path, monkeypatch):
+    monkeypatch.setattr(capture, "ROOT", tmp_path)
+    private, outside = tmp_path / "data", tmp_path / "outside"
+    safe = private / "safe"
+    safe.mkdir(parents=True)
+    outside.mkdir()
+    config = private / "mapping.json"
+    config.write_text(json.dumps({"mappings": list(mapping(("first",)))}))
+    output = safe / "capture.jsonl"
+    original = b'{"original":"preserve this JSON"}\n'
+    output.write_bytes(original)
+    outside_output = outside / output.name
+    outside_output.write_bytes(original)
+    moved = private / "original-safe"
+
+    async def replace_parent(*args, **kwargs):
+        safe.rename(moved)
+        safe.symlink_to(outside, target_is_directory=True)
+        return {"groups": []}
+
+    monkeypatch.setattr(capture, "capture_forecasts", replace_parent)
+    monkeypatch.setattr(sys, "argv", ["capture_ha", "--config", str(config), "--output", str(output)])
+    assert capture.main() == 2
+    assert outside_output.read_bytes() == original
+    assert (moved / output.name).read_bytes() == original
+
+
 def test_unavailable_groups_keep_own_real_receipt_without_records():
     energy = capture.build_capture({}, mapping(("missing",)), T)["groups"][0]
     assert energy["records"] == []

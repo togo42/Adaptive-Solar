@@ -15,9 +15,13 @@
           "irradiance_entity_id": "Outdoor horizontal global irradiance (optional, unshaded)",
           "archive_export": "Archive original inputs (private export buffer)",
           "physics_substeps": "Physics substeps (1 = legacy, >1 = candidate)",
-          "power_nowcast_window_minutes": "Nowcast smoothing window (0 = off)"
+          "power_nowcast_window_minutes": "Nowcast smoothing window (0 = off)",
+          "archive_source_report_profile": "Diagnostic detail in original-input archive"
         },
-        "description": "Free Open-Meteo API for private noncommercial use. Existing inverters and strings are shown sequentially when editing."
+        "description": "Free Open-Meteo API for private noncommercial use. Existing inverters and strings are shown sequentially when editing.",
+        "data_description": {
+          "archive_source_report_profile": "Sparse nights stores unchanged night readings less often for diagnostics. Forecasts, measurement collection and learning remain unchanged. Only applies when original-input archiving is enabled."
+        }
       },
       "inverter": {
         "title": "Inverter",
@@ -95,9 +99,13 @@
           "irradiance_entity_id": "Outdoor horizontal global irradiance (optional, unshaded)",
           "archive_export": "Archive original inputs (private export buffer)",
           "physics_substeps": "Physics substeps (1 = legacy, >1 = candidate)",
-          "power_nowcast_window_minutes": "Nowcast smoothing window (0 = off)"
+          "power_nowcast_window_minutes": "Nowcast smoothing window (0 = off)",
+          "archive_source_report_profile": "Diagnostic detail in original-input archive"
         },
-        "description": "Free Open-Meteo API for private noncommercial use. Existing inverters and strings are shown sequentially when editing."
+        "description": "Free Open-Meteo API for private noncommercial use. Existing inverters and strings are shown sequentially when editing.",
+        "data_description": {
+          "archive_source_report_profile": "Sparse nights stores unchanged night readings less often for diagnostics. Forecasts, measurement collection and learning remain unchanged. Only applies when original-input archiving is enabled."
+        }
       },
       "inverter": {
         "title": "Inverter",
@@ -207,6 +215,12 @@
       "options": {
         "ac": "AC inverter output",
         "dc": "DC solar charge-controller output (MPPT)"
+      }
+    },
+    "source_report_profile": {
+      "options": {
+        "full": "Full (default)",
+        "night_sparse_v1": "Sparse nights"
       }
     }
   }

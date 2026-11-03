@@ -1,8 +1,9 @@
 # Adaptive Solar: Dokumentation
 
 Die [Projektübersicht](../README.md) beschreibt Zweck und Einstieg. Die aktuellen
-Anleitungen und Datenverträge beziehen sich auf **0.2.18**. Veröffentlichte
-Versionen und historische Prüfungen stehen getrennt unter
+Anleitungen und Datenverträge beschreiben den **Release 0.2.21**. Die
+[Releasehinweise](releases/release-0.2.21.md) trennen HA-Nachtprofil,
+optionalen Archivhost und ihre Prüfgrenzen. Ältere Versionen und Prüfungen bleiben historisch unter
 [Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).
 
 ## Installation und Anwendung
@@ -40,12 +41,13 @@ privaten Archivhost voraus; die Prognoseintegration benötigt diesen Host nicht.
 | Dokument | Inhalt |
 | --- | --- |
 | [Archivbetrieb](archiv/archivbetrieb.md) | Aufnahme, eingefrorene Daten, Replay und Energiequantile |
-| [Istwerte offline qualifizieren](archiv/istwert-qualitaetsadapter.md) | Entwicklungskandidat: Originalintervalle, begrenzte Quellenpolicy, fortlaufende Aufnahme und lokaler Probelauf |
+| [Istwerte offline qualifizieren](archiv/istwert-qualitaetsadapter.md) | Originalintervalle, begrenzte Quellenpolicy, optionale fortlaufende Aufnahme und lokaler Probelauf |
 | [Hostinstallation](archiv/archiv-host-installation.md) | Eigene Laufzeit, Dienste, Timer, Zugangsdaten, Platz und Sicherung |
 | [HA-freie Hostlaufzeit](archiv/archiv-runtime-ohne-ha.md) | Installer, Paketgrenzen und strenge Replayprovenienz |
 | [Hashablage](archiv/archiv-hashablage.md) | Verzeichnislayout, Migration und Rückweg |
 | [Speicher-/Cursorvertrag](archiv/archive-storage-contract.md) | Originale, Transaktionen, Lücken, Pins und Retention |
 | [Speicherung und Transport](archiv/archiv-speicherung-und-transport.md) | Originaldateien/SQLite und spätere Datenbankoptionen |
+| [Speichersparprofile](archiv/speichersparprofile.md) | Vorbereitete getrennte Aufnahmeintervalle, kompakte Qualitätsberichte und optionale Nachtdiagnostik |
 
 ## Entwicklung und Validierung
 

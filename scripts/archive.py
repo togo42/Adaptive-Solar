@@ -19,7 +19,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from custom_components.adaptive_solar.core.archive import (  # noqa: E402
-    MAX_PAGE_BYTES, ArchiveError, ArchiveStore, validate_page,
+    MAX_PAGE_BYTES, ArchiveError, ArchiveStore, parse_cursor, validate_page,
 )
 from scripts.replay_paths import validate_output  # noqa: E402
 
@@ -44,6 +44,18 @@ def producer_status(value, *, raw=True):
 def producer_healthy(value):
     return (value["enabled"] and value["state"] in {"active", "gap"} and not value["error"]
             and all(value[key] is not None for key in ("dropped_events", "pending_events", "inflight_events")))
+
+
+def newest_cursor(status):
+    """Optional committed tail from existing native stats; never infer a tail."""
+    if (not isinstance(status, dict) or not isinstance(status.get("generation"), str)
+            or type(status.get("next_sequence")) is not int or not 1 <= status["next_sequence"] < 2**63):
+        return None
+    try:
+        generation, sequence = parse_cursor(f'{status["generation"]}:{status["next_sequence"]}')
+    except ArchiveError:
+        return None
+    return f"{generation}:{sequence - 1}"
 
 
 def collection_summary(value):
@@ -117,7 +129,8 @@ async def fetch_page(ha_url, token, entry_id, cursor, *, limit=100, max_bytes=2 
                     validate_page(page)
                 if page is not None and page["requested_cursor"] != cursor:
                     raise ArchiveError("Export page does not match requested cursor")
-                return {"page": page, "producer": producer_status(response.get("status") if isinstance(response, dict) else None)}
+                status = response.get("status") if isinstance(response, dict) else None
+                return {"page": page, "producer": producer_status(status), "newest_cursor": newest_cursor(status)}
     if session is not None:
         return await request(session)
     async with aiohttp.ClientSession() as client:
@@ -125,7 +138,7 @@ async def fetch_page(ha_url, token, entry_id, cursor, *, limit=100, max_bytes=2 
 
 
 async def collect(store, source, fetch, *, max_pages=100):
-    """Fetch until empty/no progress, committing each durable page before the next."""
+    """Reach the first response's committed tail, or use legacy empty-page proof."""
     if type(max_pages) is not int or not 1 <= max_pages <= 10000:
         raise ArchiveError("max_pages must be between one and 10000")
     cursor = await asyncio.to_thread(store.checkpoint, source)
@@ -134,7 +147,8 @@ async def collect(store, source, fetch, *, max_pages=100):
     failures = set()
     producer = producer_status(None)
     confirmed = page_limit = False
-    for _ in range(max_pages):
+    target_cursor = target = None
+    for index in range(max_pages):
         fetched = await fetch(cursor)
         if isinstance(fetched, dict) and "page" in fetched:
             page = fetched["page"]
@@ -149,14 +163,28 @@ async def collect(store, source, fetch, *, max_pages=100):
         validate_page(page)
         if page["requested_cursor"] != cursor:
             raise ArchiveError("Collector page cursor mismatch")
+        if index == 0 and isinstance(fetched, dict):
+            try:
+                candidate = parse_cursor(fetched.get("newest_cursor"))
+            except ArchiveError:
+                candidate = None
+            page_end = parse_cursor(page["next_cursor"])
+            if candidate is not None and candidate[0] == page_end[0] and candidate[1] >= page_end[1]:
+                target = candidate
+                target_cursor = f"{target[0]}:{target[1]}"
         new_cursor = await asyncio.to_thread(store.ingest_page, source, page)
         pages += 1
         events += len(page["events"])
         if page["gap"]:
             gaps.append(page["gap"])
+        durable = parse_cursor(new_cursor)
+        if target is not None and durable[0] == target[0] and durable[1] >= target[1]:
+            cursor = new_cursor
+            confirmed = True
+            break
         if new_cursor == cursor or not page["events"]:
             cursor = new_cursor
-            confirmed = not page["events"]
+            confirmed = not page["events"] and target is None
             break
         cursor = new_cursor
     else:
@@ -169,7 +197,7 @@ async def collect(store, source, fetch, *, max_pages=100):
         failures.add("producer_pending")
     return dict(pages=pages, events=events, gaps=gaps, cursor=cursor, producer=producer,
                 collection_end_confirmed=confirmed, failures=sorted(failures), complete=not failures,
-                page_limit_reached=page_limit)
+                page_limit_reached=page_limit, target_cursor=target_cursor)
 
 
 def main(argv=None):

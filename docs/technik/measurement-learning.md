@@ -1,6 +1,6 @@
 # Messdaten und Lernfenster aus echten Zählerberichten
 
-Stand: 27.10.2026; Datenvertrag ab Version 0.2.15. Die beschriebenen
+Stand: 30.10.2026; Datenvertrag ab Version 0.2.15. Die beschriebenen
 Softwareprüfungen belegen Datenverarbeitung, keine physische Zählerqualität,
 produktive Aktivierung oder bessere Prognosen.
 
@@ -12,6 +12,23 @@ eine zufällige `continuity_id` und am ersten Intervall einer neuen Phase einen
 Phase. Reset, ungültiger/unverfügbarer Zähler, ungültige Messfreigabe,
 Abregelung, unplausibler Sprung, zu lange Berichtlücke und Neustart beenden sie.
 Anker und zurückgehaltene Berichte werden weiterhin nicht restauriert.
+
+**Ergänzung im unveröffentlichten Kandidaten 0.2.20:** Einheiten numerischer
+HA-Quellen müssen Zeichenketten aus der jeweils
+unterstützten Einheitenmenge sein. Listen, Objekte und andere Typen gelten als
+ungültige Beobachtung; optionale Leistungs-, GHI-, Temperatur- und Windquellen
+werden damit verworfen, ohne den Prognoselauf abzubrechen. Eine ungültige
+Energieeinheit unterbricht die Messkontinuität.
+
+Auch ein Wechsel zwischen gültigen Energieeinheiten beendet die bisherige
+Zählerphase und verwirft ein zurückgehaltenes Delta. Eine reine Attributänderung
+bei gleichem Zahlenwert ist kein Messendpunkt; der nächste echte Originalbericht
+ankert ausschließlich neu. Ändern sich Zahl und Einheit in einem echten Bericht
+gemeinsam, ankert dieser Bericht bereits die neue Phase. Erst spätere echte
+Berichte können wieder Messenergie bilden. Das gilt auch für Nullwerte und
+Rückwechsel der Einheit; eine plausible Leistungskappe belegt keine Kontinuität
+über die geänderte Interpretation. Unveränderte Einheiten und sachfremde
+Attributänderungen erhalten die bestehende Phase.
 
 Genau aneinandergrenzende Messstücke bleiben zusammenfassbar. Unterschiedliche
 bekannte Phasen oder ein expliziter Unterbrechungsgrund werden dabei nicht

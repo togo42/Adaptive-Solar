@@ -8,6 +8,14 @@ Die [Speicherentscheidung](archiv-speicherung-und-transport.md) hält fest:
 zunächst Originaldateien und SQLite; PostgreSQL bei späterem Bedarf als
 zusätzliche Abfrageebene, ohne die Originale aufzugeben.
 
+Der vorbereitete Entwicklungsstand vom 02.11.2026 ergänzt
+[Speichersparprofile](speichersparprofile.md). Das kompakte Qualitätsberichtschema
+kennzeichnet bewusst ausgelassene Diagnosebeleglisten, während die bestehenden
+Capture-/Chunkumschläge und Leser erhalten bleiben. Das optionale Nachtprofil
+reduziert nur zukünftige zusätzliche Rohberichte und kennzeichnet seinen
+geringeren Diagnoseumfang. Bestehende Originale, Pins und Retention werden durch
+beide Optionen nicht umgeschrieben.
+
 ## Datenvertrag und Grenzen
 
 ### Prognose- und Lernzustand ab 0.2.16
@@ -178,16 +186,42 @@ Stream. Ein unvollstaendiger Abschluss nach der Aufnahme wird ebenfalls
 in Streamstatus, Gesamtstatus und CLI-Exit uebernommen. Der Hostrunner
 meldet damit auch unvollstaendige Beobachtungslaeufe als fehlgeschlagen.
 
-Der Collector uebernimmt neben der Seite einen bereinigten Producerstatus.
-Ein erfolgreicher Lauf verlangt eine bestaetigte leere Abschlussseite,
-keine tatsaechliche Cursorluecke, keinen Producerfehler und keine offenen
-Producer-Schreibvorgaenge. Fehlende Statusbelege, fehlende Seiten oder ein
-ohne Abschluss erreichtes Seitenlimit ergeben `complete=false` und Exit 1.
-Bereits dauerhaft bestaetigte Seiten/Checkpoints bleiben trotzdem erhalten.
-Eine leere letzte erlaubte Seite zaehlt als bestaetigter Abschluss und nicht
-als Seitenlimitfehler. `state=gap`/historische `dropped_events` allein sind
-kein Fehler des aktuellen Laufs, wenn normale Ringpufferretention keinen
-Cursorverlust bewirkt und `last_error` leer ist.
+Der HA-Collector übernimmt neben der Seite einen bereinigten Producerstatus.
+Aus `generation` und `next_sequence` des ersten Exportstatus kann er eine feste
+Laufgrenze bilden: die letzte zu diesem Status gehörende Journalnummer,
+`next_sequence - 1`. Generation und Sequenz müssen gültig sein, zur ersten Seite
+passen und mindestens deren letzten Cursor abdecken. Die Grenze wird im laufenden
+Abruf nicht nachgezogen. Nach dauerhafter Speicherung bis zu dieser Grenze ist
+der Transfer bestätigt, auch wenn die Quelle inzwischen weitere Ereignisse
+angehängt hat. Ganze empfangene Seiten bleiben unverändert erhalten; eine Seite
+darf die Grenze überschreiten. Der nächste Lauf beginnt am tatsächlich dauerhaft
+gespeicherten Cursor, nicht an einer künstlich vorgeschobenen Grenze.
+
+Der CLI-Bericht nennt die festgelegte Grenze als `target_cursor`, andernfalls
+`null`. Der tatsächliche dauerhafte Fortschritt steht weiterhin in `cursor`.
+Der Hostrunner übernimmt nur den bereinigten Abschlussstatus; private Cursor
+und Generations-IDs werden nicht in sein Statusjournal übernommen.
+
+Fehlen passende Grenzmetadaten in der ersten Antwort, bleibt für den gesamten
+Lauf der bisherige Abschluss über eine leere Seite erforderlich. Eine kurze
+Seite genügt nicht: Auch die Bytegrenze kann sie verkürzen. Eine leere Seite vor
+einer bereits festgelegten Grenze bestätigt diese nicht. Das Seitenschema bleibt
+unverändert; ältere Producer ohne Grenzmetadaten bleiben lesbar.
+
+Ein erfolgreicher Lauf verlangt außerdem keine tatsächliche Cursorlücke,
+keinen Producerfehler und keine offenen Producer-Schreibvorgänge. Auch nach
+Erreichen der Grenze bleiben diese Bedingungen wirksam. Fehlende Statusbelege,
+fehlende Seiten oder ein ohne Abschluss erreichtes Seitenlimit ergeben
+`complete=false` und Exit 1. Bereits dauerhaft bestätigte Seiten und Checkpoints
+bleiben trotzdem erhalten. Ein bestätigter Abschluss auf der letzten erlaubten
+Seite zählt nicht als Seitenlimitfehler. `state=gap` und historische
+`dropped_events` allein sind kein Fehler des aktuellen Laufs, wenn normale
+Ringpufferretention keinen Cursorverlust bewirkt und `last_error` leer ist.
+
+Dieser Abschluss belegt den begrenzten Journaltransfer. Er bestätigt weder eine
+dauerhaft leere Quelle noch vollständige fachliche Aufnahmen nach der Laufgrenze,
+physische Quellenqualität oder Prognosegüte. Wetter- und Beobachtungsjournale
+verwenden weiterhin ihren oben beschriebenen Leerseitenabschluss.
 
 `page(cursor=None, limit=100, max_bytes=2097152)` liefert:
 

@@ -13,6 +13,7 @@ from homeassistant.helpers import selector
 
 from .const import CONF_SITE, DOMAIN, NAME
 from .archive_export import CONF_ARCHIVE_EXPORT
+from .diagnostic_export import CONF_SOURCE_REPORT_PROFILE, FULL, PROFILES
 from .core.models import MAX_FORECAST_DAYS, HorizonPoint, InverterConfig, SiteConfig, StringConfig
 
 MODELS = ["best_match", "icon_seamless", "icon_global", "icon_eu", "icon_d2", "ecmwf_ifs025", "gfs_seamless"]
@@ -68,6 +69,7 @@ class _Editor:
                 self._site.pop("irradiance_entity_id", None)
                 user_input = dict(user_input)
                 self._archive_export = user_input.pop(CONF_ARCHIVE_EXPORT, getattr(self, "_archive_export", False))
+                self._source_report_profile = user_input.pop(CONF_SOURCE_REPORT_PROFILE, getattr(self, "_source_report_profile", FULL))
                 self._site.update(user_input)
                 self._site["forecast_days"] = int(user_input["forecast_days"])
                 for key in ("physics_substeps", "power_nowcast_window_minutes"):
@@ -78,6 +80,8 @@ class _Editor:
                 errors["timezone"] = "invalid_timezone"
         schema = {}
         field(schema, CONF_ARCHIVE_EXPORT, getattr(self, "_archive_export", False), selector.BooleanSelector())
+        field(schema, CONF_SOURCE_REPORT_PROFILE, getattr(self, "_source_report_profile", FULL),
+              selector.SelectSelector({"options": list(PROFILES), "translation_key": "source_report_profile"}))
         defaults = self._site
         field(schema, "latitude", defaults.get("latitude", self.hass.config.latitude), number(-90, 90, 0.000001, "°"))
         field(schema, "longitude", defaults.get("longitude", self.hass.config.longitude), number(-180, 180, 0.000001, "°"))
@@ -252,6 +256,8 @@ class AdaptiveSolarConfigFlow(_Editor, config_entries.ConfigFlow, domain=DOMAIN)
         data = {CONF_SITE: site.to_dict()}
         if getattr(self, "_archive_export", False):
             data[CONF_ARCHIVE_EXPORT] = True
+        if getattr(self, "_source_report_profile", FULL) != FULL:
+            data[CONF_SOURCE_REPORT_PROFILE] = self._source_report_profile
         return self.async_create_entry(title=NAME, data=data)
 
     @staticmethod
@@ -265,6 +271,8 @@ class AdaptiveSolarOptionsFlow(_Editor, config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         self._archive_export = self.config_entry.options.get(CONF_ARCHIVE_EXPORT, self.config_entry.data.get(CONF_ARCHIVE_EXPORT, False)) is True
+        self._source_report_profile = self.config_entry.options.get(CONF_SOURCE_REPORT_PROFILE,
+            self.config_entry.data.get(CONF_SOURCE_REPORT_PROFILE, FULL))
         self._initialize(self.config_entry.options.get(CONF_SITE, self.config_entry.data[CONF_SITE]))
         return await self.async_step_site(user_input)
 
@@ -273,4 +281,6 @@ class AdaptiveSolarOptionsFlow(_Editor, config_entries.OptionsFlow):
         data = {CONF_SITE: site.to_dict()}
         if getattr(self, "_archive_export", False) or self.config_entry.data.get(CONF_ARCHIVE_EXPORT):
             data[CONF_ARCHIVE_EXPORT] = getattr(self, "_archive_export", False)
+        if getattr(self, "_source_report_profile", FULL) != FULL or self.config_entry.data.get(CONF_SOURCE_REPORT_PROFILE):
+            data[CONF_SOURCE_REPORT_PROFILE] = getattr(self, "_source_report_profile", FULL)
         return self.async_create_entry(title="", data=data)

@@ -13,6 +13,14 @@ Verfügbarkeitsregeln gelten weiter.
 `capture_ha.py` und `capture_actuals.py` benötigen den gemeinsamen Helfer
 `scripts/replay_paths.py`; sie werden aus dem vollständigen Checkout ausgeführt.
 Ihre Appendziele müssen eigene Dateien ohne Hardlink-Aliase unter `data/` sein.
+Ein symbolischer Link als Ausgabedatei wird auch über einen verlinkten
+Elternordner vor dem Netzabruf abgelehnt. Die private Pfadgrenze wird am
+aufgelösten Pfad vor dem Abruf und unmittelbar vor dem Append geprüft.
+Vor dem Abruf wird der Elternpfad aufgelöst und
+festgehalten; der Dateiname bleibt für Symlinkprüfung und Öffnen erhalten.
+Ein während des Abrufs umgebogener Elternalias lenkt den Append dadurch nicht
+auf ein anderes Verzeichnis. Elternordner-Aliase umgehen weder die private
+Grenze noch den Schutz der Eingaben.
 Eingaben sowie Programm-/Ressourcendateien sind vor dem Netzabruf und nochmals
 unmittelbar vor dem Schreiben geschützt. Die spätere Prüfung verwendet den
 geöffneten Dateideskriptor samt Geräte-/Inode-Identität; ein nachträglich
@@ -203,8 +211,8 @@ Gemeinsame Auswertung:
 
 Der separate [Offline-Qualitätsadapter](../archiv/istwert-qualitaetsadapter.md)
 kann aus Originalintervallen und expliziten Quellenattestierungen passende
-Stundenmasken ableiten. Er ist ein Entwicklungskandidat, keine automatische
-Qualifikation vorhandener Recorderwerte und noch keine produktive Hostanbindung.
+Stundenmasken ableiten. Er ist ab Release 0.2.20 verfügbar. Vorhandene Recorderwerte
+werden dadurch nicht automatisch qualifiziert; die Hostanbindung bleibt optiert.
 
 Abdeckung, Quellenlücken und Leistungs-/Energiefehler werden nach Stufe/Horizont/Tages-/Resttagaufgabe berichtet. Intervallaggregate sind dauergewichtete **Prognoseaufgaben** unterschiedlicher Cutoffs: Exposition, keine einmalige Erzeugung/unabhängige Stichprobenzahl.
 

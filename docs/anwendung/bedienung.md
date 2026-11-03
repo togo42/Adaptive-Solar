@@ -25,6 +25,7 @@ kurzfristige Korrekturen, kumulative Energie ermöglicht spätere Lernlabels.
 | IANA-Zeitzone / `timezone` | Etwa `Europe/Berlin`, Vorgabe aus HA; keine feste UTC-Verschiebung |
 | Open-Meteo-Modelle / `weather_models` | Standard `best_match`; mindestens eines. Die UI bietet zusätzlich ICON seamless/global/EU/D2, ECMWF IFS025 und GFS seamless; eigene Kennungen müssen vom Provider unterstützt sein |
 | Originaleingaben archivieren / `archive_export` | Standard aus. Separate Eintragsoption für den privaten Originaldatenpuffer; kein Feld der Anlagenphysik. Einzelheiten in [Abschnitt 8](#8-optionalen-originaldatenexport-einrichten) |
+| Diagnoseexportprofil / `archive_source_report_profile` | Standard `full`. Optional `night_sparse_v1` für weniger unveränderte Nacht-Rohdiagnosen; nur bei aktiviertem Export wirksam. Native Messung, Lernen und qualifizierte Intervalle bleiben vollständig; kein Feld der Anlagenphysik |
 | Prognosetage / `forecast_days` | Ganzzahlig 1–7, Standard 7; einschließlich des laufenden lokalen Tages, keine garantierten sieben vollen Folgetage |
 | Außentemperatur / `temperature_entity_id` | Optionaler Temperatursensor; °C, °F oder K |
 | Wind / `wind_entity_id` | Optionaler Windgeschwindigkeitssensor; m/s, km/h, mph oder kn |
@@ -273,8 +274,9 @@ Der Puffer erfasst ursprüngliche Wetterantworten und deren Empfangs-/
 Normalisierungsbelege, sämtliche ausgegebenen Forecastzellen einschließlich Nacht
 und Teilstunden, verwendete Beobachtungen, Anlagenkonfiguration, Softwarestand,
 Schattenzustand und die tatsächlich verwendeten Fitzeilen mit Fitstichtag.
-Zusätzlich werden alle konfigurierten Leistungs-/GHI-/Temperatur-/Windberichte
-passiv aufgenommen, auch unveränderte und ungültige Werte. Angenommene und
+Im Standardprofil `full` werden zusätzlich alle konfigurierten
+Leistungs-/GHI-/Temperatur-/Windberichte passiv aufgenommen, auch unveränderte
+und ungültige Werte. Angenommene und
 abgelehnte Schattenlernversuche samt Ausgangszustand ermöglichen den
 [chronologischen Vergleich anderer Lernregeln](../archiv/archivbetrieb.md#51-schattenlernen-chronologisch-vergleichen).
 Die größere Berichtszahl kann die tatsächlich überbrückbare Ausfallzeit des
@@ -282,6 +284,35 @@ begrenzten Exportpuffers verkürzen; dessen Belegung im Pilot beobachten.
 Originale Zähler-, Gültigkeits- und Abregelungsberichte bleiben von abgeleiteten
 Messintervallen getrennt. Das sind private Daten; für Support keine vollständige
 Exportantwort veröffentlichen. [Datenschutz](datenschutz.md).
+
+Im selben Standortdialog ist **Diagnoseexportprofil** separat wählbar. Das
+ausdrücklich optionale `night_sparse_v1` lässt nur ausgewählte unveränderte
+Rohdiagnose-Wiederholungen aus: numerische Nullleistung und gleichbleibende
+gültige Wetterwerte. Alle Energie-, Abregelungs- und Messgültigkeitsmeldungen,
+sämtliche `qualified_interval`, Wert-/Einheiten-/Zustandswechsel sowie ungültige
+und nicht verfügbare Meldungen bleiben vollständig. Ein mindestens stündlich
+beibehaltener tatsächlich eintreffender Bericht dient als Diagnoseheartbeat;
+es wird kein Bericht erzwungen oder künstlich erzeugt. Bei einem Neustart
+beginnt die Diagnoseauswahl neu, der erste Bericht bleibt erhalten.
+
+Die Nachtfenster folgen dem SPA-Sonnenauf-/untergang am konfigurierten Standort.
+Jeweils 90 Minuten vor Aufgang und nach Untergang bleiben vollständig. Die Fenster
+werden höchstens einmal je lokalem Tag im Executor berechnet; Sensorcallbacks
+verwenden nur den Cache. Fehler, fehlende Fenster, polare Sonderfälle oder ein
+Exportfehler führen zu vollständiger Rohdiagnose. Die Gültigkeit des Caches folgt
+dem lokalen Kalendertag, bei Zeitumstellungen also dessen 23 beziehungsweise
+25 Stunden.
+
+`source_report_policy`-Marker kennzeichnen die absichtlich begrenzte Rohdiagnose;
+`archive_export.source_report_policy` zeigt Profil, Cachebereitschaft und seit
+Neustart ausgelassene Wiederholungen. Fehlende Einzelreports im Sparprofil sind
+kein Nachweis eines Sensorausfalls und keine vollständige Reportkadenz. Das
+Profil verkürzt keine bestehende Aufbewahrungsfrist und verändert weder alte
+Originalseiten noch Pins. Zurück auf `full` erfasst wieder alle zukünftigen
+Rohdiagnosen, stellt aber ausgelassene Wiederholungen nicht nachträglich her.
+Beide Optionen werden erst nach vollständig abgeschlossenem Flow gespeichert;
+bestehende Einträge bleiben ohne bewusste Wahl bei `full`. Siehe die getrennten
+[Speichersparprofile](../archiv/speichersparprofile.md).
 
 Administratoren lesen den Puffer mit der Antwortaktion
 `adaptive_solar.export_archive`. `config_entry_id` wählt genau einen geladenen

@@ -46,7 +46,9 @@ def result_from_json(value):
                           value.get("model_status", {}),
                           {model: tuple(timed_record(ForecastPoint, point, {"start", "end"}) for point in points)
                            for model, points in value.get("member_points", {}).items()},
-                          {model: timestamp(at) for model, at in value.get("member_issued_at", {}).items()})
+                          {model: timestamp(at) for model, at in value.get("member_issued_at", {}).items()},
+                          inverter_status=value.get("inverter_status"),
+                          diagnostic_status=value.get("diagnostic_status"))
 
 
 def _reconstruct_json(forecast_event, events, reference, kind, hash_field):
@@ -230,6 +232,10 @@ def compare_results(expected: ForecastResult, actual: ForecastResult, tolerance_
         return {"matched": False, "reason": "different_interval_support", "max_error_w": None}
     if expected.model_status != actual.model_status:
         return {"matched": False, "reason": "different_model_status", "max_error_w": None}
+    if expected.inverter_status is not None and (
+            expected.inverter_status != actual.inverter_status
+            or expected.diagnostic_status != actual.diagnostic_status):
+        return {"matched": False, "reason": "different_status_namespaces", "max_error_w": None}
     if expected.member_issued_at != actual.member_issued_at:
         return {"matched": False, "reason": "different_member_issue_support", "max_error_w": None}
     errors = []

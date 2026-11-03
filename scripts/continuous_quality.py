@@ -39,14 +39,24 @@ def derive(store, raw, bindings):
         raise ValueError("Future raw capture")
     start, end = capture_actuals.target_bounds(raw["raw"]["target_start"], raw["raw"]["target_end"])
     mappings = list(capture_actuals.parse_mapping({"mappings": raw["raw"]["mappings"]}))
-    events, byte_count = [], 0
+    events, configurations, pending = [], [], []
+    byte_count = event_count = 0
 
-    def add(event):
-        nonlocal byte_count
-        byte_count += len(canonical_bytes(event))
-        if len(events) >= actual_quality.MAX_EVENTS or byte_count > MAX_BYTES:
+    def account(size, count=0):
+        nonlocal byte_count, event_count
+        byte_count += size
+        event_count += count
+        if event_count > actual_quality.MAX_EVENTS or byte_count > MAX_BYTES:
             raise ValueError("Quality selection exceeds bounded budget")
-        events.append(event)
+
+    def project(event, parts=(), *, anchor=False):
+        # Bound one full working input as well as the retained compact context.
+        # Full payloads are verified, not rehashed as truncated pseudo-originals.
+        if byte_count + sum(len(canonical_bytes(e)) for e in (event, *parts)) > MAX_BYTES:
+            raise ValueError("Quality selection exceeds bounded budget")
+        proof = actual_quality.configuration_from_forecast(event, parts, retain_site=anchor)
+        account(proof.retained_bytes, 1 + len(parts))
+        configurations.append(proof)
 
     for source in sorted({row["source"] for row in rows}):
         periods = [row for row in rows if row["source"] == source]
@@ -64,15 +74,25 @@ def derive(store, raw, bindings):
                     timestamp(row["valid_from"]) <= timestamp(p["issued_at"]) < timestamp(row["valid_to"])
                     for row in periods):
                 continue
-            add(event)
+            if event["kind"] == "qualified_interval":
+                account(len(canonical_bytes(event)), 1)
+                events.append(event)
+            elif "payload_ref" in p:
+                account(len(canonical_bytes(event)), 1)
+                pending.append((event, event["event_id"] in anchors))
+            else:
+                project(event, anchor=event["event_id"] in anchors)
     # Resolve only payload dependencies, after iter_events releases its lock.
-    for event in list(events):
-        ref = event["payload"].get("payload_ref") if event["kind"] == "forecast_issued" else None
-        if ref:
-            for part in store.resolve_events(ref["event_ids"], source=event["source"], generation=event["generation"]):
-                add(part)
+    while pending:
+        event, anchor = pending.pop()
+        # Remove the deferred manifest's charge before replacing it with a
+        # verified proof. Referenced original chunks still count toward 500k.
+        account(-len(canonical_bytes(event)), -1)
+        parts = store.resolve_events(event["payload"]["payload_ref"]["event_ids"],
+                                     source=event["source"], generation=event["generation"])
+        project(event, parts, anchor=anchor)
     report = actual_quality.build_quality(events, bindings, mappings, start=start, end=end,
-                                          as_of=as_of)
+                                          as_of=as_of, configurations=configurations)
     generated = timestamp(report["generated_at"])
     report.update(bindings=bindings, raw_capture_sha256=actual_quality.digest(raw),
                   implementation_sha256={path.name: hashlib.sha256(path.read_bytes()).hexdigest()

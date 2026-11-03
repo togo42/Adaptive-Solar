@@ -2,10 +2,8 @@
 
 `scripts/runtime_metrics.py` liefert eine Standardbibliothek-basierte
 `PhaseRecorder`-API. `scripts/archive_host.py` verwendet sie für den vorhandenen
-Repository-Runner mit dem kombinierten Job `observations`. Ein bereits
-installierter Host kann eine neuere Aufteilung in `actuals` und `references`
-haben. Diese Telemetrie ist kein Auftrag, dessen Runner durch die ältere
-Repositoryfassung zu ersetzen. Ein temporärer Messaufsatz muss den tatsächlich
+Repository-Runner einschließlich der getrennten Jobs `actuals` und
+`references` und des kompatiblen kombinierten Jobs `observations`. Ein temporärer Messaufsatz muss den tatsächlich
 installierten Quellstand und dessen unveränderte Qualitätsgates binden.
 
 ## Phasen und Zeitbasis

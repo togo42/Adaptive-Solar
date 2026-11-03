@@ -552,7 +552,10 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=30)
     args = parser.parse_args()
     try:
-        config, output = _private_path(args.config), _private_path(args.output)
+        config = _private_path(args.config)
+        # Pin parent aliases before capture; retain the leaf for symlink checks.
+        output = args.output.parent.resolve() / args.output.name
+        _private_path(output)
         quality_path = _private_path(args.quality) if args.quality else None
         for source in (config, quality_path):
             if source is not None and (source == output or source.exists() and output.exists() and os.path.samefile(source, output)):
@@ -567,6 +570,7 @@ def main() -> int:
         token = os.environ.get("HA_TOKEN", "")
         if token and token in encoded:
             raise CaptureError("Private credentials must not occur in capture or quality evidence")
+        _private_path(output)
         append_capture(output, normalized, inputs=inputs, protected_identities=protected)
     except (CaptureError, OSError, json.JSONDecodeError) as exc:
         print(str(exc) if isinstance(exc, CaptureError) else "Actual capture input/output failed", file=sys.stderr)

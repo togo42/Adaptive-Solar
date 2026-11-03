@@ -196,6 +196,96 @@ def test_real_collector_cli_reaches_host_exit_status_without_private_messages(co
     assert store.checkpoint("ha-one") == journal.page(store.checkpoint("ha-one"))["next_cursor"]
 
 
+def test_growing_native_journal_completes_fixed_prefix_through_host_cli(config, monkeypatch, tmp_path, capsys):
+    from contextlib import redirect_stderr, redirect_stdout
+    from datetime import UTC, datetime
+    from io import StringIO
+
+    from custom_components.adaptive_solar.core.archive import ArchiveJournal, ArchiveStore
+
+    config["entries"] = config["entries"][:1]
+    journal = ArchiveJournal(tmp_path / "journal")
+    now = datetime(2026, 10, 29, tzinfo=UTC)
+    for n in range(2):
+        journal.append("event", {"n": n}, now)
+    generation = journal.stats()["generation"]
+    exported = []
+
+    class NativeSocket:
+        def __init__(self):
+            self.sent, self.step = [], 0
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def send_json(self, value):
+            self.sent.append(value)
+
+        async def receive_json(self):
+            self.step += 1
+            if self.step == 1:
+                return {"type": "auth_required"}
+            if self.step == 2:
+                return {"type": "auth_ok"}
+            request = self.sent[-1]
+            assert request["domain"] == "adaptive_solar" and request["service"] == "export_archive"
+            cursor = request["service_data"].get("cursor")
+            page = journal.page(cursor, limit=1)
+            status = {**journal.stats(), "enabled": True, "state": "active", "last_error": None,
+                      "pending_events": 0, "inflight_events": 0}
+            exported.append(page)
+            # The source keeps advancing after every snapshot. No empty page is ever available.
+            journal.append("event", {"arrived_after_snapshot": len(exported)}, now)
+            return {"type": "result", "id": 1, "success": True,
+                    "result": {"response": {"page": page, "status": status}}}
+
+    class NativeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def ws_connect(self, *_args, **_kwargs):
+            return NativeSocket()
+
+    monkeypatch.setattr(collector.aiohttp, "ClientSession", NativeClient)
+    monkeypatch.setenv("HA_URL", "https://example.invalid")
+    monkeypatch.setenv("HA_TOKEN", "private-collector-token")
+    monkeypatch.delenv("CREDENTIALS_DIRECTORY", raising=False)
+    monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
+
+    def process(command, **_kwargs):
+        stdout, stderr = StringIO(), StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            code = collector.main(command[2:])
+        return subprocess.CompletedProcess(command, code, stdout.getvalue(), stderr.getvalue())
+
+    monkeypatch.setattr(host.subprocess, "run", process)
+    cfg = tmp_path / "data/host.json"
+    cfg.write_text(json.dumps(config))
+    assert host.main(["ha", "--config", str(cfg)]) == 0
+    report = json.loads(capsys.readouterr().out)
+    summary = report["commands"][0]["collector"]
+    assert report["complete"] and summary["complete"] and summary["end_confirmed"]
+    assert summary["pages"] == summary["events"] == len(exported) == 2
+    assert not summary["page_limit_reached"] and not summary["failures"]
+    assert all(page["events"] for page in exported)
+    store = ArchiveStore(tmp_path / "data/archive")
+    checkpoint = store.checkpoint("ha-one")
+    assert checkpoint == exported[-1]["next_cursor"] == f"{generation}:2"
+    originals = [{key: value for key, value in event.items() if key != "source"}
+                 for event in store.iter_events(source="ha-one")]
+    assert originals == [page["events"][0] for page in exported]
+    assert journal.stats()["next_sequence"] == 5
+    serialized = json.dumps(report)
+    assert all(private not in serialized for private in
+               ("ha-one", "entry-one", generation, checkpoint, "private-collector-token", "example.invalid"))
+
+
 def test_success_exit_without_verified_collector_evidence_is_not_complete(config, monkeypatch):
     monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
     mock_process(monkeypatch, iter([0, 0]))
@@ -218,6 +308,77 @@ def test_continuous_quality_is_opt_in_and_cannot_mix_with_static_mask(config):
     config["quality"] = "data/static.json"
     with pytest.raises(ValueError, match="static quality"):
         host.commands("observations", config, Path("archive"))
+
+
+@pytest.mark.parametrize("job", ["actuals", "references", "observations"])
+def test_observation_jobs_select_only_their_stream_and_preserve_window(config, job):
+    config.update(reference_config="data/references.json", quality_bindings="data/quality-policy.json")
+    command, = host.commands(job, config, Path("archive"))
+    assert command[command.index("--source") + 1] == "measurement-site"
+    assert command[command.index("--lookback-hours") + 1] == "72"
+    assert command[command.index("--lag-minutes") + 1] == "10"
+    assert ("--actual-config" in command) == (job != "references")
+    assert ("--quality-bindings" in command) == (job != "references")
+    assert ("--reference-config" in command) == (job != "actuals")
+    assert "--quality-diagnostics" not in command  # Omission preserves the CLI's full default.
+
+
+@pytest.mark.parametrize("job,required,other", [
+    ("actuals", "actual_config", "reference_config"),
+    ("references", "reference_config", "actual_config"),
+])
+def test_separate_observation_job_requires_its_own_mapping(config, job, required, other):
+    config.pop(required, None)
+    config[other] = "data/other-mapping.json"
+    with pytest.raises(ValueError, match="mapping required"):
+        host.commands(job, config, Path("archive"))
+
+
+@pytest.mark.parametrize("job", ["actuals", "observations"])
+@pytest.mark.parametrize("profile", ["compact", "full"])
+def test_actual_jobs_forward_explicit_quality_diagnostics(config, job, profile):
+    config["quality_diagnostics"] = profile
+    command, = host.commands(job, config, Path("archive"))
+    assert command[command.index("--quality-diagnostics") + 1] == profile
+
+
+@pytest.mark.parametrize("profile", [None, False, [], "unknown"])
+def test_bad_quality_diagnostics_blocks_actuals_but_not_references(config, profile):
+    config.update(reference_config="data/references.json", quality_diagnostics=profile)
+    with pytest.raises(ValueError, match="diagnostics profile"):
+        host.commands("actuals", config, Path("archive"))
+    command, = host.commands("references", config, Path("archive"))
+    assert "--quality-diagnostics" not in command
+
+
+@pytest.mark.parametrize("job", ["actuals", "observations"])
+def test_actual_jobs_reject_conflicting_quality_inputs(config, job):
+    config.update(quality="data/static.json", quality_bindings="data/bindings.json")
+    with pytest.raises(ValueError, match="static quality"):
+        host.commands(job, config, Path("archive"))
+
+
+def test_separate_jobs_keep_private_credentials_and_independent_failure_receipts(config, monkeypatch, tmp_path):
+    credentials = tmp_path / "runtime-credentials"
+    credentials.mkdir()
+    (credentials / "ha-auth").write_text(json.dumps({"HA_URL": "http://example.invalid", "HA_TOKEN": "test-secret"}))
+    monkeypatch.setenv("CREDENTIALS_DIRECTORY", str(credentials))
+    monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
+    config.update(reference_config="data/references.json", quality_bindings="data/bindings.json")
+    commands = mock_process(monkeypatch, iter([1, 0]))
+    actuals = host.run("actuals", config)
+    references = host.run("references", config)
+    assert not actuals["complete"] and references["complete"]
+    assert json.loads((tmp_path / "data/host-status/actuals.json").read_text()) == actuals
+    assert json.loads((tmp_path / "data/host-status/references.json").read_text()) == references
+    assert not (tmp_path / "data/host-status/observations.json").exists()
+    captures = [row for row in commands if row[0][-1] != "stats"]
+    assert len(captures) == 2
+    assert all(row[1]["env"]["HA_TOKEN"] == "test-secret" for row in captures)
+    assert "--reference-config" not in captures[0][0]
+    assert "--actual-config" not in captures[1][0] and "--quality-bindings" not in captures[1][0]
+    assert all(private not in json.dumps([actuals, references]) for private in
+               ("test-secret", "example.invalid", "measurement-site", "bindings.json"))
 
 
 def archived_original(tmp_path):

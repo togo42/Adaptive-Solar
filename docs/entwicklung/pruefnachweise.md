@@ -63,7 +63,346 @@ Main-Merge, Release oder produktives HA-/Hostdeployment. Die Auslagerung der
 Offlineanalyse bleibt der separat beschriebene Folgeschritt; Quellenpins werden
 nicht gelockert und die Guardpolicy bleibt unverändert.
 
+## Release 0.2.21: aktueller Stand
+
+Stand: 02.11.2026. [Release 0.2.21](../releases/release-0.2.21.md) ist auf
+`2dd940c3aa1a00d7291228f24ebaac90b56eef14` veröffentlicht. Seine lokale Vollsuite
+bestand 2.453 Tests ohne Skips bei 91,05 % Coverage; Main- und Tag-CI sind grün.
+Quell-/Paketvergleich, reguläre Wheelinstallation und Rückdownload aller Assets
+sind abgeschlossen. Die Releasehinweise trennen diese Nachweise von der
+HA-/Hostinstallation und ihren Erhaltungsprüfungen.
+
+Der vollständige historische Codex-Review von 0.2.20 gilt weiter ausschließlich
+für seinen damaligen Quellstand. Die späteren Hostkorrekturen und Sparprofile
+haben gezielte unabhängige Subagentenreviews und die genannten Tests durchlaufen;
+das ist kein erneuter vollständiger externer Quellreview.
+
+<a id="release-0220-aktueller-stand"></a>
+
+## Release 0.2.20: historischer Stand
+
+Stand: 30.10.2026. Die Veröffentlichung ist unter
+[Tag v0.2.20](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.20)
+gebunden. Der akzeptierte Implementierungsstand bleibt
+`13bc620f821f8a6c3f1c4cfbf6e1f21ef579b527`; sein vollständiger Codex-Review ohne
+Befunde und 2.354 Tests ohne Skips mit 90,91 % Abdeckung sind im folgenden
+historischen Abschnitt belegt. Nachfolgende Veröffentlichungs- und
+Statusdokumente liegen außerhalb dieses Reviews; Code und Tests bleiben bytegleich.
+
+[PR #1](https://github.com/togo42/Adaptive-Solar/pull/1) wurde als
+`54505d9ba7ebe392f079f3ae46fea3f7f6938f6b` in main gemerged; sein Tree ist
+identisch zum geprüften Statusstand `6a236ee500d1c990f7f9cab6376b41b294bce1c0`.
+Der unveränderliche Releasecommit ist
+`d8e7c8e557c2569a9b30ff13631eb232c04093cc`. Die
+[Main-CI des Releasecommits](https://github.com/togo42/Adaptive-Solar/actions/runs/41065089830)
+und [Tag-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/41065329229)
+bestanden jeweils **2.354 Tests ohne Skips**, **90,89 % kombinierte Abdeckung**
+und den HA-unabhängigen Archivhost-Job. Die vorherige
+[Merge-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/41064303284)
+bestand dieselben 2.354 Tests bei 90,91 %.
+
+Wheel, sdist und Integrations-ZIP wurden aus dem exakten Releasecommit gebaut;
+alle 41 Komponentendateien sind bytegleich. Eine separate reguläre Wheelinstallation
+bestand 34 Modulimporte mit vorhandenen HA-Testabhängigkeiten. Alle vier
+veröffentlichten Assets wurden erneut heruntergeladen und bytegleich geprüft.
+Buildreceipt: `artifacts/release-0.2.20/release-build/build-verification.json`,
+SHA256 `f5057b6f094f63df84d23c8b9a252597eec4a6ec6b398c51627a1129fc829594`.
+Die [veröffentlichten Prüfsummen](https://github.com/togo42/Adaptive-Solar/releases/download/v0.2.20/SHA256SUMS)
+binden die drei Pakete. Die vorhandene Testumgebung ersetzt keine Prüfung
+weiterer Plattformen.
+
+Das ausdrücklich freigegebene HA-Update erfolgte am 30.10.2026 über natives HACS
+mit genau einem Core-Neustart unter **Core 2026.10.4**. Vorher wurden eine
+geschützte native Konfigurations-/SSL-Sicherung ohne Recorderdatenbank und eine
+gezielte Komponenten-/Historienkopie erstellt und geprüft; Entschlüsselung und
+vollständiger Restore wurden nicht getestet. Nach dem regulären Prognosezyklus
+bestanden vier geladene Einträge mit Version 0.2.20 und gültigen Eingängen,
+drei vollständige Folgetage je Anlage sowie die unveränderten 80 Entity-/Unique-IDs,
+vier Geräte, Optionen, Energy-/Dashboardzuordnungen, vorhandenen Messintervalle
+und Tagesbeginnwerte einschließlich Kurven und Provenienz. Es gab keine aktiven
+Repairs, Adaptive-Solar-Laufzeitfehler oder blockierenden Startaufrufe.
+Neue Originalprognosen und Messintervalle tragen den passenden Releasequellpin;
+das bestätigt Softwareherkunft, keine physische Quellenqualifikation.
+
+Private Installationsbelege liegen unter `data/release-0.2.20-20261030/`, darunter
+`runtime-audit-final.json`; öffentliche CI-/Buildbelege unter
+`artifacts/release-0.2.20/`. Externe Archivhostdienste, Timer und Dashboardressourcen
+wurden nicht aktualisiert. Der Support-Guard bleibt offline. Quellenvalidität,
+produktive Lernabnahme und Prognoseüberlegenheit benötigen eigene Nachweise.
+Diese nachträgliche Abschlussdokumentation verändert weder den Tag noch die
+akzeptierten Implementierungs- und Testbytes.
+
+<a id="releasekandidat-0220-aktueller-stand"></a>
+
+## Releasekandidat 0.2.20: historischer Abschlussstand
+
+Stand: 30.10.2026; unveröffentlicht, eingefroren auf
+`13bc620f821f8a6c3f1c4cfbf6e1f21ef579b527`. Codex-Nachreview R9 mit
+**GPT-6.1-Sol/high**, CLI **0.166.0**: **akzeptiert, keine Befunde (`mergeable`)**.
+Das abgeschlossene Receipt bindet 218 öffentliche Originaltexte und 2.817.358
+Payloadbytes in 47 Quellblöcken; Initialisierung, Quellen und Schlussreview
+umfassen 49 vollständig abgeschlossene Turns. Native Vollständigkeits-/Kontext-/Abschlussprüfung:
+**bestanden, ohne Compaction, native Tools oder Hintergrundaufgaben**. Receipt-SHA256: `671f6e8fa9a740fb8140f1a926250807cbf51706e740d290ed654f5dea0021ae`;
+unabhängiger Audit-SHA256: `0ebe69c4732f139e7463809d945c29246a47fb93783261ed55cf3f3a65e179f8`. R4-/R6-/R7-/R8-Historie bleibt unverändert.
+Codex prüfte statisch und führte keine Tests aus. Lokale Reviewbelege:
+`reviews/private/release-0.2.20-codex-r9/` und
+`artifacts/release-0.2.20/codex-r9-closeout.json`.
+
+Lokal bestanden **2.354 Tests ohne Skips**, **90,91 % kombinierte Abdeckung**,
+das unveränderte 90-%-Gate, Ruff und `pip check`; 23 vorhandene SQLite-
+ResourceWarnings bleiben bestehen. [Reguläre CI auf demselben Commit](https://github.com/togo42/Adaptive-Solar/actions/runs/41055882245):
+**bestanden, 2.354 Tests ohne Skips und 90,91 % kombinierte Abdeckung**.
+
+Der neue Build enthält alle **41 Komponenten-Dateien** bytegleich in Wheel,
+sdist und Integrations-ZIP; Versionsprüfungen ergeben 0.2.20. Eine separate
+reguläre Wheelinstallation bestand **34 Modulimporte** aus dem Installationsziel.
+Vorhandene HA-Testabhängigkeiten wurden verwendet; neue Plattformauflösung und
+HA-Laufzeit sind damit nicht geprüft. Das Paketinventar enthält keine privaten
+Daten-/Review-/Artefaktverzeichnisse; frühere Builds blieben erhalten.
+Lokaler Buildreceipt: `artifacts/release-0.2.20/r9-build/build-verification.json`,
+SHA256 `bc011e69695c0879a38d8fb650f5cce6c8470a46f0f9a8e9ad35a80dd80cc635`;
+`artifacts/release-0.2.20/r9-build/dist/SHA256SUMS` bestand drei Prüfungen.
+
+Die anschließenden Statusdokumente (Projekt-/Doku-/Releaseübersicht,
+Installationsanleitung, 0.2.20-Hinweise und dieser Prüfstatus) liegen außerhalb
+des Reviews; Code und Tests bleiben bytegleich zum eingefrorenen Stand.
+Veröffentlicht bleibt 0.2.19; kein HA-/Hostdeployment oder Timerstart.
+Der Guard bleibt offline; Quellenvalidität, produktives Lernen und
+Prognoseüberlegenheit brauchen eigene Nachweise.
+
+## Codex-Review des Releasekandidaten 0.2.20 und Befundkorrekturen
+
+Der mit dem veröffentlichten Stand 0.2.19 zusammengeführte Kandidat
+`a7803a5247bae80a1b70eeef6a3abd0c57cb9953` wurde am 30.10.2026 durch
+**Codex GPT-6.1-Sol/high**, CLI **0.166.0**, vollständig statisch geprüft.
+R4 übergab 213 öffentliche Originaltexte einschließlich acht Service-/Timervorlagen
+in 46 Quellblöcken. Der unabhängige Audit bestätigte alle 48 Turns einschließlich
+Initialisierung und Abschluss, exakte Quellen-/Prompt-/Antwortbytes, native
+Modell- und CLI-Identität sowie API-Abschlüsse. Keine Compaction, nativen Tools
+oder Hintergrundaufgaben. **Das Fachurteil war `blocked` mit zwei Befunden.**
+
+- AS-001, mittel: Die JSON-Kodierung der Primärhistorie lief im HA-Eventloop.
+  Der korrigierte Store kodiert im Executor; eine native Threadsafe-Brücke hält
+  Snapshotbildung und Pruning auf dem Loop. Die fünf neuen nativen Tests umgehen
+  den verändernden gemeinsamen Testadapter. Vier scheitern am Originalcode;
+  der Pending-Load-Fall besteht bereits dort. Verzögertes Speichern, Import,
+  Abschluss und ein gleichzeitiger echter Messintervallmerge werden geprüft.
+  Vergleichsstore und ausschließlich lesender Legacystore wurden mitgeprüft.
+- AS-002, niedrig: Beide Append-CLIs lösten den Ausgabepfad vor der
+  Symlinkprüfung auf. Der korrigierte Einstieg hält den Elternpfad fest und
+  erhält den Dateinamen für die Symlinksperre. Acht Regressionen
+  scheitern vorher, darunter echte CLI-Prozesse mit Netzwerk-Tripwire und
+  reproduzierte Änderungen fremder JSON-Ziele. Direkte/vermittelte Symlinkziele,
+  Eingabealiase und Grenzausbrüche werden jetzt vor dem Abruf zurückgewiesen.
+
+Der unabhängige Korrekturreview fand am ersten CLI-Fix zusätzlich einen
+umhängbaren Elternalias. Vier Gegenproben scheiterten an diesem Zwischenstand.
+Der jetzt vor dem Abruf festgehaltene Elternpfad verhindert diese Umleitung;
+eine erneute private Grenzprüfung vor dem Append weist auch eine inzwischen
+ersetzte Zielwurzel zurück. Diese Fälle wurden vor dem nächsten externen
+Review gemeinsam korrigiert und unabhängig erneut reproduziert.
+
+Die gezielten Korrekturprüfungen bestanden mit 158 Speicher-/HA-Tests und
+215 Capture-/Pfadtests ohne Skips. Der unabhängige Korrekturreview meldete nach
+der Nachbesserung keine weiteren konkreten Befunde. Die gemeinsame Vollsuite
+bestand mit **2.253 Tests ohne Skips**, weiterhin 23 SQLite-ResourceWarnings.
+Ruff und `pip check` bestanden. Die lokale Coverageerfassung enthielt versehentlich
+zusätzlich die Skripte (52 Dateien, 88,01 %, deshalb Exit 1 des Gesamtbefehls).
+Die Auswertung derselben Messdaten für die unveränderten 34 Komponentenmodule
+bestand mit **90,88 % kombinierter Abdeckung** und dem unveränderten 90-%-Gate;
+es wurden keine Tests oder Messdaten verworfen. Rohbericht und korrigierte
+Scopeauswertung bleiben getrennt unter `artifacts/release-0.2.20/r5-*` erhalten.
+Ein neuer hashgebundener Codex-Nachreview, Build und reguläre CI der Korrekturen
+stehen noch aus. R4 ist keine positive Abnahme und wird durch lokale Korrekturen
+nicht nachträglich grün.
+
+Die vorherigen technischen Versuche zählen nicht als Fachabnahme: R1 scheiterte
+beim nativen Modellkatalogabruf; R2 und R3 wurden wegen nativer Compaction samt
+zusätzlichem API-POST verworfen. Der vollständige Tool-Dialog überschritt die
+verfügbare Kontextreserve. Der anschließende explizite Blocktransport behielt
+alle Originalquellen und Schutzprüfungen bei. Ein großer isolierter Testblock
+aus R2 hatte außerdem 77 Setupfehler durch nicht zurückgesetzte Socket-Guards
+im Testharness; er ist kein bestandener Testlauf. R4 selbst führte keine Tests aus.
+
+R4-Payload-SHA256: `32d3ec3708590fb5257dbf3a806095219600b2851c134d2a3ff336387fa33586`.
+Receipt-SHA256: `7f0f00b244ae084c3cdb75306ca4979280363142e531b16a59479b7e3ed63c50`.
+Rohbelege: `reviews/private/release-0.2.20-codex-r4/`; unabhängiger Audit und
+Vorher-/Nachherprüfungen: `artifacts/release-0.2.20/` mit
+`codex-r4-closeout.json`, `fixes-primary/` und `fixes-capture/`.
+Kein Release oder produktives HA-/Hostdeployment ist erfolgt.
+
+## Weiterer Codex-Review und Einheitenkontinuität
+
+R6 prüfte den korrigierten Kandidaten `62ca40c070f22b5fa0c7c3815f9505fbb1366a75`
+vollständig: **GPT-6.1-Sol/high**, CLI **0.166.0**, 214 öffentliche Originaltexte,
+46 Quellblöcke und 48 abgeschlossene Turns. Der unabhängige Audit bestand mit
+exakten Quellen-, Prompt-, Antwort- und API-Bindungen, ohne Compaction, native
+Tools oder Hintergrundaufgaben. **Das Fachurteil blieb mit zwei mittleren
+Befunden `blocked`; R6 ist keine positive Abnahme.**
+
+- AS-001: Nichttextuelle Einheiten, etwa Listen oder Objekte, konnten im
+  gemeinsamen numerischen Leser einen `TypeError` auslösen. Der Leser weist
+  diese Typen nun vor Dictionaryzugriffen als ungültige Beobachtung zurück.
+- AS-002: Ein reiner Wechsel zwischen gültigen Energieeinheiten konnte den
+  bisherigen Anker erhalten und dadurch künstliche, dennoch unterhalb der
+  Leistungskappe liegende Energie erzeugen. Jeder Energieeinheitenwechsel
+  beendet nun die Phase und verwirft offene Deltas. Ein echter Zahlen-/Forced-
+  Bericht kann neu ankern; eine reine Attributänderung wartet auf den nächsten
+  echten Bericht. Bestehende Historie wird nicht gelöscht.
+
+Alle acht Aufrufer des numerischen Lesers wurden geprüft, einschließlich
+Originalexport, optionaler Umwelt-/Leistungseingänge und Meterqualität.
+Unveränderte Einheiten, sachfremde Metadaten, Restored-Unterbrechung, Nullwerte,
+Rückwechsel, negative Werte und Leistungskappen wurden mitgeprüft. `state_class`
+bleibt hier reine Raw-Metadateninformation; es wurde kein zusätzlicher Gate
+eingeführt. Von 62 neuen Fällen scheitern 37 am eingefrorenen Originalcode,
+25 Kontrollfälle bestehen dort bereits. Die korrigierte Familie besteht
+229 Tests ohne Skips; ein unabhängiger Satz besteht 65 Prüfungen. Die gemeinsame
+Vollsuite bestand mit **2.315 Tests ohne Skips**, **90,89 % kombinierter
+Abdeckung** und unverändertem 90-%-Gate; weiterhin 23 SQLite-ResourceWarnings.
+Ruff und `pip check` bestanden. Ein neuer Codex-Nachreview sowie Build und CI
+dieser Korrekturen stehen noch aus. Lokale Volltestbelege:
+`artifacts/release-0.2.20/r7-full-tests.log`, `r7-tests.xml` und `r7-coverage.json`.
+
+R5 scheiterte zuvor technisch im Schlussdialog nach 300 Sekunden ohne SSE-
+Ereignis. R6 setzte den [dokumentierten nativen Streamtimeout](https://developers.openai.com/codex/config-reference)
+nur im isolierten Reviewprozess auf 3.600.000 ms, innerhalb der unveränderten
+Gesamtlaufzeit von 3.600 Sekunden. Eine threadfreie native Konfigurationsabfrage
+bestätigte den Wert; Retrywerte, Quellen und Schutzprüfungen blieben unverändert.
+R5 bleibt ohne gültiges Urteil. Die Änderungen betreffen den isolierten Treiber,
+keine globale Codex-Konfiguration. R6 war statisch und führte keine Tests aus.
+
+R6-Receipt-SHA256: `27b6bc10d4cb5f6844ed57385155de0ae9ed0f35d4e0bed1b81cc18a9fd56b30`.
+Audit-SHA256: `a685d387f06a969fe2eed726544a957293698739f668e54a4e1dfb9a525734a1`.
+Rohbelege: `reviews/private/release-0.2.20-codex-r6/`; Audit, native
+Konfigurationsprüfung und Korrekturbelege: `artifacts/release-0.2.20/` mit
+`codex-r6-closeout.json`, `codex-r6-native-config-preflight.json` und `fixes-units/`.
+Keine Veröffentlichung oder produktive Aktivierung ist erfolgt.
+
+## Codex-Nachreview und umfangreiche Eventloop-Arbeiten
+
+R7 prüfte `849bbc353aa3ca74e0d46a145d7013128224e584` mit **GPT-6.1-Sol/high**,
+CLI **0.166.0**: 215 öffentliche Originaltexte, 47 Quellblöcke und 49 vollständig
+abgeschlossene Turns. Der unabhängige Audit bestätigte die exakten Quellen,
+Dialoge und API-Abschlüsse ohne Compaction, native Tools oder Hintergrundaufgaben.
+**Das Urteil war `blocked` mit einem mittleren Befund:** Die umfangreiche
+Validierung und Trainingszuordnung beim Restore lief nach dem Dateilesen wieder
+auf dem HA-Eventloop. R7 ist keine positive Abnahme.
+
+Die Korrektur validiert Primary-/Legacy-Historien, Snapshots, Schattentabelle,
+Retention und Index im Worker und übernimmt erst den vollständigen privaten
+Kandidaten auf dem Loop. Der Vergleichsrestore beschneidet ebenfalls seinen
+privaten Kandidaten im Worker. Ungültige Originaldateien bleiben erhalten und
+schreibgesperrt. Die unabhängige Familienprüfung bestätigte außerdem eine
+umfangreiche synchrone Auswahl von Prognoseursprüngen im laufenden Update.
+Auch diese Auswahl läuft jetzt im Worker. Ändern sich währenddessen die
+Archivmitgliedschaft oder die Zulässigkeit neuer Zielintervalle, erfolgt die
+Auswahl erneut aus den Originalzeilen. Tatsächliche Verfügbarkeit wird erst
+nach der abschließenden Auswahl erfasst; Messintervalle und Operatorimporte
+werden nicht durch einen veralteten Workersnapshot ersetzt.
+
+Die 21 neuen nativen Fälle prüfen unter anderem Primary/Legacy, ungültige
+Originale, echte HA-Ereignisse während der Workerarbeit, Retention, Importe,
+Closing und Zielgrenzen an 23-/24-/25-Stunden-Tagen. Am Originalstand scheitern
+19 Fälle; zwei Kontrollfälle bestehen bereits. Die gezielte Familie besteht
+**307 Tests ohne Skips**; der unabhängige Nachreview besteht weitere 91 Fälle
+und meldet keine offenen konkreten Produktbefunde in seinem Umfang. Die
+Vollsuite besteht **2.336 Tests ohne Skips**, **90,90 % kombinierte Abdeckung**
+bei unverändertem 90-%-Gate und 23 SQLite-ResourceWarnings. Ruff, `pip check`
+und die Dokumentationsprüfung bestanden. Vorher-/Nachherbelege liegen unter
+`artifacts/release-0.2.20/fixes-restore/`, Vollsuite und Coverage unter
+`r8-full-tests.log`, `r8-tests.xml` und `r8-coverage.json` im selben Releaseordner.
+Ein neuer hashgebundener Codex-Nachreview dieser Korrekturen steht noch aus.
+
+Der vorherige Stand `849bbc3` bestand inzwischen die reguläre
+[CI mit 2.315 Tests ohne Skips und 90,89 % Abdeckung](https://github.com/togo42/Adaptive-Solar/actions/runs/41048224145)
+sowie den Paketbau. Diese Nachweise gelten für dessen Bytes und ersetzen
+keine Prüfung der anschließenden Korrektur.
+
+R7-Receipt-SHA256: `d769eb6fda251a04ec5d432419b6de8aa8b30cd137d93303704bfaf14790ddb7`.
+Audit-SHA256: `369346c2f8ff2615594cce0a9d1082f2395681043e98718a7b9d0342e4d5a912`.
+Rohbelege: `reviews/private/release-0.2.20-codex-r7/`; Audit:
+`artifacts/release-0.2.20/codex-r7-closeout.json`.
+Keine Veröffentlichung oder produktive Aktivierung ist erfolgt.
+
+## Codex-Nachreview und Statusnamensräume
+
+R8 prüfte `3eae6cc003b3267a9e30af6d0731ae739001a9e2` vollständig mit
+**GPT-6.1-Sol/high**, CLI **0.166.0**: 217 öffentliche Originaltexte,
+47 Quellblöcke und 49 abgeschlossene Turns. Der unabhängige Audit bestand ohne
+Compaction, native Tools oder Hintergrundaufgaben. **Das Urteil war `blocked`
+mit einem niedrigen Befund:** Frei gewählte Stufenkennungen konnten mit
+technischen Schlüsseln im gemeinsamen `model_status` kollidieren. Insbesondere
+die Kennung `irradiance` konnte eine gültige GHI-Beobachtung in der
+Qualitätsanzeige fälschlich als beeinträchtigt erscheinen lassen.
+
+Dieser Stand bestand lokal 2.336 Tests ohne Skips und 90,90 % kombinierte
+Abdeckung; die [reguläre CI](https://github.com/togo42/Adaptive-Solar/actions/runs/41052233817)
+bestand ebenfalls 2.336 Tests ohne Skips bei 90,88 %. Wheel, sdist und
+Integrations-ZIP enthielten die 41 Komponentendateien bytegleich; 34 Module
+ließen sich aus einer separaten Wheelinstallation mit vorhandenen
+HA-Testabhängigkeiten importieren. Diese Ergebnisse ersetzen keine positive
+fachliche Abnahme.
+
+Die Korrektur trennt `inverter_status` und `diagnostic_status` im ForecastResult.
+Technische Diagnosen kodieren dynamische Kennungssegmente eindeutig; die
+unabhängige Familienprüfung hatte auch eine Kollision zwischen zusammengesetzten
+Wettermodell-/Stufenkennungen reproduziert. Die flache `model_status`-Ansicht
+bleibt für bestehende Leser erhalten, ist bei Kollisionen ausdrücklich
+verlustbehaftet und steuert neue HA-Qualitätsentscheidungen nicht mehr.
+Kennungen, Entities, Prognosewerte und Lerngates bleiben unverändert.
+Neue JSON-Originale tragen beide kanonischen Maps, die der Replay exakt vergleicht.
+Alte Originale ohne diese Felder behalten ihren bisherigen strikten Flatvertrag;
+historisch kollidierte Statusdaten werden nicht nachträglich repariert.
+
+18 neue Regressionen prüfen die Engine, native HA-Qualität, CLI, JSON-Roundtrip,
+leere gegenüber fehlenden Maps, Original-Replay und Prozent-/Unicodekennungen.
+Die ursprüngliche Fehlanzeige und vermischte Statuswerte wurden separat am
+eingefrorenen Originalcode reproduziert; neue Feldassertions sind zusätzliche
+Vertragsprüfungen, keine weiteren Produktbefunde. Die betroffene Familie besteht
+430 Tests; der unabhängige Nachreview besteht 14 eigene sowie drei zusätzliche
+Original-Replayfälle und meldet keine verbleibenden Befunde. Die Vollsuite besteht
+**2.354 Tests ohne Skips**, **90,91 % kombinierte Abdeckung** bei unverändertem
+90-%-Gate und 23 SQLite-ResourceWarnings. Ruff, `pip check` und Dokuprüfung
+bestanden. Korrekturbelege: `artifacts/release-0.2.20/fixes-status/`; Vollsuite
+und Coverage: `r9-full-tests.log`, `r9-tests.xml`, `r9-coverage.json` im selben
+Releaseordner. Ein neuer Codex-Nachreview dieser Korrektur steht noch aus.
+
+R8-Receipt-SHA256: `03eebe97ce92ba6d1524546c06e02e8ac32fe371e8651865ef6f40cae11eb972`.
+Audit-SHA256: `78b275c7fd4a77095ba1fa87c9f070963bc2561d5c9d3e96618d3b632864013a`.
+Rohbelege: `reviews/private/release-0.2.20-codex-r8/`; Audit, CI und Build:
+`artifacts/release-0.2.20/codex-r8-closeout.json`, `ci-41052233817/` und `r8-build/`.
+Keine Veröffentlichung oder produktive Aktivierung ist erfolgt.
+
 ## Aktueller Releasebezug
+
+[0.2.19](../releases/release-0.2.19.md) aktualisiert die HA-Geräte-API und
+die Serviceimplementierung. Implementierungscommit `8dbf980` bestand lokal
+**1.729 Tests ohne Skips** unter Python 3.14 / HA Core 2026.10.4, Ruff und
+`pip check`. Eine neue Coveragezahl oder ein externer Review wird aus diesem
+Lauf nicht abgeleitet. Release-CI, Artefakte und Installation benötigen eigene
+Nachweise; frühere Receipts gelten nicht automatisch für diesen Stand.
+
+Releasecommit `de9c832da394b7d6b0ebeb041a73cad274012224` wurde als `v0.2.19`
+veröffentlicht. [Main-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40896868759)
+und [Tag-CI](https://github.com/togo42/Adaptive-Solar/actions/runs/40896869542)
+bestanden jeweils mit 1.729 Tests ohne Skips, 90,86 % beziehungsweise 90,88 %
+kombinierter Abdeckung und erfolgreichen HA-freien Archivhostjobs.
+Wheel, Quellpaket und Integrations-ZIP stimmen in allen 38 Komponenten-Dateien
+mit dem Releasequellstand überein; alle vier veröffentlichten Artefakte wurden
+nach Download bytegleich geprüft. Ein regulär installierter Wheel bestand
+30 Modulimporte mit den vorhandenen gepinnten HA-Testabhängigkeiten.
+
+Die Installation über natives HACS mit einem Core-Neustart wurde auf einer
+bestehenden HAOS-/Core-2026.10.4-Installation nachgeprüft. Komponentenbytes,
+geladene Einträge, Registryreferenzen, Optionen, Historien, Tagesbeginnwerte,
+Energy-/Dashboardkonfiguration und neue Prognosen wurden abgeglichen.
+Konfigurationsprüfung und aktive Repairs waren unauffällig; im begrenzten
+Logreadback gab es keine Adaptive-Solar-Fehler oder blockierenden Startupmeldungen.
+Konkrete Anlagendaten, Komponentenrückweg und Laufzeitreceipts bleiben unter
+ignoriertem `data/`. Dies ist ein begrenzter Installationsnachweis.
+
+## Vorheriger Release 0.2.18
 
 [0.2.18](../releases/release-0.2.18.md) wurde aus
 `9059bc3b69ec6f123c4293babb419b56afb2cfff` veröffentlicht. Die damalige

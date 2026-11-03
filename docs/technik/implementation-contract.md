@@ -42,6 +42,31 @@ Konstruktoren und JSON-Felder: [models.py](../../custom_components/adaptive_sola
 
 `core/physics.py`, `core/engine.py`: `ForecastEngine(config).forecast(forecasts, issued_at, observations=(), learner=None) -> ForecastResult`. Der Learner liefert über `.predict(inverter_id, features, baseline_w, cap_w)` ein Objekt mit `power_w`, `lower_w`, `upper_w`, `status`; fehlendes/abgelehntes ML fällt auf Physik zurück. Mindestfeatures: `baseline_w`, `sun_elevation_deg`, `sun_azimuth_sin`, `sun_azimuth_cos`, `day_of_year_sin`, `day_of_year_cos`, `temperature_c`, `wind_m_s`, `cloud_cover_pct`, `lead_hours`.
 
+`ForecastResult.inverter_status` hält den veröffentlichten Stufenstatus unter
+unveränderten Stufenkennungen; `diagnostic_status` enthält technische Wetter-,
+Physik-, GHI- und Power-Nowcast-Diagnosen. Diese beiden getrennten Maps sind
+maßgeblich für HA-Status und Qualitätsanzeige. Dynamische Modell-/Stufenkennungen
+in Diagnoseschlüsseln werden segmentweise URL-kodiert (`quote(..., safe="")`),
+einschließlich Prozentzeichen: `a:b` wird `a%3Ab`, die wörtliche Kennung `a%3Ab`
+wird `a%253Ab`. Feste Präfixe und Intervallzeiten bleiben unverändert. Dadurch
+bleiben auch Modell-/Stufenkombinationen mit Doppelpunkten getrennt.
+
+`model_status` bleibt eine bewusst verlustbehaftete flache Legacyprojektion:
+Diagnoseschlüssel werden genau einmal dekodiert; bei einer Kollision gewinnt
+der Stufenstatus, ohne Diagnose-Tokens hineinzumischen. Für gewöhnliche Kennungen
+bleiben bisherige Schlüssel und Werte erhalten. Keine Kennung wird reserviert
+oder umbenannt. Die zwei neuen Felder stehen hinter allen bisherigen
+Positionsargumenten. Nur `None`/fehlende Felder kennzeichnen alte Ergebnisse;
+explizit leere Maps bleiben maßgeblich und lösen keinen Legacyfallback aus.
+
+Dataclass-Export und CLI liefern beide Maps zusätzlich; HA stellt sie als
+Attribute außerhalb des Recorder-Verlaufs bereit. Replay liest sie unverändert
+zurück und vergleicht sie bei entsprechend aufgezeichneten Ergebnissen exakt.
+Der bisherige exakte `model_status`-Vergleich bleibt für alle Ergebnisse bestehen.
+Historische Records ohne die neuen Maps behalten ausschließlich ihren bisherigen
+Vertrag; Rohdaten werden weder umgeschrieben noch aus heutigen Diagnosen ergänzt.
+Ein historisch bereits vermischter Kollisionsstatus wird nicht still repariert.
+
 Physikkette: GHI/DHI horizontal, DNI normal → pvlib-Sonnenstand → Hay-Davies → Horizontbegrenzung auf `poa_direct` → Stufenfaktor `beam_shade_factor` (Standard `1.0`) auf `poa_direct` → Summe mit `poa_diffuse` → Faiman-Modultemperatur aus Temperatur/Wind → PVWatts-DC (25 °C Referenz) → String-`loss_fraction` → optionale String-Morgen-/Abenddämpfung → Stringsumme je Stufe. Danach AC-Effizienz/gemeinsamer AC-Clip oder nur konfigurierter DC-Stufenverlust/gemeinsamer Ausgangsclip, ohne versteckte AC-Effizienz. Auch ML/Nowcast begrenzen; Physik, Ist-Plausibilität/Restore teilen dieselbe `output_cap_w`.
 
 `core/shading.py` (`BeamShadeTable`) verwaltet je Ausgangsstufe ein `10°`-Azimut- × `5°`-Höhenraster über der scheinbaren Sonnenhöhe (`[0, 360)` × `[0, 90)`). Jedes Fenster speichert höchstens die letzten 24 UTC-Viertelstunden mit Faktoren in `[0, 1]`; je UTC-Viertelstunde bleibt die erste qualifizierte Probe unverändert, samt echtem Mess- und Verfügbarkeitszeitpunkt. Die Freigabe benötigt fünf verschiedene UTC-Viertelstunden an mindestens zwei UTC-Tagen innerhalb 45 Tagen; gleichgewichtete Tagesmediane dürfen höchstens MAD 0,15 aufweisen. Nach Freigabe ist die Änderung auf 0,10 je verstrichenem UTC-Kalendertag begrenzt. Unzureichende/alte/instabile Belege und leere Fenster liefern Faktor `1.0` ohne Nachbarschaftsinterpolation. Schema 3 persistiert bis zu 64 Freigabeänderungen je Fenster und deren echte Verfügbarkeit. Schema 1/2 bleibt lesbar, seine zeitlich unbelegten Proben bleiben aber ausschließlich als unqualifizierte Altdaten diagnostisch sichtbar; neue qualifizierte Berichte sind für aktive Freigaben erforderlich. [Zeitgates und Details](physics-learning-options.md). `inverter_power` übergibt denselben Stufenfaktor an alle Strings der Stufe. `ForecastEngine` liest den Faktor für Stunden- und Teilintervalle am Sonnenstand des eigenen Intervallmittelpunkts und für die Nowcast-Momentanreferenz am Sonnenstand des Leistungszeitpunkts. Aufnahmen entstehen im Coordinator nur, wenn Sonnenhöhe `>= 10°` und Haurwitz-Klarhimmel `>= 50 W/m²`, Clearness-Index `GHI / Haurwitz >= 0,6`, Leistungs- und GHI-Bericht frisch (GHI `<= 5 min`, Leistung `<= 15 min`, nicht `restored`) und höchstens fünf Minuten auseinander, Messung gültig und nicht abgeregelt, unverschattete Momentanreferenz `(P0, P1)` auf der gültigen Stufenkohorte verfügbar (`P0` mit `beam_shade_factor=0`, `P1` mit `beam_shade_factor=1`), Direktanteil `P1 - P0 >= 0,4 * P1` und `>= max(30 W, 0,03 * output_cap_w)` sowie weder `P_messung` noch `P1` bei `>= 98 %` von `output_cap_w` liegen (`t = clip((P_messung - P0) / (P1 - P0), 0, 1)`). Detailvorgabe: [Direktstrahl-Verschattung](adaptive-solar-verschattung.md); ein gemessener Prognosevorteil wird damit nicht behauptet.
@@ -140,8 +165,34 @@ HA `Store`: höchstens120 Tage,60.000 Forecast-/30.000 Istzeilen; Raster/Stufenz
 
 Modelle beim Erstaufbau oder bei geänderter Fit-Signatur rekonstruieren: Historienrevision, lokaler Tag, vollständig serialisierte Schattentabelle, tatsächlich verbundene Samples und Alignmentdiagnose. Neue Learner werden lokal gefittet und erst mit erfolgreicher Prognose übernommen; ein Fitfehler verwirft den alten Learner, liefert gültige Physik und erlaubt späteren Retry. Join-/Fit-/Prognoselaufzeiten und Fitereignisse stehen in `resources`. Der separate `EarlyBiasShadow` verändert keine veröffentlichten Punkte; sein Fitcutoff und sein Status stehen in `bias_shadow`. Auch neue/ersetzte Schattenaufnahmen bei unverändertem Median können einen Refit auslösen; HA serialisiert Updates, offline kein paralleles `fit`/`predict` zugesichert. Tagesbeginnenergie: eigener vollständiger Snapshot bis lokalem Tagesbeginn; sowohl ursprüngliches `issued_at` als auch tatsächliche lokale Verfügbarkeit nach Rückkehr des vollständigen Executor-Ergebnisses müssen diese Grenze einhalten. Spät fertige Läufe erzeugen keine fehlenden historischen Tageswerte und überschreiben keine vorhandenen Snapshots/Operatorimporte. Neue Trainingszellen werden nur archiviert, wenn ihre ursprüngliche Ausgabe und diese tatsächliche Verfügbarkeit spätestens am Zielbeginn liegen; keine rückdatierte Ausgabezeit und kein nachträglicher Zuschnitt. Noch zukünftige Tage/Zielzellen bleiben nutzbar. Keine Secrets/ausführbaren Modellobjekte persistieren. Das große Vergleichsarchiv wird ausschließlich nach echten Tagescaptures, Retentionänderungen oder dem Retry einer noch unbestätigten Änderung geschrieben, unabhängig vom 30-Sekunden-Savepfad der Zählerhistorie. Export, JSON-Serialisierung, Validierung und Readback-Hashprüfung laufen in Workern mit unveränderlicher Capturesicht. Erst eine passende tatsächliche Diskrücklese bestätigt die gespeicherte Revision; Fehler lassen sie für einen späteren Retry offen. Unbekannte/defekte Vergleichsdateien bleiben unverändert und nur lesend, während Messungen und Prognosen weiterlaufen. Einrichtung und Schließen respektieren dieselbe erfolgreiche Setupgrenze. [Vergleichspersistenz](model-comparison-archive.md).
 
+Die Auswahl repräsentativer und gepaarter Forecast-Origins läuft nach der
+Modellrechnung ebenfalls im Executor auf einer unveränderlichen Archivsicht.
+Erst dessen tatsächliche Rückkehr begrenzt die Verfügbarkeit. Überschreitet die
+Auswahl einen neuen Zielbeginn oder hat ein zwischenzeitlicher Messbericht
+Historienzeilen entfernt, wird aus der aktuellen Originalsicht erneut gewählt;
+ein früheres Auswahlergebnis wird dabei nicht als Originalbasis verwendet.
+Der anschließende Eventloop-Commit enthält keinen weiteren Await. Er erhält
+zwischenzeitliche Messintervalle und Operatorimporte und prüft Tagesbeginnwerte
+gegen die tatsächliche Verfügbarkeit; Ausgabezeit und Cohortenauswahl werden
+nicht rückdatiert. Beim Schließen wird ein noch laufender Kandidat verworfen.
+
+Der Primary serialisiert JSON im nativen HA-Executor. Sein verzögerter
+Speichercallback übernimmt Pruning und Snapshotbildung auf dem HA-Eventloop;
+auch nativer Pending-Load-Readback darf ihn dort direkt aufrufen. Abgetrennte
+Container und ausschließlich ersetzte veröffentlichte Zeilen, Messungsteile,
+Tageskurven und Provenienz halten den Snapshot während der Serialisierung
+stabil. Der native 30-Sekunden-Delay sowie Setup-, Import- und Abschlussgrenzen
+bleiben erhalten; Legacy wird weiterhin ausschließlich gelesen.
+
 Historien werden ohne native Load-/Migrationsnebenwirkungen jeweils einmal
-read-only im Executor gelesen. Nur ein tatsächlich fehlender Primary erlaubt
+read-only im Executor gelesen. Auch vollständige Forecast-/Messhistorienprüfung,
+Messungsteil-Expansion, Restore-Join, Tageskurven-/Provenienzprüfung,
+Schattentabellenaufbau und Retention-/Indexvorbereitung laufen dort auf einem
+privaten Kandidaten. Erst der geprüfte Zustand wird auf dem HA-Eventloop
+übernommen; Worker ändern keinen lebenden Coordinatorzustand. Dies gilt für
+Primary und Legacy sowie die gesonderte Tagesstartprüfung nach physischer
+Konfigurationsänderung. Das Vergleichsarchiv wird ebenfalls im Worker gelesen,
+validiert und vor seiner Übernahme beschnitten. Nur ein tatsächlich fehlender Primary erlaubt
 Legacyfallback. Vorhandene JSON-/UTF-8-/I/O-Fehler, Verzeichnisse und unbekannte
 Envelopes einschließlich falschem Key, Haupt-/Unterversion oder `data=None`
 sperren Primary-Laden und -Persistenz, ohne die Originaldatei umzubenennen.

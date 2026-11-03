@@ -106,7 +106,10 @@ def replay_events(payload, state, received):
 class ArchiveExport:
     """A bounded queue and serialized executor journal, independent of learning."""
 
-    def __init__(self, hass, entry_id, *, enabled=False):
+    def __init__(self, hass, entry_id, *, enabled=False, source_report_profile="full"):
+        from .diagnostic_export import SourceReportPolicy
+
+        self.report_policy = SourceReportPolicy(source_report_profile)
         self.hass = hass
         self.enabled = enabled
         self.root = hass.config.path("adaptive_solar_archive", entry_id)
@@ -128,6 +131,7 @@ class ArchiveExport:
     @property
     def status(self):
         return {**self._stats, **self._status,
+                "source_report_policy": self.report_policy.status(),
                 "dropped_events": self._stats.get("dropped_events", 0) + self._status["dropped_events"],
                 "state": "gap" if self._stats.get("dropped_events", 0) and self._status["state"] == "active" else self._status["state"],
                 "pending_events": len(self._pending),
