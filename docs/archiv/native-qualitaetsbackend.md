@@ -136,3 +136,22 @@ Regressionen stehen in `tests/test_native_quality_backend.py`,
 ohne diese Variable bleibt nur dieser zusätzliche Realtest ausgesetzt.
 Die CI baut das optionale Modul separat und setzt die Variable für die volle
 Python-/HA-Suite; die zusätzlichen Native-Differentialtests laufen ebenfalls.
+
+## Bestehende Lese- und Qualitätsverträge
+
+Python `gzip.open` und der native `MultiGzDecoder` lesen konkatenierte
+Gzip-Member vollständig. Der Originalhash bezieht sich auf die gesamten
+dekomprimierten Bytes. Der reale Differentialfall `concatenated_members` in
+[`test_rust_archive_probe.py`](../../tests/test_rust_archive_probe.py) wird auch
+mit der echten Erweiterung geprüft; mehrere Member allein sind kein Grund,
+ein ansonsten gültiges Original abzuweisen.
+
+Der Nativepfad ändert den Vertrag begrenzter Originalzählerdeltas nicht:
+Eine Spanne über 900 Sekunden verletzt diesen Vertrag und bricht die Ableitung
+mit einem sichtbaren Fehler ab. Daraus entsteht keine neue negative
+Qualitätsmaske. Ein Capture mit `normalization_error` ersetzt keine gültige
+Normalisierung; `actual_records_from_captures` weist eine solche Eingabe vor
+der Datenauswahl zurück. Die Auswertungs-CLI veröffentlicht dann keinen neuen
+Report. Ein automatisches Wiederverwenden älterer positiver Recorderwerte ist
+in diesem Importpfad nicht vorgesehen. Maßgeblich bleibt der
+[Istwert-Qualitätsvertrag](istwert-qualitaetsadapter.md).
