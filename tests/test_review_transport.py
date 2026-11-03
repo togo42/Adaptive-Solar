@@ -1,6 +1,7 @@
 """Exercise review gates with a real, local fake CLI, never a model call."""
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import os
@@ -112,7 +113,8 @@ if mode != "missing_updates":
     updates.parent.mkdir(parents=True, exist_ok=True)
     (updates.parent / "summary.json").write_text(json.dumps({
         "current_model_id": "wrong-model" if mode == "wrong_model" else "grok-4.7",
-        "reasoning_effort": "low" if mode == "low_effort" else "high"}))
+        "reasoning_effort": "low" if mode == "low_effort" else os.environ.get(
+            "FAKE_NATIVE_EFFORT", args[args.index("--reasoning-effort") + 1])}))
     previous = [json.loads(line) for line in updates.read_text().splitlines()] if updates.exists() else []
     indices = [row["params"]["update"].get("_meta", {}).get("promptIndex") for row in previous
                if row["params"]["update"]["sessionUpdate"] == "user_message_chunk"]
@@ -214,6 +216,7 @@ def test_fake_cli_success_binds_flags_hashes_and_process_exit(transport_workspac
     assert run.returncode == 0, run.stderr
     assert receipt["status"] == "accepted"
     assert receipt["requested_model"] == "grok-4.7"
+    assert receipt["requested_reasoning_effort"] == "high"
     assert receipt["cli_sha256"] and receipt["payload_sha256"] and receipt["review_sha256"]
     assert receipt["files"]["README.md"]
     assert receipt["calls"][-1]["label"] == "final"
@@ -227,6 +230,74 @@ def test_fake_cli_success_binds_flags_hashes_and_process_exit(transport_workspac
     assert receipt["transport"] == "chunks"
     assert receipt["context_audit"]["prompt_count"] == len(receipt["calls"])
     assert receipt["context_audit"]["compaction_count"] == 0
+
+
+@pytest.mark.parametrize("effort", ["high", "xhigh"])
+def test_grok_requested_effort_binds_every_chunk_call_receipt_and_native_audit(transport_workspace, effort):
+    run, receipt, _ = run_fake(transport_workspace, "success", extra=("--reasoning-effort", effort))
+    assert run.returncode == 0, run.stderr
+    assert receipt["status"] == "accepted"
+    assert receipt["requested_reasoning_effort"] == effort
+    assert receipt["context_audit"]["reasoning_effort"] == effort
+    for call in receipt["calls"]:
+        argv = call["argv"]
+        assert argv[argv.index("--reasoning-effort") + 1] == effort
+    assert len(receipt["calls"]) == receipt["context_audit"]["turn_completed_count"]
+    assert receipt["context_audit"]["compaction_count"] == receipt["context_audit"]["tool_call_count"] == 0
+
+
+def test_grok_effort_does_not_change_public_original_payload(transport_workspace):
+    receipts = []
+    for effort in ("high", "xhigh"):
+        run, receipt, _ = run_fake(transport_workspace, "success", transport="single", output_name=effort,
+                                  extra=("--reasoning-effort", effort))
+        assert run.returncode == 0, run.stderr
+        receipts.append(receipt)
+    assert receipts[0]["payload_sha256"] == receipts[1]["payload_sha256"]
+    assert receipts[0]["file_manifest"] == receipts[1]["file_manifest"]
+
+
+@pytest.mark.parametrize("requested,native", [
+    ("high", "xhigh"), ("xhigh", "high"), ("xhigh", "low"), ("xhigh", "unknown"),
+])
+def test_grok_native_effort_must_equal_requested_effort(transport_workspace, requested, native):
+    run, receipt, output = run_fake(transport_workspace, "success", transport="single",
+        extra=("--reasoning-effort", requested), extra_env={"FAKE_NATIVE_EFFORT": native})
+    assert run.returncode != 0
+    assert receipt["status"] == "failed"
+    assert receipt["requested_reasoning_effort"] == requested
+    assert f"with {requested} reasoning effort" in receipt["error"]
+    assert receipt["calls"][0]["returncode"] == 0
+    assert not (output / "review.json").exists()
+
+
+@pytest.mark.parametrize("effort", ["low", "medium", "unknown", None, True, ["high"]])
+def test_context_audit_rejects_unsupported_expected_effort(effort):
+    with pytest.raises(ValueError, match="Unsupported review reasoning effort"):
+        review.audit_context("00000000-0000-4000-8000-000000000001", [b"prompt"], expected_effort=effort)
+
+
+def test_context_audit_cannot_request_codex_xhigh():
+    with pytest.raises(ValueError, match="Codex review requires high reasoning effort"):
+        review.audit_context("00000000-0000-4000-8000-000000000001", [b"prompt"],
+                             reviewer="codex", expected_effort="xhigh")
+
+
+@pytest.mark.parametrize("args", [
+    ("--reasoning-effort", "low"), ("--reasoning-effort", "unknown"),
+    ("--reviewer", "codex", "--reasoning-effort", "xhigh"),
+    ("--reviewer", "codex", "--reasoning-effort", "xhigh", "--prepare-only"),
+])
+def test_invalid_effort_fails_before_artifacts_or_any_cli_call(transport_workspace, args):
+    root, binary_dir = transport_workspace
+    log = root.parent / "invalid-effort-cli-calls.jsonl"
+    run = subprocess.run([sys.executable, str(root / "scripts/review.py"), *args], cwd=root,
+        env={**os.environ, "PATH": str(binary_dir) + os.pathsep + os.environ.get("PATH", ""),
+             "FAKE_CLI_LOG": str(log)}, capture_output=True, text=True, timeout=10)
+    assert run.returncode != 0
+    assert "reasoning-effort" in run.stderr
+    assert not log.exists()
+    assert not (root / "reviews/private").exists()
 
 
 @pytest.mark.parametrize("mode,reason", [
@@ -269,6 +340,249 @@ def test_snapshot_includes_extensionless_licenses_without_private_files(tmp_path
     payload, _ = review.build_payload(snapshot)
     assert all(data in payload for name, data in files.items() if name in snapshot)
     assert files["data/LICENSE"] not in payload
+
+
+def test_snapshot_includes_public_rust_and_cargo_lock_as_original_bytes(tmp_path, monkeypatch):
+    monkeypatch.setattr(review, "ROOT", tmp_path)
+    public = {
+        "rust/archive_probe/src/lib.rs": "// Grüße ☀️\r\npub fn answer() -> u8 { 42 }".encode(),
+        "rust/archive_probe/tests/roundtrip.rs": b"#[test]\nfn roundtrip() {}\n\t ",
+        "rust/archive_probe/Cargo.toml": b'[package]\nname = "synthetic-review-fixture"\nversion = "0.1.0"\n',
+        "rust/archive_probe/Cargo.lock": b'# Synthetic lockfile\r\nversion = 4\r\n',
+    }
+    private = {
+        f"{directory}/{name}": f"PRIVATE_{directory}_{name}\n".encode()
+        for directory in ("data", "artifacts", "reviews/private")
+        for name in ("private.rs", "Cargo.lock")
+    }
+    excluded = {
+        **private,
+        "rust/archive_probe/target/generated.rs": b"IGNORED_RUST_BUILD_OUTPUT\n",
+        "rust/archive_probe/other.lock": b"UNRELATED_LOCKFILE\n",
+    }
+    for name, data in {**public, **excluded}.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    (tmp_path / ".gitignore").write_text("data/\nartifacts/\nreviews/\nrust/**/target/\n")
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    # Cover tracked and new public files, and private files even if accidentally tracked.
+    subprocess.run(["git", "add", ".gitignore", "rust/archive_probe/src/lib.rs",
+                    "rust/archive_probe/Cargo.toml", "rust/archive_probe/Cargo.lock"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "-f", *private], cwd=tmp_path, check=True)
+
+    snapshot = review.snapshot()
+    assert set(snapshot) == {".gitignore", *public}
+    payload, manifest = review.build_payload(snapshot)
+    by_path = {metadata["path"]: metadata for metadata in manifest}
+    assert set(by_path) == set(snapshot)
+    for name, data in public.items():
+        metadata = by_path[name]
+        assert snapshot[name] == metadata["sha256"] == hashlib.sha256(data).hexdigest()
+        assert metadata["byte_length"] == len(data)
+        assert payload[metadata["byte_start"]:metadata["byte_end"]] == data
+    for name, data in excluded.items():
+        assert name.encode() not in payload
+        assert data not in payload
+
+
+@pytest.fixture
+def partition_workspace(transport_workspace, monkeypatch):
+    root, _ = transport_workspace
+    monkeypatch.setattr(review, "ROOT", root)
+    originals = {
+        "rust/archive_probe/src/lib.rs": "// vollständige Grüße ☀️\r\npub fn archive() {}\t ".encode(),
+        "rust/archive_probe/Cargo.lock": b"# Complete synthetic lockfile\nversion = 4\n",
+        sorted(review.RESEARCH_FILES)[0]: b"RESEARCH_ORIGINAL_SENTINEL\n",
+    }
+    for name, data in originals.items():
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    workspace = review.snapshot()
+    selected = sorted({"README.md", *[name for name in originals if name.startswith("rust/")]})
+    manifest = {
+        "schema": "adaptive-solar-review-series-v1", "workspace_files": workspace,
+        "partitions": [{"id": "p01", "files": selected},
+                       {"id": "p02", "files": sorted((workspace.keys() - set(selected)) | {"README.md"})}],
+        "integration": {"id": "integration", "files": sorted({"README.md", "scripts/review.py", *selected})},
+    }
+    path = root / "reviews/private/series-manifest.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(manifest, ensure_ascii=False, sort_keys=True))
+    return transport_workspace, manifest, path, workspace
+
+
+def partition_args(path, identifier="p01", sha256=None):
+    return ("--scope", "partition", "--partition-manifest", str(path),
+            "--partition-manifest-sha256", sha256 or hashlib.sha256(path.read_bytes()).hexdigest(),
+            "--partition-id", identifier)
+
+
+@pytest.mark.parametrize("identifier", ["p01", "p02", "integration"])
+@pytest.mark.parametrize("effort", ["high", "xhigh"])
+def test_partition_receipt_and_payload_bind_complete_public_inventory_and_exact_originals(
+        partition_workspace, identifier, effort):
+    workspace, manifest, path, files = partition_workspace
+    root, _ = workspace
+    run, receipt, output = run_fake(workspace, "success", transport="single",
+        extra=(*partition_args(path, identifier), "--reasoning-effort", effort))
+    assert run.returncode == 0, run.stderr
+    assert receipt["status"] == "accepted" and receipt["scope"] == "partition"
+    assert receipt["reference_only_files"] == {} and "reference" not in receipt
+    assert receipt["workspace_files"] == files
+    binding = receipt["partition_receipt"]
+    selected = next(part["files"] for part in [*manifest["partitions"], manifest["integration"]]
+                    if part["id"] == identifier)
+    assert receipt["files"] == {name: files[name] for name in selected}
+    assert binding["id"] == identifier
+    assert binding["role"] == ("integration" if identifier == "integration" else "partition")
+    assert binding["manifest_sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+    workspace_bytes = json.dumps(files, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    assert binding["workspace_sha256"] == hashlib.sha256(workspace_bytes).hexdigest()
+    assert binding["workspace_manifest"] == [{"path": name, "sha256": value,
+        "byte_length": len((root / name).read_bytes())} for name, value in sorted(files.items())]
+    payload = (output / "payload.md").read_bytes()
+    assert b"TEILUMFANG" in payload and b"KEIN all/single-Vollreview" in payload
+    assert b"gesamte Implementierung" not in payload.split(b"<review-data>\n", 1)[0]
+    assert str(path).encode() not in payload and str(root / "reviews/private").encode() not in payload
+    assert json.dumps(binding, ensure_ascii=False, sort_keys=True).encode() in payload
+    if identifier == "integration":
+        assert b"INTEGRATIONSPR" in payload and b"untrusted evidence" in payload
+    assert {entry["path"] for entry in receipt["file_manifest"]} == set(selected)
+    for entry in receipt["file_manifest"]:
+        data = (root / entry["path"]).read_bytes()
+        assert payload[entry["byte_start"]:entry["byte_end"]] == data
+        assert entry["byte_length"] == len(data)
+        assert entry["sha256"] == hashlib.sha256(data).hexdigest()
+    research = sorted(review.RESEARCH_FILES)[0]
+    assert ((root / research).read_bytes() in payload) == (research in selected)
+    assert receipt["context_audit"]["reasoning_effort"] == effort
+    assert receipt["context_audit"]["prompt_count"] == receipt["context_audit"]["turn_completed_count"] == 1
+    assert receipt["context_audit"]["compaction_count"] == receipt["context_audit"]["tool_call_count"] == 0
+
+
+@pytest.mark.parametrize("fault", ["sha", "duplicate_json_key", "omitted_workspace", "wrong_workspace_hash",
+    "omitted_coverage", "private_path", "unknown_path", "duplicate_id", "duplicate_integration_id",
+    "noncanonical_id", "empty_partitions", "empty_part", "empty_integration", "private_integration",
+    "duplicate_file", "unsorted_files", "unknown_schema", "extra_key", "unknown_selected_id", "oversized"])
+def test_invalid_partition_manifest_fails_before_any_cli_call(partition_workspace, fault):
+    workspace, original, path, _ = partition_workspace
+    root, _ = workspace
+    manifest = json.loads(json.dumps(original))
+    identifier, sha256 = "p01", None
+    if fault == "sha":
+        sha256 = "0" * 64
+    elif fault == "omitted_workspace":
+        manifest["workspace_files"].pop("README.md")
+    elif fault == "wrong_workspace_hash":
+        manifest["workspace_files"]["README.md"] = "0" * 64
+    elif fault == "omitted_coverage":
+        for part in manifest["partitions"]:
+            part["files"] = [name for name in part["files"] if name != "README.md"]
+    elif fault in {"private_path", "unknown_path"}:
+        manifest["partitions"][0]["files"].append("data/private.rs" if fault == "private_path" else "missing.rs")
+        manifest["partitions"][0]["files"].sort()
+    elif fault in {"duplicate_id", "duplicate_integration_id"}:
+        part = manifest["partitions"][1] if fault == "duplicate_id" else manifest["integration"]
+        part["id"] = "p01"
+    elif fault == "noncanonical_id":
+        manifest["partitions"][0]["id"] = "../P01"
+    elif fault == "empty_partitions":
+        manifest["partitions"] = []
+    elif fault in {"empty_part", "empty_integration"}:
+        part = manifest["partitions"][0] if fault == "empty_part" else manifest["integration"]
+        part["files"] = []
+    elif fault == "private_integration":
+        manifest["integration"]["files"] = ["reviews/private/result.md"]
+    elif fault == "duplicate_file":
+        manifest["partitions"][0]["files"].append(manifest["partitions"][0]["files"][0])
+    elif fault == "unsorted_files":
+        manifest["partitions"][0]["files"].reverse()
+    elif fault == "unknown_schema":
+        manifest["schema"] = "untrusted-v2"
+    elif fault == "extra_key":
+        manifest["allow_missing"] = True
+    elif fault == "unknown_selected_id":
+        identifier = "absent"
+    raw = json.dumps(manifest).encode()
+    if fault == "duplicate_json_key":
+        raw = raw.replace(b'"id": "p01"', b'"id": "p01", "id": "p01"', 1)
+    if fault == "oversized":
+        raw += b" " * (review.MAX_PARTITION_MANIFEST_BYTES + 1 - len(raw))
+    path.write_bytes(raw)
+    run, receipt, output = run_fake(workspace, "success", transport="single",
+                                    extra=partition_args(path, identifier, sha256))
+    assert run.returncode != 0
+    assert receipt["status"] == "failed" and not receipt["calls"]
+    assert not (root / "reviews/private/cli-calls.jsonl").exists()
+    assert not (output / "review.json").exists()
+
+
+@pytest.mark.parametrize("args", [
+    ("--scope", "partition"),
+    ("--partition-manifest", "manifest.json"),
+    ("--partition-id", "p01"),
+    ("--partition-manifest-sha256", "0" * 64),
+    ("--scope", "partition", "--partition-manifest", "manifest.json", "--partition-id", "p01",
+     "--partition-manifest-sha256", "wrong"),
+    ("--scope", "partition", "--partition-manifest", "manifest.json", "--partition-id", "p01",
+     "--partition-manifest-sha256", "0" * 64, "--transport", "chunks"),
+    ("--scope", "partition", "--reference-receipt", "reference.json"),
+    ("--scope", "implementation", "--reference-receipt", "reference.json", "--partition-id", "p01"),
+])
+def test_partition_arguments_cannot_mix_modes_or_allow_implicit_scope(transport_workspace, args):
+    root, binary_dir = transport_workspace
+    log = root.parent / "invalid-partition-cli-calls.jsonl"
+    run = subprocess.run([sys.executable, str(root / "scripts/review.py"), *args], cwd=root,
+        env={**os.environ, "PATH": str(binary_dir) + os.pathsep + os.environ.get("PATH", ""),
+             "FAKE_CLI_LOG": str(log)}, capture_output=True, timeout=10)
+    assert run.returncode != 0
+    assert not log.exists() and not (root / "reviews/private").exists()
+
+
+@pytest.mark.parametrize("target", ["manifest", "selected_source", "other_source"])
+def test_partition_plan_and_full_workspace_stay_frozen_through_closeout(partition_workspace, target):
+    workspace, _, path, _ = partition_workspace
+    root, _ = workspace
+    drift = {"manifest": path, "selected_source": root / "rust/archive_probe/src/lib.rs",
+             "other_source": root / sorted(review.RESEARCH_FILES)[0]}[target]
+    run, receipt, output = run_fake(workspace, "success", transport="single", extra=partition_args(path),
+                                    extra_env={"FAKE_DRIFT_PATH": str(drift)})
+    assert run.returncode != 0 and receipt["status"] == "failed"
+    assert len(receipt["calls"]) == 1 and not (output / "review.json").exists()
+    reason = "SHA256 differs" if target == "manifest" else "Source scope changed"
+    assert reason in receipt["error"]
+
+
+def test_partition_full_payload_budget_still_fails_without_omissions_or_cli(partition_workspace):
+    workspace, manifest, path, _ = partition_workspace
+    root, _ = workspace
+    (root / "README.md").write_bytes(b"x" * review.MAX_SINGLE_PAYLOAD_BYTES)
+    manifest["workspace_files"] = review.snapshot()
+    path.write_text(json.dumps(manifest))
+    run, receipt, output = run_fake(workspace, "success", transport="single", extra=partition_args(path))
+    assert run.returncode != 0 and receipt["status"] == "failed"
+    assert "Single payload exceeds" in receipt["error"]
+    assert not receipt["calls"] and not (root / "reviews/private/cli-calls.jsonl").exists()
+    assert b"x" * review.MAX_SINGLE_PAYLOAD_BYTES in (output / "payload.md").read_bytes()
+
+
+def test_partition_receipt_cannot_become_an_all_single_research_reference(partition_workspace):
+    workspace, _, path, _ = partition_workspace
+    run, _, output = run_fake(workspace, "success", transport="single", extra=partition_args(path))
+    assert run.returncode == 0, run.stderr
+    with pytest.raises(ValueError, match="accepted all/single review"):
+        review.validate_reference(output / "receipt.json", review.snapshot())
+
+
+def test_codex_partition_keeps_high_native_contract(partition_workspace, codex_workspace):
+    _, _, path, _ = partition_workspace
+    run, receipt, _ = run_fake_codex(codex_workspace, extra=partition_args(path))
+    assert run.returncode == 0, run.stderr
+    assert receipt["status"] == "accepted" and receipt["scope"] == "partition"
+    assert receipt["requested_model"] == receipt["context_audit"]["native_model_id"] == "gpt-6.1-sol"
+    assert receipt["requested_reasoning_effort"] == receipt["context_audit"]["reasoning_effort"] == "high"
 
 
 @pytest.mark.parametrize("suffix", ["service", "timer"])
@@ -562,7 +876,7 @@ def test_audit_rejects_session_symlinks_instead_of_reading_another_history(conte
 
 
 @pytest.fixture
-def reference_workspace(transport_workspace):
+def reference_workspace(transport_workspace, request):
     root, binary_dir = transport_workspace
     binary = binary_dir / 'grok'
     binary.rename(binary_dir / 'native-grok')
@@ -573,15 +887,17 @@ def reference_workspace(transport_workspace):
     for name in ('tests/current.py', 'docs/current.md', 'scripts/current.py', 'new-public.md'):
         (root / name).parent.mkdir(exist_ok=True)
         (root / name).write_text(f"Aktuelle Originalbytes für {name}: ü\n")
-    run, receipt, directory = run_fake(transport_workspace, 'success', transport='single', output_name='baseline')
+    run, receipt, directory = run_fake(transport_workspace, 'success', transport='single', output_name='baseline',
+                                     extra=("--reasoning-effort", getattr(request, "param", "high")))
     assert run.returncode == 0, run.stderr
     return transport_workspace, receipt, directory
 
 
-def implementation_run(reference_workspace, *, extra_env=None):
+def implementation_run(reference_workspace, *, extra_env=None, reasoning_effort="high"):
     workspace, _, directory = reference_workspace
     return run_fake(workspace, 'success', transport='single', output_name='implementation',
-                    extra=('--scope', 'implementation', '--reference-receipt', str(directory / 'receipt.json')),
+                    extra=('--scope', 'implementation', '--reference-receipt', str(directory / 'receipt.json'),
+                           '--reasoning-effort', reasoning_effort),
                     extra_env=extra_env)
 
 
@@ -661,6 +977,50 @@ def test_implementation_includes_every_other_original_byte_and_discloses_inherit
     assert not baseline['reference_only_files'] and baseline['scope'] == 'all'
 
 
+@pytest.mark.parametrize("reference_workspace", ["high", "xhigh"], indirect=True)
+@pytest.mark.parametrize("current_effort", ["high", "xhigh"])
+def test_reference_roundtrip_preserves_its_own_effort_independently_of_new_review(reference_workspace, current_effort):
+    _, baseline, _ = reference_workspace
+    run, receipt, _ = implementation_run(reference_workspace, reasoning_effort=current_effort)
+    assert run.returncode == 0, run.stderr
+    assert receipt["reference"]["reasoning_effort"] == baseline["requested_reasoning_effort"]
+    assert receipt["reference"]["summary_sha256"] == baseline["context_audit"]["summary_sha256"]
+    assert receipt["requested_reasoning_effort"] == receipt["context_audit"]["reasoning_effort"] == current_effort
+
+
+@pytest.mark.parametrize("reference_workspace", ["xhigh"], indirect=True)
+@pytest.mark.parametrize("fault", ["requested_high", "requested_unknown", "requested_bool", "requested_missing",
+                                   "argv_high", "argv_missing", "native_high", "native_unknown"])
+def test_xhigh_reference_effort_cannot_be_changed_or_silently_downgraded(reference_workspace, fault):
+    (root, _), receipt, directory = reference_workspace
+    if fault.startswith("requested_"):
+        if fault == "requested_missing":
+            receipt.pop("requested_reasoning_effort")
+        else:
+            receipt["requested_reasoning_effort"] = {
+                "requested_high": "high", "requested_unknown": "unknown", "requested_bool": True}[fault]
+    elif fault.startswith("argv_"):
+        argv = receipt["calls"][0]["argv"]
+        index = argv.index("--reasoning-effort")
+        if fault == "argv_high":
+            argv[index + 1] = "high"
+        else:
+            del argv[index:index + 2]
+    else:
+        path = native_path(reference_workspace, "summary.json")
+        summary = json.loads(path.read_text())
+        summary["reasoning_effort"] = "high" if fault == "native_high" else "unknown"
+        path.write_text(json.dumps(summary))
+    (directory / "receipt.json").write_text(json.dumps(receipt))
+    log = root / "reviews/private/cli-calls.jsonl"
+    before = log.read_bytes()
+    run, failed, output = implementation_run(reference_workspace)
+    assert run.returncode != 0
+    assert failed["status"] == "failed" and not failed["calls"]
+    assert log.read_bytes() == before
+    assert not (output / "review.json").exists()
+
+
 @pytest.mark.parametrize('fault', ['blocked', 'chunks', 'inherited', 'invalid_inheritance', 'returncode', 'bool_returncode', 'cli_hash',
     'missing_cli_version', 'weak_flags', 'context_budget', 'bool_context_budget', 'string_context_budget',
     'manifest_offset', 'manifest_omission', 'payload', 'prompt', 'stdout',
@@ -728,21 +1088,35 @@ def test_reference_is_independently_rejected_before_any_cli_call(reference_works
     assert log.read_bytes() == before  # Neither --version nor model invocation.
 
 
-def test_legacy_all_reference_without_effort_flag_still_needs_native_high(reference_workspace):
-    _, receipt, directory = reference_workspace
+@pytest.mark.parametrize("native_effort", ["high", "xhigh"])
+def test_legacy_all_reference_without_effort_flag_still_needs_native_high(reference_workspace, native_effort):
+    (root, _), receipt, directory = reference_workspace
     receipt.pop('scope')
     receipt.pop('workspace_files')
     receipt.pop('reference_only_files')
     receipt.pop('requested_context_window_tokens')
+    receipt.pop('requested_reasoning_effort')
     argv = receipt['calls'][0]['argv']
     index = argv.index('--reasoning-effort')
     del argv[index:index + 2]
     for key in ('summary_sha256', 'native_model_id', 'reasoning_effort', 'native_final_response_sha256'):
         receipt['context_audit'].pop(key)
     (directory / 'receipt.json').write_text(json.dumps(receipt))
+    path = native_path(reference_workspace, "summary.json")
+    summary = json.loads(path.read_text())
+    summary["reasoning_effort"] = native_effort
+    path.write_text(json.dumps(summary))
+    log = root / "reviews/private/cli-calls.jsonl"
+    before = log.read_bytes()
     run, result, _ = implementation_run(reference_workspace)
-    assert run.returncode == 0, run.stderr
-    assert result['reference']['reasoning_effort'] == 'high'
+    if native_effort == "high":
+        assert run.returncode == 0, run.stderr
+        assert result['reference']['reasoning_effort'] == 'high'
+    else:
+        assert run.returncode != 0
+        assert "with high reasoning effort" in result["error"]
+        assert result["status"] == "failed" and not result["calls"]
+        assert log.read_bytes() == before
 
 
 def test_historical_cli_identity_survives_alias_upgrade_but_new_call_is_pinned(reference_workspace):
@@ -1287,6 +1661,16 @@ def test_codex_reference_budget_and_strict_flags_are_bound_together(codex_worksp
     path = directory / "receipt.json"
     original = path.read_bytes()
     assert review.validate_reference(path, workspace)["native_model_id"] == "gpt-6.1-sol"
+    for effort in ("xhigh", "unknown", True):
+        changed = json.loads(original)
+        changed["requested_reasoning_effort"] = effort
+        path.write_text(json.dumps(changed))
+        with pytest.raises(ValueError, match="Reference reasoning effort is invalid"):
+            review.validate_reference(path, workspace)
+    legacy = json.loads(original)
+    legacy.pop("requested_reasoning_effort")
+    path.write_text(json.dumps(legacy))
+    assert review.validate_reference(path, workspace)["reasoning_effort"] == "high"
     for mutation in ("unknown_budget", "other_known_budget", "bool_budget", "string_budget", "missing_budget",
                      "context_only", "compact_only", "duplicate_context", "strict_flag", "enabled_feature"):
         changed = json.loads(original)

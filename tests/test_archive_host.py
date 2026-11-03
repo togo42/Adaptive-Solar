@@ -310,6 +310,161 @@ def test_continuous_quality_is_opt_in_and_cannot_mix_with_static_mask(config):
         host.commands("observations", config, Path("archive"))
 
 
+@pytest.fixture
+def native_config(config):
+    config.update(reference_config="data/references.json", quality_bindings="data/bindings.json",
+                  quality_backend_manifest="data/native-quality.json", quality_backend_manifest_sha256="a" * 64)
+    return config
+
+
+def native_quality_status():
+    return {"schema": "adaptive-solar-native-quality-runtime-status-v1", "requested_backend": "rust",
+            "effective_backend": "rust", "protocol_version": 2, "closed": True,
+            "sources_projected": 1, "source_fallbacks": 0, "fallback_reasons": {},
+            "original_files": 3, "original_events": 20, "selected_events": 10, "configuration_proofs": 1,
+            "binary_sha256": "b" * 64, "manifest_sha256": "a" * 64, "source_manifest_sha256": "c" * 64}
+
+
+@pytest.mark.parametrize("job", host.JOBS)
+def test_native_activation_is_forwarded_only_to_actual_stream_jobs(native_config, tmp_path, job):
+    commands = host.commands(job, native_config, Path("archive"))
+    native_jobs = job in {"actuals", "observations"}
+    assert any("--quality-backend-manifest" in command for command in commands) is native_jobs
+    assert any("--quality-backend-manifest-sha256" in command for command in commands) is native_jobs
+    if native_jobs:
+        command, = commands
+        assert command[command.index("--quality-backend-manifest") + 1] == str(tmp_path / "data/native-quality.json")
+        assert command[command.index("--quality-backend-manifest-sha256") + 1] == "a" * 64
+        assert "--quality-bindings" in command and "--actual-config" in command
+
+
+@pytest.mark.parametrize("job", ["actuals", "observations"])
+@pytest.mark.parametrize("missing", ["quality_backend_manifest", "quality_backend_manifest_sha256", "quality_bindings", "actual_config"])
+def test_partial_native_activation_blocks_actual_jobs_without_affecting_references(native_config, job, missing):
+    native_config.pop(missing)
+    with pytest.raises(ValueError):
+        host.commands(job, native_config, Path("archive"))
+    command, = host.commands("references", native_config, Path("archive"))
+    assert "--quality-backend-manifest" not in command and "--quality-bindings" not in command
+
+
+@pytest.mark.parametrize("pin", [None, True, "A" * 64, "a" * 63, "not-a-hash"])
+def test_invalid_native_manifest_pin_is_rejected_before_command_start(native_config, pin):
+    native_config["quality_backend_manifest_sha256"] = pin
+    with pytest.raises(ValueError, match="manifest/SHA256"):
+        host.commands("actuals", native_config, Path("archive"))
+
+
+@pytest.mark.parametrize("effective", ["rust", "python", "not_used"])
+def test_parent_persists_only_bound_backend_status_and_drops_private_child_output(native_config, monkeypatch, tmp_path, effective):
+    monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
+    mock_process(monkeypatch, iter([]))
+    stats_process = host.subprocess.run
+    value = native_quality_status()
+    value["effective_backend"] = effective
+    if effective != "rust":
+        for field in ("sources_projected", "original_files", "original_events", "selected_events", "configuration_proofs"):
+            value[field] = 0
+        if effective == "python":
+            value.update(source_fallbacks=1, fallback_reasons={"unsupported_source": 1})
+
+    def process(command, **kwargs):
+        if command[-1] == "stats":
+            return stats_process(command, **kwargs)
+        body = {"complete": True, "quality_backend": value, "raw": "private-token-and-input-identifiers"}
+        return subprocess.CompletedProcess(command, 0, json.dumps(body), "private-token-and-error")
+
+    monkeypatch.setattr(host.subprocess, "run", process)
+    report = host.run("actuals", native_config)
+    assert report["complete"] and report["quality_backend"] == value
+    assert json.loads((tmp_path / "data/host-status/actuals.json").read_text()) == report
+    runtime = json.loads((tmp_path / "data/host-status/actuals-runtime.json").read_text())
+    assert "private-token" not in json.dumps([report, runtime])
+    assert "raw" not in report
+
+
+@pytest.mark.parametrize("fault", ["missing", "none", "string", "extra_private", "open", "manifest", "hash", "backend",
+                                   "bool_protocol", "bool_counter", "negative_counter", "huge_counter", "float_counter",
+                                   "private_reason", "bool_reason", "reason_sum", "reason_list"])
+def test_parent_never_acknowledges_invalid_or_missing_backend_status(native_config, monkeypatch, tmp_path, fault):
+    monkeypatch.setattr(host.shutil, "disk_usage", lambda _: SimpleNamespace(free=10000, total=10000))
+    mock_process(monkeypatch, iter([]))
+    stats_process = host.subprocess.run
+    value = native_quality_status()
+    if fault == "none":
+        value = None
+    elif fault == "string":
+        value = "private-token-from-child"
+    elif fault == "extra_private":
+        value["credential"] = "private-token-from-child"
+    elif fault == "open":
+        value["closed"] = False
+    elif fault == "manifest":
+        value["manifest_sha256"] = "f" * 64
+    elif fault == "hash":
+        value["binary_sha256"] = "private-token-from-child"
+    elif fault == "backend":
+        value["effective_backend"] = "private-token-from-child"
+    elif fault == "bool_protocol":
+        value["protocol_version"] = True
+    elif fault.endswith("counter"):
+        value["selected_events"] = {"bool_counter": True, "negative_counter": -1,
+                                    "huge_counter": 2**63, "float_counter": 1.0}[fault]
+    elif fault == "private_reason":
+        value.update(source_fallbacks=1, fallback_reasons={"private-token-from-child": 1})
+    elif fault == "bool_reason":
+        value.update(source_fallbacks=1, fallback_reasons={"unsupported_source": True})
+    elif fault == "reason_sum":
+        value["fallback_reasons"] = {"unsupported_source": 1}
+    elif fault == "reason_list":
+        value["fallback_reasons"] = ["private-token-from-child"]
+
+    calls = []
+
+    def process(command, **kwargs):
+        calls.append(command)
+        if command[-1] == "stats":
+            return stats_process(command, **kwargs)
+        body = {"complete": True, "private": "private-token-from-child"}
+        if fault != "missing":
+            body["quality_backend"] = value
+        return subprocess.CompletedProcess(command, 0, json.dumps(body), "private-token-from-stderr")
+
+    monkeypatch.setattr(host.subprocess, "run", process)
+    report = host.run("actuals", native_config)
+    assert not report["complete"] and "quality_backend" not in report
+    assert report["commands"][0]["status"] == "invalid_quality_backend_status"
+    assert len(calls) == 2 and calls[-1][-1] == "stats"
+    runtime = json.loads((tmp_path / "data/host-status/actuals-runtime.json").read_text())
+    assert "private-token" not in json.dumps([report, runtime])
+
+
+def test_backend_status_copy_does_not_alias_child_fallback_counts():
+    value = native_quality_status()
+    value.update(effective_backend="python", source_fallbacks=1, fallback_reasons={"custom_reader": 1})
+    accepted = host.quality_backend_status(value, "a" * 64)
+    value["fallback_reasons"]["custom_reader"] = 123
+    assert accepted["fallback_reasons"] == {"custom_reader": 1}
+
+
+def test_activation_manifest_is_protected_from_host_status_output(native_config, tmp_path):
+    target = tmp_path / "data/host-status/actuals.json"
+    target.parent.mkdir()
+    target.write_text("immutable activation manifest bytes")
+    native_config["quality_backend_manifest"] = "data/host-status/actuals.json"
+    with pytest.raises(ValueError):
+        host.run("actuals", native_config)
+    assert target.read_text() == "immutable activation manifest bytes"
+    assert not (tmp_path / "data/archive").exists()
+
+
+def test_activation_manifest_must_remain_private_before_host_creates_archive(native_config, tmp_path):
+    native_config["quality_backend_manifest"] = str(tmp_path / "outside-data.json")
+    with pytest.raises(ValueError, match="private data"):
+        host.run("actuals", native_config)
+    assert not (tmp_path / "data/archive").exists()
+
+
 @pytest.mark.parametrize("job", ["actuals", "references", "observations"])
 def test_observation_jobs_select_only_their_stream_and_preserve_window(config, job):
     config.update(reference_config="data/references.json", quality_bindings="data/quality-policy.json")

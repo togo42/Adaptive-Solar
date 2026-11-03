@@ -308,3 +308,154 @@ def test_local_collection_completion_reaches_observation_cli_and_host_exit(tmp_p
         capture_mock.assert_not_awaited()
     elif phase == "final":
         assert stream["status"] == "collection_incomplete"
+
+
+@pytest.fixture
+def backend_cli_case(tmp_path, monkeypatch):
+    import json
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(subject, "ROOT", tmp_path)
+    data = tmp_path / "data"
+    data.mkdir()
+    actual, bindings, manifest = (data / name for name in ("actuals.json", "bindings.json", "backend.json"))
+    actual.write_text(json.dumps({"mappings": [{"inverter_id": "roof", "statistic_ids": ["sensor.energy"]}]}))
+    bindings.write_text(json.dumps({"schema": "adaptive-solar-actual-quality-bindings-v2", "bindings": []}))
+    manifest.write_text("{}")
+    return SimpleNamespace(base=["--archive", str(data / "archive"), "--source", "measurements"],
+        actual=["--actual-config", str(actual)], bindings=["--quality-bindings", str(bindings)],
+        native=["--quality-backend-manifest", str(manifest), "--quality-backend-manifest-sha256", "a" * 64],
+        manifest=manifest)
+
+
+def test_observation_cli_default_does_not_import_native_backend(backend_cli_case, monkeypatch, capsys):
+    import builtins
+    import json
+
+    original_import = builtins.__import__
+
+    def guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "scripts.native_quality_backend" or name == "scripts" and "native_quality_backend" in (fromlist or ()):
+            pytest.fail("Default observation CLI must not import the native backend")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+    store = object()
+    monkeypatch.setattr(subject, "ArchiveStore", lambda path: store)
+    worker = AsyncMock(return_value={"complete": True})
+    monkeypatch.setattr(subject, "archive_observations", worker)
+    assert subject.main(backend_cli_case.base + backend_cli_case.actual) == 0
+    assert worker.call_args.args == (store,)
+    assert worker.call_args.kwargs["quality_backend"] is None
+    assert "quality_backend" not in json.loads(capsys.readouterr().out)
+
+
+@pytest.mark.parametrize("missing", ["manifest", "pin", "actual", "bindings"])
+def test_native_cli_requires_complete_activation_before_archive_creation(backend_cli_case, monkeypatch, missing):
+    arguments = backend_cli_case.base + backend_cli_case.actual + backend_cli_case.bindings + backend_cli_case.native
+    flag = {"manifest": "--quality-backend-manifest", "pin": "--quality-backend-manifest-sha256",
+            "actual": "--actual-config", "bindings": "--quality-bindings"}[missing]
+    index = arguments.index(flag)
+    del arguments[index:index + 2]
+    monkeypatch.setattr(subject, "ArchiveStore", lambda *args: pytest.fail("Invalid activation must not create an archive"))
+    with pytest.raises(SystemExit) as failure:
+        subject.main(arguments)
+    assert failure.value.code == 2
+
+
+def test_invalid_requested_backend_fails_before_archive_creation_and_hides_details(backend_cli_case, monkeypatch, capsys):
+    from scripts import native_quality_backend
+
+    calls = []
+
+    def invalid_manifest(path, pin):
+        calls.append((path, pin))
+        raise ValueError("private-token-and-installation-path")
+
+    monkeypatch.setattr(native_quality_backend, "load_backend", invalid_manifest)
+    monkeypatch.setattr(subject, "ArchiveStore", lambda *args: pytest.fail("Invalid backend must fail before database initialization"))
+    assert subject.main(backend_cli_case.base + backend_cli_case.actual + backend_cli_case.bindings + backend_cli_case.native) == 2
+    assert calls == [(backend_cli_case.manifest, "a" * 64)]
+    assert "private-token" not in capsys.readouterr().err
+
+
+def test_native_cli_loads_before_archive_creation_and_forwards_exact_backend(backend_cli_case, monkeypatch, capsys):
+    import json
+    from types import SimpleNamespace
+    from scripts import native_quality_backend
+
+    order, backend, store = [], SimpleNamespace(stats={"closed": True}), object()
+
+    def load_backend(path, pin):
+        assert path == backend_cli_case.manifest and pin == "a" * 64
+        order.append("load")
+        return backend
+
+    def open_store(path):
+        order.append("archive")
+        return store
+
+    async def observe(actual_store, **options):
+        order.append("capture")
+        assert actual_store is store and options["quality_backend"] is backend
+        assert options["quality_bindings"]["schema"] == "adaptive-solar-actual-quality-bindings-v2"
+        return {"complete": True, "quality_backend": backend.stats}
+
+    monkeypatch.setattr(native_quality_backend, "load_backend", load_backend)
+    monkeypatch.setattr(subject, "ArchiveStore", open_store)
+    monkeypatch.setattr(subject, "archive_observations", observe)
+    assert subject.main(backend_cli_case.base + backend_cli_case.actual + backend_cli_case.bindings + backend_cli_case.native) == 0
+    assert order == ["load", "archive", "capture"]
+    assert json.loads(capsys.readouterr().out)["quality_backend"] == backend.stats
+
+
+@pytest.mark.parametrize("actual,bindings", [(False, True), (True, False)])
+async def test_backend_object_requires_actual_mapping_and_continuous_policy_before_journal(tmp_path, monkeypatch, actual, bindings):
+    monkeypatch.setattr(subject, "ArchiveJournal", lambda *args: pytest.fail("Invalid activation must not create a journal"))
+    store = ArchiveStore(tmp_path / "store")
+    with pytest.raises(ArchiveError, match="requires"):
+        await subject.archive_observations(store, source="test", ha_url="", token="",
+            actual_mappings=[{}] if actual else None, reference_mappings=[{}],
+            quality_bindings={"bindings": []} if bindings else None, quality_backend=object())
+
+
+async def test_backend_status_stays_outside_capture_and_raw_and_quality_bytes_match_default(tmp_path, monkeypatch):
+    from contextlib import contextmanager
+    from copy import deepcopy
+    from freezegun import freeze_time
+    from custom_components.adaptive_solar.core.archive import canonical_bytes
+    from tests.test_capture_actuals import capture as recorder_capture
+    from tests.test_continuous_quality import continuous_case, store_case
+
+    case = continuous_case()
+    store = store_case(tmp_path, case)
+    raw = recorder_capture(start=case[3], end=case[4], received=case[-1])
+    before = deepcopy(raw)
+    monkeypatch.setattr(capture_actuals, "capture_actuals", AsyncMock(return_value=raw))
+
+    class Backend:
+        calls = 0
+        stats = None
+
+        @contextmanager
+        def bind(self, actual_store, actual_raw, bindings):
+            assert actual_store is store and actual_raw is raw and bindings == case[1]
+            self.calls += 1
+            try:
+                yield None  # Explicit fallback keeps the reference consumer.
+            finally:
+                self.stats = {"closed": True, "effective_backend": "python"}
+
+    backend = Backend()
+    options = dict(source="test", ha_url="", token="", actual_mappings=case[2], quality_bindings=case[1],
+                   now=case[-1], lookback_hours=2)
+    with freeze_time(case[-1] + timedelta(hours=2), real_asyncio=True):
+        reference_report = await subject.archive_observations(store, **options)
+        reference = list(subject.captures_from_archive(store, source="test:actuals", kind="actuals"))[-1]
+        native_report = await subject.archive_observations(store, **options, quality_backend=backend)
+        saved = list(subject.captures_from_archive(store, source="test:actuals", kind="actuals"))[-1]
+    assert reference_report["complete"] and native_report["complete"]
+    assert backend.calls == 1 and native_report["quality_backend"] == backend.stats
+    assert "quality_backend" not in reference_report and "quality_backend" not in saved
+    assert canonical_bytes(saved) == canonical_bytes(reference)
+    assert raw == before and saved["raw"] == raw["raw"]

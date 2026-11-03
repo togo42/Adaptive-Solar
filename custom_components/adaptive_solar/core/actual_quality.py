@@ -56,8 +56,9 @@ def _reference(event):
 def configuration_from_forecast(event, dependencies=(), *, retain_site=False):
     """Verify complete originals before discarding irrelevant forecast arrays.
 
-    Only this Python factory issues the internal evidence type. JSON documents
-    cannot opt into verification; original envelope hashes stay on references.
+    The Python factory and the separately qualified, scoped native backend may
+    issue this internal evidence type. JSON documents cannot opt into
+    verification; original envelope hashes stay on references.
     """
     originals = _events([event, *dependencies])
     forecast = next(e for e in originals if (e["source"], e["event_id"]) == (event["source"], event["event_id"]))

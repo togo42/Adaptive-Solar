@@ -14,6 +14,7 @@ import sqlite3
 import sys
 import uuid
 
+sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -130,7 +131,8 @@ def captures_from_archive(store, *, source, kind, dataset=None):
 
 async def archive_observations(store, *, source, ha_url, token, actual_mappings=None,
                                reference_mappings=None, quality=None, quality_bindings=None, cutoff=None, now=None,
-                               lookback_hours=72, lag_minutes=10, timeout=30, quality_diagnostics="full"):
+                               lookback_hours=72, lag_minutes=10, timeout=30, quality_diagnostics="full",
+                               quality_backend=None):
     """Independent streams preserve useful reads when another source fails."""
     if not actual_mappings and not reference_mappings:
         raise ArchiveError("At least one explicit observation mapping is required")
@@ -142,6 +144,8 @@ async def archive_observations(store, *, source, ha_url, token, actual_mappings=
         raise ArchiveError("Continuous quality requires actual mappings")
     if quality is not None and quality_bindings is not None:
         raise ArchiveError("Static quality and continuous bindings are mutually exclusive")
+    if quality_backend is not None and (quality_bindings is None or not actual_mappings):
+        raise ArchiveError("Native quality selection requires actual mappings and continuous bindings")
     report = {"streams": {}, "complete": True}
     for kind, mappings in (("actuals", actual_mappings), ("references", reference_mappings)):
         if not mappings:
@@ -175,7 +179,8 @@ async def archive_observations(store, *, source, ha_url, token, actual_mappings=
                 raw = await capture_actuals.capture_actuals(ha_url, token, mappings, start, end, timeout=timeout)
                 try:
                     if quality_bindings is not None:
-                        capture = await asyncio.to_thread(continuous_quality.derive, store, raw, quality_bindings)
+                        options = {} if quality_backend is None else {"backend": quality_backend}
+                        capture = await asyncio.to_thread(continuous_quality.derive, store, raw, quality_bindings, **options)
                         if quality_diagnostics == "compact":
                             capture = await asyncio.to_thread(quality_capture.compact_capture, capture)
                         if len(canonical_bytes(capture)) > MAX_CAPTURE_BYTES:
@@ -186,6 +191,10 @@ async def archive_observations(store, *, source, ha_url, token, actual_mappings=
                     # Keep the original Recorder revision even when a supplied mask is invalid.
                     capture = {**raw, "quality": quality, "normalization_error": "invalid_quality_or_raw"}
                     quality_error = True
+                finally:
+                    if quality_backend is not None:
+                        # Runtime evidence belongs outside immutable capture data.
+                        report["quality_backend"] = quality_backend.stats
             else:
                 capture = await capture_ha.capture_forecasts(ha_url, token, mappings, timeout=timeout, cutoff=cutoff)
             if token and token in json.dumps(capture, ensure_ascii=False, allow_nan=False):
@@ -234,23 +243,34 @@ def main(argv=None):
     parser.add_argument("--lookback-hours", type=int, default=72)
     parser.add_argument("--quality-diagnostics", choices=("full", "compact"), default="full",
                         help="Stored continuous-quality diagnostics; compact omits detailed evidence lists")
+    parser.add_argument("--quality-backend-manifest", type=Path,
+                        help="Explicit private activation manifest for optional native quality selection")
+    parser.add_argument("--quality-backend-manifest-sha256", help="External SHA256 pin of the activation manifest")
     parser.add_argument("--lag-minutes", type=int, default=10)
     parser.add_argument("--timeout", type=float, default=30)
     args = parser.parse_args(argv)
+    if (args.quality_backend_manifest is None) != (args.quality_backend_manifest_sha256 is None):
+        parser.error("Native quality selection requires both manifest and SHA256")
+    if args.quality_backend_manifest is not None and (args.quality_bindings is None or args.actual_config is None):
+        parser.error("Native quality selection requires actual mapping and continuous bindings")
     try:
         def read(path):
             return json.loads(_private_path(path).read_text()) if path else None
         actual = capture_actuals.parse_mapping(read(args.actual_config)) if args.actual_config else None
         reference = capture_ha.parse_mapping(read(args.reference_config)) if args.reference_config else None
         cutoff = capture_ha._utc(datetime.fromisoformat(args.cutoff)) if args.cutoff else None
+        backend = None
+        if args.quality_backend_manifest is not None:
+            from scripts.native_quality_backend import load_backend
+            backend = load_backend(_private_path(args.quality_backend_manifest), args.quality_backend_manifest_sha256)
         report = asyncio.run(archive_observations(ArchiveStore(_private_path(args.archive)), source=args.source,
             ha_url=os.environ.get("HA_URL", ""), token=os.environ.get("HA_TOKEN", ""),
             actual_mappings=actual, reference_mappings=reference, quality=read(args.quality), quality_bindings=read(args.quality_bindings), cutoff=cutoff,
             lookback_hours=args.lookback_hours, lag_minutes=args.lag_minutes, timeout=args.timeout,
-            quality_diagnostics=args.quality_diagnostics))
+            quality_diagnostics=args.quality_diagnostics, quality_backend=backend))
         print(json.dumps(report, sort_keys=True))
         return 0 if report["complete"] else 1
-    except (ArchiveError, capture_actuals.CaptureError, capture_ha.CaptureError, OSError, ValueError, sqlite3.Error):
+    except (ArchiveError, capture_actuals.CaptureError, capture_ha.CaptureError, OSError, ValueError, ImportError, sqlite3.Error):
         print("Observation archive failed; check private mappings and archive status.", file=sys.stderr)
         return 2
 

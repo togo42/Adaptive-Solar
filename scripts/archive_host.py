@@ -8,12 +8,14 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 from datetime import UTC, datetime
 
+sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -24,7 +26,7 @@ from scripts.runtime_metrics import PhaseRecorder  # noqa: E402
 
 GIB = 1024 ** 3
 JOBS = ("ha", "weather", "actuals", "references", "observations", "retention", "status")
-INPUT_PATHS = ("site_json", "actual_config", "reference_config", "quality", "quality_bindings")
+INPUT_PATHS = ("site_json", "actual_config", "reference_config", "quality", "quality_bindings", "quality_backend_manifest")
 CHILD_TIMEOUT_SECONDS = 1200
 STATS_TIMEOUT_SECONDS = 300
 
@@ -117,6 +119,13 @@ def commands(job, config, archive):
                 command.extend([option, str(private_path(config[key]))])
         if actuals and "quality_diagnostics" in config:
             command.extend(["--quality-diagnostics", config["quality_diagnostics"]])
+        if actuals and ("quality_backend_manifest" in config or "quality_backend_manifest_sha256" in config):
+            manifest, pin = config.get("quality_backend_manifest"), config.get("quality_backend_manifest_sha256")
+            if (not isinstance(manifest, str) or not manifest or not isinstance(pin, str)
+                    or re.fullmatch(r"[0-9a-f]{64}", pin) is None or not config.get("quality_bindings")):
+                raise ValueError("Native quality selection requires continuous bindings and manifest/SHA256")
+            command.extend(["--quality-backend-manifest", str(private_path(manifest)),
+                            "--quality-backend-manifest-sha256", pin])
         if not config.get("actual_config") and not config.get("reference_config"):
             raise ValueError("Observation mapping required")
         return [command]
@@ -145,6 +154,30 @@ def write_status(path, value):
 
 def _process_status(returncode, exit_kind, timeout_seconds):
     return {"returncode": returncode, "exit_kind": exit_kind, "timeout_seconds": timeout_seconds}
+
+
+def quality_backend_status(value, expected_manifest_sha256):
+    """Allow only fixed runtime labels/counters; child output stays private."""
+    counters = ("sources_projected", "source_fallbacks", "original_files", "original_events",
+                "selected_events", "configuration_proofs")
+    hashes = ("binary_sha256", "manifest_sha256", "source_manifest_sha256")
+    fields = {"schema", "requested_backend", "effective_backend", "protocol_version", "closed", "fallback_reasons",
+              *counters, *hashes}
+    if (not isinstance(value, dict) or set(value) != fields
+            or value["schema"] != "adaptive-solar-native-quality-runtime-status-v1"
+            or value["requested_backend"] != "rust" or value["effective_backend"] not in {"rust", "python", "not_used"}
+            or type(value["protocol_version"]) is not int or value["protocol_version"] != 2 or value["closed"] is not True
+            or value["manifest_sha256"] != expected_manifest_sha256
+            or any(not isinstance(value[key], str) or re.fullmatch(r"[0-9a-f]{64}", value[key]) is None for key in hashes)
+            or any(type(value[key]) is not int or not 0 <= value[key] < 2**63 for key in counters)):
+        raise ValueError("Invalid native quality runtime status")
+    reasons = value["fallback_reasons"]
+    allowed = {"custom_reader", "unsupported_query", "runtime_or_headroom", "unsupported_source"}
+    if (not isinstance(reasons, dict) or not set(reasons) <= allowed
+            or any(type(count) is not int or not 0 <= count < 2**63 for count in reasons.values())
+            or sum(reasons.values()) != value["source_fallbacks"]):
+        raise ValueError("Invalid native quality fallback status")
+    return {key: dict(item) if key == "fallback_reasons" else item for key, item in value.items()}
 
 
 def _publish_runtime(recorder, state, job, report, *, raised=False):
@@ -192,6 +225,7 @@ def run(job, config, *, config_path=None):
             try:
                 with recorder.phase("job_prepare"):
                     env = child_env() if job in {"ha", "actuals", "references", "observations"} else os.environ.copy()
+                    env["PYTHONDONTWRITEBYTECODE"] = "1"
                     planned = commands(job, config, archive)
                 for ordinal, command in enumerate(planned):
                     with recorder.phase("capacity", ordinal=ordinal):
@@ -214,6 +248,13 @@ def run(job, config, *, config_path=None):
                         continue
                     # Raw child output stays out of both status and telemetry.
                     status = _process_status(result.returncode, "exited", CHILD_TIMEOUT_SECONDS)
+                    if job in {"actuals", "observations"} and config.get("quality_backend_manifest"):
+                        try:
+                            report["quality_backend"] = quality_backend_status(
+                                json.loads(result.stdout)["quality_backend"], config["quality_backend_manifest_sha256"])
+                        except (ValueError, TypeError, KeyError):
+                            status["status"] = "invalid_quality_backend_status"
+                            report["complete"] = False
                     if job == "ha":
                         try:
                             status["collector"] = collection_summary(json.loads(result.stdout))
@@ -229,7 +270,7 @@ def run(job, config, *, config_path=None):
                 try:
                     stats = recorder.process("stats", subprocess.run,
                         [sys.executable, str(ROOT / "scripts/archive.py"), "--root", str(archive), "stats"],
-                        capture_output=True, text=True, timeout=STATS_TIMEOUT_SECONDS)
+                        env=env, capture_output=True, text=True, timeout=STATS_TIMEOUT_SECONDS)
                 except subprocess.TimeoutExpired:
                     report["stats_process"] = _process_status(None, "timeout", STATS_TIMEOUT_SECONDS)
                     raise

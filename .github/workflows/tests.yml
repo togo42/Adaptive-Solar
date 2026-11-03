@@ -29,11 +29,14 @@ jobs:
           .archive-venv/bin/python scripts/analyze_learning_support.py --help
           .archive-venv/bin/python scripts/qualify_actuals.py --help
           .archive-venv/bin/python scripts/continuous_quality.py --help
+          .archive-venv/bin/python scripts/native_quality_manifest.py --help
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.14'
@@ -53,6 +56,21 @@ jobs:
           PY
       - run: python -m pip check
       - run: ruff check custom_components tests scripts
+      - name: Build optional native quality backend
+        run: |
+          rustup toolchain install 1.90.0 --profile minimal
+          PYO3_PYTHON="$(command -v python)" CARGO_TARGET_DIR="$GITHUB_WORKSPACE/artifacts/rust-ci" \
+            cargo +1.90.0 build --locked --release --manifest-path rust/archive_probe/Cargo.toml
+          echo "ADAPTIVE_SOLAR_TEST_NATIVE_QUALITY_BINARY=$GITHUB_WORKSPACE/artifacts/rust-ci/release/lib_archive_probe.so" >> "$GITHUB_ENV"
+      - name: Explicit native differential gates
+        run: |
+          mkdir -p artifacts/native-contract-source
+          git archive 2dd940c3aa1a00d7291228f24ebaac90b56eef14 custom_components scripts \
+            | tar -x -C artifacts/native-contract-source
+          export ADAPTIVE_SOLAR_RUST_MODULE="$ADAPTIVE_SOLAR_TEST_NATIVE_QUALITY_BINARY"
+          export ADAPTIVE_SOLAR_RUST_MODULE_SHA256="$(sha256sum "$ADAPTIVE_SOLAR_RUST_MODULE" | cut -d' ' -f1)"
+          export ADAPTIVE_SOLAR_QUALITY_SOURCE_ROOT="$GITHUB_WORKSPACE/artifacts/native-contract-source"
+          python -m pytest -q rust/archive_probe/tests/test_differential.py rust/archive_probe/tests/test_projection.py
       - name: Native HA tests and line/branch coverage
         run: >-
           python -m pytest -q --junitxml=artifacts/tests.xml

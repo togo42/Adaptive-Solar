@@ -119,6 +119,9 @@ verwendet eine [eigene Laufzeit ohne HA Core](docs/archiv/archiv-runtime-ohne-ha
 HACS aktualisiert weder externe Hostdienste noch Dashboardressourcen.
 Die [Laufzeittelemetrie](docs/entwicklung/archiv-laufzeittelemetrie.md) trennt
 Lockwartezeit, Kindaufrufe, Statistik und Timeout-/Betriebssystemfehler.
+Für den Archivhost gibt es ein ausdrücklich zu aktivierendes
+[natives Qualitätsbackend](docs/archiv/native-qualitaetsbackend.md) mit
+Manifestpins und Python-Rückfall. Die HA-Integration benötigt kein Rust.
 
 Originaldateien und ein wiederaufbaubarer SQLite-Index sind die Speicherbasis.
 24 Monate Retention sind eine Einstellung; der tatsächliche Platzbedarf muss

@@ -3,6 +3,9 @@
 Stand: 03.11.2026. Dieser optionale Entwicklungsversuch erweitert den
 [Rust-Originalreader](performance-rust-probe.md). Er ist kein produktiv
 aktivierter Archivreader und keine Abhängigkeit der HA-Integration.
+Die gesonderte [Produktionsanbindung](../archiv/native-qualitaetsbackend.md)
+verwendet eine explizite Backend-API und ein gebundenes Aktivierungsmanifest.
+Der historische Frozen-/AST-Versuch bleibt davon getrennt.
 
 Der qualifizierte Protokoll-2-Stand besteht die Differentialtests sowie die
 vorab festgelegten Laufzeit-, CPU- und Speicherkriterien im lokalen und im

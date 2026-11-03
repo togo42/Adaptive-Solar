@@ -230,6 +230,12 @@ schreibt keinen Status. Insbesondere sind `data/archive/originals/status` und
 eine Hostkonfiguration unter `data/host-status/status.json` unzulässig.
 Der Standard `data/host-status` bleibt erhalten.
 
+Das optionale [native Qualitätsbackend](native-qualitaetsbackend.md) wird nur
+über die zusammengehörigen privaten Felder `quality_backend_manifest` und
+`quality_backend_manifest_sha256` aktiviert. Standard bleibt Python. Die
+Aktivierung benötigt eigene Source-/Binär-/Runtimepins und eine kontrollierte
+Hostabnahme; sie verändert weder Timer noch Qualitätsgates oder HA-Einstellungen.
+
 Der Repository-Runner ergänzt einen per `run_id` korrelierten, begrenzten
 `JOB-runtime.json`-Nachweis. Er trennt Timeout und Betriebssystemfehler beim
 Kindstart, misst Lockwartezeit, Kapazitätsprüfung, Kindaufruf, Statistik,

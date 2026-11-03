@@ -61,6 +61,18 @@ Receipts mit Endungs-Allowlist ohne diese Dateien bleiben historische
 Textpruefungen; sie belegen keine vollstaendige Pruefung der ausgelieferten
 systemd-Konfiguration. Kontext-, Modell- und Abschlussgates bleiben gleich.
 
+Seit der Korrektur vom 03.11.2026 enthält der öffentliche Textscope auch
+Rust-Quellen (`.rs`) und ausdrücklich `Cargo.lock`; `Cargo.toml` ist bereits
+über `.toml` enthalten. Diese Dateien werden ebenfalls mit ihren Originalbytes,
+SHA256, Längen und Byteoffsets eingebettet und bis zum Abschluss auf Änderungen
+geprüft. Die Aufnahme von `Cargo.lock` erweitert die Auswahl nicht auf beliebige
+`.lock`-Dateien. Git-ignorierte Dateien sowie die ausgeschlossenen Verzeichnisse
+`data/`, `artifacts/` und `reviews/` bleiben außerhalb des Scopes, auch wenn sie
+Rust-Quellen oder Cargo-Lockfiles enthalten. Ältere Receipts ohne diese
+Rust-Dateien belegen keine vollständige Prüfung des Rust-Kerns und seiner
+gebundenen Abhängigkeiten; ihre historischen Nachweise bleiben auf den
+damals tatsächlich enthaltenen Umfang begrenzt.
+
 Normale Paketinstallation/Testbefehle: [README](../../README.md#entwicklung). PEP660-Editable kann HAs Namespace-Loader abbrechen; `pythonpath=["."]` nutzt Repositoryquellen, Paketbytes separat prüfen. Der vollständige öffentliche Quellumfang von 0.2.12 überschreitet die Single-Grenze von 1.250.000 Bytes. Für die lokale Exportvorprüfung daher den vorhandenen Chunktransport ausdrücklich auswählen (Grok 4.7 als Standard oder alternativ Codex mit GPT-6.1-Sol):
 
 ```bash
@@ -77,15 +89,30 @@ Vorbereitung selbst beweist weder Kontextkapazität noch einen gültigen Review.
 
 Ohne Prepare startet der angeforderte Review nach internem Pre-Review; z.B. `--timeout 3600` (Standard1800 s, Obergrenze3600 s). Deadline ist kein Review; denselben laufenden Prozess bis Ende beobachten. Unterstützt sind zwei alternative Reviewer in [review.py](../../scripts/review.py) mit identischem Payload-, Hash- und Kontextaudit-Vertrag:
 
-- **Grok 4.7 (`--reviewer grok`, Standard):** festes Modell `grok-4.7` mit explizitem `--reasoning-effort high`; Lesemodus (`--permission-mode plan`), Tools/Web/Memory/Subagenten aus (`--tools ""`, `--disable-web-search`, `--no-subagents`, `--no-memory`), ein echter Abschlussturn mit `--max-turns 1 --verbatim`.
+- **Grok 4.7 (`--reviewer grok`, Standard):** festes Modell `grok-4.7` mit explizitem `--reasoning-effort high` (Standard) oder angefordertem `--reasoning-effort xhigh`; Lesemodus (`--permission-mode plan`), Tools/Web/Memory/Subagenten aus (`--tools ""`, `--disable-web-search`, `--no-subagents`, `--no-memory`), ein echter Abschlussturn mit `--max-turns 1 --verbatim`.
 - **Codex mit GPT-6.1-Sol (`--reviewer codex`):** Alternative zum Grok-Review über `codex exec` mit festem Modell `gpt-6.1-sol` und explizitem Reasoning-Effort `high` (`-c model_reasoning_effort="high"`), `--strict-config`, `--ignore-user-config`, `--ignore-rules`, Read-Only-Sandbox (`--sandbox read-only`, `-c sandbox_mode="read-only"`), `-c approval_policy="never"`, `-c web_search="disabled"`, `model_context_window=800000`, `model_auto_compact_token_limit=800000`, deaktivierten Features (`--disable shell_tool`, `unified_exec`, `multi_agent`, `memories`, `plugins`, `apps`) und `--json`.
 
-Standard bleibt `--scope all --transport single`: neue Sitzung mit allen aktuellen öffentlichen Original-UTF8-Bytes/Dateipfaden, einschließlich endungsloser `LICENSE`-Dateien. Binäre Markenbilder sind außerhalb der Textprüfung. Receipt bindet Reviewer, Modell, Effort, SHA, Länge und Byteoffset je Datei; kein Kontextkürzen/Quellzeilennummerieren. Über 1.250.000 Bytes Abbruch vor CLI; Bytecap garantiert kein Kontextfenster. `chunks`/ACKs allein belegen keine Retention.
+Stand 03.11.2026 bestätigen die offiziellen [Grok-4.7-Modelldaten](https://docs.x.ai/developers/models/grok-4.7)
+und die [Reasoning-Dokumentation](https://docs.x.ai/developers/model-capabilities/text/reasoning)
+die Effortstufen `low`, `medium`, `high` und `xhigh` für dieses Modell. Der
+Reviewhelfer lässt gezielt `high` und `xhigh` zu. `xhigh` erhöht die
+Reasoningtiefe und mögliche Laufzeit; das Kontextfenster bleibt bei 500.000
+Tokens. Für `--reviewer codex` wird `--reasoning-effort xhigh` vor jedem
+CLI-Aufruf abgewiesen. Der Grok-Payload bleibt bei beiden Effortstufen
+bytegleich; `requested_reasoning_effort` im Receipt, jedes CLI-Argument und
+`reasoning_effort` in der nativen Summary müssen exakt übereinstimmen.
+Eine stillschweigende Hoch- oder Herabstufung ist ungültig.
+
+```bash
+.venv/bin/python scripts/review.py --reasoning-effort xhigh --transport chunks --prepare-only
+```
+
+Standard bleibt `--scope all --transport single`: neue Sitzung mit allen aktuellen öffentlichen Original-UTF8-Bytes/Dateipfaden, einschließlich endungsloser `LICENSE`-Dateien, Rust-Quellen und `Cargo.lock`. Binäre Markenbilder sind außerhalb der Textprüfung. Receipt bindet Reviewer, Modell, Effort, SHA, Länge und Byteoffset je Datei; kein Kontextkürzen/Quellzeilennummerieren. Über 1.250.000 Bytes Abbruch vor CLI; Bytecap garantiert kein Kontextfenster. `chunks`/ACKs allein belegen keine Retention.
 
 Die Byteobergrenze wurde für 0.2.11 vor einem neuen Review von 1.020.000 auf
 1.250.000 angehoben, da der vollständige Quellumfang einschließlich beider
 GPL-Lizenzkopien rund 1,14 MB umfasst. Das ist ausschließlich ein lokales
-Transportbudget. Die [Grok-Providerdokumentation](https://docs.x.ai/developers/grok-4-7)
+Transportbudget. Die [Grok-Providerdokumentation](https://docs.x.ai/developers/models/grok-4.7)
 nennt ein Kontextfenster bis 500.000 Tokens. Die am 27.10.2026 tatsächlich gelesene
 [OpenAI-Modellkarte für GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol)
 nennt 1.050.000 Kontexttokens und bis zu 128.000 Ausgabetokens. Das ist keine
@@ -144,17 +171,18 @@ in den Forschungstexten angepasst. Sie werden nicht umgeschrieben oder als
 neuer Forschungsreview ausgegeben. Für die Referenzvererbung ist daher ein
 neuer gültiger `all`/`single`-Beleg der neuen Pfade und Originalbytes nötig.
 Bis dahin den vollständigen `--scope all` verwenden, bei Bedarf mit
-`--transport chunks`; historische Receipts bleiben nur für ihre Originalstände gültig.
+`--transport chunks`, oder die nachfolgend ausdrücklich getrennte Reviewserie.
+Historische Receipts bleiben nur für ihre Originalstände gültig.
 
 Nur diese feste Liste darf dabei textlich fehlen: `docs/recherche/solar-prognose-ml-recherche.md`, `docs/recherche/solar-prognosemodelle-zusammenfassung.md`, `docs/recherche/solar_ml_research.md`, `docs/recherche/ensemble_hybrid_solar_forecasting.md`, `docs/recherche/solarprognose_datenquellen_feature_engineering.md`, `docs/recherche/solarstrahlungsprognose_recherche.md`. Keine frei wählbaren Ausschlüsse. Alle anderen aktuellen Implementierungs-, Test-, Dokumentations- und Helferdateien bleiben vollständig und mit Originalbyteoffsets im Prompt. Dieser Lauf ist **kein erneuter Volltextreview des gesamten Repositories** und behauptet keine erneute Lektüre der sechs Forschungstexte; Umfang und geerbte Hashbezüge stehen ausdrücklich im Prompt.
 
-Jede Forschungsdatei muss bytegleich zur Referenz sein. Vor jeglichem CLI-Aufruf werden `accepted`, `all` (bei älteren Receipts ohne Scopefeld der damalige vollständige Standard), `single`, Reviewer/Modellwahl/CLI-Pfad/-Bytes/-Versionsbeleg, ein Exit0-Call mit strikten Flags, vollständiger Payload/Manifest/Prompt, Stdout-/Stderr-/Reviewhash und `mergeable` ohne Findings erneut geprüft. Dazu liest `audit_context` ausschließlich die konkrete native Referenzsession: exakte Promptbytes vor Modelloutput, erfolgreicher Turnabschluss, keine Compaction/Tools/Hintergrundaufgaben, bei Grok native Summary mit `current_model_id=grok-4.7`/`reasoning_effort=high`, passende Modellkennung und je Turn `modelCalls=1`/`numTurns=1`, beziehungsweise bei Codex native Rollout-Datei (`sessions/*/*/*/rollout-*-<session_id>.jsonl`) mit `session_meta`, `turn_context`/`thread_settings_applied` für `model=gpt-6.1-sol`, `effort=high`, `approval_policy=never`, Read-Only-Sandbox, je Turn genau einem `token_usage_record` und `task_complete`. Die native Endantwort muss kanonisch als striktes Review-JSON mit Stdout und `review.json` übereinstimmen. Alte Grok-Calls ohne Effortflag brauchen denselben frischen nativen High-Beleg. Blocked/kompaktierte/manipulierte/unvollständige Referenzen sind unbrauchbar; Referenzketten aus Implementierungsreviews sind verboten. Forschungsdrift verlangt einen neuen gültigen `all`/`single`-Beleg oder Abbruch.
+Jede Forschungsdatei muss bytegleich zur Referenz sein. Vor jeglichem CLI-Aufruf werden `accepted`, `all` (bei älteren Receipts ohne Scopefeld der damalige vollständige Standard), `single`, Reviewer/Modellwahl/CLI-Pfad/-Bytes/-Versionsbeleg, ein Exit0-Call mit strikten Flags, vollständiger Payload/Manifest/Prompt, Stdout-/Stderr-/Reviewhash und `mergeable` ohne Findings erneut geprüft. Dazu liest `audit_context` ausschließlich die konkrete native Referenzsession: exakte Promptbytes vor Modelloutput, erfolgreicher Turnabschluss, keine Compaction/Tools/Hintergrundaufgaben, bei Grok native Summary mit `current_model_id=grok-4.7` und dem exakt im Referenzreceipt angeforderten `reasoning_effort=high|xhigh`, passende Modellkennung und je Turn `modelCalls=1`/`numTurns=1`, beziehungsweise bei Codex native Rollout-Datei (`sessions/*/*/*/rollout-*-<session_id>.jsonl`) mit `session_meta`, `turn_context`/`thread_settings_applied` für `model=gpt-6.1-sol`, `effort=high`, `approval_policy=never`, Read-Only-Sandbox, je Turn genau einem `token_usage_record` und `task_complete`. Die native Endantwort muss kanonisch als striktes Review-JSON mit Stdout und `review.json` übereinstimmen. Alte Receipts ohne `requested_reasoning_effort` werden ausschließlich als historische High-Anforderung geprüft. Alte Grok-Calls ohne Effortflag brauchen ebenfalls denselben frischen nativen High-Beleg; eine Xhigh-Referenz braucht das ausdrückliche passende CLI-Flag. Der Effort der Referenz wird unabhängig vom Effort des neuen Reviews geprüft. Blocked/kompaktierte/manipulierte/unvollständige Referenzen sind unbrauchbar; Referenzketten aus Implementierungsreviews sind verboten. Forschungsdrift verlangt einen neuen gültigen `all`/`single`-Beleg oder Abbruch.
 
 Im neuen Receipt sind `files`/`file_manifest` die tatsächlich eingebetteten Originale, `reference_only_files` die sechs Forschungs-SHAs und `workspace_files` der vollständige aktuelle Scope einschließlich Forschung. `reference` bindet Referenzreceipt, Artefakte, Payload, Review, CLI und native Kontext-/Summary-/Antwortbelege. Historische CLI-Identität folgt dem gespeicherten realen Pfad/Hash, nicht einem inzwischen aktualisierten Aufrufalias; neue Calls binden ihre eigene aktuelle CLI. Der Prompt erhält nur öffentliche Dateinamen/Hashes, keine privaten Sitzungsinhalte oder Artefaktpfade. Zum Abschluss werden gesamter Workspace, CLI, Payload/Prompts und Referenz erneut unverändert nachgewiesen. Der Scope reduziert doppelte historische Texte, nicht den aktuellen Implementierungsumfang; auch er verspricht kein ausreichendes Kontextfenster. Enthaltene offene Planungs-/Brandingtexte behaupten keine implementierten Funktionen und der Review erteilt keine Implementierungsfreigabe. PNG-Logo-Rendering gehört nicht zur textlichen Fachprüfung.
 
 Nur Kindprozesse: bei Grok `GROK_AUTO_COMPACT_THRESHOLD_PERCENT=100` und Auto-Updater aus, bei Codex `--ignore-user-config --ignore-rules --strict-config`; keine globale Konfigurationsänderung. Ausschließlich konkrete neue `updates.jsonl` (Grok) beziehungsweise `rollout-*-<session_id>.jsonl` (Codex): exakte gesendete Benutzerbytes, je Prompt eindeutiger erfolgreicher Turnabschluss (`end_turn` bzw. `task_complete`). Compaction/Tools/aktive Hintergrundaufgaben, unbekannte Ereignisse oder fehlende/mehrdeutige Metadaten verhindern `accepted`.
 
-Finales striktes JSON/nativer Exit, unveränderte Quellen/CLI/Prompts sind Pflicht. Auch im neuen Lauf werden native High-/Modell-/Ein-Turn-Belege und die tatsächliche Endantwort geprüft. ACK, partielles Urteil oder `mergeable` allein genügen nicht. Findings beheben/frisch reviewen; versionsgebundener Audit scheitert bei unbekanntem Format geschlossen. Receipts unter ignoriertem `reviews/private/`, veröffentlichter Nachweis nennt Scope/Bindung/Audit/Datum/Ergebnis/Grenzen. ESS-Deploy-/Node-RED-Regeln gelten hier nicht.
+Finales striktes JSON/nativer Exit, unveränderte Quellen/CLI/Prompts sind Pflicht. Auch im neuen Lauf werden der exakt angeforderte Effort, das Modell, genau ein Modellaufruf je Turn und die tatsächliche Endantwort nativ geprüft. ACK, partielles Urteil oder `mergeable` allein genügen nicht. Findings beheben/frisch reviewen; versionsgebundener Audit scheitert bei unbekanntem Format geschlossen. Receipts unter ignoriertem `reviews/private/`, veröffentlichter Nachweis nennt Scope/Bindung/Audit/Datum/Ergebnis/Grenzen. ESS-Deploy-/Node-RED-Regeln gelten hier nicht.
 
 Bei Codex darf dem abschließenden Review-JSON eine Fortschrittsmeldung vorausgehen.
 Der Transportparser wählt die letzte abgeschlossene Assistentennachricht; der native
@@ -162,6 +190,78 @@ Audit verlangt weiterhin die identische geordnete Nachrichtenfolge in beiden
 Ereignisströmen und ihre letzte Nachricht als `task_complete.last_agent_message`.
 Fortschrittstext wird nicht mit dem JSON verkettet. Modell-, Abschluss-, Werkzeug-
 und Compaction-Prüfungen bleiben unverändert.
+
+### 4.1. Explizite hashgebundene Reviewserie
+
+Ein öffentliches Inventar kann größer als der nachweisbar erhaltene Kontext einer
+Sitzung werden. Dafür gibt es seit 03.11.2026 ausdrücklich `--scope partition`.
+Jede Sitzung enthält die vollständigen Originalbytes ihres deklarierten
+Teilumfangs und wird als **Teilprüfung** gekennzeichnet. Die Serie ist kein
+`all/single`-Review und behauptet keinen gemeinsamen Vollkontext aller Dateien.
+Die bisherigen `all`-/`implementation`-Verträge und Referenzgates bleiben erhalten;
+ein Partitionreceipt darf niemals als Forschungsreferenz vererbt werden.
+
+Das lokale Manifest liegt unter ignoriertem `reviews/private/`. Sein Schema
+`adaptive-solar-review-series-v1` enthält genau diese vier Felder:
+
+- `schema`: exakt die genannte Kennung.
+- `workspace_files`: die vollständige aktuelle `snapshot()`-Zuordnung aller
+  öffentlichen Dateipfade zu ihren SHA256-Werten, einschließlich Rust und Cargo.lock.
+- `partitions`: nichtleere Liste von Objekten mit genau `id` und `files`.
+  Jede Dateiliste ist nichtleer, streng sortiert und enthält jeden Pfad höchstens
+  einmal. Überlappungen zwischen Teilen sind erlaubt; ihre Vereinigungsmenge
+  muss exakt das gesamte öffentliche Inventar ergeben.
+- `integration`: ein weiteres Objekt mit genau `id` und einer nichtleeren,
+  sortierten und eindeutigen `files`-Teilmenge desselben Inventars. Die Auswahl
+  muss die kritischen Produktionsschnittstellen vollständig gemeinsam abdecken;
+  die Pfadprüfung allein beweist diese fachliche Vollständigkeit nicht.
+
+IDs sind über alle Teile und Integration eindeutig, höchstens 64 ASCII-Zeichen
+lang und entsprechen `[a-z][a-z0-9]*(?:-[a-z0-9]+)*`. Doppelte JSON-Schlüssel,
+unbekannte Felder/Pfade, private Pfade, fehlende Dateien oder abweichende Hashes
+werden vor jeder Review-CLI abgewiesen. Das Manifest ist auf 1.000.000 Bytes
+begrenzt. Sein extern festgehaltener SHA256 muss als 64 kleine Hexzeichen
+ausdrücklich übergeben werden; ein selbst gewählter Teil ohne Serienbindung
+ist nicht zulässig.
+
+```bash
+.venv/bin/python scripts/review.py --scope partition --transport single \
+  --reasoning-effort xhigh \
+  --partition-manifest reviews/private/SERIES/manifest.json \
+  --partition-manifest-sha256 "$SERIES_MANIFEST_SHA256" \
+  --partition-id p01 --prepare-only
+```
+
+`--partition-id` wählt einen normalen Teil oder die deklarierte Integration aus.
+Die drei `--partition-*`-Argumente sind zusammen Pflicht und außerhalb dieses
+Scopes unzulässig. `chunks`, Referenzvererbung und gekürzte Quelldateien sind für
+Partitionen ausgeschlossen. Je Sitzung gelten unverändert höchstens 1.250.000
+Payloadbytes sowie alle Modell-, Effort-, Kontext-, Werkzeug- und Abschlussgates.
+Eine Vorbereitung startet weiterhin keinen Review.
+
+Der Prompt enthält die Serienkennung, den Manifesthash, den vollständigen
+öffentlichen Inventardigest und für jede öffentliche Datei Pfad, SHA256 und
+Bytelänge; der private Manifestpfad wird nicht übertragen. Nur die ausgewählten
+Quellen folgen im Volltext mit unveränderten Byteoffsets. Das Receipt führt
+`scope=partition`, den vollständigen `workspace_files`-Snapshot, exakt die
+ausgewählten `files`, leere `reference_only_files` und `partition_receipt` mit
+ID/Rolle, Manifest-/Inventarhash, Auswahl, Serienplan und Dateimetadaten.
+`workspace_sha256` ist der SHA256 über UTF-8-kodiertes
+`json.dumps(workspace_files, ensure_ascii=False, sort_keys=True, separators=(",", ":"))`.
+Manifest und gesamter Workspace bleiben bis zum Abschluss unverändert, auch
+Dateien außerhalb des gerade eingebetteten Teils.
+
+Ein einzelnes `status=accepted` gilt ausschließlich für den ausgewiesenen Teil.
+Ein separater Serienabschluss darf **`accepted_series`** erst ausweisen, wenn
+alle deklarierten Teile und die Integration für denselben Manifesthash und
+unveränderten Gesamtsnapshot erfolgreich unabhängig nachgeprüft wurden:
+exakte Auswahl/Originalbytes/Hashes, vollständige Vereinigungsabdeckung,
+erwartete CLI-/Modell-/Effortbindung, vollständige native Prompt- und
+Abschlussbelege, null Compaction/Tools sowie überall `mergeable` ohne Findings.
+Die Integration prüft ihre vollständigen Schnittstellenquellen gemeinsam;
+Berichte anderer Teile wären ausschließlich nicht vertrauenswürdige Prüfdaten
+und kein Quellenersatz. Der Helfer selbst erzeugt keinen Serienabschluss und
+behauptet weder eine externe Vollkontextabnahme noch Prognoseüberlegenheit.
 
 ## 5. Offene reale Schritte
 
