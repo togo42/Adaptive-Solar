@@ -1,8 +1,12 @@
 # Adaptive Solar 0.2.22
 
-Stand: 04.11.2026, **Releasevorbereitung** auf dem korrigierten Funktionsstand
-`f1c7d9b2417cbad934ea082907c0ff7a498d1e20`. Veröffentlichung, Prüfung der
-Releaseartefakte und anschließende HACS-/HA-Abnahme stehen noch aus.
+Stand: 04.11.2026, **veröffentlicht und über HACS installiert** als
+[v0.2.22](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.22) auf
+[Releasecommit `67a4337`](https://github.com/togo42/Adaptive-Solar/commit/67a4337dfadadc8e65168d164174acb13eb6c3f6).
+Der korrigierte Funktionsstand ist `f1c7d9b2417cbad934ea082907c0ff7a498d1e20`.
+Die begrenzte Adaptive-Solar-Erhaltungsprüfung ist abgeschlossen. Das
+Gesamtsystem bleibt wegen zweier offener Neustartmeldungen anderer Integrationen
+nicht vollständig repairfrei.
 
 ## Änderungen gegenüber 0.2.21
 
@@ -113,8 +117,11 @@ Die folgenden Kompatibilitätsgrenzen sind vor dem Update zu beachten:
   bearbeiten und keine Werte an die Grenze clippen.
 - **Neue Producerpins:** Die neuen Integrationsbytes ändern den Producerhash.
   Historische Originale und Pins bleiben an ihre tatsächliche Quelle gebunden.
-  Eine vorhandene v2-Quellenperiode vor dem belegten Producerwechsel begrenzen;
-  neue Pins ausschließlich für neue, gesondert attestierte Zeiträume verwenden.
+  Eine vorhandene v2-Quellenperiode vor dem ersten Datei-/Neustartwechsel am
+  tatsächlichen UTC-Zeitpunkt halb offen begrenzen; nicht auf die nächste
+  Stunde runden. Bestehende Pins, Konfigurationsanker und Qualifikationsbelege
+  erhalten; neue Pins ausschließlich für neue, gesondert attestierte Zeiträume
+  verwenden und keine neue Bindung blind anlegen.
   Eine alte Bindung darf nicht ungeprüft über den Wechsel offenbleiben: ein
   Widerspruch kann ihre gesamte vergangene Freigabe widerrufen.
 - **Archivhost:** Runtime, Manifest und Timer sind gesondert zu aktualisieren
@@ -130,14 +137,19 @@ HA- und Hostrückweg bleiben getrennt.
 
 ## Prüfung und Veröffentlichungsgrenzen
 
-Der eingefrorene Korrekturstand vor dem Versionsbump bestand unter Python 3.14
+Der eingefrorene Korrekturstand und separat auch der Releaseumfang bestanden unter Python 3.14
 und echtem HA Core 2026.10.4 **3.077 Tests ohne Skips bei 91,45 % kombinierter
 Zeilen-/Zweigabdeckung** mit unverändertem 90-%-Gate. Dazu gehören echtes
 Setuprollback, Dateipersistenz, Phasenexport und Subprozess-Replay. Zusätzlich
 bestanden 42 historische Native-Differential-/Projektionsfälle. Die korrigierten
 Familien und der vollständige integrierte Diff wurden unabhängig nachgeprüft.
-Diese Nachweise gelten für ihren eingefrorenen Stand; der Releasecommit und
-seine Pakete erhalten eine eigene Prüfung.
+Diese Nachweise gelten für ihren eingefrorenen Stand. Die CI-Läufe des exakten
+Releasecommits sind für [main](https://github.com/togo42/Adaptive-Solar/actions/runs/41813610157),
+[Arbeitsbranch](https://github.com/togo42/Adaptive-Solar/actions/runs/41813610088)
+und [Versionstag](https://github.com/togo42/Adaptive-Solar/actions/runs/41813610171)
+erfolgreich. Wheel und sdist wurden isoliert gebaut; das Wheel wurde frisch
+installiert und alle 35 Pythonmodule der Integration daraus importiert. Die
+Paketbytes wurden gegen die Releasequellen geprüft.
 
 Tests, gezielte Nachreviews und die historische Grok-Befundprüfung sind kein
 neuer akzeptierter externer Gesamtquellreview. Sie belegen weder physische
@@ -145,8 +157,50 @@ Quellenqualität, produktive Lernfreigabe noch bessere Prognosen.
 
 ## Veröffentlichungs- und Installationsstatus
 
-Die Metadaten und Dokumentation für 0.2.22 sind vorbereitet. Releasecommit,
-Versionstag, Build-/Downloadhashes, CI-Verweise und die tatsächliche
-HACS-/HA-Erhaltungsprüfung werden erst nach ihren jeweiligen erfolgreichen
-Schritten dokumentiert. Bis dahin ist keine Installation dieser Version
-behauptet. Der gesonderte Hoststand `f1c7d9b` ist bereits abgenommen.
+Der Versionstag `v0.2.22` zeigt unverändert auf Releasecommit
+`67a4337dfadadc8e65168d164174acb13eb6c3f6`. Alle vier öffentlichen Releaseassets
+wurden heruntergeladen und bytegleich mit den lokal geprüften Paketen verglichen:
+
+| Releaseasset | SHA-256 |
+| --- | --- |
+| [HACS-ZIP](https://github.com/togo42/Adaptive-Solar/releases/download/v0.2.22/adaptive_solar.zip) | `60cf354dee7e41804349c78d849fd5fea4413b90963c8c82fc484e2e24f4b501` |
+| [Wheel](https://github.com/togo42/Adaptive-Solar/releases/download/v0.2.22/adaptive_solar_ha-0.2.22-py3-none-any.whl) | `f0846958c8451eace7678845d7524edef4b31959c31d127774e27de7c089749e` |
+| [sdist](https://github.com/togo42/Adaptive-Solar/releases/download/v0.2.22/adaptive_solar_ha-0.2.22.tar.gz) | `47e5928687f15c3d728bc583c742f066ce6a58ccfd3b32886f417abab0ebe819` |
+| [Prüfsummen](https://github.com/togo42/Adaptive-Solar/releases/download/v0.2.22/SHA256SUMS) | `405c2dc872e4d41d8eb312d11155daedd654d523c3b0166bd810940d271cac26` |
+
+Die native HACS-Installation erfolgte nach geprüfter Sicherung mit genau einem
+Core-Neustart unter unverändertem **Core 2026.10.4**. Alle 42 installierten
+Komponentendateien entsprechen exakt dem Releasecommit. Bestehende Einträge,
+Optionen, Entity-/Unique-IDs, Geräteidentitäten sowie Energy-/Dashboardbezüge
+blieben erhalten. Ebenso unverändert sind die abgegrenzten abgeschlossenen
+Messintervalle, früheren Tagesstartwerte einschließlich Kurven/Provenienz und
+die abgeglichenen Comparisonoriginale. Ein Daten- oder Komponentenrestore wurde
+nicht ausgeführt.
+
+Dies bedeutet keine Bytegleichheit kompletter Historienstores: Begrenzte
+Forecastrepräsentanten werden unter der laufenden Auswahl ersetzt. Ihre
+Cacheerhaltung ist von der Erhaltung echter Messintervalle und eingefrorener
+Tagesstartwerte zu unterscheiden.
+
+Nach echten neuen Eingangsdaten bestätigte die begrenzte Produktprüfung gültige
+konfigurierte Eingänge, vollständige Folgetage und vier neue Originalexporte
+mit Version 0.2.22 und dem tatsächlichen Producerquellhash. Die Konfiguration
+ist gültig; die geprüften Adaptive-Solar-Laufzeit-/Startlogs sind unauffällig.
+Der frühere negative Startupreadback bleibt als eigener Nachweis erhalten.
+Die anschließende Prüfung aller Adaptive-Solar-Produktgates ist erfolgreich.
+
+**Gesamtsystemgrenze:** Zwei offene HACS-Neustartmeldungen betreffen andere
+Integrationen. HA ist daher nicht vollständig repairfrei; die ursprüngliche
+globale Abnahme bleibt negativ. Die getrennte Adaptive-Solar-Produktabnahme
+bestätigt ausschließlich die beschriebenen Erhaltungs-/Runtime-/Exportgates.
+Aus den Meldungen wird kein Verursacher abgeleitet. Ein zweiter Core-Neustart
+oder Änderungen an diesen anderen Integrationen gehören nicht zu dieser Abnahme.
+
+Die alten externen Quellenperioden wurden vor Releasepublication und
+HACS-Download am realen UTC-Cutover geschlossen. Alte Originale und Pins bleiben
+erhalten; neue prospektive Bindings wurden nicht blind angelegt. Fehlende ganze
+Stundenunterstützung nach dem Wechsel bleibt fehlender Nachweis. Der gesonderte
+Hoststand `f1c7d9b` bleibt unverändert; die vorübergehend pausierten Timer wurden
+nach der begrenzten Produktabnahme mit ihren ursprünglichen Zuständen
+wiederhergestellt. Installation und Erhaltungsprüfung
+qualifizieren keine physische Quelle und belegen keine bessere Prognose.

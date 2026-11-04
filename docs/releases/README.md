@@ -1,21 +1,22 @@
 # Adaptive Solar: Versionshinweise
 
-Vorbereitet: **[0.2.22](release-0.2.22.md)** mit Korrekturen der unabhängig
-geprüften Grok-Befunde. Veröffentlichung, Prüfung des Releasecommits und
-HACS-/HA-Abnahme stehen noch aus. Der separate Archivhoststand `f1c7d9b` wurde
-bereits abgenommen.
+Aktuell veröffentlicht und über HACS installiert: **[0.2.22](release-0.2.22.md)**
+mit Korrekturen der unabhängig geprüften Grok-Befunde. Releaseartefakte und die
+begrenzte Adaptive-Solar-Erhaltung sind geprüft. Zwei offene Neustartmeldungen
+anderer Integrationen bleiben eine Grenze der Gesamtsystemabnahme; HA ist nicht
+vollständig repairfrei. Der separate Archivhoststand `f1c7d9b` wurde bereits
+abgenommen.
 
-Zuletzt veröffentlicht und über HACS mit Erhaltungsprüfung installiert ist
-**[0.2.21](release-0.2.21.md)**. Dessen
+Die historische **[0.2.21](release-0.2.21.md)** bleibt mit ihrer damaligen
 [Quellabnahme und Releaseprüfung](release-0.2.21.md#prüfung-und-veröffentlichungsgrenzen)
-binden Review, Tests und Artefakte ausschließlich an die damaligen Quellstände.
+erhalten. Review, Tests und Artefakte gelten ausschließlich für die jeweiligen Quellstände.
 Die Hinweise beschreiben Änderungen und den Upgradepfad der jeweiligen Version.
 Historische Testzahlen gelten ausschließlich für den damals geprüften Quellstand;
 siehe [Prüfnachweise](../entwicklung/pruefnachweise.md).
 
 | Version | Schwerpunkt |
 | --- | --- |
-| [0.2.22](release-0.2.22.md) | Vorbereitet: Setuprollback, harte Snapshotcaps, belegte Replayphasen sowie Qualitäts-/Archivkorrekturen |
+| [0.2.22](release-0.2.22.md) | Setuprollback, harte Snapshotcaps, belegte Replayphasen sowie Qualitäts-/Archivkorrekturen |
 | [0.2.21](release-0.2.21.md) | Kompakte Qualitätsdiagnosen, getrennte Archivintervalle, optionales Nachtprofil und begrenzte Collectorläufe |
 | [0.2.20](release-0.2.20.md) | Offline-Support-Guard, optierte Istwert-Quellenbindung und Aufnahme-/Zeitkorrekturen |
 | [0.2.19](release-0.2.19.md) | Aktuelle HA-Geräte-API und explizite Servicevalidierung/-Empfangszeit |

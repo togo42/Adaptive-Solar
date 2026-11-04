@@ -17,12 +17,12 @@ Temperatur, Wind, horizontale Globalstrahlung und PV-Leistung unterstützen
 kurzfristige Korrekturen. Ohne qualifizierte Lernhistorie bleibt die Physik aktiv.
 Ein gemeinsamer Zähler kann keine Einzelstringverluste identifizieren.
 
-**Version 0.2.22, Stand 04.11.2026: Releasevorbereitung.** Sie korrigiert
+**Version 0.2.22, Stand 04.11.2026: veröffentlicht und über HACS installiert.** Sie korrigiert
 Setuprollback, Snapshotgrenzen, Schatten-/Replayphasen und Archiv-/Auswertungs-
-Randfälle. Veröffentlichung und anschließende HACS-/HA-Erhaltungsprüfung stehen
-noch aus; zuletzt veröffentlicht und installiert ist 0.2.21. Der getrennte
-Archivhostwechsel auf den korrigierten Funktionsstand `f1c7d9b` ist bereits
-abgenommen und ersetzt die HA-Aktualisierung nicht.
+Randfälle. Die begrenzte Adaptive-Solar-Erhaltungsprüfung ist abgeschlossen.
+Das Gesamtsystem ist wegen zweier offener Neustartmeldungen anderer
+Integrationen nicht vollständig repairfrei. Der getrennte Archivhostwechsel
+auf den korrigierten Funktionsstand `f1c7d9b` bleibt ein eigener Nachweis.
 [Änderungen, Kompatibilitätsgrenzen und Upgrade](docs/releases/release-0.2.22.md).
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
