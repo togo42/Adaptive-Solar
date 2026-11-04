@@ -4,9 +4,9 @@ Stand: 04.11.2026, **veröffentlicht und über HACS installiert** als
 [v0.2.22](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.22) auf
 [Releasecommit `67a4337`](https://github.com/togo42/Adaptive-Solar/commit/67a4337dfadadc8e65168d164174acb13eb6c3f6).
 Der korrigierte Funktionsstand ist `f1c7d9b2417cbad934ea082907c0ff7a498d1e20`.
-Die begrenzte Adaptive-Solar-Erhaltungsprüfung ist abgeschlossen. Das
-Gesamtsystem bleibt wegen zweier offener Neustartmeldungen anderer Integrationen
-nicht vollständig repairfrei.
+Die begrenzte Adaptive-Solar-Erhaltungsprüfung ist abgeschlossen. Eine frische
+Folgeprüfung nach dem zwischenzeitlichen Neustart bestätigt gültige
+Konfiguration und keine offenen Repairs.
 
 ## Änderungen gegenüber 0.2.21
 
@@ -189,12 +189,21 @@ ist gültig; die geprüften Adaptive-Solar-Laufzeit-/Startlogs sind unauffällig
 Der frühere negative Startupreadback bleibt als eigener Nachweis erhalten.
 Die anschließende Prüfung aller Adaptive-Solar-Produktgates ist erfolgreich.
 
-**Gesamtsystemgrenze:** Zwei offene HACS-Neustartmeldungen betreffen andere
-Integrationen. HA ist daher nicht vollständig repairfrei; die ursprüngliche
-globale Abnahme bleibt negativ. Die getrennte Adaptive-Solar-Produktabnahme
-bestätigt ausschließlich die beschriebenen Erhaltungs-/Runtime-/Exportgates.
-Aus den Meldungen wird kein Verursacher abgeleitet. Ein zweiter Core-Neustart
-oder Änderungen an diesen anderen Integrationen gehören nicht zu dieser Abnahme.
+**Historische Gesamtsystemgrenze der ersten Abnahme:** Zwei offene
+HACS-Neustartmeldungen betrafen andere Integrationen. Die ursprüngliche globale
+Abnahme bleibt als negativer Nachweis unverändert erhalten; die damalige
+getrennte Adaptive-Solar-Produktabnahme bestätigte ausschließlich die
+beschriebenen Erhaltungs-/Runtime-/Exportgates. Aus den Meldungen wurde kein
+Verursacher abgeleitet. Ein zweiter Core-Neustart oder Änderungen an diesen
+anderen Integrationen gehörten nicht zu dieser Releaseabnahme.
+
+**Folgeprüfung am 04.11.2026:** Der inzwischen erfolgte Neustart war beim
+nächsten Auftrag bereits abgeschlossen. Eine neue native Aufnahme bestätigt
+die geladenen Versionen, gültige Konfiguration und keine offenen Repairs.
+Auch die vollständigen Erhaltungs-, Eingangs- und Originalexportprüfungen sind
+erfolgreich. Dafür wurde kein weiterer Neustart ausgelöst. Diese Folgeprüfung
+ersetzt keine der ursprünglichen Aufnahmen und qualifiziert keine physische
+Messquelle.
 
 Die alten externen Quellenperioden wurden vor Releasepublication und
 HACS-Download am realen UTC-Cutover geschlossen. Alte Originale und Pins bleiben

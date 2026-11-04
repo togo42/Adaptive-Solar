@@ -2,10 +2,10 @@
 
 Aktuell veröffentlicht und über HACS installiert: **[0.2.22](release-0.2.22.md)**
 mit Korrekturen der unabhängig geprüften Grok-Befunde. Releaseartefakte und die
-begrenzte Adaptive-Solar-Erhaltung sind geprüft. Zwei offene Neustartmeldungen
-anderer Integrationen bleiben eine Grenze der Gesamtsystemabnahme; HA ist nicht
-vollständig repairfrei. Der separate Archivhoststand `f1c7d9b` wurde bereits
-abgenommen.
+begrenzte Adaptive-Solar-Erhaltung sind geprüft. Nach dem zwischenzeitlichen
+Neustart bestätigt eine frische Folgeprüfung gültige Konfiguration, erhaltene
+Daten und keine offenen Repairs. Der separate Archivhoststand `f1c7d9b` wurde
+bereits abgenommen.
 
 Die historische **[0.2.21](release-0.2.21.md)** bleibt mit ihrer damaligen
 [Quellabnahme und Releaseprüfung](release-0.2.21.md#prüfung-und-veröffentlichungsgrenzen)

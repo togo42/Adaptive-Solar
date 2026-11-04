@@ -3,8 +3,8 @@
 Die [Projektübersicht](../README.md) beschreibt Zweck und Einstieg. Die aktuellen
 Anleitungen und Datenverträge beschreiben den veröffentlichten und über HACS
 installierten **Funktionsstand 0.2.22**. Die begrenzte Adaptive-Solar-
-Erhaltungsprüfung ist abgeschlossen; zwei offene Neustartmeldungen anderer
-Integrationen verhindern eine vollständig repairfreie Gesamtsystemabnahme.
+Erhaltungsprüfung und die Folgeprüfung nach dem zwischenzeitlichen Neustart
+sind abgeschlossen; die Konfiguration ist gültig, offene Repairs bestehen nicht.
 Die [Releasehinweise](releases/release-0.2.22.md) trennen Korrekturen,
 Kompatibilitätsgrenzen, Installationsnachweise und den gesonderten Archivhost.
 Ältere Versionen und Prüfungen bleiben historisch unter

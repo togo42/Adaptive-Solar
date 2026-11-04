@@ -20,8 +20,9 @@ Ein gemeinsamer Zähler kann keine Einzelstringverluste identifizieren.
 **Version 0.2.22, Stand 04.11.2026: veröffentlicht und über HACS installiert.** Sie korrigiert
 Setuprollback, Snapshotgrenzen, Schatten-/Replayphasen und Archiv-/Auswertungs-
 Randfälle. Die begrenzte Adaptive-Solar-Erhaltungsprüfung ist abgeschlossen.
-Das Gesamtsystem ist wegen zweier offener Neustartmeldungen anderer
-Integrationen nicht vollständig repairfrei. Der getrennte Archivhostwechsel
+Auch die Folgeprüfung nach dem zwischenzeitlichen Neustart ist erfolgreich:
+Die Konfiguration ist gültig, offene Repairs bestehen nicht. Der getrennte
+Archivhostwechsel
 auf den korrigierten Funktionsstand `f1c7d9b` bleibt ein eigener Nachweis.
 [Änderungen, Kompatibilitätsgrenzen und Upgrade](docs/releases/release-0.2.22.md).
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
