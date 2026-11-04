@@ -20,7 +20,7 @@ HA-Sammlung nutzt vorhandene Producer-Metadaten und benötigt kein neues
 Seitenschema oder HA-Update. Ein bestehender Prüfplan mit festen Softwarepins
 muss vor einem Hostupdate abgeschlossen oder ausdrücklich neu festgelegt werden.
 
-Stand: 02.11.2026. Die Vorlagen unter `deploy/` und der Runner
+Stand: 04.11.2026, Funktionsumfang bis 0.2.22. Die Vorlagen unter `deploy/` und der Runner
 `scripts/archive_host.py` bereiten den Hostbetrieb vor. Ihre Existenz bedeutet
 keine Aktivierung. HA-Exportoptionen und produktive Hoständerungen benötigen den
 konkreten Inbetriebnahmeauftrag. Grundlagen und Datenvertrag stehen in
@@ -127,7 +127,7 @@ muss für einen Betrieb ohne Login `Linger=yes` liefern. Timer verwenden die
 angegebene Zeitzone, sonst die des Hosts, und holen nach einem Ausfall einmalig
 einen fälligen Lauf nach.
 
-Entwicklungskorrektur nach 0.2.21: Die Vorlagen für `ha`, `weather` und den
+Ab 0.2.22: Die Vorlagen für `ha`, `weather` und den
 kompatiblen kombinierten Job `observations` verwenden nun ausdrücklich UTC,
 wie bereits `actuals` und `references`. Damit bleibt die physische Kadenz über
 beide Sommerzeitwechsel erhalten. Die Retention bleibt ein lokaler täglicher

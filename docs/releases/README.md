@@ -1,16 +1,21 @@
 # Adaptive Solar: Versionshinweise
 
-Aktueller dokumentierter Release: **[0.2.21](release-0.2.21.md)**.
-Veröffentlichung, CI für `main` und Versionstag sowie HA-Installation mit
-Erhaltungsprüfung sind abgeschlossen.
+Vorbereitet: **[0.2.22](release-0.2.22.md)** mit Korrekturen der unabhängig
+geprüften Grok-Befunde. Veröffentlichung, Prüfung des Releasecommits und
+HACS-/HA-Abnahme stehen noch aus. Der separate Archivhoststand `f1c7d9b` wurde
+bereits abgenommen.
+
+Zuletzt veröffentlicht und über HACS mit Erhaltungsprüfung installiert ist
+**[0.2.21](release-0.2.21.md)**. Dessen
 [Quellabnahme und Releaseprüfung](release-0.2.21.md#prüfung-und-veröffentlichungsgrenzen)
-binden Review, Tests und Artefakte an ihre jeweiligen Quellstände.
+binden Review, Tests und Artefakte ausschließlich an die damaligen Quellstände.
 Die Hinweise beschreiben Änderungen und den Upgradepfad der jeweiligen Version.
 Historische Testzahlen gelten ausschließlich für den damals geprüften Quellstand;
 siehe [Prüfnachweise](../entwicklung/pruefnachweise.md).
 
 | Version | Schwerpunkt |
 | --- | --- |
+| [0.2.22](release-0.2.22.md) | Vorbereitet: Setuprollback, harte Snapshotcaps, belegte Replayphasen sowie Qualitäts-/Archivkorrekturen |
 | [0.2.21](release-0.2.21.md) | Kompakte Qualitätsdiagnosen, getrennte Archivintervalle, optionales Nachtprofil und begrenzte Collectorläufe |
 | [0.2.20](release-0.2.20.md) | Offline-Support-Guard, optierte Istwert-Quellenbindung und Aufnahme-/Zeitkorrekturen |
 | [0.2.19](release-0.2.19.md) | Aktuelle HA-Geräte-API und explizite Servicevalidierung/-Empfangszeit |

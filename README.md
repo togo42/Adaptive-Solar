@@ -17,20 +17,20 @@ Temperatur, Wind, horizontale Globalstrahlung und PV-Leistung unterstützen
 kurzfristige Korrekturen. Ohne qualifizierte Lernhistorie bleibt die Physik aktiv.
 Ein gemeinsamer Zähler kann keine Einzelstringverluste identifizieren.
 
-**Release 0.2.21, Stand 02.11.2026.** Er ergänzt getrennte
-Archivaufnahmeintervalle, kompakte Qualitätsdiagnosen und ein optionales
-Nachtprofil sowie begrenzte Qualitätsauswahl und HA-Collectorläufe. Vollständige
-Standardprofile, native Messung und Lerngates bleiben erhalten. Version 0.2.21
-ist veröffentlicht und über HACS mit Erhaltungsprüfung installiert; die CI für
-`main` und den Versionstag ist erfolgreich.
-[Änderungen, Prüfstand und Upgrade](docs/releases/release-0.2.21.md).
+**Version 0.2.22, Stand 04.11.2026: Releasevorbereitung.** Sie korrigiert
+Setuprollback, Snapshotgrenzen, Schatten-/Replayphasen und Archiv-/Auswertungs-
+Randfälle. Veröffentlichung und anschließende HACS-/HA-Erhaltungsprüfung stehen
+noch aus; zuletzt veröffentlicht und installiert ist 0.2.21. Der getrennte
+Archivhostwechsel auf den korrigierten Funktionsstand `f1c7d9b` ist bereits
+abgenommen und ersetzt die HA-Aktualisierung nicht.
+[Änderungen, Kompatibilitätsgrenzen und Upgrade](docs/releases/release-0.2.22.md).
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
 
 ## Installation und Bedienung
 
 1. [Plattform und Abhängigkeiten prüfen](docs/anwendung/installation.md).
-   HACS-Mindestversion ist Core **2026.10.2**; der Funktionsstand für 0.2.21
+   HACS-Mindestversion ist Core **2026.10.2**; der Korrekturstand für 0.2.22
    wurde unter **2026.10.4 / Python 3.14** geprüft. Frühere Nachweise für .2/.3
    sind historisch. Für HAOS ist bislang nur **amd64 / CPython 3.14 / Musl**
    mit separat bereitgestellter Binärbasis qualifiziert;

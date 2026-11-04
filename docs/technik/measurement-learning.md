@@ -1,7 +1,7 @@
 # Messdaten und Lernfenster aus echten Zählerberichten
 
-Stand: 03.11.2026; Datenvertrag ab Version 0.2.15 mit veröffentlichten
-Ergänzungen aus 0.2.20/0.2.21. Die beschriebenen
+Stand: 04.11.2026; Datenvertrag ab Version 0.2.15 mit Ergänzungen bis 0.2.22.
+[Veröffentlichungsstatus](../releases/release-0.2.22.md). Die beschriebenen
 Softwareprüfungen belegen Datenverarbeitung, keine physische Zählerqualität,
 produktive Aktivierung oder bessere Prognosen.
 
@@ -51,7 +51,7 @@ Randenergie wird nicht interpoliert.
 
 ## Konflikte vor der Auswahl von Zielteilen
 
-Entwicklungskorrektur nach 0.2.21: Bereits `TrainingSample` verlangt
+Ab 0.2.22: Bereits `TrainingSample` verlangt
 `issued_at <= start` und `observed_at >= end` bezogen auf die tatsächlichen
 Zielgrenzen. Join und Fit behalten ihre zusätzlichen Chronologie- und
 As-of-Prüfungen. Ein aktuelles Restintervall verwendet seinen beschnittenen

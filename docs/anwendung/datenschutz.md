@@ -1,6 +1,6 @@
 # Datenschutz und Datenflüsse von Adaptive Solar
 
-Stand: 03.11.2026; beschrieben ist Version 0.2.21, keine
+Stand: 04.11.2026; beschrieben ist der Funktionsstand 0.2.22, keine
 Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 
 ## 1. Externe Verbindungen
@@ -77,6 +77,10 @@ Sensor-/Wettermodellbindungen setzen sie zurück; ein reiner Wechsel der
 Prognosetage erhält sie. Ohne den optionalen Originaldatenexport wird sie nicht
 extern synchronisiert; bei eingeschaltetem Export gehört ihr verwendeter Stand
 zu den privaten Replayeingaben.
+Ab 0.2.22 enthält der optionale Schattenexport außerdem den tatsächlich
+überwachten Beginn einer konfigurierten Messgültigkeitsphase beziehungsweise
+`null`. Dieser Zeitbeleg gehört zu denselben privaten Replayeingaben; ohne
+Export entsteht daraus kein eigener externer Transfer oder zusätzlicher Store.
 [Persistenzvertrag](../technik/implementation-contract.md).
 
 Der optionale Leistungs-Nowcast-Verlauf ist flüchtig und auf 128 Originalberichte

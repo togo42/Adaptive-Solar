@@ -1,7 +1,8 @@
 # Physik- und Schattenoptionen als überprüfbare Kandidaten
 
-Stand: 03.11.2026, einschließlich Entwicklungskorrekturen nach 0.2.21; keine
-neue produktive Aktivierung. Die folgenden Optionen sind generische numerische
+Stand: 04.11.2026, Funktionsstand 0.2.22; der
+[Release-/Installationsstatus](../releases/release-0.2.22.md) bleibt gesondert.
+Die folgenden Optionen sind generische numerische
 Modellannahmen. Verhaltenstests belegen Rechenverträge, keine Verbesserung der
 Prognosegüte. Ein Vergleich braucht vorab festgelegte Kriterien und tatsächlich
 vorab archivierte Prognosen gegen dieselben Messungen.

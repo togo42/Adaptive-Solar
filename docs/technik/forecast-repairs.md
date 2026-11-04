@@ -1,6 +1,7 @@
 # Nachtstrahlung und historische Tagesstartprognosen
 
-Stand: 27.10.2026, Implementierung 0.2.14. Die Regeln beheben zwei getrennte
+Stand: 04.11.2026, Grundfunktion ab 0.2.14 mit strengen Snapshotgrenzen ab
+0.2.22. Die Regeln beheben zwei getrennte
 Ausfälle; sie belegen keine höhere Prognosegenauigkeit.
 
 ## 1. Kleine negative Nachtstrahlung

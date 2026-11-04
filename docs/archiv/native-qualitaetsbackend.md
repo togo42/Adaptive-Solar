@@ -1,6 +1,8 @@
 # Optionales natives Qualitätsbackend auf dem Archivhost
 
-Stand: 03.11.2026. Der Archivhost kann die vollständige Originalprüfung,
+Stand: 04.11.2026, Funktionsumfang bis 0.2.22;
+[Release-/Installationsstatus](../releases/release-0.2.22.md).
+Der Archivhost kann die vollständige Originalprüfung,
 Auswahl und Konfigurationsprojektion der laufenden Qualitätsableitung an den
 separat gebauten Rustkern übergeben. Der Pythonpfad bleibt Standard; HA Core
 und HACS benötigen weder Rust noch eine neue Abhängigkeit. Die
@@ -28,7 +30,7 @@ qualifizierte Dateistände sein. Ein neu berechneter Manifesthash allein
 qualifiziert keinen beliebigen neuen Verbraucher. Die unterstützte Laufzeit
 ist CPython 3.14 mit GIL; ein anderer Stand benötigt eine neue Abnahme.
 
-Die Entwicklungskorrektur nach 0.2.21 qualifiziert zusätzlich den Adapterstand
+Der Funktionsstand 0.2.22 qualifiziert zusätzlich den Adapterstand
 mit kausaler Intervallfilterung und periodenweiten negativen Qualitätsmasken.
 Die opaque Konfigurationsfabrik und das Projektionsprotokoll bleiben unverändert.
 Python- und echter Rustpfad werden sowohl für reguläre Freigabe als auch für

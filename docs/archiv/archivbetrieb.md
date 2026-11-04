@@ -1,7 +1,7 @@
 # Originaldaten archivieren und Prognosen wiederholen
 
-Stand: 03.11.2026, veröffentlichter Funktionsumfang 0.2.21 mit nachfolgend
-gekennzeichneten Entwicklungskorrekturen. [Versionshinweise](../releases/README.md)
+Stand: 04.11.2026, Funktionsumfang 0.2.22;
+[Veröffentlichungs-/Installationsstatus](../releases/release-0.2.22.md). [Versionshinweise](../releases/README.md)
 und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung.
 Der Archivhost wird unabhängig von HACS aktualisiert.
 Die [Hostinstallation](archiv-host-installation.md) beschreibt Dienste, Timer,
@@ -129,7 +129,7 @@ ICON-D2 nicht bereits durch zwei Kalendertage abgeschnitten wird. Die Ausgabe
 bleibt auf die eingestellten lokalen Prognosetage beschränkt. Die Host-Aufnahme
 ändert weder die HA-Modellauswahl noch deren deterministische Gleichgewichtung.
 
-Entwicklungskorrektur nach 0.2.21: `capture_complete` benennt den erfolgreichen
+Ab 0.2.22: `capture_complete` benennt den erfolgreichen
 Abruf und dauerhaften Transfer nutzbarer Antworten; `complete` und Exit 0 bleiben
 als kompatible Transferaussage erhalten. `ensemble_cohort_complete` prüft getrennt,
 ob alle abgefragten Ensembleprodukte sämtliche erwarteten Mitglieder liefern
@@ -346,7 +346,7 @@ Fiktives Zeitfenster durch eine zum Archiv passende künftige Entscheidung erset
 ```
 
 Jedes Mitglied durchläuft die gemeinsame PV-Physik und Ausgangsbegrenzung.
-Die Entwicklungskorrektur nach 0.2.21 verlangt dafür einen homogenen
+Version 0.2.22 verlangt dafür einen homogenen
 AC- oder DC-Standort. Gemischte Standorte werden vor der Mitgliedsberechnung
 abgelehnt; getrennte Standortdateien und jeweils dazu passende Istwerte verwenden.
 `measurement_boundary` im Bericht nennt `output_type`, die physische Messgrenze,

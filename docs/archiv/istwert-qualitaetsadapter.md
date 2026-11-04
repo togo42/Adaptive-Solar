@@ -1,7 +1,7 @@
 # Istwerte offline aus archivierten Messnachweisen qualifizieren
 
-Stand: 03.11.2026, Grundfunktion ab Release 0.2.20 mit nachfolgend
-gekennzeichneten Entwicklungskorrekturen nach 0.2.21; eine Timeraktivierung erfolgt
+Stand: 04.11.2026, Grundfunktion ab Release 0.2.20 mit Ergänzungen bis 0.2.22;
+[Veröffentlichungsstatus](../releases/release-0.2.22.md). Eine Timeraktivierung erfolgt
 separat und ausdrücklich. Der Adapter liest lokale
 Originalauszüge, prüft Stundenabdeckung und erzeugt eine neue Qualitätsrevision
 für den bestehenden [Recorder-Collector](../entwicklung/benchmark-aufnahme.md).
@@ -168,7 +168,7 @@ Ereignisse dürfen bei der Auswahl nicht weggelassen werden. Ein solcher Auszug
 ist keine Vollarchivprüfung. Die CLI öffnet keinen Archivindex, stellt keine
 Netzverbindung her und erzeugt keine automatische Quellenattestierung.
 
-Entwicklungskorrektur nach 0.2.21: Die vollständigen gelieferten Envelopes werden weiter auf Integrität und
+Ab 0.2.22: Die vollständigen gelieferten Envelopes werden weiter auf Integrität und
 widersprüchliche Identitäten geprüft. Vor den fachlichen Deltaurteilen filtert
 der Adapter jedoch nach Quelle, Stufe, tatsächlichem Empfang bis einschließlich
 `as_of` sowie Überlappung mit Ziel- und Bindungszeitraum. Eine erst später
@@ -228,7 +228,7 @@ und fordert deren explizite Klärung. Reine Datenlücken oder fehlende
 Attestierungen werden ausgelassen und widerrufen keine frühere belegte Freigabe.
 `hours.mask_status` unterscheidet `valid`, `invalid` und `omitted`.
 
-Entwicklungskorrektur nach 0.2.21: Ein Konfigurations-, Producer- oder Generationswiderspruch in einer gebundenen
+Ab 0.2.22: Ein Konfigurations-, Producer- oder Generationswiderspruch in einer gebundenen
 Konfigurationsaufnahme widerruft die Freigabe aller vollständig vergangenen,
 ganz innerhalb dieser Bindung liegenden UTC-Stunden bis `as_of`. Die negative
 Revision wird als zusammenhängende Bereichsmaske in `quality.intervals`

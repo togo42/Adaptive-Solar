@@ -1,6 +1,6 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 03.11.2026, Funktionsumfang 0.2.21. [Versionshinweise](../releases/release-0.2.21.md) und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung. [Installation](installation.md),
+Stand: 04.11.2026, Funktionsumfang 0.2.22. [Versionshinweise und Veröffentlichungsstatus](../releases/release-0.2.22.md) und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung. [Installation](installation.md),
 [Datenverträge](../technik/implementation-contract.md), [Datenschutz](datenschutz.md).
 
 ## 1. Anlagenaufteilung vorbereiten

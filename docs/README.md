@@ -1,9 +1,11 @@
 # Adaptive Solar: Dokumentation
 
 Die [Projektübersicht](../README.md) beschreibt Zweck und Einstieg. Die aktuellen
-Anleitungen und Datenverträge beschreiben den **Release 0.2.21**. Die
-[Releasehinweise](releases/release-0.2.21.md) trennen HA-Nachtprofil,
-optionalen Archivhost und ihre Prüfgrenzen. Ältere Versionen und Prüfungen bleiben historisch unter
+Anleitungen und Datenverträge beschreiben den **Funktionsstand 0.2.22** in
+Releasevorbereitung. Die [Releasehinweise](releases/release-0.2.22.md) trennen
+Korrekturen, Kompatibilitätsgrenzen, den bereits aktualisierten Archivhost und
+die noch ausstehende HACS-/HA-Abnahme. Zuletzt veröffentlicht ist 0.2.21.
+Ältere Versionen und Prüfungen bleiben historisch unter
 [Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).
 
 ## Installation und Anwendung

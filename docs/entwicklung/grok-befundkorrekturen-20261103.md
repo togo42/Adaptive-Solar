@@ -1,5 +1,9 @@
 # Korrekturen der unabhängig geprüften Grok-Befunde
 
+Historischer lokaler Korrektur- und Prüfstand vor dem getrennten Hostwechsel
+und der Releasevorbereitung 0.2.22. Spätere Veröffentlichungs- und
+Installationsnachweise stehen in den [Releasehinweisen](../releases/release-0.2.22.md).
+
 Stand: 03.11.2026, Entwicklung nach `cd36f95`. Grundlage ist die
 [Prüfung aller 41 Meldungen](grok-befundpruefung-20261103.md) gegen `4a74f4b`.
 Diese Seite beschreibt die anschließenden Korrekturen der neun bestätigten und

@@ -1,6 +1,7 @@
 # Adaptive Solar installieren und aktualisieren
 
-Stand: 03.11.2026; Releaseanleitung für 0.2.21. Veröffentlichungs- und
+Stand: 04.11.2026; Anleitung für 0.2.22. Dessen [Releasehinweise](../releases/release-0.2.22.md)
+trennen Vorbereitung, Veröffentlichung und HA-Abnahme. Veröffentlichungs- und
 historische Testangaben stehen in den [Prüfnachweisen](../entwicklung/pruefnachweise.md). Die hier beschriebenen Schritte
 werden vom Betreiber auf der eigenen Installation ausgeführt. Projektprüfungen und
 ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
@@ -17,7 +18,7 @@ ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 | ARM/aarch64, Raspberry Pi, andere Python-ABIs | Bisher nicht qualifiziert; kein passender Build-/Installationsnachweis im Projekt |
 
 Die HACS-Untergrenze 2026.10.2 entspricht dem ältesten geprüften Core. Sie ist keine
-Zusage für alle späteren Versionen. Die vollständige Release-Suite für 0.2.21 prüft Core 2026.10.4;
+Zusage für alle späteren Versionen. Der Korrekturstand für 0.2.22 wurde unter Core 2026.10.4 geprüft;
 die Nachweise für .2/.3 stammen aus früheren Releases. Versionsdetails stehen in den [Prüfnachweisen](../entwicklung/pruefnachweise.md). Runtimepins stehen im
 [Manifest](../../custom_components/adaptive_solar/manifest.json): pvlib 0.16.1 und
 scikit-learn 1.9.1. Ein früherer erfolgreicher Import anderer Versionen reicht nicht.
@@ -173,6 +174,23 @@ seinen laufenden Dienst auslaufen lassen; neue Timer erst nach geprüften
 Einzelaufnahmen aktivieren. Kombinierte und getrennte Aufnahme nicht parallel
 betreiben. Bestehende Originale, Pins und Checkpoints erhalten; neue
 Producerhashes nur für neue, gesondert belegte Zeiträume binden.
+
+**[Version 0.2.22](../releases/release-0.2.22.md#upgrade-von-0221-und-rückweg):**
+Bestehende Einträge weiterverwenden, Komponentenstand und Historie sichern,
+nach dem HACS-Download einmal Core neu starten und Abschnitt 5 prüfen.
+Abhängigkeitspins und HA-Storeversionen bleiben erhalten. Die strengeren
+Snapshotprüfungen können einen vorhandenen Store mit ungültigen Pflichtwerten
+schreibgeschützt lassen; gültige Tagessummen verlieren durch eine beschädigte
+optionale Stundenkurve allein nicht ihre Gültigkeit. Nicht direkt `.storage`
+bearbeiten und alte Werte nicht auf die Grenze zurechtschneiden.
+
+Neue Exporte enthalten den überwachten Messgültigkeitsbeginn. Alte Captures ohne
+diesen Beleg können bei konfigurierter Gültigkeitsquelle keine ungesperrte
+Leistung für Schattenneulernen qualifizieren. Die neuen Integrationsbytes ändern
+den Producerhash: alte v2-Quellenperioden vor dem belegten Wechsel begrenzen und
+neue Pins ausschließlich für neue gesondert attestierte Zeiträume verwenden.
+Historische Originale nicht umetikettieren. Ein HACS-Update ändert weder den
+bereits getrennt geprüften Hoststand noch dessen Timer oder Runtime-Manifest.
 
 Historisch für 0.2.13: Featurevertrag, passende Forecast-/Messhistorie,
 Schattentabellen und echte Tagesbeginn-Snapshots erhalten. Die

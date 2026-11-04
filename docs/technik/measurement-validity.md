@@ -41,7 +41,7 @@ allgemeinen Abdeckungs-, Rand-, Mindestdauer-, Reset- und Gap-Gates bleiben best
 
 ## Gültigkeitsphase im Schatten-Replay
 
-Die Entwicklungskorrektur nach 0.2.21 ergänzt den optionalen Rohdatenexport
+Version 0.2.22 ergänzt den optionalen Rohdatenexport
 unter `forecast_issued.shade_learning` additiv um
 `measurement_valid_since`: je Stufe mit konfigurierter Gültigkeitsquelle den
 tatsächlich überwachten gültigen Phasenbeginn als UTC-Zeit oder `null` bei
