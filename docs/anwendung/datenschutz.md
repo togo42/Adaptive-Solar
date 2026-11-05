@@ -1,6 +1,6 @@
 # Datenschutz und Datenflüsse von Adaptive Solar
 
-Stand: 05.11.2026; beschrieben ist der vorbereitete Funktionsstand 0.2.23, keine
+Stand: 05.11.2026; beschrieben ist der Funktionsstand 0.2.23, keine
 Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 
 ## 1. Externe Verbindungen

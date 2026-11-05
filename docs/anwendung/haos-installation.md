@@ -1,6 +1,6 @@
 # HAOS: scikit-learn für Adaptive Solar bauen und installieren
 
-Stand: 05.11.2026, vorbereitete Integrationsreferenz 0.2.23 (unveränderte Binärbasis seit 0.2.10). Bau-/Lieferweg seit Adaptive Solar **0.2.0**, kein anderes Lernmodell: normales CPython **3.14**, **amd64/x86_64**, **musllinux 1.2**. Andere ABIs/Architekturen, insbesondere ARM/Raspberry Pi, sind nicht geprüft. Einstieg und Marketplace: [Installation](installation.md). Historische Rohbelege bleiben privat; alle nötigen Bau-/Lieferbefehle stehen hier.
+Stand: 05.11.2026, Integrationsreferenz 0.2.23 (unveränderte Binärbasis seit 0.2.10). Bau-/Lieferweg seit Adaptive Solar **0.2.0**, kein anderes Lernmodell: normales CPython **3.14**, **amd64/x86_64**, **musllinux 1.2**. Andere ABIs/Architekturen, insbesondere ARM/Raspberry Pi, sind nicht geprüft. Einstieg und Marketplace: [Installation](installation.md). Historische Rohbelege bleiben privat; alle nötigen Bau-/Lieferbefehle stehen hier.
 
 **Ab 0.2.23 übernimmt der HA-native Bootstrap die Paketlieferung.** Betreiber
 installieren die Integration über Marketplace; sie benötigen weder den folgenden

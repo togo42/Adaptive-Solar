@@ -1,6 +1,6 @@
 # Implementierungsvertrag für Adaptive Solar
 
-Stand: 05.11.2026; vorbereiteter Funktionsstand 0.2.23. Veröffentlichungs- und Installationsstatus stehen in den [Releasehinweisen](../releases/release-0.2.23.md). Der optionale [Originaldatenexport](../archiv/archive-storage-contract.md) erweitert den Stand 0.2.15. Die aktuelle Implementierung ergänzt [Messkontinuität](measurement-learning.md), [Bias-Shadow](early-bias-shadow.md), [Physik-/Schattenoptionen](physics-learning-options.md), [Fehlerbehandlung/Ressourcen](forecast-resilience.md) und [Vergleichsarchive](model-comparison-archive.md). Anwenderfelder und Abläufe: [Bedienung](../anwendung/bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen.
+Stand: 05.11.2026; Funktionsstand 0.2.23. Veröffentlichungs- und Installationsstatus stehen in den [Releasehinweisen](../releases/release-0.2.23.md). Der optionale [Originaldatenexport](../archiv/archive-storage-contract.md) erweitert den Stand 0.2.15. Die aktuelle Implementierung ergänzt [Messkontinuität](measurement-learning.md), [Bias-Shadow](early-bias-shadow.md), [Physik-/Schattenoptionen](physics-learning-options.md), [Fehlerbehandlung/Ressourcen](forecast-resilience.md) und [Vergleichsarchive](model-comparison-archive.md). Anwenderfelder und Abläufe: [Bedienung](../anwendung/bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen.
 
 Die [Ablehnungsdiagnose](ablehnungsdiagnose.md) erweitert diesen
 Stand um `training_quality.rejection_details` (Schema 1). Join-Ziele stammen aus

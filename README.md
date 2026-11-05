@@ -17,13 +17,14 @@ Temperatur, Wind, horizontale Globalstrahlung und PV-Leistung unterstützen
 kurzfristige Korrekturen. Ohne qualifizierte Lernhistorie bleibt die Physik aktiv.
 Ein gemeinsamer Zähler kann keine Einzelstringverluste identifizieren.
 
-**Version 0.2.23, Stand 05.11.2026: Releasevorbereitung.** Der neue Startpfad
+**Version 0.2.23, Stand 05.11.2026: veröffentlicht und über Marketplace installiert.** Der neue Startpfad
 stellt fehlendes scikit-learn über HAs eigenen Requirementsmanager bereit,
 statt einen manuellen Eingriff nach dem Core-Update zu verlangen. Eine bereits
 vorhandene exakte, importierbare Version löst keine Paketinstallation aus.
 Modellversion, Physik, Lernregeln und Storeformate bleiben unverändert.
-Veröffentlichung und anschließende Marketplace-Installation stehen noch aus;
-zuletzt veröffentlicht ist 0.2.22. [Liefervertrag](docs/technik/ml-runtime-bundle.md)
+Die begrenzte Erhaltungsabnahme ist abgeschlossen; die ursprünglichen Archivtimer
+sind wiederhergestellt. Neue externe Quellenfreigaben bleiben getrennt.
+[Liefervertrag](docs/technik/ml-runtime-bundle.md)
 und [Releasehinweise](docs/releases/release-0.2.23.md).
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
@@ -81,7 +82,7 @@ python3.14 -m venv .venv
 .venv/bin/python -m pip check
 .venv/bin/python -m pytest -q --cov=custom_components.adaptive_solar --cov-branch \
     --cov-report=term-missing:skip-covered --cov-report=xml:artifacts/coverage.xml
-.venv/bin/ruff check custom_components tests scripts
+.venv/bin/ruff check custom_components tests scripts tools/ml_runtime
 ```
 
 Synthetische Offline-Demo:

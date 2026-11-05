@@ -1,10 +1,10 @@
 # Adaptive Solar: Dokumentation
 
 Die [Projektübersicht](../README.md) beschreibt Zweck und Einstieg. Die aktuellen
-Installationsanleitungen bereiten **0.2.23** mit HA-nativer ML-Paketlieferung und
-Marketplace vor; zuletzt veröffentlicht und installiert ist **0.2.22**.
-Die [neuen Releasehinweise](releases/release-0.2.23.md) trennen Vorbereitung,
-abgeschlossene Prüfungen und noch ausstehende Veröffentlichung/Installation.
+Installationsanleitungen beschreiben **0.2.23** mit HA-nativer ML-Paketlieferung und
+Marketplace. Die Version ist veröffentlicht und installiert; die begrenzte
+Erhaltungsabnahme und Timerwiederherstellung sind abgeschlossen. Die [Releasehinweise](releases/release-0.2.23.md)
+trennen Paket-/CI-Nachweise von der produktiven Abnahme.
 Die Fachverträge für Physik, Lernen und Speicherformate bleiben unverändert.
 Ältere Versionen und Prüfungen bleiben historisch unter
 [Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).

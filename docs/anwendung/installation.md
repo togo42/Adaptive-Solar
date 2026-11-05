@@ -1,6 +1,6 @@
 # Adaptive Solar installieren und aktualisieren
 
-Stand: 05.11.2026; Anleitung für den vorbereiteten Stand 0.2.23. Dessen [Releasehinweise](../releases/release-0.2.23.md)
+Stand: 05.11.2026; Anleitung für Version 0.2.23. Dessen [Releasehinweise](../releases/release-0.2.23.md)
 trennen Vorbereitung, Veröffentlichung und HA-Abnahme. Veröffentlichungs- und
 historische Testangaben stehen in den [Prüfnachweisen](../entwicklung/pruefnachweise.md). Die hier beschriebenen Schritte
 werden vom Betreiber auf der eigenen Installation ausgeführt. Projektprüfungen und
@@ -13,7 +13,7 @@ ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 | Core 2026.10.2 / Python 3.14 | Native HA-Tests, Testplugin 0.13.373 |
 | Core 2026.10.3 / Python 3.14 | Native HA-Tests, Testplugin 0.13.374 |
 | Core 2026.10.4 / Python 3.14 | Native HA-Tests, Testplugin 0.13.375; dokumentierte HAOS-Installation |
-| Core 2026.11.0 / HAOS amd64 / Python 3.14.10 | Frische HA-native ML-Installation über öffentliche Runtime-URL, nativer Fit/Predict, Hashablehnung und Offline-Zweitstart im offiziellen Image bestanden; Produktivnachweis noch offen, keine vollständige native Testsuite behauptet |
+| Core 2026.11.0 / HAOS amd64 / Python 3.14.10 | Frische HA-native ML-Installation über öffentliche Runtime-URL, nativer Fit/Predict, Hashablehnung und Offline-Zweitstart im offiziellen Image bestanden; Marketplaceinstallation und begrenzte produktive Erhaltung abgenommen, keine vollständige native Testsuite behauptet |
 | HAOS amd64, CPython 3.14, Musl ≥1.2 | Ab 0.2.23 automatische Lieferung des geprüften Binärpakets; externer Bau bleibt Aufgabe der Releasepflege, nicht des Betreibers |
 | Linux/glibc | Entwicklungs-/HA-Core-Testumgebungen geprüft; kein pauschaler Nachweis beliebiger Containerinstallationen |
 | ARM/aarch64, Raspberry Pi, andere Python-ABIs | Bisher nicht qualifiziert; kein passender Build-/Installationsnachweis im Projekt |
@@ -64,6 +64,13 @@ Die kostenlose Wetter-API ist für nichtkommerzielle Nutzung vorgesehen;
    Kein manueller Wheelbau oder SSH-/Dockerzugriff ist für die normale Installation
    vorgesehen. Ältere Versionen benötigen weiterhin den historischen
    [HAOS-Lieferweg](haos-installation.md).
+4. Marketplace vorab einmal mit dem installierenden Benutzerkonto öffnen und
+   die Erstnutzungswarnung selbst lesen/bestätigen. Das gilt auch für das Konto
+   eines API-/MCP-Zugangs; `can_install=true` allein belegt die Bestätigung nicht.
+   Bei externem Archivbetrieb diese Voraussetzung **vor** Timerpause und
+   Periodenschließung klären. Ein Agent darf die Warnung nicht stellvertretend
+   akzeptieren oder umgehen; alternativ führt der Betreiber Download/Neustart
+   selbst aus und lässt danach den tatsächlichen Stand prüfen.
 
 ## 3. Über Marketplace installieren
 
@@ -124,8 +131,9 @@ verhindern. Diagnosepfade: [Fehlerbehebung](bedienung.md#7-fehlerbehebung-und-su
 danach einmal Core neu starten und Abschnitt 5 prüfen. Vorhandene Einträge, IDs,
 Messhistorie und echte Tagesstartwerte weiterverwenden. Eine gesunde vorhandene
 scikit-learn-Version 1.9.1 bleibt unberührt; ein frischer kompatibler Corecontainer
-wird automatisch versorgt. Andere/kaputte Installationen oder unbekannte ABIs
-werden klar abgelehnt, nicht durch globale Importpfade oder Compilerbau verdeckt.
+wird automatisch versorgt. Andere/kaputte Installationen und im notwendigen
+Installationszweig unbekannte Liefer-ABIs werden klar abgelehnt, nicht durch
+globale Importpfade oder Compilerbau verdeckt.
 Die neuen Integrations-Pythonbytes ändern den Producerhash: externe qualifizierte
 Quellenperioden vor dem Wechsel begrenzen und neue Bindungen gesondert belegen.
 Marketplace aktualisiert nicht den separaten Archivhost. Der Austausch der
