@@ -1,6 +1,6 @@
 # Datenschutz und Datenflüsse von Adaptive Solar
 
-Stand: 04.11.2026; beschrieben ist der Funktionsstand 0.2.22, keine
+Stand: 05.11.2026; beschrieben ist der Funktionsstand 0.2.23, keine
 Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 Die ausdrücklich markierte Schattenfenster-Ergänzung ist unveröffentlichte
 Zweigvorbereitung vom 05.11.2026, nicht Teil dieses Releases.
@@ -10,7 +10,8 @@ Zweigvorbereitung vom 05.11.2026, nicht Teil dieses Releases.
 | Vorgang | Ziel und übertragene Daten |
 | --- | --- |
 | Wetterabruf | HTTPS `api.open-meteo.com/v1/forecast`: Breitengrad, Längengrad, Modellkennung, Wettervariablen, Horizont, Einheiten und UTC-Zeitformat; außerdem netzbedingt die öffentliche Quell-IP |
-| HACS-Installation/Update | GitHub über HACS; unterliegt dessen eigener Implementierung und Bedingungen |
+| Marketplace-Installation/Update | GitHub über den ab Core 2026.11 integrierten Marketplace; auf älteren Coreversionen HACS. Unterliegt dessen eigener Implementierung und Bedingungen |
+| Paketlieferung durch HA | HAs Requirementsmanager lädt deklarierte Pythonabhängigkeiten von den konfigurierten Paketindizes. Bei fehlendem scikit-learn lädt der Bootstrap ab 0.2.23 auf qualifiziertem Musl zusätzlich das SHA256-gebundene GitHub-Releaseasset; auf qualifiziertem glibc das normale PyPI-Paket. Übertragen werden Paket-/Versions-/Downloadanfragen und netzbedingt die öffentliche Quell-IP, keine Anlagen- oder Lernhistorie |
 | Optionale lokale CLI `forecast.py --live` | Derselbe Wetterabruf für die explizit ausgewählte Standortdatei |
 | Optionaler Host-Wettercollector `capture_weather.py` | HTTPS `api.open-meteo.com/v1/forecast` für deterministische Produkte und `ensemble-api.open-meteo.com/v1/ensemble` für Ensembleprodukte; Standortkoordinaten, Modellkennung, Wettervariablen, Horizont, Einheiten und Zeitformat sowie netzbedingt die öffentliche Quell-IP |
 | Optionaler Archivcollector ab 0.2.16 | Authentifizierter Abruf vom gewählten HA zum privat eingerichteten Archivhost; vollständige Originaleingaben und Ausgaben einschließlich Standort, Entitybindungen und Lernzeilen. Die HA-Option allein richtet keinen externen Transfer ein |
@@ -20,6 +21,13 @@ Die Integration berechnet Physik und Residualmodelle lokal. Ihr Wetterrequest en
 keine Entity-IDs, Zählerstände, Leistungsreihen, Lernzeilen, Batteriesignale oder
 HA-Zugangstokens. Im Integrationscode ist kein Telemetrie-/Crashreportingdienst
 implementiert. Andere HA-Integrationen oder Apps können eigene Verbindungen herstellen.
+
+Der neue ML-Bootstrap prüft lokal die exakte Version und den nativen Learnerimport.
+Eine gesunde vorhandene Installation verursacht durch diesen Bootstrap keinen
+Installer- oder Netzwerkaufruf. Der erste Start in einem frischen kompatiblen
+Corecontainer benötigt dagegen Paketnetzwerkzugriff. Diese Aussage umfasst nicht
+HAs übrige Requirements oder andere Integrationen. Liefer- und ABI-Grenzen stehen
+im [ML-Liefervertrag](../technik/ml-runtime-bundle.md).
 
 Der Coordinator aktualisiert regulär alle fünf Minuten; je Modell/Anlageneintrag
 gibt es einen Wettercache von einer Stunde. Das ist keine globale Abrufquote:

@@ -1,6 +1,22 @@
 # HAOS: scikit-learn für Adaptive Solar bauen und installieren
 
-Stand: 27.10.2026, Integrationsreferenz 0.2.12 (unveränderte Binärbasis seit 0.2.10). Bau-/Lieferweg seit Adaptive Solar **0.2.0**, kein anderes Lernmodell: normales CPython **3.14**, **amd64/x86_64**, **musllinux 1.2**. Andere ABIs/Architekturen, insbesondere ARM/Raspberry Pi, sind nicht geprüft. Einstieg und HACS: [Installation](installation.md). Historische Rohbelege bleiben privat; alle nötigen Bau-/Lieferbefehle stehen hier.
+Stand: 05.11.2026, Integrationsreferenz 0.2.23 (unveränderte Binärbasis seit 0.2.10). Bau-/Lieferweg seit Adaptive Solar **0.2.0**, kein anderes Lernmodell: normales CPython **3.14**, **amd64/x86_64**, **musllinux 1.2**. Andere ABIs/Architekturen, insbesondere ARM/Raspberry Pi, sind nicht geprüft. Einstieg und Marketplace: [Installation](installation.md). Historische Rohbelege bleiben privat; alle nötigen Bau-/Lieferbefehle stehen hier.
+
+**Ab 0.2.23 übernimmt der HA-native Bootstrap die Paketlieferung.** Betreiber
+installieren die Integration über Marketplace; sie benötigen weder den folgenden
+Compilerbau noch manuelle Docker-/SSH-Eingriffe. Der Bauweg in Abschnitten 1–4
+bleibt für die Releasepflege relevant. Der
+[Binärliefervertrag](../technik/ml-runtime-bundle.md) beschreibt die hashgebundene
+Weitergabe einschließlich Quell- und Lizenzbeigaben. Die folgenden manuellen
+Lieferanleitungen dokumentieren ältere Versionen und gezielte Wiederherstellung,
+nicht die normale Marketplace-Installation ab 0.2.23.
+
+**Wichtige Grenze ab Core 2026.11:** Der frühere Lieferpfad `/config/deps` wird
+nicht mehr geladen. Abschnitte 5.1–5.4 beschreiben ausschließlich den historischen
+Core-2026.10-Weg; für 2026.11 gilt [Abschnitt 5.5](#55-core-ab-202611-pakete-im-corecontainer).
+Die Wheel-Bauparameter bleiben unverändert, solange die tatsächliche Core-ABI
+weiterhin passt. Nicht den alten Pfad durch einen globalen `sys.path`- oder
+`PYTHONPATH`-Eingriff wieder aktivieren.
 
 ## 1. Anlass und feste Eingaben
 
@@ -76,13 +92,13 @@ Runtime: **joblib 1.6.0, narwhals 2.27.1, threadpoolctl 3.7.0, cloudpickle 3.1.2
 
 Nur `repaired/` plus vier `runtime/`-Wheels kommen für Installation infrage. Hashprüfung ist keine unabhängige Signatur/Modellgüteprüfung.
 
-## 5. Lieferung in den persistenten Corepfad
+## 5. Versionsabhängige Lieferung in Core
 
 Der Buildhelfer installiert nichts auf HA. Die folgenden Schritte führt der Betreiber
 nach Prüfung seiner Plattform aus. Die dokumentierte native Installation ist von
 dieser Anleitung und dem lokalen Paketierungstest zu unterscheiden.
 
-### 5.1 Core und Sicherung prüfen
+### 5.1 Core bis 2026.10 und Sicherung prüfen
 
 1. Tatsächlicher Core: CPython 3.14/amd64/Musl≥1.2. SSH-App ist ein anderer Interpreter.
 2. Native NumPy/SciPy/Pandas unverändert gegen den Wheel prüfen, keine Buildvenv-Pakete nach `/config/deps` oder andere Corepfade kopieren.
@@ -120,7 +136,7 @@ Die [pip-Zieloptionen](https://pip.pypa.io/en/stable/cli/pip_install/) ermöglic
 Plattformauswahl; `--no-index`/`--no-deps` verhindern einen neuen freien Resolverlauf.
 Das Ziel muss vor dem Befehl unbenutzt sein; kein `--upgrade` in fremde Pakete hinein.
 
-### 5.3 Kopieren, Neustart und Rückweg
+### 5.3 Core bis 2026.10: Kopieren, Neustart und Rückweg
 
 Über einen bereits eingerichteten lokalen Dateizugang zur HA-Konfiguration arbeiten,
 etwa Samba oder eine Dateiverwaltungs-App. Deren Mount kann anders heißen; entscheidend
@@ -138,7 +154,7 @@ ist die Konfigurationswurzel mit `configuration.yaml`, die im Core `/config` ist
    `.whl`-Dateien ablegen. Übertragene Dateien mit dem lokalen Payload byteweise
    bzw. anhand eigener SHA256-Dateilisten vergleichen; keine Geheimnisse exportieren.
 4. Core mit `ha core start` wieder starten und Protokolle prüfen. Anschließend
-   [Integrationsinstallation](installation.md#3-über-hacs-installieren) abschließen.
+   [Integrationsinstallation](installation.md#3-über-marketplace-installieren) abschließen.
 
 Bei einem fehlgeschlagenen Import Core wieder stoppen, ausschließlich die gelieferten
 fünf Distributionen/zugehörigen Dateien entfernen und deren gesicherten Vorgänger
@@ -146,7 +162,7 @@ wiederherstellen. Danach starten und erneut prüfen. Nicht `deps` als Ganzes lö
 Fehlt ein gesicherter Vorgänger, ist der Rückweg die Entfernung genau des neuen
 Payloads; er stellt keine vorher nie vorhandene Integrationsfunktion her.
 
-### 5.4 Im tatsächlichen Core prüfen
+### 5.4 Core bis 2026.10: Im tatsächlichen Core prüfen
 
 Versionen, Importpfade, Konfigurationsprüfung, Reparaturen und nativen Einrichtungsdialog
 prüfen. Wer bereits einen administrativen Zugang zum **HAOS-Host** besitzt, kann
@@ -183,6 +199,85 @@ zusätzlich muss der **regulär geladene HA-Eintrag** nach Neustart funktioniere
 Die kleine Probe prüft native Imports und synthetisches Fit/Predict, kein produktives
 Lernen. Ein Setupdialog allein prüft nicht alle ML-Erweiterungen. Reale Quellenqualität
 und der spätere Prognosevergleich bleiben die Nachweise in Abschnitt 6.
+
+### 5.5 Core ab 2026.11: Pakete im Corecontainer
+
+Historischer manueller Reparaturweg für Adaptive Solar bis einschließlich
+0.2.22. Ab 0.2.23 ist stattdessen die automatische Marketplace-/HA-Lieferung oben
+vorgesehen. Dieser Abschnitt bleibt als begrenzter Diagnose- und Rückweg erhalten.
+
+HA hat die Konfigurationsverzeichnis-Abhängigkeiten mit
+[Core-Änderung #168155](https://github.com/home-assistant/core/pull/168155)
+entfernt. Der [Paketinstaller von 2026.11.0](https://github.com/home-assistant/core/blob/2026.11.0/homeassistant/util/package.py)
+installiert im Container regulär in dessen Pythonumgebung. Bereits vorhandene
+Dateien unter `/config/deps` erfüllen deshalb den Requirementcheck nicht mehr.
+Ohne passenden Wheel versucht HA einen Sdist-Bau; ein Fehler wie
+`PermissionError: ... 'meson'` ist kein Anlass, Compiler oder Buildvenv in Core
+zu installieren.
+
+Der folgende **manuelle Wiederherstellungsweg** setzt einen ausdrücklich
+genehmigten administrativen Dockerzugriff auf den HAOS-Host voraus. Eine normale
+SSH-App ohne Corecontainerzugriff genügt nicht; ihren Interpreter nicht als Core
+ausgeben. Ein vorübergehend genehmigter schwächerer App-Schutzmodus muss nach
+der Arbeit wiederhergestellt und die App neu gestartet werden. Keine neuen
+öffentlichen Debugports öffnen.
+
+1. Konfigurationsbackup vorab abschließen; eine bewusst ausgeschlossene
+   Recorder-Datenbank ist darin nicht wiederherstellbar. Die bestehenden
+   ML-Paketdateien sowie Konfiguration, Entity-IDs und Lern-/Tagesstartdaten
+   separat für den Vorher-/Nachhervergleich erhalten; keine `.storage`-Dateien
+   direkt zurückschreiben.
+2. **Im tatsächlichen Corecontainer** Pythonversion, SOABI, Architektur und
+   installierte Distributionen prüfen. Der begrenzt geprüfte Stand ist
+   Core 2026.11.0, CPython 3.14.10, `cpython-314-x86_64-linux-musl`, NumPy 2.3.2,
+   SciPy 1.18.1 und Pandas 2.3.3. Fremde/abweichende Paketversionen oder vorhandene
+   gleichnamige Dateien nicht überschreiben: erst Abhängigkeiten und Rückweg
+   gesondert prüfen. Beim geprüften Wiederherstellungslauf fehlten alle fünf
+   folgenden Distributionen im regulären Corepfad.
+3. Ausschließlich den reparierten Wheel aus Abschnitt 4 und die vier reinen
+   Runtime-Wheels in einen neuen privaten Transferordner unter
+   `/config/adaptive_solar_dependencies/` kopieren. Ihre SHA256-Werte vor und
+   nach dem Transfer vergleichen. Dort verbleibende Wheels sind nur ein
+   Installationsvorrat, kein automatisch geladener Importpfad.
+4. Auf dem administrativen Host, mit dem tatsächlichen Transferordner anstelle
+   von `<transferordner>`, ausschließlich die geprüften Pakete installieren:
+
+   ```bash
+   docker exec homeassistant python3 -m uv pip install \
+     --system --no-index --no-deps --only-binary=:all: \
+     --find-links "/config/adaptive_solar_dependencies/<transferordner>" \
+     scikit-learn==1.9.1 joblib==1.6.0 narwhals==2.27.1 \
+     threadpoolctl==3.7.0 cloudpickle==3.1.2
+   ```
+
+   Dies verändert weder die Runtimepins noch das Lernmodell. Kein `--upgrade`,
+   keine Buildvenv-Pakete und keine NumPy-/SciPy-/Pandas-Wheels übernehmen.
+5. Native Imports, `homeassistant.util.package.is_installed('scikit-learn==1.9.1')`
+   und synthetisches `GradientBoostingRegressor.fit/predict` wie in Abschnitt 5.4
+   prüfen, **aber ohne** `sys.path.insert`: `sklearn.__file__` muss aus dem
+   regulären Core-Paketpfad kommen. Numerische Paketdateien gegen die Baseline
+   abgleichen, Konfigurationsprüfung ausführen. Eine globale `uv pip check`-Prüfung
+   kann zusätzlich fremde Konflikte melden; diese nicht durch freie Upgrades
+   reparieren und einen solchen Lauf nicht als vollständig erfolgreich ausweisen.
+6. Nach wiederhergestellten Zugriffsrechten einmal Core neu starten und alle
+   vorhandenen Einträge, aktuelle Prognosen, Registry-/Konfigurationsidentitäten
+   sowie erhaltene Messintervalle und echte Tagesstartwerte prüfen. Keine
+   Originalsensoren zwangsaktualisieren, um Frische zu erzeugen.
+
+**Updategrenze:** Die Installation liegt im beschreibbaren Corecontainer, nicht
+im HA-Image. Ein normaler Core-Neustart erhält sie; ein Core-Update, Rebuild oder
+Containeraustausch kann sie entfernen. Die passenden, unveränderten Wheels können
+dann nach erneuter ABI-/Abhängigkeitsprüfung wiederverwendet werden. HACS führt
+diesen Vorgang nicht automatisch aus. Eine universelle updatefeste Binärlieferung
+ist damit noch nicht gelöst; nicht pauschal alle künftigen Coreversionen freigeben.
+
+**Gezielter Rückweg:** Nur wenn die Vorprüfung wie oben das vollständige Fehlen
+dieser fünf Pakete belegt hat, ist das Entfernen genau dieser neu installierten
+Distributionen per `python3 -m uv pip uninstall --system` im Corecontainer der
+Paket-Rückweg, gefolgt von einem Neustart. Es stellt den früheren Fehlerzustand
+wieder her, nicht eine funktionierende alte Coreversion. Vorhandene fremde Pakete,
+`/config/deps` und Anlagendaten bleiben unberührt; kein Core-Downgrade und keine
+Backupwiederherstellung sind Teil dieses Ablaufs.
 
 ## 6. Getrennte Nachweise
 

@@ -71,6 +71,8 @@ def install(target, *, constraints=None):
     env["PIP_REQUIRE_VIRTUALENV"] = "1"
     checked([python, "-I", "-c", CHECK, str(target)], "preflight", env=env)
     requirements = json.loads((ROOT / "custom_components/adaptive_solar/manifest.json").read_text())["requirements"]
+    runtime = json.loads((ROOT / "custom_components/adaptive_solar/runtime_requirements.json").read_text())
+    requirements = [*requirements, *runtime["requirements"]]
     command = [python, "-I", "-m", "pip", "install", "--upgrade", "--no-user", "--constraint", str(CONSTRAINTS)]
     if constraints is not None:
         command += ["--constraint", str(Path(constraints).resolve())]

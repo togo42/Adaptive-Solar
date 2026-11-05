@@ -1,6 +1,6 @@
 # Adaptive Solar entwickeln und prüfen
 
-Stand: 29.10.2026. [Repositoryregeln](../../AGENTS.md), [Verträge](../technik/implementation-contract.md)
+Stand: 05.11.2026. [Repositoryregeln](../../AGENTS.md), [Verträge](../technik/implementation-contract.md)
 und [Validierungsgrenzen](validierung.md) ergänzen diesen Einstieg.
 
 ## 1. Prüfumgebung reproduzieren
@@ -21,10 +21,12 @@ import subprocess
 import sys
 
 requirements = json.loads(Path("custom_components/adaptive_solar/manifest.json").read_text())["requirements"]
+runtime = json.loads(Path("custom_components/adaptive_solar/runtime_requirements.json").read_text())
+requirements += runtime["requirements"]
 subprocess.check_call([sys.executable, "-m", "pip", "install", ".[test,ha-test]", *requirements])
 PY
 .venv/bin/python -m pip check
-.venv/bin/ruff check custom_components tests scripts
+.venv/bin/ruff check custom_components tests scripts tools/ml_runtime
 .venv/bin/python -m pytest -q --junitxml=artifacts/tests.xml \
     --cov=custom_components.adaptive_solar --cov-branch \
     --cov-report=term-missing:skip-covered \
@@ -33,7 +35,7 @@ PY
 
 Das ist derselbe Installationsumfang wie in [CI](../../.github/workflows/tests.yml).
 Das Extra `ha-test` bindet aktuell Core 2026.10.4 und Plugin 0.13.375; das Manifest
-bindet die HA-Runtimepins. Die breiteren normalen Paketabhängigkeiten allein sind
+bindet zusammen mit `runtime_requirements.json` die HA-Runtimepins. Die breiteren normalen Paketabhängigkeiten allein sind
 kein Nachweis dieser konkreten Laufzeit. Andere Matrixarme benötigen eigene Venvs:
 
 | Core | Testplugin |
@@ -96,12 +98,21 @@ ersetzt keine eingefrorene prospektive Vergleichsmessung.
 
 Pull Requests beschreiben Problem, resultierendes Verhalten und Prüfungen. Zu
 Versionsänderungen `pyproject.toml`, HA-Manifest und Releasebeschreibung abgleichen;
-es gibt keine zweite unbenutzte Runtimeversionskonstante. Mindestversion in HACS
+es gibt keine zweite unbenutzte Runtimeversionskonstante. Metadatenmindestversion
 und die dokumentierte Testmatrix gemeinsam prüfen. Dokumentation auf Deutsch,
 Codebezeichner und etablierte technische Begriffe beibehalten. Eigenständige fremde
 Lizenzen erhalten; Projektlizenz ist [GPL-3.0-only](../../LICENSE).
 
 ## 3. Veröffentlichung und Nachweise
+
+Ab 0.2.23 ist die ML-Abhängigkeit in `runtime_requirements.json` getrennt vom
+Manifest deklariert. Das Manifest behält pvlib;
+CI und Archivhostinstaller kombinieren beide direkten Requirementlisten. Der
+HA-Startpfad ruft nur bei fehlendem ML-Paket HAs Requirementsmanager auf. Lokale
+Tests brauchen daher weiterhin beide Listen. Änderungen am Liefervertrag
+verlangen zusätzlich die [Bundle-/Nativeprüfung](../technik/ml-runtime-bundle.md),
+nicht nur eine grüne glibc-Testsuite. Eine neue Dependency-Assetversion muss vor
+einer Integration mit ihrer unveränderlichen URL veröffentlicht sein.
 
 Der seit 0.2.16 veröffentlichte Archivzweig enthält
 [`archive.py`, Wetter-/Messaufnahme und Replay](../archiv/archivbetrieb.md).

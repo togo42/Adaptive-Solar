@@ -71,6 +71,7 @@ Bei neuen Helfern oder neuen Schreibarten die passende Zeile ergänzen.
 | `archive.py stats`, `verify`; Replay-/Qualitätsleser | Archiv öffnen und ggf. abgeleiteten Index abgleichen | Ein Archivleser ist nicht automatisch frei von Dateischreibzugriffen; Originalprüfung bleibt Pflicht |
 | `install_archive_host.py` | Venv anlegen; Pakete installieren | Explizit gewählte isolierte Hostumgebung; eigener Installationsauftrag, keine Ausführung bei einem bloßen Quellreview |
 | `build_haos_wheel.py` | Neuer Buildbaum, Downloads und Buildausgaben | Neues direktes Unterverzeichnis des dedizierten `/work`-Mounts; vorhandene Ziele nicht wiederverwenden |
+| `build_ml_runtime.py` | Neue Dependency-Releaseassets, keine Downloads | Frisches direktes Unterverzeichnis von `artifacts/`, keine Symlink-Eltern; alle Eingaben, Wheelmetadaten und Quell-/Lizenzbeigaben vor erster Zielanlage prüfen; bestehende Ziele nie überschreiben |
 | `review.py` | Neue private Reviewablage und Laufartefakte | Neues Verzeichnis unter `reviews/private/`; Scope/Transfer/CLI-Audit separat, kein Schreiben in Quellarchive |
 
 `replay_paths.py` und `actual_quality_io.py` sind gemeinsame Hilfsmodule ohne

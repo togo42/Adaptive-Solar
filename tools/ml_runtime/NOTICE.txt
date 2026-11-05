@@ -1,0 +1,40 @@
+Adaptive Solar dependency delivery: scikit-learn 1.9.1
+Dependency release: v0.2.23-runtime.1
+
+This is a PEP 517 delivery container, NOT upstream scikit-learn source and NOT
+a modified scikit-learn wheel. It contains exactly the pinned normal CPython
+3.14 / Linux x86_64 / musllinux_1_2 wheel. glibc uses upstream PyPI; no glibc
+wheel is redistributed. Its backend is GPL-3.0-only (COPYING3); scikit-learn,
+its vendored code, and the GCC runtime libraries retain their own terms.
+
+The wheel's original BSD-3-Clause COPYING and vendored Array API license
+notices remain inside the unchanged wheel. COPYING is also supplied at the
+delivery root. The source archive's complete GCC COPYING, COPYING3,
+COPYING.LIB, COPYING3.LIB and COPYING.RUNTIME texts are supplied in licenses/.
+The GCC runtime library sources carry GPL terms with GCC Runtime Library
+Exception 3.1; see the actual source files and COPYING.RUNTIME, not merely
+the aggregate Alpine package license declaration. See provenance.json for
+the pinned builder image, Alpine package versions and original/repaired
+library SHA256 values. auditwheel rewrites ELF names/rpaths; original and
+repaired library bytes are therefore not claimed to be identical.
+
+Corresponding source material is supplied as separate downloadable assets
+of THE SAME dependency release (retain all of them when mirroring):
+https://github.com/togo42/Adaptive-Solar/releases/download/v0.2.23-runtime.1/gcc-15.2.0.tar.xz
+https://github.com/togo42/Adaptive-Solar/releases/download/v0.2.23-runtime.1/gcc-15.2.0-r5-alpine-sources.tar.gz
+https://github.com/togo42/Adaptive-Solar/releases/download/v0.2.23-runtime.1/scikit_learn-1.9.1-original-source.tar.gz
+https://github.com/togo42/Adaptive-Solar/releases/download/v0.2.23-runtime.1/SHA256SUMS
+
+The Alpine source asset supplies the exact APKBUILD and ALL 44 patches from
+aports commit 423a8ad043d07f2c7546c8ec3e2b0384cda360ae, source-records.json
+with APKBUILD-bound SHA512 and SHA256 values, and build notes. GCC source is
+the complete upstream 15.2.0 tar.xz, byte-identical to the pinned original;
+the scikit-learn source asset is the complete original PyPI sdist, renamed
+only to distinguish it from this delivery container. No sources are fetched
+by the installation backend. These URLs are publication targets: generating
+local assets neither uploads them nor proves their public availability.
+
+Keep the dependency tag and all assets immutable and available together.
+These are documented provenance, license texts and source materials, not
+a legal opinion or a blanket assertion of license compliance. A fresh
+compiler run is not asserted to recreate the historical wheel byte for byte.

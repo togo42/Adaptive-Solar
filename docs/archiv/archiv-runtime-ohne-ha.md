@@ -8,7 +8,10 @@ bleibt ein getrenntes System.
 
 `scripts/install_archive_host.py --venv PFAD` erzeugt eine isolierte Pythonumgebung
 oder aktualisiert eine vorhandene HA-freie Umgebung. Es installiert ausschließlich
-das reguläre Projekt und die direkten Pins aus dem aktuellen Komponentenmanifest.
+das reguläre Projekt und die direkten Pins aus dem aktuellen Komponentenmanifest
+sowie `runtime_requirements.json`. Der HA-freie Host verwendet daraus den normalen
+PyPI-Pin `scikit-learn==1.9.1`, nicht den HA-spezifischen Musl-Bootstrap oder dessen
+GitHub-Liefer-URL. Home Assistant wird dafür nicht installiert.
 `deploy/archive-host-constraints.txt` enthält unerfüllbare Versionsbedingungen für
 `homeassistant` und `pytest-homeassistant-custom-component`. Eine versehentlich
 hinzukommende direkte oder transitive Anforderung führt damit zum Resolverfehler.

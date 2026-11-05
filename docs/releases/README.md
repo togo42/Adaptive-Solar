@@ -1,6 +1,11 @@
 # Adaptive Solar: Versionshinweise
 
-Aktuell veröffentlicht und über HACS installiert: **[0.2.22](release-0.2.22.md)**
+Veröffentlicht und über Marketplace installiert: **[0.2.23](release-0.2.23.md)** mit automatischer HA-nativer
+ML-Paketlieferung nach Core-Containerwechsel und aktuellem Marketplace-Installationsweg.
+Die begrenzte Produktivabnahme und Wiederherstellung der ursprünglichen
+Archivtimer sind abgeschlossen; neue externe Quellenfreigaben bleiben getrennt.
+
+Historischer Vorgänger: **[0.2.22](release-0.2.22.md)**
 mit Korrekturen der unabhängig geprüften Grok-Befunde. Releaseartefakte und die
 begrenzte Adaptive-Solar-Erhaltung sind geprüft. Nach dem zwischenzeitlichen
 Neustart bestätigt eine frische Folgeprüfung gültige Konfiguration, erhaltene
@@ -16,6 +21,7 @@ siehe [Prüfnachweise](../entwicklung/pruefnachweise.md).
 
 | Version | Schwerpunkt |
 | --- | --- |
+| [0.2.23](release-0.2.23.md) | HA-native ML-Paketlieferung und Marketplace-Installation |
 | [0.2.22](release-0.2.22.md) | Setuprollback, harte Snapshotcaps, belegte Replayphasen sowie Qualitäts-/Archivkorrekturen |
 | [0.2.21](release-0.2.21.md) | Kompakte Qualitätsdiagnosen, getrennte Archivintervalle, optionales Nachtprofil und begrenzte Collectorläufe |
 | [0.2.20](release-0.2.20.md) | Offline-Support-Guard, optierte Istwert-Quellenbindung und Aufnahme-/Zeitkorrekturen |

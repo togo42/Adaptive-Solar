@@ -1,12 +1,11 @@
 # Adaptive Solar: Dokumentation
 
 Die [Projektübersicht](../README.md) beschreibt Zweck und Einstieg. Die aktuellen
-Anleitungen und Datenverträge beschreiben den veröffentlichten und über HACS
-installierten **Funktionsstand 0.2.22**. Die begrenzte Adaptive-Solar-
-Erhaltungsprüfung und die Folgeprüfung nach dem zwischenzeitlichen Neustart
-sind abgeschlossen; die Konfiguration ist gültig, offene Repairs bestehen nicht.
-Die [Releasehinweise](releases/release-0.2.22.md) trennen Korrekturen,
-Kompatibilitätsgrenzen, Installationsnachweise und den gesonderten Archivhost.
+Installationsanleitungen beschreiben **0.2.23** mit HA-nativer ML-Paketlieferung und
+Marketplace. Die Version ist veröffentlicht und installiert; die begrenzte
+Erhaltungsabnahme und Timerwiederherstellung sind abgeschlossen. Die [Releasehinweise](releases/release-0.2.23.md)
+trennen Paket-/CI-Nachweise von der produktiven Abnahme.
+Die Fachverträge für Physik, Lernen und Speicherformate bleiben unverändert.
 Ältere Versionen und Prüfungen bleiben historisch unter
 [Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).
 
@@ -19,8 +18,8 @@ beschreiben keinen Rollout und keine bereits umgesetzte vollständige Kartenansi
 
 | Dokument | Inhalt |
 | --- | --- |
-| [Installation](anwendung/installation.md) | Voraussetzungen, HACS, manuelle Installation, Upgrade und Rückweg |
-| [HAOS-Binärabhängigkeiten](anwendung/haos-installation.md) | Qualifizierter amd64-/Musl-Bau und persistente Bereitstellung |
+| [Installation](anwendung/installation.md) | Voraussetzungen, Marketplace, manuelle Installation, Upgrade und Rückweg |
+| [HAOS-Binärabhängigkeiten](anwendung/haos-installation.md) | Qualifizierter amd64-/Musl-Bau und historische manuelle Lieferung |
 | [Bedienung](anwendung/bedienung.md) | Einrichtung, Optionen, Sensoren, Energy und Fehlerbehebung |
 | [Datenschutz](anwendung/datenschutz.md) | Datenflüsse, Speicherung, Diagnose und Löschgrenzen |
 
@@ -29,6 +28,7 @@ beschreiben keinen Rollout und keine bereits umgesetzte vollständige Kartenansi
 | Dokument | Inhalt |
 | --- | --- |
 | [Implementierungsvertrag](technik/implementation-contract.md) | Architektur, Zeit-/Messgrenzen, Physik, Lernen und Persistenz |
+| [ML-Liefervertrag](technik/ml-runtime-bundle.md) | HA-nativer Bootstrap, Binärbundle, Plattformgrenzen und Lizenz-/Quellbeigaben |
 | [Tagesbeginnkurve](technik/day-start-curve.md) | Eingefrorene Stundenkurve, Attribute und Alt-Snapshots ab 0.2.18 |
 | [Messgültigkeit](technik/measurement-validity.md) | Externe Quellenprüfung und Wiederanlauf |
 | [Messkontinuität und Lernfenster](technik/measurement-learning.md) | Aktuelle Endpunktfenster, Herkunft und Rundungsbursts |

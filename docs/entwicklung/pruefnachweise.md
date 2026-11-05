@@ -5,6 +5,13 @@ versionierten Release- und Prüfberichten übernommen. Sie beschreiben damalige
 Prüfungen; die Dokumentationsneuordnung ist weder ein neuer vollständiger
 Integrationsreview noch eine erneute Laufzeitprüfung.
 
+Ergänzung vom **05.11.2026**: Aktuell veröffentlicht und über Marketplace
+installiert ist [0.2.23](../releases/release-0.2.23.md), Quelltag `593c8a0`.
+Tag-CI: 3.208 Tests ohne Skips, 91,51 % Abdeckung; frische öffentliche
+HA-native Musl-Lieferung, Offline-Zweitstart und begrenzte Produktiverhaltung
+sind getrennt belegt. Der nachfolgende Versionsrückblick bleibt historisch;
+gezielte Subagentenreviews sind kein neuer externer Gesamtquellreview.
+
 Ergänzung vom **30.10.2026**: Der korrigierte Entwicklungskandidat für fortlaufende
 Quellenbindung und Qualitätsaufnahme hat die [Codex-Quellabnahme](#codex-quellabnahme-des-korrigierten-entwicklungskandidaten)
 auf `05f90ea49d1fb124c9f16e1382921d3726f76022` bestanden. Dies ist keine
@@ -63,7 +70,9 @@ Main-Merge, Release oder produktives HA-/Hostdeployment. Die Auslagerung der
 Offlineanalyse bleibt der separat beschriebene Folgeschritt; Quellenpins werden
 nicht gelockert und die Guardpolicy bleibt unverändert.
 
-## Release 0.2.21: aktueller Stand
+<a id="release-0221-aktueller-stand"></a>
+
+## Release 0.2.21: historischer Stand
 
 Stand: 02.11.2026. [Release 0.2.21](../releases/release-0.2.21.md) ist auf
 `2dd940c3aa1a00d7291228f24ebaac90b56eef14` veröffentlicht. Seine lokale Vollsuite
@@ -374,7 +383,9 @@ Rohbelege: `reviews/private/release-0.2.20-codex-r8/`; Audit, CI und Build:
 `artifacts/release-0.2.20/codex-r8-closeout.json`, `ci-41052233817/` und `r8-build/`.
 Keine Veröffentlichung oder produktive Aktivierung ist erfolgt.
 
-## Aktueller Releasebezug
+<a id="aktueller-releasebezug"></a>
+
+## Historischer Releasebezug 0.2.19
 
 [0.2.19](../releases/release-0.2.19.md) aktualisiert die HA-Geräte-API und
 die Serviceimplementierung. Implementierungscommit `8dbf980` bestand lokal

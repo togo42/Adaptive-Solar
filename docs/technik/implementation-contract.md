@@ -1,6 +1,6 @@
 # Implementierungsvertrag für Adaptive Solar
 
-Stand: 04.11.2026; Funktionsstand 0.2.22. Veröffentlichungs- und Installationsstatus stehen in den [Releasehinweisen](../releases/release-0.2.22.md). Der optionale [Originaldatenexport](../archiv/archive-storage-contract.md) erweitert den Stand 0.2.15. Die aktuelle Implementierung ergänzt [Messkontinuität](measurement-learning.md), [Bias-Shadow](early-bias-shadow.md), [Physik-/Schattenoptionen](physics-learning-options.md), [Fehlerbehandlung/Ressourcen](forecast-resilience.md) und [Vergleichsarchive](model-comparison-archive.md). Anwenderfelder und Abläufe: [Bedienung](../anwendung/bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen.
+Stand: 05.11.2026; Funktionsstand 0.2.23. Veröffentlichungs- und Installationsstatus stehen in den [Releasehinweisen](../releases/release-0.2.23.md). Der optionale [Originaldatenexport](../archiv/archive-storage-contract.md) erweitert den Stand 0.2.15. Die aktuelle Implementierung ergänzt [Messkontinuität](measurement-learning.md), [Bias-Shadow](early-bias-shadow.md), [Physik-/Schattenoptionen](physics-learning-options.md), [Fehlerbehandlung/Ressourcen](forecast-resilience.md) und [Vergleichsarchive](model-comparison-archive.md). Anwenderfelder und Abläufe: [Bedienung](../anwendung/bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen.
 
 Die unten markierte [Schattenfenster-Diagnose](schattenfenster-diagnose.md) ist
 unveröffentlichte Zweigvorbereitung vom 05.11.2026, nicht Teil von Release 0.2.22.
@@ -21,6 +21,16 @@ Ohne optionalen Originaldatenexport keine Detailpersistenz oder neuen Recorderre
 ## Ziel und Aufteilung
 
 Native Custom-Integration `adaptive_solar` unter `custom_components/adaptive_solar/`; `core/` bleibt HA-unabhängig. HA-Imports erst in Setup-Funktionen des obersten `__init__.py` erlauben Offline-Werkzeuge. Modellkern Python ab 3.13, geprüfte HA-Ziele 2026.10.2/.3/.4 mit Python 3.14; pvlib/scikit-learn sind explizite Abhängigkeiten. Kein Helios-Quellcode.
+
+Ab 0.2.23 liegt der genaue ML-Pin in `runtime_requirements.json`, während das
+Manifest pvlib deklariert. Vor Wetter-/Coordinator-
+und Storeaufbau prüft `_runtime.py` im Executor die exakte vorhandene Version und
+den nativen Learnerimport. Nur eine fehlende Bibliothek wird durch HAs eigenen
+Requirementsmanager nachgeliefert, auf qualifiziertem Musl aus dem hashgebundenen
+PEP-517-Lieferbundle. Eine gesunde vorhandene Installation braucht dafür keinen
+Netzwerkzugriff. Falsche/beschädigte Bibliotheken, unbekannte Liefer-ABIs und
+unterbrochene Installationen werden nicht im laufenden Prozess repariert.
+Plattform-, Lizenz- und Prüfumfang: [ML-Liefervertrag](ml-runtime-bundle.md).
 
 Ziel: **verfügbares PV-Potenzial ohne betriebliche Abregelung** an `ac_inverter_output` oder `dc_charge_controller_output`. Alle Sensoren tragen `forecast_scope=available_pv_potential_without_operational_curtailment`; keine Prognose künftiger Reglerbefehle. `baseline_w`, `power_w`, `actual_w` teilen dieselbe W-Messgrenze, der Produktionszähler liefert deren kumulative Energie statt Netzbilanz/Batterieentladung. Ladereglerlimits sind keine AC-Limits. Aktive/unbekannte Abregelung wird ausgewiesen und sperrt Power-Nowcast, keine echte Sonnenmessung.
 
