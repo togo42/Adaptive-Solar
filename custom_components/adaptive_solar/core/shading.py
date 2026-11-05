@@ -247,6 +247,23 @@ class BeamShadeTable:
                    and self._release_as_of(inverter_id, window, as_of) is not None
                    for window in self._bins.get(inverter_id, {}))
 
+    def _window_status(self, inverter_id, window, as_of):
+        """Assess one window without refreshing releases or touching storage."""
+        samples, days, center, mad, reason = self._assessment(inverter_id, window, as_of)
+        raw_count = len(self._bins.get(inverter_id, {}).get(window, {}))
+        release = self._release_as_of(inverter_id, window, as_of)
+        if reason is None and release is None:
+            reason = "no_release_available_at_as_of"
+        return {
+            "azimuth_bin_deg": window[0] if window is not None else None,
+            "elevation_bin_deg": window[1] if window is not None else None,
+            "transmittance": release[1] if reason is None else 1.0,
+            "candidate_transmittance": center, "daily_mad": mad,
+            "samples": len(samples), "days": len(days), "excluded_time_samples": raw_count - len(samples),
+            "newest_sample_age_days": (as_of - max(samples)).total_seconds() / 86400 if samples else None,
+            "release_reason": reason or "qualified", "released": reason is None,
+        }
+
     def status_for(self, inverter_id: str, azimuth_deg: float | None = None,
                    elevation_deg: float | None = None, *, as_of: datetime | None = None,
                    last_rejection: str | None = None) -> dict[str, Any]:
@@ -267,6 +284,48 @@ class BeamShadeTable:
             "max_age_days": SHADE_MAX_AGE.days, "release_reason": reason or "qualified",
             "released": reason is None, "filled_bins": self.filled_bins(inverter_id, as_of=as_of),
             "last_rejection": last_rejection,
+        }
+
+    def window_diagnostics(self, inverter_id: str, *, as_of: datetime | None = None) -> dict[str, Any]:
+        """Return a detached, bounded snapshot of stored windows, never raw samples.
+
+        The grid admits at most 648 windows per stage. Each window is assessed
+        once (<=24 samples), without repeated scans of all other windows.
+        Reading must never record, prune, or create/update a release event.
+        Legacy-only windows remain visible but cannot qualify a release.
+        """
+        inverter_id = _non_empty_id(inverter_id)
+        as_of = self._as_of(as_of)
+        bins = self._bins.get(inverter_id, {})
+        legacy_counts = {}
+        for key, entries in self._legacy_unqualified.get(inverter_id, {}).items():
+            window = tuple(map(int, key.split(":")))
+            legacy_counts[window] = legacy_counts.get(window, 0) + len(entries)
+        windows = set(bins) | set(legacy_counts)
+        items = []
+        for window in sorted(windows):
+            raw = bins.get(window, {})
+            status = self._window_status(inverter_id, window, as_of)
+            items.append({
+                **status,
+                "candidate_transmittance": status["candidate_transmittance"] if status["samples"] else None,
+                "daily_mad": status["daily_mad"] if status["samples"] else None,
+                "stored_samples": len(raw),
+                "expired_samples": sum(observed < as_of - SHADE_MAX_AGE for observed, _, _ in raw.values()),
+                "unavailable_samples": sum(observed >= as_of - SHADE_MAX_AGE
+                                           and (observed > as_of or available > as_of)
+                                           for observed, available, _ in raw.values()),
+                "unqualified_legacy_samples": legacy_counts.get(window, 0),
+            })
+        return {
+            "schema_version": 1, "evaluated_at": as_of.isoformat(), "scope": "stored_solar_windows",
+            "azimuth_step_deg": AZIMUTH_BIN_DEG, "elevation_step_deg": ELEVATION_BIN_DEG,
+            "max_items": (360 // AZIMUTH_BIN_DEG) * (90 // ELEVATION_BIN_DEG),
+            "total": len(items), "truncated": False,
+            "filled_bins": sum(item["released"] for item in items),
+            "policy": {"min_samples": MIN_SHADE_SAMPLES, "min_days": MIN_SHADE_DAYS,
+                       "max_age_days": SHADE_MAX_AGE.days, "max_daily_mad": MAX_SHADE_DAILY_MAD},
+            "items": items,
         }
 
     def to_dict(self) -> dict[str, Any]:

@@ -3,6 +3,9 @@
 Stand: 04.11.2026, Funktionsumfang 0.2.22. [Versionshinweise und Veröffentlichungsstatus](../releases/release-0.2.22.md) und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung. [Installation](installation.md),
 [Datenverträge](../technik/implementation-contract.md), [Datenschutz](datenschutz.md).
 
+Die unten ausdrücklich markierte Schattenfenster-Ergänzung ist unveröffentlichte
+Zweigvorbereitung vom 05.11.2026, kein Bestandteil von Release 0.2.22.
+
 ## 1. Anlagenaufteilung vorbereiten
 
 Eine **Ausgangsstufe** ist der unabhängig gemessene Ausgang eines AC-Wechselrichters
@@ -188,6 +191,25 @@ Sonnenfenster (`azimuth_bin_deg`, `elevation_bin_deg`), den wirksamen Faktor
 (`samples`), die zeitlich qualifizierte Freigabe (`released`), die Gesamtzahl
 freigegebener Fenster der Stufe (`filled_bins`) und den letzten (auch mehrteiligen)
 Ablehnungsgrund (`last_rejection`).
+
+**Unveröffentlichte Ergänzung (`feat/af036-window-diagnostics`):**
+`learning.<Stufe>.beam_shade_windows` ergänzt diesen unveränderten aktuellen
+Status um alle **gespeicherten** Sonnenfenster, auch nur mit Altdaten oder
+abgelaufenen Proben. Die Liste ist nach Azimut/Höhe sortiert, im `10° × 5°`-Raster
+auf höchstens 648 Einträge je Stufe begrenzt und vollständig (`truncated=false`);
+nicht gespeicherte Rasterzellen werden nicht erfunden. Schema 1 nennt
+`evaluated_at` als gemeinsamen Schatten-Auswertungszeitpunkt, nicht als neuen
+Fitstichtag. Je Fenster sind wirksamer Faktor, Kandidat, Tagesstreuung, Freigabegrund,
+verwendbare Proben/Tage und getrennte Zähler für gespeicherte, abgelaufene,
+zeitlich noch nicht verfügbare und unqualifizierte Legacyproben sichtbar.
+Ohne verwendbare Proben sind Kandidat und Tagesstreuung `null`. Faktor `1.0`
+allein belegt keinen Lernerfolg: `released=false` bedeutet neutralen Rückfall,
+`released=true` kann einen qualifiziert gelernten neutralen Faktor bezeichnen.
+Es werden weder Rohproben noch Freigabehistorien ausgegeben; `learning` bleibt
+vom Recorder ausgeschlossen. [Vollständiger Diagnosevertrag](../technik/schattenfenster-diagnose.md).
+Der AF-036-Consumer in HA-Config bleibt offen und unverändert; eine vollständige
+Kartenansicht und die separate Liste angenommener ML-Ziele sind nicht umgesetzt.
+
 Für Lernlabels gelten mindestens 92 % Messabdeckung des ursprünglichen Ziels
 und höchstens drei Minuten fehlende Zeit je Rand. Innerhalb eines Blocks mit
 nachgewiesener gleicher Kontinuitätsphase sind zusätzlich höchstens eine Sekunde

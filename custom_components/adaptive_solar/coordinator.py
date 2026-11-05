@@ -1610,6 +1610,7 @@ class AdaptiveSolarCoordinator(DataUpdateCoordinator):
                 status[inv.id] = {**(learner.status.get(inv.id, {"state": "insufficient_history"})
                                     if learner else {"state": "fit_failed"}),
                     "beam_shade": beam_shade,
+                    "beam_shade_windows": shading.window_diagnostics(inv.id, as_of=now),
                     "training_quality": {"meter": meter_quality[inv.id], "alignment": quality,
                         "rejection_details": {"schema_version": 1, "evaluated_at": snapshot["evaluated_at"],
                             "targets": snapshot["targets"].get(inv.id, RejectionDetails().to_dict()),

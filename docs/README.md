@@ -10,6 +10,11 @@ Kompatibilitätsgrenzen, Installationsnachweise und den gesonderten Archivhost.
 Ältere Versionen und Prüfungen bleiben historisch unter
 [Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).
 
+Ausdrückliche Ausnahme: Die [Schattenfenster-Diagnose](technik/schattenfenster-diagnose.md)
+ist unveröffentlichte Vorbereitung in `feat/af036-window-diagnostics`, nicht Teil
+von 0.2.22. Ihre markierten Ergänzungen in Bedienung, Datenschutz und Vertrag
+beschreiben keinen Rollout und keine bereits umgesetzte vollständige Kartenansicht.
+
 ## Installation und Anwendung
 
 | Dokument | Inhalt |
@@ -30,6 +35,7 @@ Kompatibilitätsgrenzen, Installationsnachweise und den gesonderten Archivhost.
 | [Messintervalle ab 0.2.13](technik/messintervalle-92-prozent.md) | Historischer Ausgangsvertrag; spätere Ergänzungen sind gekennzeichnet |
 | [Ablehnungsdiagnose](technik/ablehnungsdiagnose.md) | Ziel-/Zeilendetails und echter Fit-Cutoff |
 | [Direktstrahl-Verschattung](technik/adaptive-solar-verschattung.md) | Ursprüngliche Spezifikation mit späteren Vertragsverweisen |
+| [Schattenfenster-Diagnose](technik/schattenfenster-diagnose.md) | Unveröffentlichter additiver Snapshot aller gespeicherten Sonnenfenster; AF-036-Consumer bleibt offen |
 | [Physik-/Schatten-/Nowcastoptionen](technik/physics-learning-options.md) | Aktuelle Kandidatenparameter und zeitliche Freigaben |
 | [Früher Bias im Shadow](technik/early-bias-shadow.md) | Beobachteter Kandidat mit eigenen Gates |
 | [Trainingsabdeckung offline prüfen](technik/learning-support-guard.md) | Separater Support-Guard-Kandidat im Entwicklungsstand; keine HA-Aktivierung |

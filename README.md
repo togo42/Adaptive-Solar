@@ -28,6 +28,17 @@ auf den korrigierten Funktionsstand `f1c7d9b` bleibt ein eigener Nachweis.
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
 
+**Unveröffentlichte Vorbereitung im Zweig `feat/af036-window-diagnostics`:**
+Die additive [Schattenfenster-Diagnose](docs/technik/schattenfenster-diagnose.md)
+macht gespeicherte Sonnenfenster je Stufe lesbar, ohne Modell-, Freigabe- oder
+Historienänderung. Sie gehört nicht zum unveränderten Release 0.2.22.
+Der AF-036-Consumer in HA-Config bleibt offen und unverändert; eine vollständige
+Kartenansicht und die separate Liste angenommener ML-Ziele sind nicht umgesetzt.
+Diese Vorbereitung autorisiert keinen Rollout. Vor einem späteren produktiven
+Quellwechsel müssen alte v2-Quellenzeiträume am exakten realen UTC-Schnitt vor
+Dateiwechsel/Neustart geschlossen und neue Producerpins separat geprüft werden;
+Originalarchive, alte Quellumgebung, Pins und Checkpoints bleiben erhalten.
+
 ## Installation und Bedienung
 
 1. [Plattform und Abhängigkeiten prüfen](docs/anwendung/installation.md).

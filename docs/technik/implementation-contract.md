@@ -2,6 +2,9 @@
 
 Stand: 04.11.2026; Funktionsstand 0.2.22. Veröffentlichungs- und Installationsstatus stehen in den [Releasehinweisen](../releases/release-0.2.22.md). Der optionale [Originaldatenexport](../archiv/archive-storage-contract.md) erweitert den Stand 0.2.15. Die aktuelle Implementierung ergänzt [Messkontinuität](measurement-learning.md), [Bias-Shadow](early-bias-shadow.md), [Physik-/Schattenoptionen](physics-learning-options.md), [Fehlerbehandlung/Ressourcen](forecast-resilience.md) und [Vergleichsarchive](model-comparison-archive.md). Anwenderfelder und Abläufe: [Bedienung](../anwendung/bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen.
 
+Die unten markierte [Schattenfenster-Diagnose](schattenfenster-diagnose.md) ist
+unveröffentlichte Zweigvorbereitung vom 05.11.2026, nicht Teil von Release 0.2.22.
+
 Die [Ablehnungsdiagnose](ablehnungsdiagnose.md) erweitert diesen
 Stand um `training_quality.rejection_details` (Schema 1). Join-Ziele stammen aus
 den bestehenden Outcomes; Learner-Codes aus den tatsächlichen Prüfstellen.
@@ -95,6 +98,41 @@ und `past_hours=1`, weiterhin UTC/Unixzeit. Der vorherige Momentanendpunkt dient
 der laufenden Quellzelle; ein früher endender nativer Modelllauf wird weder
 verlängert noch aufgefüllt. Lokale Tages-/DST-Grenzen bestimmt weiterhin der
 Forecastkern. Zusätzliche Providerstützen verlängern nicht `SiteConfig.forecast_days`.
+
+### Schattenfenster-Diagnose: unveröffentlichte Vorbereitung
+
+Im Zweig `feat/af036-window-diagnostics` ergänzt der Coordinatorworker additiv
+`learning.<Stufe>.beam_shade_windows`. Der abgetrennte, nur lesende Snapshot
+verwendet denselben Schatten-Auswertungszeitpunkt als `evaluated_at`;
+`beam_shade` und der bestehende aktuelle Status bleiben unverändert. Schema 1,
+`scope=stored_solar_windows`, Rasterweiten `10° × 5°`, `max_items=648`, `total`,
+`truncated=false`, `filled_bins` und `policy` beschreiben die vollständige,
+nach Azimut/Höhe sortierte Liste gespeicherter Zellen einschließlich Legacy-only
+und abgelaufener Fenster. Leere, nie gespeicherte Rasterzellen fehlen.
+Die unveränderte Policy nennt `min_samples=5`, `min_days=2`, `max_age_days=45`
+und `max_daily_mad=0.15`.
+
+Je Zelle werden Koordinaten, wirksame und Kandidatentransmission, Tages-MAD,
+verwendbare Proben/Tage, zeitlich ausgeschlossene Proben, Alter der neuesten
+verwendbaren Probe sowie `released`/`release_reason` ausgegeben. Zusätzlich
+trennen `stored_samples`, `expired_samples`, `unavailable_samples` und
+`unqualified_legacy_samples` die gespeicherten qualifizierbaren Proben von
+unqualifizierten Altdaten. Ohne verwendbare Proben sind `candidate_transmittance`
+und `daily_mad` `null`; Faktor `1.0` als Rückfall ist durch `released=false`
+von einer freigegebenen neutralen Schätzung unterscheidbar. Keine Rohbeobachtungen
+oder Freigabehistorien; keine neuen Recorderreihen, da das gesamte `learning`
+weiter unaufgezeichnet bleibt. [Feldvertrag](schattenfenster-diagnose.md).
+
+Modell, Gates, Featurevertrag, Fingerprints und Storeschema bleiben unverändert;
+keine Historienresets und kein Umschreiben ursprünglicher Snapshots, Archive oder
+Checkpoints. Dennoch ändert jeder Pythonquellwechsel den vollständigen
+Producerhash: Ein späterer Rollout muss alte v2-Quellenzeiträume am exakten realen
+UTC-Schnitt **vor Dateiwechsel/Neustart** schließen und neue Pins separat prüfen.
+Blindes Weiterführen alter Bindungen kann alte Qualifikationen widerrufen.
+Alte Archive behalten ihre ursprüngliche Quellumgebung und exakten alten Pins.
+Diese Vorbereitung autorisiert oder vollzieht keinen solchen Wechsel.
+AF-036 in HA-Config bleibt offen und unverändert; eine vollständige Kartenansicht
+und die separate Liste angenommener ML-Ziele sind nicht umgesetzt.
 
 ### Lokale Eingaben und Nowcast
 

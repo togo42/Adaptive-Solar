@@ -2,6 +2,8 @@
 
 Stand: 04.11.2026; beschrieben ist der Funktionsstand 0.2.22, keine
 Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
+Die ausdrücklich markierte Schattenfenster-Ergänzung ist unveröffentlichte
+Zweigvorbereitung vom 05.11.2026, nicht Teil dieses Releases.
 
 ## 1. Externe Verbindungen
 
@@ -163,6 +165,18 @@ Zeitpunkte, Zähler, begrenzte Wetterkorrektur-Rohwertbeispiele, Ressourcen-/Fit
 und Bias-Shadow-/Lernstatus je selbst gewählter Stufenkennung. Hinzu kommen begrenzte
 Exportstatus-/Größen-/Fehlerangaben, nicht die rohen Exportnutzdaten. Solche Kennungen
 können persönliche Bezeichnungen enthalten; die Datei vor Weitergabe prüfen.
+
+**Unveröffentlichte Ergänzung (`feat/af036-window-diagnostics`):**
+`learning.<Stufe>.beam_shade_windows` liefert einen lokalen, versionierten
+Diagnosesnapshot mit höchstens 648 gespeicherten Sonnenfenstern je Stufe,
+einschließlich Legacy-/abgelaufener Fenster. Er enthält Sonnenstandskoordinaten,
+aggregierte Faktoren, Freigabestatus/-gründe, Probenzähler und Alter, aber keine
+Rohbeobachtungen oder Freigabehistorien. Auch diese Aggregate können lokale
+Verschattungsmuster offenlegen und sind vor Weitergabe zu prüfen. Es entstehen
+kein zusätzlicher Store, keine längere Aufbewahrung und kein neuer externer
+Transfer; das gesamte `learning`-Attribut bleibt vom Recorder ausgeschlossen.
+Bestehende Originalarchive, Snapshots und Checkpoints werden nicht umgeschrieben.
+[Diagnosevertrag und Grenzen](../technik/schattenfenster-diagnose.md).
 
 Sensorattribute enthalten Forecastkurven, Eingangsqualität und Lerninformationen.
 Screenshots und kopierte Entwicklertools-Ausgaben können zusätzliche Namen/IDs zeigen.
