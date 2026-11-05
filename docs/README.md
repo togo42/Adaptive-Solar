@@ -1,21 +1,28 @@
 # Adaptive Solar: Dokumentation
 
 Die [Projektübersicht](../README.md) beschreibt Zweck und Einstieg. Die aktuellen
-Installationsanleitungen beschreiben **0.2.23** mit HA-nativer ML-Paketlieferung und
-Marketplace. Die Version ist veröffentlicht und installiert; die begrenzte
-Erhaltungsabnahme und Timerwiederherstellung sind abgeschlossen. Die [Releasehinweise](releases/release-0.2.23.md)
-trennen Paket-/CI-Nachweise von der produktiven Abnahme.
+Installationsanleitungen beschreiben den ab **0.2.23** gültigen HA-nativen
+ML-Lieferweg und Marketplace. **0.2.24 ist veröffentlicht und installiert;
+die strenge vollständige Produktabnahme ist noch nicht verifiziert.** Die
+[Releasehinweise](releases/release-0.2.24.md) trennen Paket-/CI-Nachweise,
+bestätigte Installation und Erhaltung von den noch offenen Eingangsgates.
 Die Fachverträge für Physik, Lernen und Speicherformate bleiben unverändert.
 Ältere Versionen und Prüfungen bleiben historisch unter
 [Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).
 
-Veröffentlicht ist **[0.2.24](releases/release-0.2.24.md)** mit ausschließlich der additiven
+Installiert ist **[0.2.24](releases/release-0.2.24.md)** mit ausschließlich der additiven
 [Schattenfenster-Diagnose](technik/schattenfenster-diagnose.md).
-**Installation und Produktivabnahme stehen noch aus; HA bleibt auf 0.2.23.**
+Der native Readback bestätigt Core 2026.11.0, exakte Releasebytes, geladene Einträge,
+erhaltene Bestandsdaten und vollständige tabellenkonsistente Fensterdiagnosen.
+Im jüngsten vollständigen Abgleich fehlen für zwei konfigurierte Leistungseingänge
+gültige frische Originalberichte zum Forecastzeitpunkt. Die davon abhängigen
+Export-/ML-Startnachweise bleiben offen, ohne damit einen Bootstrapfehler zu belegen.
+Der nächste Abgleich benötigt echte frische Berichte bei einem normalen Forecast;
+Quellenupdates, Label-/Gate-Lockerungen und Resets sind kein Ersatz.
 Die vier öffentlichen Releaseassets sind heruntergeladen und bytegleich geprüft;
-die Main-CI ist erfolgreich, Branch-/Tag-CI sind hier noch nicht abschließend belegt.
+Main-, Branch- und Tag-CI sind erfolgreich.
 Die markierten Ergänzungen in Bedienung, Datenschutz und Vertrag beschreiben den
-veröffentlichten Releasevertrag, keinen abgeschlossenen Rollout. Der historische
+installierten Releasevertrag, keine vollständige Produktabnahme. Der historische
 Vorbereitungsnachweis für `9c9a709` ersetzt keine aktuelle Prüfung. Der AF-036-Consumer in HA-Config
 und die separate Liste angenommener ML-Ziele bleiben Folgearbeiten.
 
@@ -40,7 +47,7 @@ und die separate Liste angenommener ML-Ziele bleiben Folgearbeiten.
 | [Messintervalle ab 0.2.13](technik/messintervalle-92-prozent.md) | Historischer Ausgangsvertrag; spätere Ergänzungen sind gekennzeichnet |
 | [Ablehnungsdiagnose](technik/ablehnungsdiagnose.md) | Ziel-/Zeilendetails und echter Fit-Cutoff |
 | [Direktstrahl-Verschattung](technik/adaptive-solar-verschattung.md) | Ursprüngliche Spezifikation mit späteren Vertragsverweisen |
-| [Schattenfenster-Diagnose](technik/schattenfenster-diagnose.md) | Veröffentlichter 0.2.24-Vertrag: lesender Snapshot aller gespeicherten Sonnenfenster, höchstens 648 je Stufe; Installation und AF-036-Consumer bleiben offen |
+| [Schattenfenster-Diagnose](technik/schattenfenster-diagnose.md) | Installierter 0.2.24-Vertrag: lesender Snapshot aller gespeicherten Sonnenfenster, höchstens 648 je Stufe; vollständige Produktabnahme und AF-036-Consumer bleiben offen |
 | [Physik-/Schatten-/Nowcastoptionen](technik/physics-learning-options.md) | Aktuelle Kandidatenparameter und zeitliche Freigaben |
 | [Früher Bias im Shadow](technik/early-bias-shadow.md) | Beobachteter Kandidat mit eigenen Gates |
 | [Trainingsabdeckung offline prüfen](technik/learning-support-guard.md) | Separater Support-Guard-Kandidat im Entwicklungsstand; keine HA-Aktivierung |

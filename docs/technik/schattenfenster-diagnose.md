@@ -2,10 +2,14 @@
 
 Stand: 05.11.2026, **veröffentlichter AF-036-Producer-Vertrag ab
 [0.2.24](../releases/release-0.2.24.md)**.
-**Installation und Produktivabnahme stehen noch aus.** Der zuletzt dokumentierte
-installierte Stand ist 0.2.23 auf Core 2026.11.0 mit vier geladenen Einträgen;
-dieses Dokument behauptet keinen neuen Laufzeitreadback. Das Dashboard im
-getrennten HA-Config-Projekt ist nicht aktualisiert. Dieser Vertrag ergänzt
+**Installation abgeschlossen; strenge vollständige Produktabnahme noch nicht
+verifiziert.** Der getrennte native Readback bestätigt 0.2.24 auf Core 2026.11.0
+mit exakten Releasekomponenten und vier geladenen Einträgen. Die vollständige
+Fenstersicht ist tabellenkonsistent und die geprüften Bestandsdaten sind erhalten.
+Im jüngsten vollständigen Abgleich fehlen jedoch gültige frische Originalberichte
+für zwei konfigurierte Leistungseingänge am Forecastcutoff. Davon abhängige
+Export-/ML-Startnachweise bleiben offen; daraus folgt kein Bootstrapfehler.
+Das Dashboard im getrennten HA-Config-Projekt ist nicht aktualisiert. Dieser Vertrag ergänzt
 ausschließlich eine lesende Sicht; keine Lern-, Freigabe- oder Prognoseregel
 wird geändert. Der HA-native ML-Startpfad, Runtimeanforderungen und die
 unveränderliche Dependency-Release-URL aus 0.2.23 bleiben erhalten.
@@ -174,13 +178,14 @@ den Wechsel fortzuführen kann ihre historische Freigabe widerrufen, obwohl
 die Originaldateien noch existieren. Siehe
 [Upgradegrenzen für 0.2.24](../releases/release-0.2.24.md#upgrade-und-rückweg).
 
-Die bekannte fehlende Erstwarnungsbestätigung des Marketplace-API-Kontos
-(`warning_accepted=false`) blockiert dessen Installation. Nur der Nutzer darf
-die Warnung mit dem betreffenden Konto manuell bestätigen; kein Agent darf
-sie akzeptieren oder umgehen. `can_install=true` ersetzt diese Voraussetzung
-nicht. Der Status ist vor einem Installationsversuch frisch zu prüfen.
-Der Nutzer hat für diesen Auftrag stattdessen manuellen Download und genau einen
-späteren Core-Neustart gewählt; der Agent wiederholt diese Aktionen nicht.
+Der Nutzer hat den manuellen Download und genau einen Core-Neustart bereits
+ausgeführt. Die zuvor fehlende Marketplace-Erstwarnungsbestätigung des API-Kontos
+ist keine noch ausstehende Installation; sie wurde nicht agentenseitig akzeptiert
+oder umgangen. Der Agent wiederholt weder Download noch Neustart und ändert keine
+Optionen, Quellenpolicy oder Timer. Für den nächsten Abgleich sind echte frische
+Leistungsberichte bei einem normalen Forecast erforderlich, keine erzwungene
+Quellenfrische, Gate-/Label-Lockerung oder Lern-/Archivresets. Ein neuer separater
+produktiver Runtimeimport ist mit diesem Abgleich nicht unabhängig nachgewiesen.
 
 Für einen reinen Code-Rückweg ist kein Lern-/Archivrestore vorgesehen: alte
 geprüfte Komponentenbytes weiter mit dem unveränderten Store verwenden;
@@ -206,10 +211,10 @@ keine Aussage über physische Messquellen oder bessere Prognosen.
 
 Die folgenden Ergebnisse gelten ausschließlich für den vorbereiteten Quellstand
 `9c9a709` auf Basis `d585258`, **nicht** für den mit 0.2.23 zusammengeführten
-veröffentlichten 0.2.24-Release. Dessen frische lokale Tests, erfolgreiche Main-CI
+veröffentlichten 0.2.24-Release. Dessen frische lokale Tests, erfolgreiche Main-/Branch-/Tag-CI
 und öffentliche Assetprüfung sind in den [aktuellen Releasehinweisen](../releases/release-0.2.24.md)
-getrennt dokumentiert; Branch-/Tag-CI sind hier noch nicht abschließend belegt,
-Installation und Produktivabnahme stehen weiter aus. Frühere Zahlen werden nicht
+getrennt dokumentiert; Installation und begrenzte Erhaltung sind bestätigt,
+die strenge vollständige Produktabnahme bleibt offen. Frühere Zahlen werden nicht
 als aktuelle Abnahme übernommen.
 
 Die Implementierung ergänzt nur `core/shading.py` und genau einen

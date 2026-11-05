@@ -1,11 +1,11 @@
 # Implementierungsvertrag für Adaptive Solar
 
-Stand: 05.11.2026; veröffentlichter Funktionsstand 0.2.24, installierter Stand weiterhin 0.2.23. Veröffentlichungs- und Installationsstatus stehen in den [Releasehinweisen](../releases/release-0.2.24.md). Der optionale [Originaldatenexport](../archiv/archive-storage-contract.md) erweitert den Stand 0.2.15. Die aktuelle Implementierung ergänzt [Messkontinuität](measurement-learning.md), [Bias-Shadow](early-bias-shadow.md), [Physik-/Schattenoptionen](physics-learning-options.md), [Fehlerbehandlung/Ressourcen](forecast-resilience.md) und [Vergleichsarchive](model-comparison-archive.md). Anwenderfelder und Abläufe: [Bedienung](../anwendung/bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen.
+Stand: 05.11.2026; veröffentlichter und installierter Funktionsstand 0.2.24, strenge vollständige Produktabnahme noch nicht verifiziert. Veröffentlichungs- und Installationsstatus stehen in den [Releasehinweisen](../releases/release-0.2.24.md). Der optionale [Originaldatenexport](../archiv/archive-storage-contract.md) erweitert den Stand 0.2.15. Die aktuelle Implementierung ergänzt [Messkontinuität](measurement-learning.md), [Bias-Shadow](early-bias-shadow.md), [Physik-/Schattenoptionen](physics-learning-options.md), [Fehlerbehandlung/Ressourcen](forecast-resilience.md) und [Vergleichsarchive](model-comparison-archive.md). Anwenderfelder und Abläufe: [Bedienung](../anwendung/bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen.
 
 Die unten markierte [Schattenfenster-Diagnose](schattenfenster-diagnose.md) beschreibt
-den veröffentlichten Vertrag für [0.2.24](../releases/release-0.2.24.md):
-**Installation und Produktivabnahme stehen noch aus.** Release 0.2.23 bleibt
-unverändert, einschließlich ML-Runtimeanforderungen und Dependency-Release-URL.
+den veröffentlichten und installierten Vertrag für [0.2.24](../releases/release-0.2.24.md):
+**Installation abgeschlossen, vollständige Produktabnahme noch offen.**
+ML-Runtimeanforderungen und Dependency-Release-URL aus 0.2.23 bleiben unverändert.
 
 Die [Ablehnungsdiagnose](ablehnungsdiagnose.md) erweitert diesen
 Stand um `training_quality.rejection_details` (Schema 1). Join-Ziele stammen aus
@@ -147,9 +147,16 @@ Perioden am exakten realen UTC-Schnitt **vor Dateiwechsel/Neustart** schließen;
 neue Pins separat prüfen, nicht aus dem Diagnosevertrag freigeben.
 Blindes Weiterführen alter Bindungen kann alte Qualifikationen widerrufen.
 Alte Archive behalten ihre ursprüngliche Quellumgebung und exakten alten Pins.
-Dieser Vertrag belegt keinen ausgeführten produktiven Quellwechsel; Main-CI und
-öffentliche Assetprüfung sind abgeschlossen, Branch-/Tag-CI hier noch nicht
-abschließend belegt. Installation und produktive Erhaltungsprüfung stehen noch aus.
+Main-/Branch-/Tag-CI und öffentliche Assetprüfung sind abgeschlossen. Der getrennte
+Nachinstallationsreadback bestätigt Core 2026.11.0, die exakten 0.2.24-Komponenten,
+vier geladene Einträge, erhaltene Bestandsdaten und vollständige tabellenkonsistente
+Fensterdiagnosen. Im jüngsten vollständigen Abgleich sind zwei konfigurierte
+Leistungseingänge zum Forecastzeitpunkt `missing_stale_or_invalid`; die abhängigen
+Export- und daraus abgeleiteten ML-Startnachweise bleiben deshalb offen. Das ist
+kein Beleg für einen Bootstrapfehler, einen Unload oder Historienreset. Ein neuer
+unabhängiger produktiver Runtimeimport wurde dabei nicht separat geprüft.
+Erst echte frische Originalberichte bei einem normalen Forecast erlauben einen
+neuen lesenden Abgleich; kein Quellenupdate, Positivlabel oder Gate wird erzwungen.
 Der Vorbereitungsnachweis für `9c9a709` ist
 ausdrücklich historisch und keine aktuelle Releaseabnahme.
 AF-036 in HA-Config bleibt offen und unverändert; eine vollständige Kartenansicht

@@ -1,6 +1,6 @@
 # Adaptive Solar installieren und aktualisieren
 
-Stand: 05.11.2026; Anleitung für Version 0.2.23. Dessen [Releasehinweise](../releases/release-0.2.23.md)
+Stand: 05.11.2026; Anleitung für Version 0.2.24. Dessen [Releasehinweise](../releases/release-0.2.24.md)
 trennen Vorbereitung, Veröffentlichung und HA-Abnahme. Veröffentlichungs- und
 historische Testangaben stehen in den [Prüfnachweisen](../entwicklung/pruefnachweise.md). Die hier beschriebenen Schritte
 werden vom Betreiber auf der eigenen Installation ausgeführt. Projektprüfungen und
@@ -13,7 +13,7 @@ ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 | Core 2026.10.2 / Python 3.14 | Native HA-Tests, Testplugin 0.13.373 |
 | Core 2026.10.3 / Python 3.14 | Native HA-Tests, Testplugin 0.13.374 |
 | Core 2026.10.4 / Python 3.14 | Native HA-Tests, Testplugin 0.13.375; dokumentierte HAOS-Installation |
-| Core 2026.11.0 / HAOS amd64 / Python 3.14.10 | Frische HA-native ML-Installation über öffentliche Runtime-URL, nativer Fit/Predict, Hashablehnung und Offline-Zweitstart im offiziellen Image bestanden; Marketplaceinstallation und begrenzte produktive Erhaltung abgenommen, keine vollständige native Testsuite behauptet |
+| Core 2026.11.0 / HAOS amd64 / Python 3.14.10 | 0.2.23: frische HA-native ML-Installation über öffentliche Runtime-URL, Fit/Predict, Hashablehnung und Offline-Zweitstart im offiziellen Image sowie begrenzte produktive Erhaltung abgenommen. 0.2.24: unveränderte Runtime, native Offlineprobe und Installation bestätigt; aktuelle strenge Gesamtabnahme wegen zweier ungültiger/nicht frischer Leistungseingänge offen. Keine vollständige native Core-11-Testsuite behauptet |
 | HAOS amd64, CPython 3.14, Musl ≥1.2 | Ab 0.2.23 automatische Lieferung des geprüften Binärpakets; externer Bau bleibt Aufgabe der Releasepflege, nicht des Betreibers |
 | Linux/glibc | Entwicklungs-/HA-Core-Testumgebungen geprüft; kein pauschaler Nachweis beliebiger Containerinstallationen |
 | ARM/aarch64, Raspberry Pi, andere Python-ABIs | Bisher nicht qualifiziert; kein passender Build-/Installationsnachweis im Projekt |
@@ -59,7 +59,7 @@ Die kostenlose Wetter-API ist für nichtkommerzielle Nutzung vorgesehen;
    zwingend zu Core.
 2. Eine aktuelle Home-Assistant-Sicherung erstellen und deren Abschluss prüfen.
    Vor einem Upgrade zusätzlich die bisherige Integrationsversion notieren.
-3. Für 0.2.23 Internetzugriff auf GitHub-Releaseassets und PyPI erlauben. Das
+3. Ab 0.2.23 Internetzugriff auf GitHub-Releaseassets und PyPI erlauben. Das
    Dependency-Artefakt muss bereits veröffentlicht und unverändert verfügbar sein.
    Kein manueller Wheelbau oder SSH-/Dockerzugriff ist für die normale Installation
    vorgesehen. Ältere Versionen benötigen weiterhin den historischen
@@ -88,7 +88,8 @@ installieren. Auf älteren Coreversionen gilt HACS nach seiner
 [historischen Anleitung](https://www.hacs.xyz/docs/use/). `hacs.json` bleibt die
 kompatible Metadatendatei. Projektcode und Abhängigkeiten sind getrennte Lieferteile:
 Das Vorab-Release `v0.2.23-runtime.1` enthält ausschließlich die Binär-/Quellartefakte
-für den Installer; als Integration das reguläre Release **v0.2.23** auswählen.
+für den Installer; als Integration das reguläre Release **v0.2.24** auswählen.
+Die Dependency-Release-URL bleibt dabei unverändert.
 
 ## 4. Manuelle Alternative
 
@@ -127,7 +128,7 @@ verhindern. Diagnosepfade: [Fehlerbehebung](bedienung.md#7-fehlerbehebung-und-su
 
 ## 6. Aktualisieren, zurückkehren und entfernen
 
-**[Version 0.2.23](../releases/release-0.2.23.md):** In Marketplace aktualisieren,
+**[Version 0.2.24](../releases/release-0.2.24.md):** In Marketplace aktualisieren,
 danach einmal Core neu starten und Abschnitt 5 prüfen. Vorhandene Einträge, IDs,
 Messhistorie und echte Tagesstartwerte weiterverwenden. Eine gesunde vorhandene
 scikit-learn-Version 1.9.1 bleibt unberührt; ein frischer kompatibler Corecontainer
@@ -137,7 +138,10 @@ globale Importpfade oder Compilerbau verdeckt.
 Die neuen Integrations-Pythonbytes ändern den Producerhash: externe qualifizierte
 Quellenperioden vor dem Wechsel begrenzen und neue Bindungen gesondert belegen.
 Marketplace aktualisiert nicht den separaten Archivhost. Der Austausch der
-Liefertechnik ist keine neue fachliche Lern- oder Quellenfreigabe.
+Liefertechnik aus 0.2.23 und die zusätzliche lesende Fensterdiagnose sind keine
+neue fachliche Lern- oder Quellenfreigabe. 0.2.24 ändert weder Speicherformate noch
+Lernregeln. Fehlende oder nicht frische Leistungseingänge nicht durch erzwungene
+Meldungen, Lernresets oder gelockerte Abnahmegates kaschieren.
 
 Vor Updates die Versionshinweise lesen, sichern und verwendete Geräte-/Sensorverweise
 notieren. Für 0.2.10 erklärt [die Releasebeschreibung](../releases/release-0.2.10.md) die

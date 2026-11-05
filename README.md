@@ -17,39 +17,39 @@ Temperatur, Wind, horizontale Globalstrahlung und PV-Leistung unterstützen
 kurzfristige Korrekturen. Ohne qualifizierte Lernhistorie bleibt die Physik aktiv.
 Ein gemeinsamer Zähler kann keine Einzelstringverluste identifizieren.
 
-**Installierter Stand 0.2.23, Stand 05.11.2026: veröffentlicht und über Marketplace installiert.** Der neue Startpfad
-stellt fehlendes scikit-learn über HAs eigenen Requirementsmanager bereit,
-statt einen manuellen Eingriff nach dem Core-Update zu verlangen. Eine bereits
-vorhandene exakte, importierbare Version löst keine Paketinstallation aus.
-Modellversion, Physik, Lernregeln und Storeformate bleiben unverändert.
-Die begrenzte Erhaltungsabnahme ist abgeschlossen; die ursprünglichen Archivtimer
-sind wiederhergestellt. Neue externe Quellenfreigaben bleiben getrennt.
-[Liefervertrag](docs/technik/ml-runtime-bundle.md)
-und [Releasehinweise](docs/releases/release-0.2.23.md).
+**Installierter Stand 0.2.24, Stand 05.11.2026: Installation abgeschlossen,
+strenge vollständige Produktabnahme noch nicht verifiziert.** Nach manuellem
+Download und genau einem Core-Neustart durch den Nutzer sind Core 2026.11.0,
+die exakten Releasekomponenten und vier geladene Einträge bestätigt. Bestehende
+Messintervalle, Lernstände, Tagesstart-/Vergleichsoriginale, Identitäten, Optionen
+und Energy-Bezüge sind erhalten; die neue Fensterdiagnose ist vollständig und
+tabellenkonsistent. Im jüngsten vollständigen Abgleich fehlen jedoch bei zwei
+konfigurierten Leistungseingängen gültige frische Originalberichte zum
+Forecastzeitpunkt. Damit bleiben die abhängigen Export-/ML-Startnachweise offen;
+das belegt keinen fehlgeschlagenen ML-Bootstrap. Erforderlich ist ein neuer
+lesender Abgleich nach echten frischen Berichten bei einem normalen Forecast,
+nicht ein erzwungenes Quellenupdate, gelockertes Gate oder Historienreset.
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
 
-**[0.2.24](docs/releases/release-0.2.24.md) ist veröffentlicht; Installation und Produktivabnahme stehen noch aus.**
+**[0.2.24](docs/releases/release-0.2.24.md) ist veröffentlicht und installiert.**
 Der [Release](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.24)
 bindet unveränderlich Commit `f21ad29c8341f9d784e686b4a74ab9a6a4097c93`;
 alle vier veröffentlichten Assets wurden heruntergeladen und bytegleich geprüft.
 Die additive [Schattenfenster-Diagnose](docs/technik/schattenfenster-diagnose.md)
 macht ausschließlich aktuell gespeicherte Sonnenfenster je Stufe lesbar
-(höchstens 648), ohne Modell-, Freigabe-, Fit-, Store- oder Archivänderung.
+(höchstens 648), ohne Änderung der Modell-/Freigabe-/Fitregeln oder Speicher-/Archivformate.
 Der HA-native ML-Liefervertrag aus 0.2.23 einschließlich unveränderlicher
-Dependency-Release-URL bleibt erhalten; 0.2.23 ist weiterhin der dokumentierte
-installierte Stand.
+Dependency-Release-URL bleibt erhalten; es gibt kein neues Dependency-Artefakt.
 Der AF-036-Consumer in HA-Config bleibt offen und unverändert; eine vollständige
 Kartenansicht und die separate Liste angenommener ML-Ziele sind nicht umgesetzt.
 Vor einem produktiven Quellwechsel sind Quellenbindungen frisch zu prüfen:
 bei 0.2.23 geschlossene Perioden bleiben geschlossen; nur noch offene Perioden
 müssen vor Dateiwechsel/Neustart am exakten realen UTC-Schnitt geschlossen werden.
 Neue Producerpins benötigen eine separate Freigabe. Originalarchive, alte
-Quellumgebung, Pins und Checkpoints bleiben erhalten. Die noch fehlende
-Marketplace-Erstwarnungsbestätigung des API-Kontos ist ein Installationsblocker,
-den nur der Nutzer mit diesem Konto beheben darf; kein agentenseitiges Umgehen.
-Für diesen Auftrag sind stattdessen manueller Download und genau ein späterer
-Core-Neustart durch den Nutzer vorgesehen; der Agent wiederholt diese Aktionen nicht.
+Quellumgebung, Pins und Checkpoints bleiben erhalten. Der Nutzer hat den manuellen
+Download und den einmaligen Neustart bereits ausgeführt; der Agent wiederholt
+diese Aktionen nicht und umgeht keine Marketplace-Kontobestätigung.
 
 ## Installation und Bedienung
 

@@ -1,14 +1,17 @@
 # Adaptive Solar: Versionshinweise
 
-Veröffentlicht: **[0.2.24](release-0.2.24.md)** mit ausschließlich lesender Diagnose
+Veröffentlicht und installiert: **[0.2.24](release-0.2.24.md)** mit ausschließlich lesender Diagnose
 aller aktuell gespeicherten Schattenfenster je Stufe.
-**Installation und Produktivabnahme stehen noch aus; HA bleibt auf 0.2.23.**
+**Installation abgeschlossen; strenge vollständige Produktabnahme noch nicht
+verifiziert.** Native Releasebytes, geladene Einträge, Erhaltung und vollständige
+tabellenkonsistente Fensterdiagnosen sind bestätigt. Fehlende gültige frische
+Leistungsberichte im jüngsten Abgleich lassen abhängige Export-/ML-Startnachweise
+offen; sie belegen keinen fehlgeschlagenen Bootstrap.
 Der unveränderliche Tag bindet `f21ad29c8341f9d784e686b4a74ab9a6a4097c93`;
-alle vier öffentlichen Assets sind bytegleich geprüft, die Main-CI ist erfolgreich.
-Branch-/Tag-CI sind hier noch nicht abschließend belegt. Historische
-Vorbereitungsergebnisse für `9c9a709` bleiben getrennt.
+alle vier öffentlichen Assets sind bytegleich geprüft, Main-/Branch-/Tag-CI erfolgreich.
+Historische Vorbereitungsergebnisse für `9c9a709` bleiben getrennt.
 
-Veröffentlicht und über Marketplace installiert: **[0.2.23](release-0.2.23.md)** mit automatischer HA-nativer
+Historischer Vorgänger, seinerzeit über Marketplace installiert: **[0.2.23](release-0.2.23.md)** mit automatischer HA-nativer
 ML-Paketlieferung nach Core-Containerwechsel und aktuellem Marketplace-Installationsweg.
 Die begrenzte Produktivabnahme und Wiederherstellung der ursprünglichen
 Archivtimer sind abgeschlossen; neue externe Quellenfreigaben bleiben getrennt.
@@ -29,7 +32,7 @@ siehe [Prüfnachweise](../entwicklung/pruefnachweise.md).
 
 | Version | Schwerpunkt |
 | --- | --- |
-| [0.2.24](release-0.2.24.md) | Veröffentlichter additiver lesender Schattenfenster-Snapshot; Installation und Produktivabnahme ausstehend |
+| [0.2.24](release-0.2.24.md) | Installierter additiver lesender Schattenfenster-Snapshot; Erhaltung bestätigt, strenge vollständige Produktabnahme noch offen |
 | [0.2.23](release-0.2.23.md) | HA-native ML-Paketlieferung und Marketplace-Installation |
 | [0.2.22](release-0.2.22.md) | Setuprollback, harte Snapshotcaps, belegte Replayphasen sowie Qualitäts-/Archivkorrekturen |
 | [0.2.21](release-0.2.21.md) | Kompakte Qualitätsdiagnosen, getrennte Archivintervalle, optionales Nachtprofil und begrenzte Collectorläufe |

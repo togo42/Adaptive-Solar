@@ -1,12 +1,14 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 05.11.2026, veröffentlichter Funktionsumfang 0.2.24, installierter Stand weiterhin 0.2.23. [Versionshinweise und Veröffentlichungsstatus](../releases/release-0.2.24.md) und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung. [Installation](installation.md),
+Stand: 05.11.2026, veröffentlichter und installierter Funktionsumfang 0.2.24; strenge vollständige Produktabnahme noch nicht verifiziert. [Versionshinweise und Veröffentlichungsstatus](../releases/release-0.2.24.md) und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung. [Installation](installation.md),
 [Datenverträge](../technik/implementation-contract.md), [Datenschutz](datenschutz.md).
 
 Die unten ausdrücklich markierte Schattenfenster-Ergänzung ist mit
-[0.2.24](../releases/release-0.2.24.md) veröffentlicht:
-**Installation und Produktivabnahme stehen noch aus.** Sie ist nicht im
-unveränderten Release 0.2.23 enthalten.
+[0.2.24](../releases/release-0.2.24.md) veröffentlicht und installiert; die
+vollständige tabellenkonsistente Ausgabe ist bestätigt. Die vollständige
+Produktabnahme bleibt wegen fehlender gültiger frischer Leistungsberichte im
+jüngsten Abgleich offen. Das ist kein Beleg für einen ML-Bootstrapfehler.
+Die Ergänzung ist nicht im unveränderten Release 0.2.23 enthalten.
 
 ## 1. Anlagenaufteilung vorbereiten
 
@@ -194,7 +196,7 @@ Sonnenfenster (`azimuth_bin_deg`, `elevation_bin_deg`), den wirksamen Faktor
 freigegebener Fenster der Stufe (`filled_bins`) und den letzten (auch mehrteiligen)
 Ablehnungsgrund (`last_rejection`).
 
-**Veröffentlicht ab 0.2.24; Installation und Produktivabnahme noch ausstehend:**
+**Ab 0.2.24 veröffentlicht und installiert; vollständige Produktabnahme noch offen:**
 `learning.<Stufe>.beam_shade_windows` ergänzt diesen unveränderten aktuellen
 Status um alle **gespeicherten** Sonnenfenster, auch nur mit Altdaten oder
 abgelaufenen Proben. Die Liste ist nach Azimut/Höhe sortiert, im `10° × 5°`-Raster
@@ -280,6 +282,7 @@ Einrichtungsaktion; Beispiele stehen im [Aufnahmeleitfaden](../entwicklung/bench
 | Ferne Tage fehlen | Eingestellter Horizont und tatsächliche Providerabdeckung; zusätzliche Modelle verlängern fehlende Daten nicht automatisch |
 | `physics` bleibt bestehen | `learning` und `training_quality` lesen: fehlende Energiebinding, kalte Historie, zu kurze/teilweise Ziele oder nicht bestandene Validierung unterscheiden |
 | `degraded` | `inputs` prüfen: Einheit, echte Berichtzeit, `restored`, GHI-Frische, Messgültigkeit und Abregelung |
+| Installation bestätigt, aber Eingangsgate `missing_stale_or_invalid` zum Forecastzeitpunkt | Echte gültige frische Originalberichte der konfigurierten Quelle und den nächsten normalen Forecast abwarten, dann lesend erneut prüfen. Ein späterer HA-Zustand heilt den früheren Cutoff nicht. Keine erzwungenen Quellenupdates, Label-/Gate-Lockerung oder Lernresets; der Befund allein beweist keinen ML-Bootstrapfehler |
 | Keine neuen Energieintervalle | Originalzählerberichte, Reset/Lücken und Wiederfreigabe prüfen; `update_entity` am gehaltenen Integral ist kein Ersatz für neue Quellenberichte |
 | Doppelte alte Gesamtanzeigen | Unter 0.2.10 mögliche Kompatibilitätsaliase; IDs/Verbraucher erhalten, Ausblendung prüfen |
 

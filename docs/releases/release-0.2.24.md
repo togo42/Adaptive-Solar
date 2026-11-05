@@ -1,15 +1,17 @@
 # Adaptive Solar 0.2.24: veröffentlichte Schattenfenster-Diagnose
 
-Stand: 05.11.2026, **veröffentlicht; Installation und Produktivabnahme noch ausstehend**.
+Stand: 05.11.2026, **veröffentlicht und installiert; strenge vollständige
+Produktabnahme noch nicht verifiziert**.
 Der [Release v0.2.24](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.24)
 bindet unveränderlich Tagcommit `f21ad29c8341f9d784e686b4a74ab9a6a4097c93`.
 Er führt die AF-036-Vorbereitung `9c9a709` mit dem veröffentlichten
-[0.2.23](release-0.2.23.md) zusammen. Der zuletzt dokumentierte produktive Stand
-ist **0.2.23 auf Core 2026.11.0 mit vier geladenen Einträgen**; ein frischer
-0.2.24-Laufzeitnachweis liegt hier noch nicht vor. Lokale Tests, Paketprüfung,
+[0.2.23](release-0.2.23.md) zusammen. Der native Nachinstallationsreadback bestätigt
+**0.2.24 auf Core 2026.11.0 mit vier geladenen Einträgen** und exakt alle
+44 Komponentenoriginale des Releases. Lokale Tests, Paketprüfung,
 Main-CI, Veröffentlichung, öffentliche Assetprüfung und die unten abgegrenzte
 native Probe sowie Branch-/Tag-CI sind abgeschlossen. Ein erfolgreicher Release
-ersetzt keine Installation oder Produktivabnahme.
+ersetzt keine vollständige Produktabnahme. Deren offene Eingangsnachweise sind
+unten von der abgeschlossenen Installation und Erhaltungsprüfung getrennt.
 
 ## Ausschließlich additive, lesende Diagnose
 
@@ -76,19 +78,12 @@ keine Integration löschen, keine Lernbasis zurücksetzen und keine direkten
 `.storage`-Writes. Veröffentlichte und heruntergeladene Artefakte müssen vor der
 Installation gegen den finalen Release geprüft werden.
 
-**Marketplace-Kontoblocker:** Für das API-Konto ist die Erstnutzungswarnung noch
-nicht bestätigt (`warning_accepted=false`). Nur der Nutzer darf sie mit diesem
-Konto manuell bestätigen. Ein Agent darf sie weder akzeptieren noch umgehen;
-`can_install=true` genügt nicht. Diese Voraussetzung vor einem Installationsversuch
-und insbesondere vor einer etwaigen Timerpause frisch prüfen. Eine frühere
-Installation durch ein anderes Konto überträgt dessen Zustimmung nicht.
-
-Für diesen Auftrag hat der Nutzer stattdessen den späteren **manuellen Download
-und genau einen Core-Neustart** gewählt. Veröffentlichung und öffentliche
-Downloadprüfung sind abgeschlossen; eine frische Erhaltungsbaseline ist vor dem
-Update erfasst. Die eigentliche Installation und ihr nachfolgender Abgleich stehen
-weiter aus; der Agent wiederholt Download und Neustart nicht. Der bisherige Stand
-bleibt bis dahin 0.2.23. Die Baseline ist keine vorweggenommene Produktivabnahme.
+**Ausgeführter Installationsweg:** Wegen der zuvor fehlenden
+Marketplace-Erstwarnungsbestätigung des API-Kontos hat der Nutzer den manuellen
+Download und **genau einen Core-Neustart** selbst ausgeführt und bestätigt.
+Die Installation ist abgeschlossen und nativ abgeglichen. Der Agent hat die
+Kontowarnung weder akzeptiert noch umgangen und wiederholt weder Download noch
+Neustart. Eine kontogebundene Zustimmung wird nicht auf andere Konten übertragen.
 
 Auch dieser rein diagnostische Pythonquellwechsel ändert den **vollständigen
 Producerhash**. Vor Dateiwechsel/Neustart den aktuellen Quellenbindungsstand frisch
@@ -114,6 +109,44 @@ Originalarchive und fortgeschriebene Checkpoints nicht aus alten Sicherungen
 überschreiben. Ein danach fehlender Diagnoseblock muss als nicht verfügbar gelten.
 
 ## Aktuelle Prüfung und Nachweisgrenzen
+
+### Installation, Erhaltung und offene vollständige Abnahme
+
+Der frische native Readback bestätigt Core 2026.11.0, Adaptive Solar 0.2.24,
+exakte Komponentenbytes, den Python-Producerhash und die Runtimeanforderungen des
+unveränderten veröffentlichten Releases. Alle vier Einträge sind geladen. Die vor dem Wechsel
+abgeschlossenen Messintervalle, Konfigurations-/Historien-/Schattenfingerprints,
+Lerntabellen, eingefrorenen Tagesstartoriginale und Comparisonoriginale sind
+erhalten, ebenso Exportgenerationen, Entity-/Unique-IDs, Geräte, Optionen und
+Energy-Einstellungen. Die neuen Schattenfensterlisten sind vollständig und
+konsistent mit den gespeicherten Tabellen. Das qualifiziert keine neuen Quellen.
+Der frische globale Healthread meldet keine Repairs und gültige Konfiguration.
+
+**Die strenge vollständige aktuelle Produktabnahme ist dennoch nicht verifiziert.**
+Im jüngsten vollständigen Capture sind zwei konfigurierte Leistungseingänge zum
+tatsächlichen Forecastzeitpunkt `missing_stale_or_invalid`. Zwei Exportprüfungen
+sind positiv; zwei bestehen `configured_inputs_valid_at_original_issue` nicht. Dadurch bleiben
+die beiden Eingangsgates und der von sämtlichen Exportprüfungen abhängige native
+ML-Bootstrapnachweis negativ. Dieses abgeleitete Gate ist **kein Beleg eines
+fehlgeschlagenen ML-Bootstraps**, eines Unloads oder Resets. Ein erneuter
+unabhängiger Runtimeimport im produktiven Core wurde nicht separat geprüft;
+es wurde kein positives `acceptance.json` erzeugt.
+
+Ein früherer Abgleich hatte positive Erhaltungs- und Exportprüfungen, aber ein
+negatives Gesamtflag wegen eines privaten UTC-Stringvergleichs. Ausschließlich
+der private Abnahmereader wurde korrigiert: gleiche absolute Zeitpunkte mit
+unterschiedlichen Offsets werden nach UTC kanonisiert. **140 Guardtests** bestehen;
+neue eingefrorene Auswertung und Gates stimmen überein. Die negativen Originale
+bleiben erhalten. Das ist weder eine HA-Codeänderung noch eine Gatelockerung;
+der echte Frischebefund im jüngsten Capture bleibt negativ.
+
+Der nächste Schritt ist ein neuer lesender Abgleich, sobald echte gültige frische
+Leistungsberichte bei einem normalen Forecast vorliegen. Später gelesene Zustände
+heilen keine früheren Forecastcutoffs. Keine erzwungenen Quellenupdates, neuen
+Positivlabels, Gate-Lockerungen, Lern-/Archivresets oder weiteren Neustarts sind
+dafür vorgesehen. Der Agent hat keine Optionen, Policy oder Timer geändert.
+
+### Software-, CI- und Artefaktprüfung
 
 - Gesamtsuite: **3.235 bestanden, zwei optionale reale Rust-Kerneltests
   ausgelassen**, 30 nicht unterdrückte SQLite-ResourceWarnings; kombinierte
@@ -145,16 +178,19 @@ Originalarchive und fortgeschriebene Checkpoints nicht aus alten Sicherungen
 - Unabhängiger integrierter Subagentenreview: keine Befunde im öffentlichen
   Releaseumfang, 29 gezielte Diagnosetests bestanden. Der zusätzliche private
   Abnahmereader wurde wegen einer zu engen Legacy-Alias-Zählergrenze korrigiert;
-  danach **129 lokale Guardtests ohne Skips**, keine produktive Änderung.
+  danach seinerzeit **129 lokale Guardtests ohne Skips**, keine produktive Änderung.
+  Die spätere reine UTC-Readerkorrektur mit 140 Tests ist oben getrennt beschrieben.
 - Der neue Grok-4.7/high-`all/chunks`-Versuch wurde wegen **nativer Compaction
   abgewiesen**. Er ist ausdrücklich **keine gültige externe Gesamtquellabnahme**;
   der fehlgeschlagene Kontextaudit und seine Originale bleiben erhalten.
 
 Der vollständige Python-Producerhash des veröffentlichten Releases ist
 `e665f51a3795ec6bef994a04cdf7078c9ea57d84b470fc0085f669911001b7a7`.
-Der frische schmale Archivhost-Read bestätigt unveränderte geschlossene
-Altperioden und ursprüngliche Timerzustände. Es wurden keine Policy- oder
-Timeränderungen ausgeführt; das ist ein begrenzter, nicht atomarer Readback.
+Der frische schmale Archivhost-Read bestätigt weiterhin geschlossene unveränderte
+Altperioden, unveränderte Pins und ursprüngliche Timerzustände; die separate
+Beobachtungsaufnahme bleibt deaktiviert. Es wurden keine Policy- oder
+Timeränderungen ausgeführt. Das ist ein begrenzter, nicht atomarer Readback,
+kein neuer umfassender Archiv-/Checkpointaudit.
 
 ## Öffentliche Releaseassets
 
@@ -173,15 +209,16 @@ unveränderlichen Releases, nicht einen produktiven Installationsstand:
 Der [Vorbereitungsnachweis für `9c9a709`](../technik/schattenfenster-diagnose.md#7-historischer-vorbereitungsnachweis-für-9c9a709)
 ist ausschließlich historisch. Seine Testzahlen, AST-Vergleiche und lokalen
 Reviews sind **keine** aktuelle Abnahme des zusammengeführten 0.2.24-Releases.
-Installation und produktiver Erhaltungsreadback bleiben offen; Branch-/Main-/Tag-CI,
-Veröffentlichung und öffentliche Assetprüfung sind oben getrennt belegt.
-Die vorbereiteten **112 Produktgates und vier Exportprüfungen** warten auf den
-Nachinstallationsabgleich. Baselineaufnahme und geschlossene Altperioden ersetzen
-diesen nicht und qualifizieren keine neuen Quellen.
+Installation und begrenzter produktiver Erhaltungsreadback sind abgeschlossen;
+Branch-/Main-/Tag-CI, Veröffentlichung und öffentliche Assetprüfung sind oben
+getrennt belegt. Die strenge vollständige Produktabnahme bleibt wegen der
+aktuellen Eingangsgates und abhängigen Export-/ML-Startnachweise offen.
+Baselineaufnahme, frühere positive Teilprüfungen und geschlossene Altperioden
+ersetzen keinen vollständigen aktuellen Abgleich und qualifizieren keine neuen Quellen.
 
 Diese nach Veröffentlichung aktualisierten Statusangaben ändern weder den
-unveränderlichen Tag noch seine Komponenten-/Paketbytes. Sie erweitern keinen
-früheren Review auf neue Dokumentationsbytes; der fehlgeschlagene externe
+unveränderlichen Tag noch seine Komponenten-/Paketbytes und sind kein neuer Build.
+Sie erweitern keinen früheren Review auf neue Dokumentationsbytes; der fehlgeschlagene externe
 Grok-Kontextaudit bleibt ungültig.
 
 AF-036 im getrennten **HA-Config**-Projekt bleibt ein Consumer-Folgeauftrag:

@@ -5,8 +5,20 @@ versionierten Release- und Prüfberichten übernommen. Sie beschreiben damalige
 Prüfungen; die Dokumentationsneuordnung ist weder ein neuer vollständiger
 Integrationsreview noch eine erneute Laufzeitprüfung.
 
-Ergänzung vom **05.11.2026**: Aktuell veröffentlicht und über Marketplace
-installiert ist [0.2.23](../releases/release-0.2.23.md), Quelltag `593c8a0`.
+Ergänzung vom **05.11.2026, 0.2.24**: Veröffentlicht und nach manuellem
+Marketplaceupdate mit genau einem Core-Neustart installiert ist
+[0.2.24](../releases/release-0.2.24.md), Quelltag `f21ad29`. Branch-/Main-/Tag-CI
+sind erfolgreich; Tag-CI 3.237 Tests ohne Skips / 91,55 %. Separate native
+Core-2026.11-/Musl-Probe und unveränderte Runtime sind keine vollständige
+Core-11-Testsuite. Komponentenbytes, vollständige gespeicherte Fensterlisten
+und begrenzte Lern-/Mess-/Tagesstart-/Comparisonerhaltung sind nachgewiesen.
+Die vollständige aktuelle strenge Abnahme bleibt wegen zweier ungültiger oder
+nicht frischer Leistungseingänge offen; Originalbelege und negative Prüfungen
+bleiben erhalten, ohne Gates zu lockern oder Frische zu erzwingen. Der neue
+Grok-Vollreviewversuch scheiterte am Compactionaudit und zählt nicht als Abnahme.
+
+Frühere Ergänzung vom **05.11.2026, 0.2.23**: Veröffentlicht und über Marketplace
+installiert wurde [0.2.23](../releases/release-0.2.23.md), Quelltag `593c8a0`.
 Tag-CI: 3.208 Tests ohne Skips, 91,51 % Abdeckung; frische öffentliche
 HA-native Musl-Lieferung, Offline-Zweitstart und begrenzte Produktiverhaltung
 sind getrennt belegt. Der nachfolgende Versionsrückblick bleibt historisch;

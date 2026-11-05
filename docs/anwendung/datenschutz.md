@@ -3,8 +3,11 @@
 Stand: 05.11.2026; beschrieben ist der veröffentlichte Funktionsstand 0.2.24, keine
 Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 Die ausdrücklich markierte Schattenfenster-Ergänzung beschreibt den veröffentlichten
-Vertrag für [0.2.24](../releases/release-0.2.24.md), nicht den installierten Stand:
-**Installation und Produktivabnahme stehen noch aus; HA bleibt auf 0.2.23.**
+Vertrag für den veröffentlichten und installierten Stand
+[0.2.24](../releases/release-0.2.24.md). **Die Installation ist abgeschlossen;
+die strenge vollständige Produktabnahme ist noch nicht verifiziert.** Fehlende
+gültige frische Leistungsberichte im jüngsten Abgleich bleiben ein offener
+Eingangsnachweis, keine neue Datenfreigabe oder Änderung der Datenflüsse.
 
 ## 1. Externe Verbindungen
 
@@ -175,7 +178,7 @@ und Bias-Shadow-/Lernstatus je selbst gewählter Stufenkennung. Hinzu kommen beg
 Exportstatus-/Größen-/Fehlerangaben, nicht die rohen Exportnutzdaten. Solche Kennungen
 können persönliche Bezeichnungen enthalten; die Datei vor Weitergabe prüfen.
 
-**Veröffentlicht ab 0.2.24; Installation und Produktivabnahme noch ausstehend:**
+**Ab 0.2.24 veröffentlicht und installiert; vollständige Produktabnahme noch offen:**
 `learning.<Stufe>.beam_shade_windows` liefert einen lokalen, versionierten
 Diagnosesnapshot mit höchstens 648 gespeicherten Sonnenfenstern je Stufe,
 einschließlich Legacy-/abgelaufener Fenster. Er enthält Sonnenstandskoordinaten,
