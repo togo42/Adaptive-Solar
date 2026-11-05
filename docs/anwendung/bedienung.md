@@ -245,6 +245,7 @@ Einrichtungsaktion; Beispiele stehen im [Aufnahmeleitfaden](../entwicklung/bench
 | --- | --- |
 | Integration fehlt nach Installation | Richtiger Komponentenordner, vollständige Dateien, Neustart und Protokoll; keine alte zweite Komponentenkopie im Loaderpfad |
 | Fehler beim Installieren/Importieren von `sklearn` | Core-ABI, Architektur, Musl/glibc und vollständige `.libs`/`.dist-info` mit [HAOS-Anleitung](haos-installation.md) vergleichen |
+| Nach Core-Update auf 2026.11: `Requirements ... scikit-learn==1.9.1 not found`, obwohl `/config/deps` vorhanden ist | Core lädt diesen Pfad nicht mehr; [Binärpakete im Corecontainer bereitstellen](haos-installation.md#55-core-ab-202611-pakete-im-corecontainer). Einträge und Lernstores nicht löschen; keinen Compilerbau im laufenden Core erzwingen |
 | Setup wiederholt sich / kein Wetter | Internet/DNS, Providerfehler, gültige Modellkennung und API-Bedingungen prüfen; keine Nullkurven erfinden |
 | Tag 0 fehlt | Ohne vor Mitternacht ausgegebenen vollständigen Snapshot erwartbar; bereits verlorene Originalwerte können Administratoren mit Originalkonfiguration gezielt [wiederherstellen](../technik/forecast-repairs.md#3-bereits-verlorenen-originalwert-gezielt-wiederherstellen) |
 | Ferne Tage fehlen | Eingestellter Horizont und tatsächliche Providerabdeckung; zusätzliche Modelle verlängern fehlende Daten nicht automatisch |

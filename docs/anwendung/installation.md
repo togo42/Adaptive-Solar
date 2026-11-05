@@ -1,6 +1,6 @@
 # Adaptive Solar installieren und aktualisieren
 
-Stand: 04.11.2026; Anleitung für 0.2.22. Dessen [Releasehinweise](../releases/release-0.2.22.md)
+Stand: 05.11.2026; Anleitung für 0.2.22. Dessen [Releasehinweise](../releases/release-0.2.22.md)
 trennen Vorbereitung, Veröffentlichung und HA-Abnahme. Veröffentlichungs- und
 historische Testangaben stehen in den [Prüfnachweisen](../entwicklung/pruefnachweise.md). Die hier beschriebenen Schritte
 werden vom Betreiber auf der eigenen Installation ausgeführt. Projektprüfungen und
@@ -13,7 +13,8 @@ ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 | Core 2026.10.2 / Python 3.14 | Native HA-Tests, Testplugin 0.13.373 |
 | Core 2026.10.3 / Python 3.14 | Native HA-Tests, Testplugin 0.13.374 |
 | Core 2026.10.4 / Python 3.14 | Native HA-Tests, Testplugin 0.13.375; dokumentierte HAOS-Installation |
-| HAOS amd64, CPython 3.14, Musl 1.2 | Zusätzlicher externer Wheelbau und persistente Lieferung erforderlich; siehe [HAOS-Anleitung](haos-installation.md) |
+| Core 2026.11.0 / HAOS amd64 / Python 3.14.10 | Geänderter Paketpfad: `/config/deps` wird nicht mehr geladen; begrenzte Laufzeitprüfung nach separater Paketinstallation, keine neue vollständige native Testsuite |
+| HAOS amd64, CPython 3.14, Musl 1.2 | Zusätzlicher externer Wheelbau und versionsabhängige Lieferung erforderlich; siehe [HAOS-Anleitung](haos-installation.md) |
 | Linux/glibc | Entwicklungs-/HA-Core-Testumgebungen geprüft; kein pauschaler Nachweis beliebiger Containerinstallationen |
 | ARM/aarch64, Raspberry Pi, andere Python-ABIs | Bisher nicht qualifiziert; kein passender Build-/Installationsnachweis im Projekt |
 
@@ -22,6 +23,13 @@ Zusage für alle späteren Versionen. Der Korrekturstand für 0.2.22 wurde unter
 die Nachweise für .2/.3 stammen aus früheren Releases. Versionsdetails stehen in den [Prüfnachweisen](../entwicklung/pruefnachweise.md). Runtimepins stehen im
 [Manifest](../../custom_components/adaptive_solar/manifest.json): pvlib 0.16.1 und
 scikit-learn 1.9.1. Ein früherer erfolgreicher Import anderer Versionen reicht nicht.
+
+**Vor einem Core-Update ab 2026.11:** Der bisherige persistente Lieferpfad unter
+`/config/deps` entfällt. Fehlendes `scikit-learn==1.9.1` trotz vorhandener Dateien
+ist dann kein Grund, Einträge oder Lernhistorien neu anzulegen. Die
+[Container-Reparatur](haos-installation.md#55-core-ab-202611-pakete-im-corecontainer)
+installiert die passende Binärbasis separat. Sie ist kein automatisch bei späteren
+Core-Updates wiederholter Installationsmechanismus.
 
 Benötigt werden Internetzugriff auf Open-Meteo, korrekte Standortdaten, Zeitzone
 und String-/Ausgangsparameter. Lokale Messsensoren sind optional. Ohne geeignete

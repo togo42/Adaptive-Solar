@@ -47,6 +47,12 @@ Die [Installationsanleitung](docs/anwendung/installation.md) enthält auch manue
 Installation, Sicherung, Erfolgskontrolle und Rückweg. Ein HACS-Download ersetzt
 keine fehlende HAOS-Binärabhängigkeit.
 
+**Core 2026.11:** HA lädt `/config/deps` nicht mehr. Eine bisher dort installierte
+ML-Binärbasis muss im tatsächlichen Corecontainer bereitgestellt werden;
+[Reparatur und Updategrenze](docs/anwendung/haos-installation.md#55-core-ab-202611-pakete-im-corecontainer).
+Ein normaler Neustart erhält diese Containerinstallation, ein Containerwechsel
+beim nächsten Core-Update dagegen nicht zuverlässig.
+
 Je String werden kWp, Neigung, Azimut und Verluste angegeben:
 **0° Nord / 90° Ost / 180° Süd / 270° West**. AC-Stufen haben Wirkungsgrad und
 AC-Grenze; DC-Stufen eine nominelle Ausgangsgrenze und optionale Zusatzverluste.
