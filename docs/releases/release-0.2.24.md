@@ -8,8 +8,8 @@ Er führt die AF-036-Vorbereitung `9c9a709` mit dem veröffentlichten
 ist **0.2.23 auf Core 2026.11.0 mit vier geladenen Einträgen**; ein frischer
 0.2.24-Laufzeitnachweis liegt hier noch nicht vor. Lokale Tests, Paketprüfung,
 Main-CI, Veröffentlichung, öffentliche Assetprüfung und die unten abgegrenzte
-native Probe sind abgeschlossen; Branch-/Tag-CI sind hier noch nicht abschließend
-belegt. Ein erfolgreicher Release ersetzt keine Installation oder Produktivabnahme.
+native Probe sowie Branch-/Tag-CI sind abgeschlossen. Ein erfolgreicher Release
+ersetzt keine Installation oder Produktivabnahme.
 
 ## Ausschließlich additive, lesende Diagnose
 
@@ -124,7 +124,10 @@ Originalarchive und fortgeschriebene Checkpoints nicht aus alten Sicherungen
   kombinierte Abdeckung und 29 nicht unterdrückte Warnungen; außerdem
   **42 native Differential-/Projektionstests bestanden**. Der Unterschied zum
   lokalen Gesamtlauf sind dessen zwei optionale Rust-Auslassungen, keine
-  ausgelassenen HA-Tests. Branch-/Tag-CI sind hier noch nicht abschließend belegt.
+  ausgelassenen HA-Tests. Auch die [Branch-CI 42103043761](https://github.com/togo42/Adaptive-Solar/actions/runs/42103043761)
+  und [Tag-CI 42103932484](https://github.com/togo42/Adaptive-Solar/actions/runs/42103932484)
+  sind für denselben unveränderten Releasecommit erfolgreich. Die Tag-CI meldet
+  ebenfalls **3.237 Tests ohne Skips / 91,55 %** und 42 native Differentialtests.
 - Separate Offlineprobe im erhaltenen offiziellen amd64/Musl-Image mit
   **Core 2026.11.0 / Python 3.14.10**: 36 native Modulimporte, zwei gesunde
   Bootstrapdurchläufe ohne Installer, Fit/Predict, alle 648 Fenster,
@@ -170,8 +173,8 @@ unveränderlichen Releases, nicht einen produktiven Installationsstand:
 Der [Vorbereitungsnachweis für `9c9a709`](../technik/schattenfenster-diagnose.md#7-historischer-vorbereitungsnachweis-für-9c9a709)
 ist ausschließlich historisch. Seine Testzahlen, AST-Vergleiche und lokalen
 Reviews sind **keine** aktuelle Abnahme des zusammengeführten 0.2.24-Releases.
-Branch-/Tag-CI, Installation und produktiver Erhaltungsreadback bleiben offen;
-Main-CI, Veröffentlichung und öffentliche Assetprüfung sind oben getrennt belegt.
+Installation und produktiver Erhaltungsreadback bleiben offen; Branch-/Main-/Tag-CI,
+Veröffentlichung und öffentliche Assetprüfung sind oben getrennt belegt.
 Die vorbereiteten **112 Produktgates und vier Exportprüfungen** warten auf den
 Nachinstallationsabgleich. Baselineaufnahme und geschlossene Altperioden ersetzen
 diesen nicht und qualifizieren keine neuen Quellen.
