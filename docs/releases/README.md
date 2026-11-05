@@ -1,5 +1,10 @@
 # Adaptive Solar: Versionshinweise
 
+Geplant: **[0.2.24](release-0.2.24.md)** mit ausschließlich lesender Diagnose
+aller aktuell gespeicherten Schattenfenster je Stufe.
+**Freigabe/Veröffentlichung/Installation noch ausstehend.** Historische
+Vorbereitungsergebnisse für `9c9a709` sind keine aktuelle Releaseprüfung.
+
 Veröffentlicht und über Marketplace installiert: **[0.2.23](release-0.2.23.md)** mit automatischer HA-nativer
 ML-Paketlieferung nach Core-Containerwechsel und aktuellem Marketplace-Installationsweg.
 Die begrenzte Produktivabnahme und Wiederherstellung der ursprünglichen
@@ -21,6 +26,7 @@ siehe [Prüfnachweise](../entwicklung/pruefnachweise.md).
 
 | Version | Schwerpunkt |
 | --- | --- |
+| [0.2.24 (geplant)](release-0.2.24.md) | Additiver lesender Schattenfenster-Snapshot; Releaseprüfung und Installation ausstehend |
 | [0.2.23](release-0.2.23.md) | HA-native ML-Paketlieferung und Marketplace-Installation |
 | [0.2.22](release-0.2.22.md) | Setuprollback, harte Snapshotcaps, belegte Replayphasen sowie Qualitäts-/Archivkorrekturen |
 | [0.2.21](release-0.2.21.md) | Kompakte Qualitätsdiagnosen, getrennte Archivintervalle, optionales Nachtprofil und begrenzte Collectorläufe |

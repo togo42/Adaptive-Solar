@@ -29,16 +29,22 @@ und [Releasehinweise](docs/releases/release-0.2.23.md).
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
 
-**Unveröffentlichte Vorbereitung im Zweig `feat/af036-window-diagnostics`:**
+**Geplant für [0.2.24](docs/releases/release-0.2.24.md): Freigabe/Veröffentlichung/Installation noch ausstehend.**
 Die additive [Schattenfenster-Diagnose](docs/technik/schattenfenster-diagnose.md)
-macht gespeicherte Sonnenfenster je Stufe lesbar, ohne Modell-, Freigabe- oder
-Historienänderung. Sie gehört nicht zum unveränderten Release 0.2.22.
+macht ausschließlich aktuell gespeicherte Sonnenfenster je Stufe lesbar
+(höchstens 648), ohne Modell-, Freigabe-, Fit-, Store- oder Archivänderung.
+Der HA-native ML-Liefervertrag aus 0.2.23 einschließlich unveränderlicher
+Dependency-Release-URL bleibt erhalten; 0.2.23 ist weiterhin der dokumentierte
+installierte Stand.
 Der AF-036-Consumer in HA-Config bleibt offen und unverändert; eine vollständige
 Kartenansicht und die separate Liste angenommener ML-Ziele sind nicht umgesetzt.
-Diese Vorbereitung autorisiert keinen Rollout. Vor einem späteren produktiven
-Quellwechsel müssen alte v2-Quellenzeiträume am exakten realen UTC-Schnitt vor
-Dateiwechsel/Neustart geschlossen und neue Producerpins separat geprüft werden;
-Originalarchive, alte Quellumgebung, Pins und Checkpoints bleiben erhalten.
+Vor einem produktiven Quellwechsel sind Quellenbindungen frisch zu prüfen:
+bei 0.2.23 geschlossene Perioden bleiben geschlossen; nur noch offene Perioden
+müssen vor Dateiwechsel/Neustart am exakten realen UTC-Schnitt geschlossen werden.
+Neue Producerpins benötigen eine separate Freigabe. Originalarchive, alte
+Quellumgebung, Pins und Checkpoints bleiben erhalten. Die noch fehlende
+Marketplace-Erstwarnungsbestätigung des API-Kontos ist ein Installationsblocker,
+den nur der Nutzer mit diesem Konto beheben darf; kein agentenseitiges Umgehen.
 
 ## Installation und Bedienung
 

@@ -1,10 +1,12 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 04.11.2026, Funktionsumfang 0.2.22. [Versionshinweise und Veröffentlichungsstatus](../releases/release-0.2.22.md) und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung. [Installation](installation.md),
+Stand: 05.11.2026, veröffentlichter Funktionsumfang 0.2.23. [Versionshinweise und Veröffentlichungsstatus](../releases/release-0.2.23.md) und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung. [Installation](installation.md),
 [Datenverträge](../technik/implementation-contract.md), [Datenschutz](datenschutz.md).
 
-Die unten ausdrücklich markierte Schattenfenster-Ergänzung ist unveröffentlichte
-Zweigvorbereitung vom 05.11.2026, kein Bestandteil von Release 0.2.22.
+Die unten ausdrücklich markierte Schattenfenster-Ergänzung ist für
+[0.2.24](../releases/release-0.2.24.md) geplant:
+**Freigabe/Veröffentlichung/Installation noch ausstehend.** Sie ist nicht im
+unveränderten Release 0.2.23 enthalten.
 
 ## 1. Anlagenaufteilung vorbereiten
 
@@ -192,7 +194,7 @@ Sonnenfenster (`azimuth_bin_deg`, `elevation_bin_deg`), den wirksamen Faktor
 freigegebener Fenster der Stufe (`filled_bins`) und den letzten (auch mehrteiligen)
 Ablehnungsgrund (`last_rejection`).
 
-**Unveröffentlichte Ergänzung (`feat/af036-window-diagnostics`):**
+**Geplante Ergänzung in 0.2.24; noch nicht veröffentlicht/installiert:**
 `learning.<Stufe>.beam_shade_windows` ergänzt diesen unveränderten aktuellen
 Status um alle **gespeicherten** Sonnenfenster, auch nur mit Altdaten oder
 abgelaufenen Proben. Die Liste ist nach Azimut/Höhe sortiert, im `10° × 5°`-Raster
@@ -207,6 +209,10 @@ allein belegt keinen Lernerfolg: `released=false` bedeutet neutralen Rückfall,
 `released=true` kann einen qualifiziert gelernten neutralen Faktor bezeichnen.
 Es werden weder Rohproben noch Freigabehistorien ausgegeben; `learning` bleibt
 vom Recorder ausgeschlossen. [Vollständiger Diagnosevertrag](../technik/schattenfenster-diagnose.md).
+Ein fehlender Block bedeutet nicht verfügbar, nicht eine leere Lerntabelle;
+eine gelieferte Liste mit `total=0` bedeutet keine aktuell gespeicherten Fenster.
+Die Sicht verändert weder Lernstand noch Fit und benötigt keine Datenmigration.
+Der ML-Startpfad und seine Abhängigkeiten aus 0.2.23 bleiben unverändert.
 Der AF-036-Consumer in HA-Config bleibt offen und unverändert; eine vollständige
 Kartenansicht und die separate Liste angenommener ML-Ziele sind nicht umgesetzt.
 

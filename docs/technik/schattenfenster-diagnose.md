@@ -1,9 +1,14 @@
 # Vollständige Diagnose gespeicherter Schattenfenster
 
-Stand: 05.11.2026, **unveröffentlichte Vorbereitung für AF-036**. Der laufende
-Release 0.2.22 und das Dashboard im getrennten HA-Config-Projekt sind dadurch
-nicht aktualisiert. Dieser Vertrag ergänzt ausschließlich eine lesende Sicht;
-keine Lern-, Freigabe- oder Prognoseregel wird geändert.
+Stand: 05.11.2026, **geplanter AF-036-Producer-Vertrag für
+[0.2.24](../releases/release-0.2.24.md)**.
+**Freigabe/Veröffentlichung/Installation noch ausstehend.** Der zuletzt dokumentierte
+installierte Stand ist 0.2.23 auf Core 2026.11.0 mit vier geladenen Einträgen;
+dieses Dokument behauptet keinen neuen Laufzeitreadback. Das Dashboard im
+getrennten HA-Config-Projekt ist nicht aktualisiert. Dieser Vertrag ergänzt
+ausschließlich eine lesende Sicht; keine Lern-, Freigabe- oder Prognoseregel
+wird geändert. Der HA-native ML-Startpfad, Runtimeanforderungen und die
+unveränderliche Dependency-Release-URL aus 0.2.23 bleiben erhalten.
 
 ## 1. Öffentliche Schnittstelle
 
@@ -145,25 +150,35 @@ Konfigurations-/Historien-/Schattenfingerprints und
 `status_for()`-Schnittstelle und die archivierten Schattenentscheidungen bleiben
 unverändert. Die neue Sicht wird ausschließlich als Geschwisterblock im
 Lernstatus aufgebaut, nicht in die archivierten Entscheidungsobjekte injiziert.
-Keine Änderung an Fit-Eingaben, Freigabegates, Modellanwendung, Forecasts,
-Messintervallen oder Tagesstart-Snapshots ist beabsichtigt.
+Alle 14 bisherigen `BeamShadeTable`-Methoden bleiben AST-identisch; die neue
+Methode ergänzt nur diese lesende Projektion. Keine Änderung an Fit-Eingaben,
+Fit-Signatur, Freigabegates, Modellanwendung, Forecasts, Messintervallen oder
+Tagesstart-Snapshots gehört zum Releaseumfang.
 
 Der ganze `learning`-Block ist bereits von der regulären Recorderaufzeichnung
 ausgenommen. Es gibt keine neue Entität, keinen Dienst, keine Option, keinen
 zusätzlichen Wetterabruf und keine neue persistente Tabelle. Die Erweiterung
 setzt keinen Lernstand zurück und erfordert keine Datenmigration. Bei einem
-späteren normalen Neustart werden flüchtige Fits wie bisher aus der erhaltenen
+normalen Neustart werden flüchtige Fits wie bisher aus der erhaltenen
 validen Lernbasis aufgebaut.
 
 **Die Softwareherkunft ändert sich trotzdem.** Der Producerhash umfasst alle
-Pythondateien der Integration. Vor einer später separat beauftragten
-Installation eine noch offene v2-Quellenperiode am tatsächlichen UTC-Cutover
-halb offen schließen, bevor sich Dateien oder Laufzeit ändern. Alte Pins,
+Pythondateien der Integration. Vor Installation den tatsächlichen aktuellen
+Bindungsstand frisch prüfen: Bereits bei 0.2.23 geschlossene v2-Quellenperioden
+bleiben geschlossen und werden weder verlängert noch wieder geöffnet. Nur noch
+offene Perioden am tatsächlichen UTC-Cutover halb offen schließen, bevor sich
+Dateien oder Laufzeit ändern. Alte Pins,
 Originale und Qualifikationsbelege unverändert erhalten; neue Pins nur in
 gesondert geprüften neuen Perioden verwenden. Eine alte Bindung ungeprüft über
 den Wechsel fortzuführen kann ihre historische Freigabe widerrufen, obwohl
 die Originaldateien noch existieren. Siehe
-[Upgradegrenzen](../releases/release-0.2.22.md#upgrade-von-0221-und-rückweg).
+[Upgradegrenzen für 0.2.24](../releases/release-0.2.24.md#upgrade-und-rückweg).
+
+Die bekannte fehlende Erstwarnungsbestätigung des Marketplace-API-Kontos
+(`warning_accepted=false`) blockiert dessen Installation. Nur der Nutzer darf
+die Warnung mit dem betreffenden Konto manuell bestätigen; kein Agent darf
+sie akzeptieren oder umgehen. `can_install=true` ersetzt diese Voraussetzung
+nicht. Der Status ist vor einem Installationsversuch frisch zu prüfen.
 
 Für einen reinen Code-Rückweg ist kein Lern-/Archivrestore vorgesehen: alte
 geprüfte Komponentenbytes weiter mit dem unveränderten Store verwenden;
@@ -176,7 +191,8 @@ fehlenden Diagnoseblock ausdrücklich als nicht verfügbar behandeln.
 
 Die Fensterkarte selbst gehört zum HA-Config-Projekt und ist hier weder
 implementiert noch installiert. AF-036 darf dort nicht allein wegen dieses
-vorbereiteten Producer-Vertrags als produktiv erledigt gelten. Ebenso nicht
+Producer-Vertrags oder einer späteren Integrationsinstallation als produktiv
+erledigt gelten. Dashboardressourcen und Karten werden nicht mitgeliefert. Ebenso nicht
 enthalten ist eine positive Zeitliste angenommener ML-Zielintervalle. Diese
 kann nicht aus den bestehenden Ablehnungslisten abgeleitet werden.
 
@@ -184,7 +200,13 @@ Die Prüfungen müssen neben Fenstersemantik auch Nichtmutation, unveränderte
 Persistenz und Modell-/Archiventscheidungen abdecken. Tests und Reviews sind
 keine Aussage über physische Messquellen oder bessere Prognosen.
 
-## 7. Lokaler Vorbereitungsnachweis
+## 7. Historischer Vorbereitungsnachweis für 9c9a709
+
+Die folgenden Ergebnisse gelten ausschließlich für den vorbereiteten Quellstand
+`9c9a709` auf Basis `d585258`, **nicht** für den mit 0.2.23 zusammengeführten
+0.2.24-Releasekandidaten. Frische Tests, CI, Artefakt- und Laufzeitprüfung dieses
+Kandidaten stehen noch aus; frühere Zahlen werden nicht als aktuelle Abnahme
+übernommen.
 
 Die Implementierung ergänzt nur `core/shading.py` und genau einen
 Geschwistereintrag im Coordinator-Lernstatus. Ein AST-Abgleich gegen den
@@ -206,9 +228,10 @@ das ist eine Beispielmessung, keine allgemeine Byteobergrenze.
 Getrennte Subagenten prüften Datenvertrag, Tests, Dokumentation und anschließend
 den integrierten Diff. Der unabhängige fokussierte Nachreview meldet keine
 Befunde; seine 219 gezielten Tests bestanden. Das ist keine neue externe
-Gesamtquellabnahme. Weder Veröffentlichung noch Merge nach `main`,
-HACS-/Archivhostinstallation, Neustart oder Quellenbindungsänderung wurden
-ausgeführt. Der laufende Pilot bleibt unberührt.
+Gesamtquellabnahme. Im damaligen Vorbereitungsauftrag wurden weder
+Veröffentlichung noch Merge nach `main`, HACS-/Archivhostinstallation, Neustart
+oder Quellenbindungsänderung ausgeführt. Diese historische Aussage beschreibt
+nicht spätere 0.2.23-Aktivitäten oder den heutigen Bindungsstand.
 
 Abschließende lokale Gesamtsuite unter Python 3.14.4 und echtem HA Core
 2026.10.4: **3.104 Tests bestanden, zwei ausgelassen**, kombinierte

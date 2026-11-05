@@ -2,8 +2,10 @@
 
 Stand: 05.11.2026; Funktionsstand 0.2.23. Veröffentlichungs- und Installationsstatus stehen in den [Releasehinweisen](../releases/release-0.2.23.md). Der optionale [Originaldatenexport](../archiv/archive-storage-contract.md) erweitert den Stand 0.2.15. Die aktuelle Implementierung ergänzt [Messkontinuität](measurement-learning.md), [Bias-Shadow](early-bias-shadow.md), [Physik-/Schattenoptionen](physics-learning-options.md), [Fehlerbehandlung/Ressourcen](forecast-resilience.md) und [Vergleichsarchive](model-comparison-archive.md). Anwenderfelder und Abläufe: [Bedienung](../anwendung/bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen.
 
-Die unten markierte [Schattenfenster-Diagnose](schattenfenster-diagnose.md) ist
-unveröffentlichte Zweigvorbereitung vom 05.11.2026, nicht Teil von Release 0.2.22.
+Die unten markierte [Schattenfenster-Diagnose](schattenfenster-diagnose.md) beschreibt
+den geplanten Vertrag für [0.2.24](../releases/release-0.2.24.md):
+**Freigabe/Veröffentlichung/Installation noch ausstehend.** Release 0.2.23 bleibt
+unverändert, einschließlich ML-Runtimeanforderungen und Dependency-Release-URL.
 
 Die [Ablehnungsdiagnose](ablehnungsdiagnose.md) erweitert diesen
 Stand um `training_quality.rejection_details` (Schema 1). Join-Ziele stammen aus
@@ -109,9 +111,9 @@ der laufenden Quellzelle; ein früher endender nativer Modelllauf wird weder
 verlängert noch aufgefüllt. Lokale Tages-/DST-Grenzen bestimmt weiterhin der
 Forecastkern. Zusätzliche Providerstützen verlängern nicht `SiteConfig.forecast_days`.
 
-### Schattenfenster-Diagnose: unveröffentlichte Vorbereitung
+### Schattenfenster-Diagnose: geplanter Vertrag für 0.2.24
 
-Im Zweig `feat/af036-window-diagnostics` ergänzt der Coordinatorworker additiv
+Für 0.2.24 ergänzt der Coordinatorworker additiv
 `learning.<Stufe>.beam_shade_windows`. Der abgetrennte, nur lesende Snapshot
 verwendet denselben Schatten-Auswertungszeitpunkt als `evaluated_at`;
 `beam_shade` und der bestehende aktuelle Status bleiben unverändert. Schema 1,
@@ -133,14 +135,21 @@ von einer freigegebenen neutralen Schätzung unterscheidbar. Keine Rohbeobachtun
 oder Freigabehistorien; keine neuen Recorderreihen, da das gesamte `learning`
 weiter unaufgezeichnet bleibt. [Feldvertrag](schattenfenster-diagnose.md).
 
-Modell, Gates, Featurevertrag, Fingerprints und Storeschema bleiben unverändert;
+Alle 14 bisherigen `BeamShadeTable`-Methoden bleiben AST-identisch; die neue
+lesende Methode ergänzt ausschließlich den Geschwisterblock im Lernstatus,
+nicht die archivierten Schattenentscheidungen. Modell, Fit-Eingaben/-Signatur,
+Gates, Featurevertrag, Fingerprints und Storeschema bleiben unverändert;
 keine Historienresets und kein Umschreiben ursprünglicher Snapshots, Archive oder
 Checkpoints. Dennoch ändert jeder Pythonquellwechsel den vollständigen
-Producerhash: Ein späterer Rollout muss alte v2-Quellenzeiträume am exakten realen
-UTC-Schnitt **vor Dateiwechsel/Neustart** schließen und neue Pins separat prüfen.
+Producerhash: Vor dem Rollout ist der Bindungsstand frisch zu prüfen. Bereits
+bei 0.2.23 geschlossene v2-Quellenzeiträume bleiben geschlossen. Noch offene
+Perioden am exakten realen UTC-Schnitt **vor Dateiwechsel/Neustart** schließen;
+neue Pins separat prüfen, nicht aus dem Diagnosevertrag freigeben.
 Blindes Weiterführen alter Bindungen kann alte Qualifikationen widerrufen.
 Alte Archive behalten ihre ursprüngliche Quellumgebung und exakten alten Pins.
-Diese Vorbereitung autorisiert oder vollzieht keinen solchen Wechsel.
+Dieser Vertrag belegt keinen ausgeführten Quellwechsel; frische Release- und
+Erhaltungsprüfungen stehen noch aus. Der Vorbereitungsnachweis für `9c9a709` ist
+ausdrücklich historisch und keine aktuelle Releaseabnahme.
 AF-036 in HA-Config bleibt offen und unverändert; eine vollständige Kartenansicht
 und die separate Liste angenommener ML-Ziele sind nicht umgesetzt.
 
