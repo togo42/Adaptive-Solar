@@ -44,6 +44,7 @@ jobs:
           cache-dependency-path: |
             pyproject.toml
             custom_components/adaptive_solar/manifest.json
+            custom_components/adaptive_solar/runtime_requirements.json
       - name: Install test and declared HA runtime dependencies
         run: |
           python - <<'PY'
@@ -52,10 +53,12 @@ jobs:
           import subprocess
           import sys
           requirements = json.loads(Path("custom_components/adaptive_solar/manifest.json").read_text())["requirements"]
+          runtime = json.loads(Path("custom_components/adaptive_solar/runtime_requirements.json").read_text())
+          requirements += runtime["requirements"]
           subprocess.check_call([sys.executable, "-m", "pip", "install", ".[test,ha-test]", *requirements])
           PY
       - run: python -m pip check
-      - run: ruff check custom_components tests scripts
+      - run: ruff check custom_components tests scripts tools/ml_runtime
       - name: Build optional native quality backend
         run: |
           rustup toolchain install 1.90.0 --profile minimal

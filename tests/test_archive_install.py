@@ -56,8 +56,12 @@ def test_update_uses_mandatory_constraints_manifest_pins_and_postflight(isolated
     assert [step for _, step in commands] == ["preflight", "installation", "dependency check", "postflight"]
     install = commands[1][0]
     manifest = json.loads((subject.ROOT / "custom_components/adaptive_solar/manifest.json").read_text())
+    runtime = json.loads((subject.ROOT / "custom_components/adaptive_solar/runtime_requirements.json").read_text())
     assert str(subject.CONSTRAINTS) in install and str(pins) in install
     assert all(requirement in install for requirement in manifest["requirements"])
+    assert runtime["requirements"] == ["scikit-learn==1.9.1"]
+    assert all(requirement in install for requirement in runtime["requirements"])
+    assert runtime["musl_requirement"] not in install
     assert str(subject.ROOT) in install
     assert not any("ha-test" in arg or "[test" in arg for arg in install)
     assert result["homeassistant_installed"] is False

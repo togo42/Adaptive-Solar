@@ -17,41 +17,42 @@ Temperatur, Wind, horizontale Globalstrahlung und PV-Leistung unterstützen
 kurzfristige Korrekturen. Ohne qualifizierte Lernhistorie bleibt die Physik aktiv.
 Ein gemeinsamer Zähler kann keine Einzelstringverluste identifizieren.
 
-**Version 0.2.22, Stand 04.11.2026: veröffentlicht und über HACS installiert.** Sie korrigiert
-Setuprollback, Snapshotgrenzen, Schatten-/Replayphasen und Archiv-/Auswertungs-
-Randfälle. Die begrenzte Adaptive-Solar-Erhaltungsprüfung ist abgeschlossen.
-Auch die Folgeprüfung nach dem zwischenzeitlichen Neustart ist erfolgreich:
-Die Konfiguration ist gültig, offene Repairs bestehen nicht. Der getrennte
-Archivhostwechsel
-auf den korrigierten Funktionsstand `f1c7d9b` bleibt ein eigener Nachweis.
-[Änderungen, Kompatibilitätsgrenzen und Upgrade](docs/releases/release-0.2.22.md).
+**Version 0.2.23, Stand 05.11.2026: Releasevorbereitung.** Der neue Startpfad
+stellt fehlendes scikit-learn über HAs eigenen Requirementsmanager bereit,
+statt einen manuellen Eingriff nach dem Core-Update zu verlangen. Eine bereits
+vorhandene exakte, importierbare Version löst keine Paketinstallation aus.
+Modellversion, Physik, Lernregeln und Storeformate bleiben unverändert.
+Veröffentlichung und anschließende Marketplace-Installation stehen noch aus;
+zuletzt veröffentlicht ist 0.2.22. [Liefervertrag](docs/technik/ml-runtime-bundle.md)
+und [Releasehinweise](docs/releases/release-0.2.23.md).
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
 
 ## Installation und Bedienung
 
 1. [Plattform und Abhängigkeiten prüfen](docs/anwendung/installation.md).
-   HACS-Mindestversion ist Core **2026.10.2**; der Korrekturstand für 0.2.22
-   wurde unter **2026.10.4 / Python 3.14** geprüft. Frühere Nachweise für .2/.3
-   sind historisch. Für HAOS ist bislang nur **amd64 / CPython 3.14 / Musl**
-   mit separat bereitgestellter Binärbasis qualifiziert;
-   [HAOS-Bau- und Installationsweg](docs/anwendung/haos-installation.md).
-2. In HACS unter **Benutzerdefinierte Repositories**
+   Die Metadatenuntergrenze ist Core **2026.10.2**; der native Testvertrag
+   verwendet **2026.10.4 / Python 3.14**. Frühere Nachweise für .2/.3 sind
+   historisch. Die automatische Musl-Lieferung gilt nur für **HAOS amd64 /
+   normales CPython 3.14 / Musl ≥1.2**; andere ABIs benötigen neue Artefakte.
+2. In **Marketplace** unter **Benutzerdefinierte Repositories**
    `https://github.com/togo42/Adaptive-Solar` als **Integration** hinzufügen,
    eine veröffentlichte Version herunterladen und Home Assistant neu starten.
 3. Unter **Einstellungen → Geräte & Dienste → Integration hinzufügen → Adaptive Solar**
    Standort, Ausgangsstufen und Strings einrichten. Bestehende Einträge beim Upgrade
    weiterverwenden. [Bedienung und Fehlerbehebung](docs/anwendung/bedienung.md).
 
-Die [Installationsanleitung](docs/anwendung/installation.md) enthält auch manuelle
-Installation, Sicherung, Erfolgskontrolle und Rückweg. Ein HACS-Download ersetzt
-keine fehlende HAOS-Binärabhängigkeit.
+Marketplace ist seit Core 2026.11 integriert und ersetzt dort HACS. Auf älteren
+Coreversionen bleibt der frühere HACS-Weg anwendbar; die kompatible Metadatendatei
+heißt weiterhin `hacs.json`.
 
-**Core 2026.11:** HA lädt `/config/deps` nicht mehr. Eine bisher dort installierte
-ML-Binärbasis muss im tatsächlichen Corecontainer bereitgestellt werden;
-[Reparatur und Updategrenze](docs/anwendung/haos-installation.md#55-core-ab-202611-pakete-im-corecontainer).
-Ein normaler Neustart erhält diese Containerinstallation, ein Containerwechsel
-beim nächsten Core-Update dagegen nicht zuverlässig.
+**Ab 0.2.23:** Beim ersten Start in einem frischen kompatiblen Corecontainer
+installiert HA die fehlende ML-Bibliothek automatisch. Kein Dockerzugriff, kein
+Compiler und kein Wiederaktivieren von `/config/deps` sind dafür nötig. Der erste
+Start benötigt GitHub-/PyPI-Zugang; eine gesunde vorhandene ML-Installation
+verursacht durch diesen Bootstrap keinen Netzwerkzugriff. Dies ist keine Garantie
+für beliebige zukünftige Python-/Core-/NumPy-/SciPy-Versionen.
+[Installation, Sicherung und Rückweg](docs/anwendung/installation.md).
 
 Je String werden kWp, Neigung, Azimut und Verluste angegeben:
 **0° Nord / 90° Ost / 180° Süd / 270° West**. AC-Stufen haben Wirkungsgrad und
@@ -72,7 +73,7 @@ stehen unter [Datenschutz](docs/anwendung/datenschutz.md).
 
 Für native HA-Tests Python 3.14 verwenden; der HA-unabhängige Modellkern unterstützt
 Python ab 3.13. Der [Entwicklungsleitfaden](docs/entwicklung/entwicklung.md) beschreibt
-die reproduzierbare Installation mit automatischer Übernahme der Manifestpins.
+die reproduzierbare Installation mit automatischer Übernahme der Manifest- und ML-Pins.
 
 ```bash
 python3.14 -m venv .venv
@@ -130,12 +131,12 @@ ursprüngliche Wetter-, Beobachtungs- und Prognosedaten auf einem separaten Host
 Export und Collector werden bewusst eingerichtet; die Prognose benötigt keinen
 Archivhost. Die [Hostinstallation](docs/archiv/archiv-host-installation.md)
 verwendet eine [eigene Laufzeit ohne HA Core](docs/archiv/archiv-runtime-ohne-ha.md).
-HACS aktualisiert weder externe Hostdienste noch Dashboardressourcen.
+Marketplace aktualisiert weder externe Hostdienste noch Dashboardressourcen.
 Die [Laufzeittelemetrie](docs/entwicklung/archiv-laufzeittelemetrie.md) trennt
 Lockwartezeit, Kindaufrufe, Statistik und Timeout-/Betriebssystemfehler.
 Für den Archivhost gibt es ein ausdrücklich zu aktivierendes
 [natives Qualitätsbackend](docs/archiv/native-qualitaetsbackend.md) mit
-Manifestpins und Python-Rückfall. Die HA-Integration benötigt kein Rust.
+Manifest-/ML-Pins und Python-Rückfall. Die HA-Integration benötigt kein Rust.
 
 Originaldateien und ein wiederaufbaubarer SQLite-Index sind die Speicherbasis.
 24 Monate Retention sind eine Einstellung; der tatsächliche Platzbedarf muss
@@ -171,7 +172,7 @@ Die eigenen Inhalte dieses Repositories, einschließlich Quellcode, Tests, Beisp
 Dokumentation und Projektgrafiken, stehen, soweit urheberrechtlich geschützt, unter
 der **GNU General Public License, ausschließlich Version 3** (`GPL-3.0-only`).
 Der vollständige unveränderte Lizenztext steht in [LICENSE](LICENSE); eine identische
-Kopie wird für HACS innerhalb der Integration mitgeliefert.
+Kopie wird für Marketplace innerhalb der Integration mitgeliefert.
 
 Private und kommerzielle Nutzung sind erlaubt. Wer vom Copyleft erfasste geänderte
 Versionen weitergibt, muss sie ebenfalls unter GPL Version 3 bereitstellen und den

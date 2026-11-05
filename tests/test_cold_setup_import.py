@@ -43,6 +43,9 @@ async def test_cold_setup_imports_physics_dependencies_outside_event_loop():
                 async def async_add_import_executor_job(self, target, *args):
                     return await asyncio.to_thread(target, *args)
 
+                async def async_add_executor_job(self, target, *args):
+                    return await asyncio.to_thread(target, *args)
+
             entry = SimpleNamespace(options={}, data={"site": {
                 "latitude": 52, "longitude": 13, "timezone": "UTC",
                 "strings": [{"id": "s", "inverter_id": "i", "peak_kw": 5,
@@ -59,7 +62,7 @@ async def test_cold_setup_imports_physics_dependencies_outside_event_loop():
 
         sys.meta_path.insert(0, VerifyThread())
         asyncio.run(run())
-        assert {"pvlib", "numpy", "scipy"} <= seen, seen
+        assert watched <= seen, seen
     ''')
     process = await asyncio.create_subprocess_exec(
         sys.executable, "-c", code, cwd=Path(__file__).parents[1],

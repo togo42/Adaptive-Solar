@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "requirements": [
+    "scikit-learn==1.9.1"
+  ],
+  "musl_requirement": "scikit-learn@https://github.com/togo42/Adaptive-Solar/releases/download/v0.2.23-runtime.1/scikit_learn-1.9.1.tar.gz#sha256=85370dd890ed4d068f4e16afa69c65b3c327b44570ddd624ffa964cbf58f7fea"
+}

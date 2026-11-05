@@ -1,7 +1,10 @@
 # ML-Runtime-Deliverybundle
 
-Stand: 05.11.2026. Vorschau-Dependencytag: **`v0.2.23-runtime.1`**.
-Lokale Paketierung ist keine Veröffentlichung oder produktive Installationsfreigabe.
+Stand: 05.11.2026. Veröffentlichtes Dependency-Vorabrelease:
+**[`v0.2.23-runtime.1`](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.23-runtime.1)**.
+Alle sechs veröffentlichten Assets wurden bytegleich geprüft; der Lieferbundle
+hat SHA256 `85370dd890ed4d068f4e16afa69c65b3c327b44570ddd624ffa964cbf58f7fea`.
+Es ist kein reguläres Integrationsrelease oder eine neue Quellenqualifikation.
 
 ## Zweck und Grenzen
 
@@ -61,8 +64,9 @@ Ein vollständiger Dependencyrelease umfasst gemeinsam:
 Die Downloadbasis ist
 `https://github.com/togo42/Adaptive-Solar/releases/download/v0.2.23-runtime.1/`.
 Das Skript erzeugt nur lokale Assets, keine Uploads. Die Links in
-`README.txt`/`NOTICE.txt` sind dauerhafte **Publikationsziele**, kein Nachweis,
-dass die Assets bereits öffentlich erreichbar sind. Veröffentlichung erst nach
+`README.txt`/`NOTICE.txt` sind dauerhafte **Publikationsziele**; ihr dortiger Text
+behauptet selbst keinen Veröffentlichungserfolg. Der oben genannte Assetabgleich
+ist dessen getrennter Nachweis. Neue Veröffentlichung erst nach
 Prüfung des gesamten Satzes; alle Assets unter diesem Dependencytag unverändert
 zusammen verfügbar halten, auch bei Spiegelung. Der original benannte
 `scikit_learn-1.9.1.tar.gz` ist hier der Delivery-Sdist und darf nicht mit dem

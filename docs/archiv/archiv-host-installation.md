@@ -47,7 +47,8 @@ Hostinstaller mit Python ab 3.13 verwenden:
 python3 scripts/install_archive_host.py --venv .venv
 ```
 
-Er installiert das reguläre Paket und die Versionspins aus dem HA-Manifest,
+Er installiert das reguläre Paket und die Versionspins aus dem HA-Manifest plus
+`runtime_requirements.json` (normaler ML-PyPI-Pin, kein HA-Bootstrap),
 ohne Entwicklungs-/HA-Extras. Die verpflichtenden
 `deploy/archive-host-constraints.txt` schließen HA Core und dessen Testharness
 auch als versehentliche transitive Abhängigkeit aus. Vor und nach der Installation

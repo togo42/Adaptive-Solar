@@ -1,6 +1,15 @@
 # HAOS: scikit-learn für Adaptive Solar bauen und installieren
 
-Stand: 05.11.2026, Integrationsreferenz 0.2.22 (unveränderte Binärbasis seit 0.2.10). Bau-/Lieferweg seit Adaptive Solar **0.2.0**, kein anderes Lernmodell: normales CPython **3.14**, **amd64/x86_64**, **musllinux 1.2**. Andere ABIs/Architekturen, insbesondere ARM/Raspberry Pi, sind nicht geprüft. Einstieg und HACS: [Installation](installation.md). Historische Rohbelege bleiben privat; alle nötigen Bau-/Lieferbefehle stehen hier.
+Stand: 05.11.2026, vorbereitete Integrationsreferenz 0.2.23 (unveränderte Binärbasis seit 0.2.10). Bau-/Lieferweg seit Adaptive Solar **0.2.0**, kein anderes Lernmodell: normales CPython **3.14**, **amd64/x86_64**, **musllinux 1.2**. Andere ABIs/Architekturen, insbesondere ARM/Raspberry Pi, sind nicht geprüft. Einstieg und Marketplace: [Installation](installation.md). Historische Rohbelege bleiben privat; alle nötigen Bau-/Lieferbefehle stehen hier.
+
+**Ab 0.2.23 übernimmt der HA-native Bootstrap die Paketlieferung.** Betreiber
+installieren die Integration über Marketplace; sie benötigen weder den folgenden
+Compilerbau noch manuelle Docker-/SSH-Eingriffe. Der Bauweg in Abschnitten 1–4
+bleibt für die Releasepflege relevant. Der
+[Binärliefervertrag](../technik/ml-runtime-bundle.md) beschreibt die hashgebundene
+Weitergabe einschließlich Quell- und Lizenzbeigaben. Die folgenden manuellen
+Lieferanleitungen dokumentieren ältere Versionen und gezielte Wiederherstellung,
+nicht die normale Marketplace-Installation ab 0.2.23.
 
 **Wichtige Grenze ab Core 2026.11:** Der frühere Lieferpfad `/config/deps` wird
 nicht mehr geladen. Abschnitte 5.1–5.4 beschreiben ausschließlich den historischen
@@ -145,7 +154,7 @@ ist die Konfigurationswurzel mit `configuration.yaml`, die im Core `/config` ist
    `.whl`-Dateien ablegen. Übertragene Dateien mit dem lokalen Payload byteweise
    bzw. anhand eigener SHA256-Dateilisten vergleichen; keine Geheimnisse exportieren.
 4. Core mit `ha core start` wieder starten und Protokolle prüfen. Anschließend
-   [Integrationsinstallation](installation.md#3-über-hacs-installieren) abschließen.
+   [Integrationsinstallation](installation.md#3-über-marketplace-installieren) abschließen.
 
 Bei einem fehlgeschlagenen Import Core wieder stoppen, ausschließlich die gelieferten
 fünf Distributionen/zugehörigen Dateien entfernen und deren gesicherten Vorgänger
@@ -192,6 +201,10 @@ Lernen. Ein Setupdialog allein prüft nicht alle ML-Erweiterungen. Reale Quellen
 und der spätere Prognosevergleich bleiben die Nachweise in Abschnitt 6.
 
 ### 5.5 Core ab 2026.11: Pakete im Corecontainer
+
+Historischer manueller Reparaturweg für Adaptive Solar bis einschließlich
+0.2.22. Ab 0.2.23 ist stattdessen die automatische Marketplace-/HA-Lieferung oben
+vorgesehen. Dieser Abschnitt bleibt als begrenzter Diagnose- und Rückweg erhalten.
 
 HA hat die Konfigurationsverzeichnis-Abhängigkeiten mit
 [Core-Änderung #168155](https://github.com/home-assistant/core/pull/168155)

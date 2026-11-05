@@ -16,6 +16,8 @@ async def async_setup_entry(hass, entry) -> bool:
 
     from .const import CONF_SITE
     from .core.models import SiteConfig
+    runtime_module = await async_import_module(hass, f"{__package__}._runtime")
+    await runtime_module.async_ensure_runtime(hass)
     weather_module = await async_import_module(hass, f"{__package__}.weather")
 
     coordinator_module = await async_import_module(hass, f"{__package__}.coordinator")
