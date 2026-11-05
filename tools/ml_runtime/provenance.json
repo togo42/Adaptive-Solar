@@ -1,0 +1,50 @@
+{
+  "aports_commit": "423a8ad043d07f2c7546c8ec3e2b0384cda360ae",
+  "builder_image": "ghcr.io/home-assistant/wheels/amd64/musllinux_1_2/cp314:2026.10.0@sha256:65b0dfb84c7b8326fca5aa47df1f8e787f4903393f050266d2ba0c15850fd390",
+  "dependency_tag": "v0.2.23-runtime.1",
+  "evidence": "APK database in pinned builder; auditwheel 6.8.2 SBOM in unchanged wheel; hash-name prefixes match original builder libraries. Repaired ELF hashes differ from the originals because auditwheel rewrites ELF names/rpaths.",
+  "libraries": [
+    {
+      "builder_path": "usr/lib/libgcc_s.so.1",
+      "builder_sha256": "5ea51dd885b6fc691eccc569d0bda739204204f6161e97075b26dc9c050d1ca1",
+      "license": "GPL-3.0-or-later WITH GCC-exception-3.1",
+      "package": "libgcc",
+      "version": "15.2.0-r5",
+      "wheel_path": "scikit_learn.libs/libgcc_s-5ea51dd8.so.1",
+      "wheel_sha256": "e8cafa985a8a31eab3f00569bfe3dbd52b4d02127e4f04792e8f80d6d98117aa"
+    },
+    {
+      "builder_path": "usr/lib/libgomp.so.1.0.0",
+      "builder_sha256": "6c4ee8071c044b05fd55e0b06e1ccbe49d0da2b496429c2372f8dfc3858dd8e2",
+      "license": "GPL-3.0-or-later WITH GCC-exception-3.1",
+      "package": "libgomp",
+      "version": "15.2.0-r5",
+      "wheel_path": "scikit_learn.libs/libgomp-6c4ee807.so.1.0.0",
+      "wheel_sha256": "af0a6e07a98e0ec3a51d868204c72ada144059eaac1e4ac59996a56dbf050ac0"
+    },
+    {
+      "builder_path": "usr/lib/libstdc++.so.6.0.34",
+      "builder_sha256": "67a940194aec6c44c3eb47a98e44c53d248e4dac5f4eb57c0971c0d6286eafe5",
+      "license": "GPL-3.0-or-later WITH GCC-exception-3.1",
+      "package": "libstdc++",
+      "version": "15.2.0-r5",
+      "wheel_path": "scikit_learn.libs/libstdc++-67a94019.so.6.0.34",
+      "wheel_sha256": "99fc9272b516662f15ed6693867c402bcdc9ac99ec65f4fe70c634ba125764d5"
+    }
+  ],
+  "notes": "Documented provenance and supplied texts/sources; not a legal opinion or a claim that an independently rebuilt wheel is byte-reproducible.",
+  "package_version": "15.2.0-r5",
+  "schema": 1,
+  "scikit_learn": {
+    "source_sha256": "629cada3e33e2b9bf376cdc7614a47a4140b8aedc1d836579e359736fbd82977",
+    "source_url": "https://files.pythonhosted.org/packages/d2/eb/eaf5e07fcc0da7149b0e084f24e54edd7441b9a89ce7e034032ae97fe3a0/scikit_learn-1.9.1.tar.gz",
+    "version": "1.9.1",
+    "wheel_sha256": "7996d012c4aa741cc6386bbc107dec42e53f61ac39c4030362085f20df9293cf"
+  },
+  "source_assets": [
+    "gcc-15.2.0.tar.xz",
+    "gcc-15.2.0-r5-alpine-sources.tar.gz",
+    "scikit_learn-1.9.1-original-source.tar.gz"
+  ],
+  "source_records_sha256": "15b0251c489a771d67999ce35e2378012cc8b8e4b917a6ad25427e8f9aa845ab"
+}
