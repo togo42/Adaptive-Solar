@@ -17,7 +17,7 @@ Temperatur, Wind, horizontale Globalstrahlung und PV-Leistung unterstützen
 kurzfristige Korrekturen. Ohne qualifizierte Lernhistorie bleibt die Physik aktiv.
 Ein gemeinsamer Zähler kann keine Einzelstringverluste identifizieren.
 
-**Version 0.2.23, Stand 05.11.2026: veröffentlicht und über Marketplace installiert.** Der neue Startpfad
+**Installierter Stand 0.2.23, Stand 05.11.2026: veröffentlicht und über Marketplace installiert.** Der neue Startpfad
 stellt fehlendes scikit-learn über HAs eigenen Requirementsmanager bereit,
 statt einen manuellen Eingriff nach dem Core-Update zu verlangen. Eine bereits
 vorhandene exakte, importierbare Version löst keine Paketinstallation aus.
@@ -29,7 +29,10 @@ und [Releasehinweise](docs/releases/release-0.2.23.md).
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
 
-**Geplant für [0.2.24](docs/releases/release-0.2.24.md): Freigabe/Veröffentlichung/Installation noch ausstehend.**
+**[0.2.24](docs/releases/release-0.2.24.md) ist veröffentlicht; Installation und Produktivabnahme stehen noch aus.**
+Der [Release](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.24)
+bindet unveränderlich Commit `f21ad29c8341f9d784e686b4a74ab9a6a4097c93`;
+alle vier veröffentlichten Assets wurden heruntergeladen und bytegleich geprüft.
 Die additive [Schattenfenster-Diagnose](docs/technik/schattenfenster-diagnose.md)
 macht ausschließlich aktuell gespeicherte Sonnenfenster je Stufe lesbar
 (höchstens 648), ohne Modell-, Freigabe-, Fit-, Store- oder Archivänderung.
@@ -45,6 +48,8 @@ Neue Producerpins benötigen eine separate Freigabe. Originalarchive, alte
 Quellumgebung, Pins und Checkpoints bleiben erhalten. Die noch fehlende
 Marketplace-Erstwarnungsbestätigung des API-Kontos ist ein Installationsblocker,
 den nur der Nutzer mit diesem Konto beheben darf; kein agentenseitiges Umgehen.
+Für diesen Auftrag sind stattdessen manueller Download und genau ein späterer
+Core-Neustart durch den Nutzer vorgesehen; der Agent wiederholt diese Aktionen nicht.
 
 ## Installation und Bedienung
 

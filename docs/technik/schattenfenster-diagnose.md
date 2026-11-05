@@ -1,8 +1,8 @@
 # Vollständige Diagnose gespeicherter Schattenfenster
 
-Stand: 05.11.2026, **geplanter AF-036-Producer-Vertrag für
+Stand: 05.11.2026, **veröffentlichter AF-036-Producer-Vertrag ab
 [0.2.24](../releases/release-0.2.24.md)**.
-**Freigabe/Veröffentlichung/Installation noch ausstehend.** Der zuletzt dokumentierte
+**Installation und Produktivabnahme stehen noch aus.** Der zuletzt dokumentierte
 installierte Stand ist 0.2.23 auf Core 2026.11.0 mit vier geladenen Einträgen;
 dieses Dokument behauptet keinen neuen Laufzeitreadback. Das Dashboard im
 getrennten HA-Config-Projekt ist nicht aktualisiert. Dieser Vertrag ergänzt
@@ -179,6 +179,8 @@ Die bekannte fehlende Erstwarnungsbestätigung des Marketplace-API-Kontos
 die Warnung mit dem betreffenden Konto manuell bestätigen; kein Agent darf
 sie akzeptieren oder umgehen. `can_install=true` ersetzt diese Voraussetzung
 nicht. Der Status ist vor einem Installationsversuch frisch zu prüfen.
+Der Nutzer hat für diesen Auftrag stattdessen manuellen Download und genau einen
+späteren Core-Neustart gewählt; der Agent wiederholt diese Aktionen nicht.
 
 Für einen reinen Code-Rückweg ist kein Lern-/Archivrestore vorgesehen: alte
 geprüfte Komponentenbytes weiter mit dem unveränderten Store verwenden;
@@ -204,9 +206,11 @@ keine Aussage über physische Messquellen oder bessere Prognosen.
 
 Die folgenden Ergebnisse gelten ausschließlich für den vorbereiteten Quellstand
 `9c9a709` auf Basis `d585258`, **nicht** für den mit 0.2.23 zusammengeführten
-0.2.24-Releasekandidaten. Frische Tests, CI, Artefakt- und Laufzeitprüfung dieses
-Kandidaten stehen noch aus; frühere Zahlen werden nicht als aktuelle Abnahme
-übernommen.
+veröffentlichten 0.2.24-Release. Dessen frische lokale Tests, erfolgreiche Main-CI
+und öffentliche Assetprüfung sind in den [aktuellen Releasehinweisen](../releases/release-0.2.24.md)
+getrennt dokumentiert; Branch-/Tag-CI sind hier noch nicht abschließend belegt,
+Installation und Produktivabnahme stehen weiter aus. Frühere Zahlen werden nicht
+als aktuelle Abnahme übernommen.
 
 Die Implementierung ergänzt nur `core/shading.py` und genau einen
 Geschwistereintrag im Coordinator-Lernstatus. Ein AST-Abgleich gegen den

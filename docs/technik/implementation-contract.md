@@ -1,10 +1,10 @@
 # Implementierungsvertrag für Adaptive Solar
 
-Stand: 05.11.2026; Funktionsstand 0.2.23. Veröffentlichungs- und Installationsstatus stehen in den [Releasehinweisen](../releases/release-0.2.23.md). Der optionale [Originaldatenexport](../archiv/archive-storage-contract.md) erweitert den Stand 0.2.15. Die aktuelle Implementierung ergänzt [Messkontinuität](measurement-learning.md), [Bias-Shadow](early-bias-shadow.md), [Physik-/Schattenoptionen](physics-learning-options.md), [Fehlerbehandlung/Ressourcen](forecast-resilience.md) und [Vergleichsarchive](model-comparison-archive.md). Anwenderfelder und Abläufe: [Bedienung](../anwendung/bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen.
+Stand: 05.11.2026; veröffentlichter Funktionsstand 0.2.24, installierter Stand weiterhin 0.2.23. Veröffentlichungs- und Installationsstatus stehen in den [Releasehinweisen](../releases/release-0.2.24.md). Der optionale [Originaldatenexport](../archiv/archive-storage-contract.md) erweitert den Stand 0.2.15. Die aktuelle Implementierung ergänzt [Messkontinuität](measurement-learning.md), [Bias-Shadow](early-bias-shadow.md), [Physik-/Schattenoptionen](physics-learning-options.md), [Fehlerbehandlung/Ressourcen](forecast-resilience.md) und [Vergleichsarchive](model-comparison-archive.md). Anwenderfelder und Abläufe: [Bedienung](../anwendung/bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen.
 
 Die unten markierte [Schattenfenster-Diagnose](schattenfenster-diagnose.md) beschreibt
-den geplanten Vertrag für [0.2.24](../releases/release-0.2.24.md):
-**Freigabe/Veröffentlichung/Installation noch ausstehend.** Release 0.2.23 bleibt
+den veröffentlichten Vertrag für [0.2.24](../releases/release-0.2.24.md):
+**Installation und Produktivabnahme stehen noch aus.** Release 0.2.23 bleibt
 unverändert, einschließlich ML-Runtimeanforderungen und Dependency-Release-URL.
 
 Die [Ablehnungsdiagnose](ablehnungsdiagnose.md) erweitert diesen
@@ -111,9 +111,9 @@ der laufenden Quellzelle; ein früher endender nativer Modelllauf wird weder
 verlängert noch aufgefüllt. Lokale Tages-/DST-Grenzen bestimmt weiterhin der
 Forecastkern. Zusätzliche Providerstützen verlängern nicht `SiteConfig.forecast_days`.
 
-### Schattenfenster-Diagnose: geplanter Vertrag für 0.2.24
+### Schattenfenster-Diagnose: veröffentlichter Vertrag ab 0.2.24
 
-Für 0.2.24 ergänzt der Coordinatorworker additiv
+Ab 0.2.24 ergänzt der Coordinatorworker additiv
 `learning.<Stufe>.beam_shade_windows`. Der abgetrennte, nur lesende Snapshot
 verwendet denselben Schatten-Auswertungszeitpunkt als `evaluated_at`;
 `beam_shade` und der bestehende aktuelle Status bleiben unverändert. Schema 1,
@@ -147,8 +147,10 @@ Perioden am exakten realen UTC-Schnitt **vor Dateiwechsel/Neustart** schließen;
 neue Pins separat prüfen, nicht aus dem Diagnosevertrag freigeben.
 Blindes Weiterführen alter Bindungen kann alte Qualifikationen widerrufen.
 Alte Archive behalten ihre ursprüngliche Quellumgebung und exakten alten Pins.
-Dieser Vertrag belegt keinen ausgeführten Quellwechsel; frische Release- und
-Erhaltungsprüfungen stehen noch aus. Der Vorbereitungsnachweis für `9c9a709` ist
+Dieser Vertrag belegt keinen ausgeführten produktiven Quellwechsel; Main-CI und
+öffentliche Assetprüfung sind abgeschlossen, Branch-/Tag-CI hier noch nicht
+abschließend belegt. Installation und produktive Erhaltungsprüfung stehen noch aus.
+Der Vorbereitungsnachweis für `9c9a709` ist
 ausdrücklich historisch und keine aktuelle Releaseabnahme.
 AF-036 in HA-Config bleibt offen und unverändert; eine vollständige Kartenansicht
 und die separate Liste angenommener ML-Ziele sind nicht umgesetzt.

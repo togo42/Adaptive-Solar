@@ -9,12 +9,14 @@ Die Fachverträge für Physik, Lernen und Speicherformate bleiben unverändert.
 Ältere Versionen und Prüfungen bleiben historisch unter
 [Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).
 
-Geplant für **[0.2.24](releases/release-0.2.24.md)** ist ausschließlich die additive
+Veröffentlicht ist **[0.2.24](releases/release-0.2.24.md)** mit ausschließlich der additiven
 [Schattenfenster-Diagnose](technik/schattenfenster-diagnose.md).
-**Freigabe/Veröffentlichung/Installation noch ausstehend.** Die markierten
-Ergänzungen in Bedienung, Datenschutz und Vertrag beschreiben den geplanten
-Releasevertrag, keinen abgeschlossenen Rollout. Der historische Vorbereitungsnachweis
-für `9c9a709` ersetzt keine frische Releaseprüfung. Der AF-036-Consumer in HA-Config
+**Installation und Produktivabnahme stehen noch aus; HA bleibt auf 0.2.23.**
+Die vier öffentlichen Releaseassets sind heruntergeladen und bytegleich geprüft;
+die Main-CI ist erfolgreich, Branch-/Tag-CI sind hier noch nicht abschließend belegt.
+Die markierten Ergänzungen in Bedienung, Datenschutz und Vertrag beschreiben den
+veröffentlichten Releasevertrag, keinen abgeschlossenen Rollout. Der historische
+Vorbereitungsnachweis für `9c9a709` ersetzt keine aktuelle Prüfung. Der AF-036-Consumer in HA-Config
 und die separate Liste angenommener ML-Ziele bleiben Folgearbeiten.
 
 ## Installation und Anwendung
@@ -38,7 +40,7 @@ und die separate Liste angenommener ML-Ziele bleiben Folgearbeiten.
 | [Messintervalle ab 0.2.13](technik/messintervalle-92-prozent.md) | Historischer Ausgangsvertrag; spätere Ergänzungen sind gekennzeichnet |
 | [Ablehnungsdiagnose](technik/ablehnungsdiagnose.md) | Ziel-/Zeilendetails und echter Fit-Cutoff |
 | [Direktstrahl-Verschattung](technik/adaptive-solar-verschattung.md) | Ursprüngliche Spezifikation mit späteren Vertragsverweisen |
-| [Schattenfenster-Diagnose](technik/schattenfenster-diagnose.md) | Geplanter 0.2.24-Vertrag: lesender Snapshot aller gespeicherten Sonnenfenster, höchstens 648 je Stufe; AF-036-Consumer bleibt offen |
+| [Schattenfenster-Diagnose](technik/schattenfenster-diagnose.md) | Veröffentlichter 0.2.24-Vertrag: lesender Snapshot aller gespeicherten Sonnenfenster, höchstens 648 je Stufe; Installation und AF-036-Consumer bleiben offen |
 | [Physik-/Schatten-/Nowcastoptionen](technik/physics-learning-options.md) | Aktuelle Kandidatenparameter und zeitliche Freigaben |
 | [Früher Bias im Shadow](technik/early-bias-shadow.md) | Beobachteter Kandidat mit eigenen Gates |
 | [Trainingsabdeckung offline prüfen](technik/learning-support-guard.md) | Separater Support-Guard-Kandidat im Entwicklungsstand; keine HA-Aktivierung |

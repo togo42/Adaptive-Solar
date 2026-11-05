@@ -1,12 +1,15 @@
-# Adaptive Solar 0.2.24: geplanter Releasevertrag
+# Adaptive Solar 0.2.24: veröffentlichte Schattenfenster-Diagnose
 
-Stand: 05.11.2026, **Freigabe/Veröffentlichung/Installation noch ausstehend**.
-Der Kandidat führt die AF-036-Vorbereitung `9c9a709` mit dem veröffentlichten
+Stand: 05.11.2026, **veröffentlicht; Installation und Produktivabnahme noch ausstehend**.
+Der [Release v0.2.24](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.24)
+bindet unveränderlich Tagcommit `f21ad29c8341f9d784e686b4a74ab9a6a4097c93`.
+Er führt die AF-036-Vorbereitung `9c9a709` mit dem veröffentlichten
 [0.2.23](release-0.2.23.md) zusammen. Der zuletzt dokumentierte produktive Stand
 ist **0.2.23 auf Core 2026.11.0 mit vier geladenen Einträgen**; ein frischer
-0.2.24-Laufzeitnachweis liegt hier noch nicht vor. Lokale Tests, Paketprüfung und
-die unten abgegrenzte native Probe sind abgeschlossen; CI, Veröffentlichung und
-Installation sind noch nicht als erfolgreich ausgewiesen.
+0.2.24-Laufzeitnachweis liegt hier noch nicht vor. Lokale Tests, Paketprüfung,
+Main-CI, Veröffentlichung, öffentliche Assetprüfung und die unten abgegrenzte
+native Probe sind abgeschlossen; Branch-/Tag-CI sind hier noch nicht abschließend
+belegt. Ein erfolgreicher Release ersetzt keine Installation oder Produktivabnahme.
 
 ## Ausschließlich additive, lesende Diagnose
 
@@ -45,7 +48,7 @@ Alle **14 bisherigen `BeamShadeTable`-Methoden bleiben AST-identisch**, darunter
 `status_for()`, `to_dict()` und `from_dict()`. Die Erweiterung liegt ausschließlich
 als lesende Methode und Geschwistereintrag im Coordinator-Lernstatus vor; sie
 wird nicht in archivierte Schattenentscheidungen injiziert. Für den finalen
-Releasekandidaten wurde dieser Erhaltungsvertrag frisch abgeglichen: Nach Entfernen
+Release wurde dieser Erhaltungsvertrag frisch abgeglichen: Nach Entfernen
 der beiden neuen Methoden entspricht der Schatten-AST dem Vorgänger; nach Entfernen
 des einen Diagnoseeintrags gilt dasselbe für den Coordinator. Alle weiteren
 Komponentenoriginale außer der Manifestversion sind bytegleich zu 0.2.23.
@@ -81,9 +84,11 @@ und insbesondere vor einer etwaigen Timerpause frisch prüfen. Eine frühere
 Installation durch ein anderes Konto überträgt dessen Zustimmung nicht.
 
 Für diesen Auftrag hat der Nutzer stattdessen den späteren **manuellen Download
-und Neustart** gewählt. Nach verifizierter Veröffentlichung und frischer
-Erhaltungsbaseline erfolgt eine gesonderte Übergabe; der Agent wiederholt diese
-Aktionen nicht. Der bisherige Stand bleibt bis dahin 0.2.23.
+und genau einen Core-Neustart** gewählt. Veröffentlichung und öffentliche
+Downloadprüfung sind abgeschlossen; eine frische Erhaltungsbaseline ist vor dem
+Update erfasst. Die eigentliche Installation und ihr nachfolgender Abgleich stehen
+weiter aus; der Agent wiederholt Download und Neustart nicht. Der bisherige Stand
+bleibt bis dahin 0.2.23. Die Baseline ist keine vorweggenommene Produktivabnahme.
 
 Auch dieser rein diagnostische Pythonquellwechsel ändert den **vollständigen
 Producerhash**. Vor Dateiwechsel/Neustart den aktuellen Quellenbindungsstand frisch
@@ -108,12 +113,18 @@ mit unverändertem Store. Auch dabei Quellwechsel und Bindungen sauber abgrenzen
 Originalarchive und fortgeschriebene Checkpoints nicht aus alten Sicherungen
 überschreiben. Ein danach fehlender Diagnoseblock muss als nicht verfügbar gelten.
 
-## Aktuelle lokale Prüfung und Nachweisgrenzen
+## Aktuelle Prüfung und Nachweisgrenzen
 
 - Gesamtsuite: **3.235 bestanden, zwei optionale reale Rust-Kerneltests
   ausgelassen**, 30 nicht unterdrückte SQLite-ResourceWarnings; kombinierte
   Zeilen-/Zweigabdeckung **91,55 %** bei unverändertem 90-%-Gate. Dieser Lauf
   verwendet Python 3.14.4, **Core 2026.10.4 / Testplugin 0.13.375**, nicht Core 2026.11.
+- [Main-CI 42103043766](https://github.com/togo42/Adaptive-Solar/actions/runs/42103043766):
+  **alle Jobs erfolgreich**, **3.237 bestanden, keine Skips**, **91,55 %**
+  kombinierte Abdeckung und 29 nicht unterdrückte Warnungen; außerdem
+  **42 native Differential-/Projektionstests bestanden**. Der Unterschied zum
+  lokalen Gesamtlauf sind dessen zwei optionale Rust-Auslassungen, keine
+  ausgelassenen HA-Tests. Branch-/Tag-CI sind hier noch nicht abschließend belegt.
 - Separate Offlineprobe im erhaltenen offiziellen amd64/Musl-Image mit
   **Core 2026.11.0 / Python 3.14.10**: 36 native Modulimporte, zwei gesunde
   Bootstrapdurchläufe ohne Installer, Fit/Predict, alle 648 Fenster,
@@ -126,8 +137,8 @@ Originalarchive und fortgeschriebene Checkpoints nicht aus alten Sicherungen
 - Wheel, sdist und Integrations-ZIP enthalten dieselben **44 Komponentenoriginale**;
   36 Module wurden aus einer regulären separaten Wheelinstallation importiert.
   Ruff, `pip check` und Paket-/Pfadprüfungen bestanden. Die Dependencyauslieferung
-  bleibt unverändert. Releaseassets werden erst nach Veröffentlichung erneut
-  heruntergeladen und verifiziert.
+  bleibt unverändert. Alle vier veröffentlichten Releaseassets wurden erneut
+  heruntergeladen und **bytegleich** zu den geprüften lokalen Artefakten bestätigt.
 - Unabhängiger integrierter Subagentenreview: keine Befunde im öffentlichen
   Releaseumfang, 29 gezielte Diagnosetests bestanden. Der zusätzliche private
   Abnahmereader wurde wegen einer zu engen Legacy-Alias-Zählergrenze korrigiert;
@@ -136,20 +147,39 @@ Originalarchive und fortgeschriebene Checkpoints nicht aus alten Sicherungen
   abgewiesen**. Er ist ausdrücklich **keine gültige externe Gesamtquellabnahme**;
   der fehlgeschlagene Kontextaudit und seine Originale bleiben erhalten.
 
-Der vollständige Python-Producerhash des Kandidaten ist
+Der vollständige Python-Producerhash des veröffentlichten Releases ist
 `e665f51a3795ec6bef994a04cdf7078c9ea57d84b470fc0085f669911001b7a7`.
 Der frische schmale Archivhost-Read bestätigt unveränderte geschlossene
 Altperioden und ursprüngliche Timerzustände. Es wurden keine Policy- oder
 Timeränderungen ausgeführt; das ist ein begrenzter, nicht atomarer Readback.
 
+## Öffentliche Releaseassets
+
+Die SHA256-Werte binden die tatsächlich heruntergeladenen vier Assets des
+unveränderlichen Releases, nicht einen produktiven Installationsstand:
+
+| Asset | SHA256 |
+| --- | --- |
+| `adaptive_solar.zip` | `667aaa4a48d684c45bca82a675da6c583122f2e8f6c3bf442303525a69cf8883` |
+| `adaptive_solar_ha-0.2.24-py3-none-any.whl` | `1d0adde838a470cc14a2a3514beb828e6b93121f7a30e61bee4c89021fa06093` |
+| `adaptive_solar_ha-0.2.24.tar.gz` | `e8ba2d5d13a76a05ec0136ac0360f83a08176417e05203f0ffb74a75e12ce16c` |
+| `SHA256SUMS` | `5de62cd84528ea9a3f8a9a0ef1c6e3912ae5eeb0c550472b575a32dec8c2ed6b` |
+
 ## Noch offene Nachweise und getrennte Folgearbeiten
 
 Der [Vorbereitungsnachweis für `9c9a709`](../technik/schattenfenster-diagnose.md#7-historischer-vorbereitungsnachweis-für-9c9a709)
 ist ausschließlich historisch. Seine Testzahlen, AST-Vergleiche und lokalen
-Reviews sind **keine** aktuelle Abnahme des zusammengeführten 0.2.24-Kandidaten.
-CI, Veröffentlichung, öffentliche Assetprüfung, Installation und produktiver
-Erhaltungsreadback stehen hier noch aus. Die abschließenden Ergebnisse und
-Artefaktbindungen sind erst nach tatsächlicher Prüfung zu ergänzen.
+Reviews sind **keine** aktuelle Abnahme des zusammengeführten 0.2.24-Releases.
+Branch-/Tag-CI, Installation und produktiver Erhaltungsreadback bleiben offen;
+Main-CI, Veröffentlichung und öffentliche Assetprüfung sind oben getrennt belegt.
+Die vorbereiteten **112 Produktgates und vier Exportprüfungen** warten auf den
+Nachinstallationsabgleich. Baselineaufnahme und geschlossene Altperioden ersetzen
+diesen nicht und qualifizieren keine neuen Quellen.
+
+Diese nach Veröffentlichung aktualisierten Statusangaben ändern weder den
+unveränderlichen Tag noch seine Komponenten-/Paketbytes. Sie erweitern keinen
+früheren Review auf neue Dokumentationsbytes; der fehlgeschlagene externe
+Grok-Kontextaudit bleibt ungültig.
 
 AF-036 im getrennten **HA-Config**-Projekt bleibt ein Consumer-Folgeauftrag:
 keine Dashboardressource, Karte oder vollständige Fensteransicht wird hier

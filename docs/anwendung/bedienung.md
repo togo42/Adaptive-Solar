@@ -1,11 +1,11 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 05.11.2026, veröffentlichter Funktionsumfang 0.2.23. [Versionshinweise und Veröffentlichungsstatus](../releases/release-0.2.23.md) und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung. [Installation](installation.md),
+Stand: 05.11.2026, veröffentlichter Funktionsumfang 0.2.24, installierter Stand weiterhin 0.2.23. [Versionshinweise und Veröffentlichungsstatus](../releases/release-0.2.24.md) und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung. [Installation](installation.md),
 [Datenverträge](../technik/implementation-contract.md), [Datenschutz](datenschutz.md).
 
-Die unten ausdrücklich markierte Schattenfenster-Ergänzung ist für
-[0.2.24](../releases/release-0.2.24.md) geplant:
-**Freigabe/Veröffentlichung/Installation noch ausstehend.** Sie ist nicht im
+Die unten ausdrücklich markierte Schattenfenster-Ergänzung ist mit
+[0.2.24](../releases/release-0.2.24.md) veröffentlicht:
+**Installation und Produktivabnahme stehen noch aus.** Sie ist nicht im
 unveränderten Release 0.2.23 enthalten.
 
 ## 1. Anlagenaufteilung vorbereiten
@@ -194,7 +194,7 @@ Sonnenfenster (`azimuth_bin_deg`, `elevation_bin_deg`), den wirksamen Faktor
 freigegebener Fenster der Stufe (`filled_bins`) und den letzten (auch mehrteiligen)
 Ablehnungsgrund (`last_rejection`).
 
-**Geplante Ergänzung in 0.2.24; noch nicht veröffentlicht/installiert:**
+**Veröffentlicht ab 0.2.24; Installation und Produktivabnahme noch ausstehend:**
 `learning.<Stufe>.beam_shade_windows` ergänzt diesen unveränderten aktuellen
 Status um alle **gespeicherten** Sonnenfenster, auch nur mit Altdaten oder
 abgelaufenen Proben. Die Liste ist nach Azimut/Höhe sortiert, im `10° × 5°`-Raster
