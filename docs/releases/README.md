@@ -2,11 +2,13 @@
 
 Veröffentlicht und installiert: **[0.2.24](release-0.2.24.md)** mit ausschließlich lesender Diagnose
 aller aktuell gespeicherten Schattenfenster je Stufe.
-**Installation abgeschlossen; strenge vollständige Produktabnahme noch nicht
-verifiziert.** Native Releasebytes, geladene Einträge, Erhaltung und vollständige
-tabellenkonsistente Fensterdiagnosen sind bestätigt. Fehlende gültige frische
-Leistungsberichte im jüngsten Abgleich lassen abhängige Export-/ML-Startnachweise
-offen; sie belegen keinen fehlgeschlagenen Bootstrap.
+**Stand 06.11.2026: Installation bestätigt, aktueller Vierquellen-/Exportnachlauf
+erfolgreich; keine vollständige Gesamtabnahme.** Native Releasebytes, geladene
+Einträge, Erhaltung und vollständige tabellenkonsistente Fensterdiagnosen sind
+bestätigt. Alle vier nativen Eingangsgates und neuesten Originalexportprüfungen
+bestehen unter unveränderten Regeln. Die zwei Frischefehler vom 5. November bleiben
+historische negative Originale; der erneute Gesamtaudit mit der Vortagsbaseline ist negativ und
+eine neue fremde HA-Repair gesondert offen.
 Der unveränderliche Tag bindet `f21ad29c8341f9d784e686b4a74ab9a6a4097c93`;
 alle vier öffentlichen Assets sind bytegleich geprüft, Main-/Branch-/Tag-CI erfolgreich.
 Historische Vorbereitungsergebnisse für `9c9a709` bleiben getrennt.
@@ -32,7 +34,7 @@ siehe [Prüfnachweise](../entwicklung/pruefnachweise.md).
 
 | Version | Schwerpunkt |
 | --- | --- |
-| [0.2.24](release-0.2.24.md) | Installierter additiver lesender Schattenfenster-Snapshot; Erhaltung bestätigt, strenge vollständige Produktabnahme noch offen |
+| [0.2.24](release-0.2.24.md) | Installierter lesender Schattenfenster-Snapshot; Erhaltung und aktueller Vierquellen-/Exportnachlauf bestätigt, keine vollständige Gesamtabnahme |
 | [0.2.23](release-0.2.23.md) | HA-native ML-Paketlieferung und Marketplace-Installation |
 | [0.2.22](release-0.2.22.md) | Setuprollback, harte Snapshotcaps, belegte Replayphasen sowie Qualitäts-/Archivkorrekturen |
 | [0.2.21](release-0.2.21.md) | Kompakte Qualitätsdiagnosen, getrennte Archivintervalle, optionales Nachtprofil und begrenzte Collectorläufe |

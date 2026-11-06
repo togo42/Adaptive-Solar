@@ -1,15 +1,16 @@
 # Vollständige Diagnose gespeicherter Schattenfenster
 
-Stand: 05.11.2026, **veröffentlichter AF-036-Producer-Vertrag ab
+Stand: 06.11.2026, **veröffentlichter AF-036-Producer-Vertrag ab
 [0.2.24](../releases/release-0.2.24.md)**.
-**Installation abgeschlossen; strenge vollständige Produktabnahme noch nicht
-verifiziert.** Der getrennte native Readback bestätigt 0.2.24 auf Core 2026.11.0
+**Installation bestätigt; aktueller Vierquellen-/Exportnachlauf erfolgreich,
+keine vollständige Gesamtabnahme.** Der getrennte native Readback bestätigt 0.2.24 auf Core 2026.11.0
 mit exakten Releasekomponenten und vier geladenen Einträgen. Die vollständige
 Fenstersicht ist tabellenkonsistent und die geprüften Bestandsdaten sind erhalten.
-Im jüngsten vollständigen Abgleich fehlen jedoch gültige frische Originalberichte
-für zwei konfigurierte Leistungseingänge am Forecastcutoff. Davon abhängige
-Export-/ML-Startnachweise bleiben offen; daraus folgt kein Bootstrapfehler.
-Das Dashboard im getrennten HA-Config-Projekt ist nicht aktualisiert. Dieser Vertrag ergänzt
+Am 6. November bestehen alle vier Eingangsgates und neuesten Originalexportprüfungen
+unter unveränderten Regeln; die zwei Frischefehler vom Vortag bleiben historische
+negative Originale. Der erneute Gesamtaudit mit der Vortagsbaseline ist negativ und eine fremde
+HA-Repair gesondert offen. Dashboardressourcen und Karten im getrennten HA-Config-Projekt
+gehören nicht zu diesem Integrationsauftrag und wurden hier nicht geändert. Dieser Vertrag ergänzt
 ausschließlich eine lesende Sicht; keine Lern-, Freigabe- oder Prognoseregel
 wird geändert. Der HA-native ML-Startpfad, Runtimeanforderungen und die
 unveränderliche Dependency-Release-URL aus 0.2.23 bleiben erhalten.
@@ -182,9 +183,12 @@ Der Nutzer hat den manuellen Download und genau einen Core-Neustart bereits
 ausgeführt. Die zuvor fehlende Marketplace-Erstwarnungsbestätigung des API-Kontos
 ist keine noch ausstehende Installation; sie wurde nicht agentenseitig akzeptiert
 oder umgangen. Der Agent wiederholt weder Download noch Neustart und ändert keine
-Optionen, Quellenpolicy oder Timer. Für den nächsten Abgleich sind echte frische
-Leistungsberichte bei einem normalen Forecast erforderlich, keine erzwungene
-Quellenfrische, Gate-/Label-Lockerung oder Lern-/Archivresets. Ein neuer separater
+Optionen, Quellenpolicy oder Timer. Der lesende Nachlauf vom 6. November bestätigt
+inzwischen die vier Quellen-/Originalexportprüfungen mit unveränderter
+900-Sekunden-Frischegrenze und allen übrigen Gates, ohne erzwungene Quellenfrische,
+Gate-/Label-Lockerung oder Lern-/Archivresets. Alte Messintervalle und verbleibende
+Tagesoriginale sind exakt erhalten; reguläre Retention und Schattenfortschreibung
+sind getrennt abgeglichen. Ein neuer separater
 produktiver Runtimeimport ist mit diesem Abgleich nicht unabhängig nachgewiesen.
 
 Für einen reinen Code-Rückweg ist kein Lern-/Archivrestore vorgesehen: alte
@@ -196,10 +200,11 @@ fehlenden Diagnoseblock ausdrücklich als nicht verfügbar behandeln.
 
 ## 6. Getrennte Folgearbeiten
 
-Die Fensterkarte selbst gehört zum HA-Config-Projekt und ist hier weder
-implementiert noch installiert. AF-036 darf dort nicht allein wegen dieses
-Producer-Vertrags oder einer späteren Integrationsinstallation als produktiv
-erledigt gelten. Dashboardressourcen und Karten werden nicht mitgeliefert. Ebenso nicht
+Die Fensterkarte selbst und ihre AF-036-Consumerprüfung gehören zum HA-Config-Projekt,
+nicht zu diesem Integrationsauftrag. Hier werden keine Dashboardressourcen oder
+Karten implementiert, installiert oder geändert; ihr dortiger aktueller Stand
+wird damit nicht bewertet. Der Producer-Vertrag allein ist kein
+Consumer-Abnahmenachweis. Ebenso nicht
 enthalten ist eine positive Zeitliste angenommener ML-Zielintervalle. Diese
 kann nicht aus den bestehenden Ablehnungslisten abgeleitet werden.
 
@@ -213,8 +218,8 @@ Die folgenden Ergebnisse gelten ausschließlich für den vorbereiteten Quellstan
 `9c9a709` auf Basis `d585258`, **nicht** für den mit 0.2.23 zusammengeführten
 veröffentlichten 0.2.24-Release. Dessen frische lokale Tests, erfolgreiche Main-/Branch-/Tag-CI
 und öffentliche Assetprüfung sind in den [aktuellen Releasehinweisen](../releases/release-0.2.24.md)
-getrennt dokumentiert; Installation und begrenzte Erhaltung sind bestätigt,
-die strenge vollständige Produktabnahme bleibt offen. Frühere Zahlen werden nicht
+getrennt dokumentiert; Installation, begrenzte Erhaltung und aktueller Quellen-/
+Exportnachlauf sind bestätigt, eine vollständige Gesamtabnahme bleibt unbelegt. Frühere Zahlen werden nicht
 als aktuelle Abnahme übernommen.
 
 Die Implementierung ergänzt nur `core/shading.py` und genau einen

@@ -1,13 +1,15 @@
 # Adaptive Solar einrichten und bedienen
 
-Stand: 05.11.2026, veröffentlichter und installierter Funktionsumfang 0.2.24; strenge vollständige Produktabnahme noch nicht verifiziert. [Versionshinweise und Veröffentlichungsstatus](../releases/release-0.2.24.md) und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung. [Installation](installation.md),
+Stand: 06.11.2026, veröffentlichter und installierter Funktionsumfang 0.2.24; aktueller Quellen-/Exportnachlauf erfolgreich, keine vollständige Gesamtabnahme. [Versionshinweise und Veröffentlichungsstatus](../releases/release-0.2.24.md) und [historische Prüfstände](../entwicklung/pruefnachweise.md) ergänzen die Anleitung. [Installation](installation.md),
 [Datenverträge](../technik/implementation-contract.md), [Datenschutz](datenschutz.md).
 
 Die unten ausdrücklich markierte Schattenfenster-Ergänzung ist mit
 [0.2.24](../releases/release-0.2.24.md) veröffentlicht und installiert; die
-vollständige tabellenkonsistente Ausgabe ist bestätigt. Die vollständige
-Produktabnahme bleibt wegen fehlender gültiger frischer Leistungsberichte im
-jüngsten Abgleich offen. Das ist kein Beleg für einen ML-Bootstrapfehler.
+vollständige tabellenkonsistente Ausgabe ist bestätigt. Im lesenden Nachlauf vom
+6. November bestehen alle vier Eingangsgates und neuesten Originalexportprüfungen
+unter unveränderten Regeln. Die Frischefehler vom 5. November bleiben historische
+negative Originale, kein Beleg für einen ML-Bootstrapfehler. Der damalige
+Gesamtaudit bleibt negativ; eine fremde HA-Repair ist gesondert offen.
 Die Ergänzung ist nicht im unveränderten Release 0.2.23 enthalten.
 
 ## 1. Anlagenaufteilung vorbereiten
@@ -196,7 +198,7 @@ Sonnenfenster (`azimuth_bin_deg`, `elevation_bin_deg`), den wirksamen Faktor
 freigegebener Fenster der Stufe (`filled_bins`) und den letzten (auch mehrteiligen)
 Ablehnungsgrund (`last_rejection`).
 
-**Ab 0.2.24 veröffentlicht und installiert; vollständige Produktabnahme noch offen:**
+**Ab 0.2.24 veröffentlicht und installiert; aktueller Quellen-/Exportnachlauf erfolgreich, keine vollständige Gesamtabnahme:**
 `learning.<Stufe>.beam_shade_windows` ergänzt diesen unveränderten aktuellen
 Status um alle **gespeicherten** Sonnenfenster, auch nur mit Altdaten oder
 abgelaufenen Proben. Die Liste ist nach Azimut/Höhe sortiert, im `10° × 5°`-Raster
@@ -215,8 +217,9 @@ Ein fehlender Block bedeutet nicht verfügbar, nicht eine leere Lerntabelle;
 eine gelieferte Liste mit `total=0` bedeutet keine aktuell gespeicherten Fenster.
 Die Sicht verändert weder Lernstand noch Fit und benötigt keine Datenmigration.
 Der ML-Startpfad und seine Abhängigkeiten aus 0.2.23 bleiben unverändert.
-Der AF-036-Consumer in HA-Config bleibt offen und unverändert; eine vollständige
-Kartenansicht und die separate Liste angenommener ML-Ziele sind nicht umgesetzt.
+Dashboardressourcen und Karten in HA-Config sind nicht Teil dieses
+Integrationsauftrags und wurden hier nicht geändert. Eine separate Liste
+angenommener ML-Ziele ist nicht Bestandteil dieses Releases.
 
 Für Lernlabels gelten mindestens 92 % Messabdeckung des ursprünglichen Ziels
 und höchstens drei Minuten fehlende Zeit je Rand. Innerhalb eines Blocks mit

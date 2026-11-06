@@ -1,6 +1,6 @@
 # Adaptive Solar installieren und aktualisieren
 
-Stand: 05.11.2026; Anleitung für Version 0.2.24. Dessen [Releasehinweise](../releases/release-0.2.24.md)
+Stand: 06.11.2026; Anleitung für Version 0.2.24. Dessen [Releasehinweise](../releases/release-0.2.24.md)
 trennen Vorbereitung, Veröffentlichung und HA-Abnahme. Veröffentlichungs- und
 historische Testangaben stehen in den [Prüfnachweisen](../entwicklung/pruefnachweise.md). Die hier beschriebenen Schritte
 werden vom Betreiber auf der eigenen Installation ausgeführt. Projektprüfungen und
@@ -13,7 +13,7 @@ ein vorhandenes Release ersetzen die Prüfung der eigenen Plattform nicht.
 | Core 2026.10.2 / Python 3.14 | Native HA-Tests, Testplugin 0.13.373 |
 | Core 2026.10.3 / Python 3.14 | Native HA-Tests, Testplugin 0.13.374 |
 | Core 2026.10.4 / Python 3.14 | Native HA-Tests, Testplugin 0.13.375; dokumentierte HAOS-Installation |
-| Core 2026.11.0 / HAOS amd64 / Python 3.14.10 | 0.2.23: frische HA-native ML-Installation über öffentliche Runtime-URL, Fit/Predict, Hashablehnung und Offline-Zweitstart im offiziellen Image sowie begrenzte produktive Erhaltung abgenommen. 0.2.24: unveränderte Runtime, native Offlineprobe und Installation bestätigt; aktuelle strenge Gesamtabnahme wegen zweier ungültiger/nicht frischer Leistungseingänge offen. Keine vollständige native Core-11-Testsuite behauptet |
+| Core 2026.11.0 / HAOS amd64 / Python 3.14.10 | 0.2.23: frische HA-native ML-Installation über öffentliche Runtime-URL, Fit/Predict, Hashablehnung und Offline-Zweitstart im offiziellen Image sowie begrenzte produktive Erhaltung abgenommen. 0.2.24: unveränderte Runtime, native Offlineprobe und Installation bestätigt; Vierquellen-/Originalexportnachlauf am 6. November erfolgreich. Negativer Originalgesamtaudit und fremde HA-Repair bleiben getrennt; keine vollständige Gesamtabnahme oder native Core-11-Testsuite behauptet |
 | HAOS amd64, CPython 3.14, Musl ≥1.2 | Ab 0.2.23 automatische Lieferung des geprüften Binärpakets; externer Bau bleibt Aufgabe der Releasepflege, nicht des Betreibers |
 | Linux/glibc | Entwicklungs-/HA-Core-Testumgebungen geprüft; kein pauschaler Nachweis beliebiger Containerinstallationen |
 | ARM/aarch64, Raspberry Pi, andere Python-ABIs | Bisher nicht qualifiziert; kein passender Build-/Installationsnachweis im Projekt |
@@ -142,6 +142,12 @@ Liefertechnik aus 0.2.23 und die zusätzliche lesende Fensterdiagnose sind keine
 neue fachliche Lern- oder Quellenfreigabe. 0.2.24 ändert weder Speicherformate noch
 Lernregeln. Fehlende oder nicht frische Leistungseingänge nicht durch erzwungene
 Meldungen, Lernresets oder gelockerte Abnahmegates kaschieren.
+Der rein lesende Nachlauf vom 6. November bestätigt inzwischen alle vier nativen
+Eingangsgates und neuesten Originalexporte mit unveränderter 900-Sekunden-Grenze
+und unveränderten übrigen Gates. Die zwei negativen Originale vom 5. November
+werden dadurch nicht geheilt. Reguläre Tageswechsel, Snapshotretention und
+Schattenfortschreibung sind von Installationsverlusten zu unterscheiden;
+der erneute Gesamtaudit mit der Vortagsbaseline ist negativ und eine fremde HA-Repair offen.
 
 Vor Updates die Versionshinweise lesen, sichern und verwendete Geräte-/Sensorverweise
 notieren. Für 0.2.10 erklärt [die Releasebeschreibung](../releases/release-0.2.10.md) die

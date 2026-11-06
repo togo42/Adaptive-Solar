@@ -1,7 +1,7 @@
 # Adaptive Solar 0.2.24: veröffentlichte Schattenfenster-Diagnose
 
-Stand: 05.11.2026, **veröffentlicht und installiert; strenge vollständige
-Produktabnahme noch nicht verifiziert**.
+Stand: 06.11.2026, **veröffentlicht und installiert; aktueller
+Vierquellen-/Exportnachlauf erfolgreich, keine vollständige Gesamtabnahme**.
 Der [Release v0.2.24](https://github.com/togo42/Adaptive-Solar/releases/tag/v0.2.24)
 bindet unveränderlich Tagcommit `f21ad29c8341f9d784e686b4a74ab9a6a4097c93`.
 Er führt die AF-036-Vorbereitung `9c9a709` mit dem veröffentlichten
@@ -10,8 +10,9 @@ Er führt die AF-036-Vorbereitung `9c9a709` mit dem veröffentlichten
 44 Komponentenoriginale des Releases. Lokale Tests, Paketprüfung,
 Main-CI, Veröffentlichung, öffentliche Assetprüfung und die unten abgegrenzte
 native Probe sowie Branch-/Tag-CI sind abgeschlossen. Ein erfolgreicher Release
-ersetzt keine vollständige Produktabnahme. Deren offene Eingangsnachweise sind
-unten von der abgeschlossenen Installation und Erhaltungsprüfung getrennt.
+ersetzt keine vollständige Produktabnahme. Der erfolgreiche begrenzte Nachlauf
+vom 6. November ist unten sowohl von den negativen Originalaudits des Vortags als
+auch vom neuen negativen Gesamtaudit mit derselben eingefrorenen Baseline getrennt.
 
 ## Ausschließlich additive, lesende Diagnose
 
@@ -110,9 +111,9 @@ Originalarchive und fortgeschriebene Checkpoints nicht aus alten Sicherungen
 
 ## Aktuelle Prüfung und Nachweisgrenzen
 
-### Installation, Erhaltung und offene vollständige Abnahme
+### Historischer Installationsabgleich vom 5. November
 
-Der frische native Readback bestätigt Core 2026.11.0, Adaptive Solar 0.2.24,
+Der damalige native Readback bestätigte Core 2026.11.0, Adaptive Solar 0.2.24,
 exakte Komponentenbytes, den Python-Producerhash und die Runtimeanforderungen des
 unveränderten veröffentlichten Releases. Alle vier Einträge sind geladen. Die vor dem Wechsel
 abgeschlossenen Messintervalle, Konfigurations-/Historien-/Schattenfingerprints,
@@ -120,12 +121,13 @@ Lerntabellen, eingefrorenen Tagesstartoriginale und Comparisonoriginale sind
 erhalten, ebenso Exportgenerationen, Entity-/Unique-IDs, Geräte, Optionen und
 Energy-Einstellungen. Die neuen Schattenfensterlisten sind vollständig und
 konsistent mit den gespeicherten Tabellen. Das qualifiziert keine neuen Quellen.
-Der frische globale Healthread meldet keine Repairs und gültige Konfiguration.
+Der damalige globale Healthread meldete keine Repairs und gültige Konfiguration;
+das ist keine Aussage über spätere globale HA-Zustände.
 
-**Die strenge vollständige aktuelle Produktabnahme ist dennoch nicht verifiziert.**
-Im jüngsten vollständigen Capture sind zwei konfigurierte Leistungseingänge zum
+**Die strenge vollständige Produktabnahme war damit nicht verifiziert.**
+Im damaligen vollständigen Capture waren zwei konfigurierte Leistungseingänge zum
 tatsächlichen Forecastzeitpunkt `missing_stale_or_invalid`. Zwei Exportprüfungen
-sind positiv; zwei bestehen `configured_inputs_valid_at_original_issue` nicht. Dadurch bleiben
+waren positiv; zwei bestanden `configured_inputs_valid_at_original_issue` nicht. Dadurch blieben
 die beiden Eingangsgates und der von sämtlichen Exportprüfungen abhängige native
 ML-Bootstrapnachweis negativ. Dieses abgeleitete Gate ist **kein Beleg eines
 fehlgeschlagenen ML-Bootstraps**, eines Unloads oder Resets. Ein erneuter
@@ -138,13 +140,53 @@ der private Abnahmereader wurde korrigiert: gleiche absolute Zeitpunkte mit
 unterschiedlichen Offsets werden nach UTC kanonisiert. **140 Guardtests** bestehen;
 neue eingefrorene Auswertung und Gates stimmen überein. Die negativen Originale
 bleiben erhalten. Das ist weder eine HA-Codeänderung noch eine Gatelockerung;
-der echte Frischebefund im jüngsten Capture bleibt negativ.
+der echte Frischebefund im damaligen Capture bleibt negativ.
 
-Der nächste Schritt ist ein neuer lesender Abgleich, sobald echte gültige frische
-Leistungsberichte bei einem normalen Forecast vorliegen. Später gelesene Zustände
+Als nächster Schritt war ein neuer lesender Abgleich nach echten gültigen frischen
+Leistungsberichten bei einem normalen Forecast vorgesehen. Später gelesene Zustände
 heilen keine früheren Forecastcutoffs. Keine erzwungenen Quellenupdates, neuen
 Positivlabels, Gate-Lockerungen, Lern-/Archivresets oder weiteren Neustarts sind
 dafür vorgesehen. Der Agent hat keine Optionen, Policy oder Timer geändert.
+
+### Lesender Quellen-/Exportnachlauf vom 6. November
+
+Die vollständige Folgeaufnahme um **12:23 UTC** bestätigt **alle vier nativen
+Eingangsgates und die vier jeweils neuesten Originalexportprüfungen**. Die
+Leistungsfrischegrenze von **900 Sekunden** und sämtliche übrigen Gates bleiben
+unverändert. Auch eine separate aktuelle Quellenlesung bestätigt die beiden
+zuvor auffälligen Leistungseingänge als frisch und numerisch gültig. Das ist ein
+erfolgreicher begrenzter Restnachweis, keine rückwirkende Heilung der negativen
+Originale vom 5. November. Aus Zustandsänderungshistorie und HA-Berichtzeit allein
+folgt weder ein Nachweis durchgehender nächtlicher Quellpakete noch die Diagnose
+einer behobenen Nachtstörung oder eines dauerhaften Ausfalls.
+
+**Der neue globale Audit vom 6. November mit den am 5. November eingefrorenen
+Kriterien ist negativ: 102 von 113 Gates bestanden.** Die verbleibenden negativen Gates verlangen exakte Gleichheit mit
+der alten Baseline: `no_repairs`, `eight_day0_original_states_exact`,
+`past_today_frozen_totals_curves_provenance_exact`, `shade_table_exact`,
+`solar_dashboard_exact` und `dashboard_references_exact`. Sie werden weder umdefiniert noch
+ausgenommen. Eine neue fremde Solcast-Repair (`api_unavailable`) ist nicht
+freigestellt; die globale HA-Reparaturfrage bleibt gesondert offen. Es entsteht
+kein positives `integration-acceptance.json` und keine vollständige aktuelle
+Gesamtabnahme aus diesem Nachlauf.
+
+Ein unabhängiger Deltaabgleich bestätigt sämtliche alten gemessenen Intervalle
+exakt und die Tageswerte/-kurven samt Provenienz vom **30. Oktober bis 5. November**
+unverändert. Werte vom 29. Oktober samt Provenienz wurden regulär durch die
+unveränderte Siebentagesretention aus den aktiven Stores entfernt; ihre alten
+Captureoriginale bleiben erhalten. Die neuen Tag-0-Anzeigen des 6. November
+entsprechen exakt den gespeicherten vollständigen 24-Stunden-Kurven mit
+Ausgabezeit vor Mitternacht. Ein separater unabhängiger Archivempfang vor
+Mitternacht ist damit **nicht** nachgewiesen. Die Schattentabellen sind ohne Reset
+regulär fortgeschrieben; alle alten Proben und Freigaben sind unverändert erhalten.
+Eine fremde zusätzliche Dashboardansicht erklärt die geänderten Gesamtbezüge;
+die vier alten Ansichten sind unverändert. Fremde Arbeit wird nicht zurückgesetzt.
+
+Der Nachlauf ändert weder Quellcode, Runtime, Tag oder Assets noch HA-Optionen,
+Quellenpolicy, Timer oder Dashboards. Er qualifiziert keine neuen Quellenbindungen
+und belegt weder produktiv freigegebenes ML noch empirische Prognosegüte. Gültige
+Eingänge und Exporte aktivieren keinen kalten Residuallerner ohne die weiterhin
+erforderliche qualifizierte Historie und bestandenen Lerngates.
 
 ### Software-, CI- und Artefaktprüfung
 
@@ -186,7 +228,7 @@ dafür vorgesehen. Der Agent hat keine Optionen, Policy oder Timer geändert.
 
 Der vollständige Python-Producerhash des veröffentlichten Releases ist
 `e665f51a3795ec6bef994a04cdf7078c9ea57d84b470fc0085f669911001b7a7`.
-Der frische schmale Archivhost-Read bestätigt weiterhin geschlossene unveränderte
+Der schmale Archivhost-Read vom 5. November bestätigte weiterhin geschlossene unveränderte
 Altperioden, unveränderte Pins und ursprüngliche Timerzustände; die separate
 Beobachtungsaufnahme bleibt deaktiviert. Es wurden keine Policy- oder
 Timeränderungen ausgeführt. Das ist ein begrenzter, nicht atomarer Readback,
@@ -211,8 +253,9 @@ ist ausschließlich historisch. Seine Testzahlen, AST-Vergleiche und lokalen
 Reviews sind **keine** aktuelle Abnahme des zusammengeführten 0.2.24-Releases.
 Installation und begrenzter produktiver Erhaltungsreadback sind abgeschlossen;
 Branch-/Main-/Tag-CI, Veröffentlichung und öffentliche Assetprüfung sind oben
-getrennt belegt. Die strenge vollständige Produktabnahme bleibt wegen der
-aktuellen Eingangsgates und abhängigen Export-/ML-Startnachweise offen.
+getrennt belegt. Der begrenzte Quellen-/Exportnachlauf vom 6. November ist
+erfolgreich; der erneute Gesamtaudit mit der Vortagsbaseline ist negativ und die fremde HA-Repair
+gesondert offen. Eine vollständige Gesamtabnahme wird nicht behauptet.
 Baselineaufnahme, frühere positive Teilprüfungen und geschlossene Altperioden
 ersetzen keinen vollständigen aktuellen Abgleich und qualifizieren keine neuen Quellen.
 
@@ -221,9 +264,11 @@ unveränderlichen Tag noch seine Komponenten-/Paketbytes und sind kein neuer Bui
 Sie erweitern keinen früheren Review auf neue Dokumentationsbytes; der fehlgeschlagene externe
 Grok-Kontextaudit bleibt ungültig.
 
-AF-036 im getrennten **HA-Config**-Projekt bleibt ein Consumer-Folgeauftrag:
-keine Dashboardressource, Karte oder vollständige Fensteransicht wird hier
-aktualisiert. Die separate positive Zeitliste angenommener ML-Ziele ist nicht
+Dashboardressourcen, Karten und ihre AF-036-Consumerprüfung im getrennten
+**HA-Config**-Projekt gehören nicht zu diesem Integrationsauftrag; sie werden
+hier weder implementiert noch aktualisiert. Über den dortigen aktuellen
+Umsetzungsstand trifft dieser Release keine Aussage. Die separate positive
+Zeitliste angenommener ML-Ziele ist nicht
 enthalten und lässt sich nicht aus Ablehnungslisten rekonstruieren.
 Externe Archivhostdienste, Runtime und Quellenfreigaben sind ebenfalls keine
 automatische Folge dieses Integrationsreleases.

@@ -1,10 +1,11 @@
 # Implementierungsvertrag für Adaptive Solar
 
-Stand: 05.11.2026; veröffentlichter und installierter Funktionsstand 0.2.24, strenge vollständige Produktabnahme noch nicht verifiziert. Veröffentlichungs- und Installationsstatus stehen in den [Releasehinweisen](../releases/release-0.2.24.md). Der optionale [Originaldatenexport](../archiv/archive-storage-contract.md) erweitert den Stand 0.2.15. Die aktuelle Implementierung ergänzt [Messkontinuität](measurement-learning.md), [Bias-Shadow](early-bias-shadow.md), [Physik-/Schattenoptionen](physics-learning-options.md), [Fehlerbehandlung/Ressourcen](forecast-resilience.md) und [Vergleichsarchive](model-comparison-archive.md). Anwenderfelder und Abläufe: [Bedienung](../anwendung/bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen.
+Stand: 06.11.2026; veröffentlichter und installierter Funktionsstand 0.2.24, aktueller Quellen-/Exportnachlauf erfolgreich, keine vollständige Gesamtabnahme. Veröffentlichungs- und Installationsstatus stehen in den [Releasehinweisen](../releases/release-0.2.24.md). Der optionale [Originaldatenexport](../archiv/archive-storage-contract.md) erweitert den Stand 0.2.15. Die aktuelle Implementierung ergänzt [Messkontinuität](measurement-learning.md), [Bias-Shadow](early-bias-shadow.md), [Physik-/Schattenoptionen](physics-learning-options.md), [Fehlerbehandlung/Ressourcen](forecast-resilience.md) und [Vergleichsarchive](model-comparison-archive.md). Anwenderfelder und Abläufe: [Bedienung](../anwendung/bedienung.md). Verhaltenstests: `tests/`; Prognosegüte bleibt gesondert nachzuweisen.
 
 Die unten markierte [Schattenfenster-Diagnose](schattenfenster-diagnose.md) beschreibt
 den veröffentlichten und installierten Vertrag für [0.2.24](../releases/release-0.2.24.md):
-**Installation abgeschlossen, vollständige Produktabnahme noch offen.**
+**Installation bestätigt, begrenzter Vierquellen-/Exportnachlauf erfolgreich;
+keine vollständige Gesamtabnahme.**
 ML-Runtimeanforderungen und Dependency-Release-URL aus 0.2.23 bleiben unverändert.
 
 Die [Ablehnungsdiagnose](ablehnungsdiagnose.md) erweitert diesen
@@ -150,17 +151,22 @@ Alte Archive behalten ihre ursprüngliche Quellumgebung und exakten alten Pins.
 Main-/Branch-/Tag-CI und öffentliche Assetprüfung sind abgeschlossen. Der getrennte
 Nachinstallationsreadback bestätigt Core 2026.11.0, die exakten 0.2.24-Komponenten,
 vier geladene Einträge, erhaltene Bestandsdaten und vollständige tabellenkonsistente
-Fensterdiagnosen. Im jüngsten vollständigen Abgleich sind zwei konfigurierte
-Leistungseingänge zum Forecastzeitpunkt `missing_stale_or_invalid`; die abhängigen
-Export- und daraus abgeleiteten ML-Startnachweise bleiben deshalb offen. Das ist
-kein Beleg für einen Bootstrapfehler, einen Unload oder Historienreset. Ein neuer
-unabhängiger produktiver Runtimeimport wurde dabei nicht separat geprüft.
-Erst echte frische Originalberichte bei einem normalen Forecast erlauben einen
-neuen lesenden Abgleich; kein Quellenupdate, Positivlabel oder Gate wird erzwungen.
+Fensterdiagnosen. Am 6. November bestehen alle vier nativen Eingangsgates und die
+Prüfungen der jeweils neuesten Originalexporte unter unveränderter
+900-Sekunden-Leistungsfrischegrenze und allen übrigen unveränderten Gates.
+Die zwei `missing_stale_or_invalid`-Befunde vom 5. November bleiben historische
+negative Originale, kein Beleg für Bootstrapfehler, Unload oder Historienreset.
+Der erneute globale Audit mit der Vortagsbaseline ist negativ; eine fremde HA-Repair ist
+gesondert offen. Ein neuer unabhängiger produktiver Runtimeimport ist nicht
+separat nachgewiesen. Kein Quellenupdate, Positivlabel oder Gate wurde erzwungen.
+Der Deltaabgleich trennt exakte Erhaltung alter Messintervalle und verbleibender
+Tagesoriginale von regulärer Snapshotretention, Schattenfortschreibung und fremden
+Dashboardergänzungen; diese sind kein pauschaler Storebytegleichheitsnachweis.
 Der Vorbereitungsnachweis für `9c9a709` ist
 ausdrücklich historisch und keine aktuelle Releaseabnahme.
-AF-036 in HA-Config bleibt offen und unverändert; eine vollständige Kartenansicht
-und die separate Liste angenommener ML-Ziele sind nicht umgesetzt.
+Dashboardressourcen, Karten und AF-036-Consumerprüfung in HA-Config gehören nicht
+zu diesem Integrationsauftrag und werden hier nicht geändert. Die separate Liste
+angenommener ML-Ziele ist nicht Bestandteil dieses Releases.
 
 ### Lokale Eingaben und Nowcast
 

@@ -1,13 +1,15 @@
 # Datenschutz und Datenflüsse von Adaptive Solar
 
-Stand: 05.11.2026; beschrieben ist der veröffentlichte Funktionsstand 0.2.24, keine
+Stand: 06.11.2026; beschrieben ist der veröffentlichte Funktionsstand 0.2.24, keine
 Datenschutzbewertung aller anderen Integrationen der jeweiligen HA-Installation.
 Die ausdrücklich markierte Schattenfenster-Ergänzung beschreibt den veröffentlichten
 Vertrag für den veröffentlichten und installierten Stand
-[0.2.24](../releases/release-0.2.24.md). **Die Installation ist abgeschlossen;
-die strenge vollständige Produktabnahme ist noch nicht verifiziert.** Fehlende
-gültige frische Leistungsberichte im jüngsten Abgleich bleiben ein offener
-Eingangsnachweis, keine neue Datenfreigabe oder Änderung der Datenflüsse.
+[0.2.24](../releases/release-0.2.24.md). **Die Installation ist bestätigt;
+der aktuelle Vierquellen-/Exportnachlauf vom 6. November ist erfolgreich.**
+Die Frischefehler vom Vortag bleiben historische negative Originale. Der
+erneute Gesamtaudit mit der Vortagsbaseline ist negativ; eine fremde HA-Repair ist gesondert offen.
+Der begrenzte Nachlauf ist keine vollständige Gesamtabnahme, neue Datenfreigabe
+oder Änderung der Datenflüsse.
 
 ## 1. Externe Verbindungen
 
@@ -77,6 +79,10 @@ gespeichert. Sie folgen der vorhandenen Snapshotaufbewahrung. Die Kurve wird
 am Tag-0-Sensor angezeigt, bleibt aber wie die laufende Forecastkurve von
 Recorder-Attributen ausgeschlossen. Alte Tagessummen werden nicht nachträglich
 zu Kurven erweitert; [Kurvenvertrag](../technik/day-start-curve.md).
+Die unveränderte Siebentagesretention entfernt regulär ältere Tageswerte,
+Kurven und ihre Provenienz aus dem aktiven Store; privat gesicherte
+Captureoriginale unterliegen ihrer eigenen Aufbewahrung. Erhaltung bedeutet
+deshalb nicht unbegrenzte Bytegleichheit aller aktiven Snapshots über Tageswechsel.
 
 Die Tabelle `beam_shade_v1` speichert je Stufe und Sonnenstandsfenster bis zu
 24 zeitlich qualifizierte UTC-Viertelstunden mit echtem Mess-/Verfügbarkeitszeitpunkt
@@ -178,7 +184,7 @@ und Bias-Shadow-/Lernstatus je selbst gewählter Stufenkennung. Hinzu kommen beg
 Exportstatus-/Größen-/Fehlerangaben, nicht die rohen Exportnutzdaten. Solche Kennungen
 können persönliche Bezeichnungen enthalten; die Datei vor Weitergabe prüfen.
 
-**Ab 0.2.24 veröffentlicht und installiert; vollständige Produktabnahme noch offen:**
+**Ab 0.2.24 veröffentlicht und installiert; begrenzter Quellen-/Exportnachlauf bestätigt:**
 `learning.<Stufe>.beam_shade_windows` liefert einen lokalen, versionierten
 Diagnosesnapshot mit höchstens 648 gespeicherten Sonnenfenstern je Stufe,
 einschließlich Legacy-/abgelaufener Fenster. Er enthält Sonnenstandskoordinaten,

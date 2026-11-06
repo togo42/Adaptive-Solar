@@ -5,14 +5,31 @@ versionierten Release- und Prüfberichten übernommen. Sie beschreiben damalige
 Prüfungen; die Dokumentationsneuordnung ist weder ein neuer vollständiger
 Integrationsreview noch eine erneute Laufzeitprüfung.
 
-Ergänzung vom **05.11.2026, 0.2.24**: Veröffentlicht und nach manuellem
+Ergänzung vom **06.11.2026, 0.2.24**: Der rein lesende Nachlauf um 12:23 UTC
+bestätigt alle vier nativen Eingangsgates und die vier jeweils neuesten
+Originalexportprüfungen unter unveränderter 900-Sekunden-Frischegrenze und allen
+übrigen unveränderten Gates. Frühere Frischefehler werden nicht durch spätere
+Zustände geheilt. Der neue globale Audit mit der eingefrorenen Baseline vom 5. November ist
+**negativ (102 von 113 Gates bestanden)**; eine neue fremde HA-Repair bleibt offen.
+Der unabhängige Deltaabgleich bestätigt sämtliche alten Messintervalle exakt,
+ebenso die historischen Tageswerte/-kurven und Provenienz vom 30. Oktober bis
+5. November. Ältere Werte wurden regulär aus aktiven Stores entfernt; ihre
+Captureoriginale bleiben erhalten. Neue Tag-0-Anzeigen stimmen mit den
+gespeicherten vollständigen Kurven und Ausgabezeiten vor Mitternacht überein;
+ein unabhängiger Archivempfang vor Mitternacht ist damit nicht nachgewiesen.
+Schattenfortschreibung ohne Reset und eine fremde zusätzliche Dashboardansicht
+sind getrennt abgeglichen. Keine vollständige Gesamtabnahme, neue Quellenbindung,
+produktive Lernfreigabe oder Prognosegüte ist daraus ableitbar. Details und die
+unveränderten Releasegrenzen stehen in den [Releasehinweisen](../releases/release-0.2.24.md).
+
+Historische Ergänzung vom **05.11.2026, 0.2.24**: Veröffentlicht und nach manuellem
 Marketplaceupdate mit genau einem Core-Neustart installiert ist
 [0.2.24](../releases/release-0.2.24.md), Quelltag `f21ad29`. Branch-/Main-/Tag-CI
 sind erfolgreich; Tag-CI 3.237 Tests ohne Skips / 91,55 %. Separate native
 Core-2026.11-/Musl-Probe und unveränderte Runtime sind keine vollständige
 Core-11-Testsuite. Komponentenbytes, vollständige gespeicherte Fensterlisten
 und begrenzte Lern-/Mess-/Tagesstart-/Comparisonerhaltung sind nachgewiesen.
-Die vollständige aktuelle strenge Abnahme bleibt wegen zweier ungültiger oder
+Die vollständige strenge Abnahme blieb damals wegen zweier ungültiger oder
 nicht frischer Leistungseingänge offen; Originalbelege und negative Prüfungen
 bleiben erhalten, ohne Gates zu lockern oder Frische zu erzwingen. Der neue
 Grok-Vollreviewversuch scheiterte am Compactionaudit und zählt nicht als Abnahme.

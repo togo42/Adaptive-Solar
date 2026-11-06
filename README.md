@@ -17,18 +17,18 @@ Temperatur, Wind, horizontale Globalstrahlung und PV-Leistung unterstützen
 kurzfristige Korrekturen. Ohne qualifizierte Lernhistorie bleibt die Physik aktiv.
 Ein gemeinsamer Zähler kann keine Einzelstringverluste identifizieren.
 
-**Installierter Stand 0.2.24, Stand 05.11.2026: Installation abgeschlossen,
-strenge vollständige Produktabnahme noch nicht verifiziert.** Nach manuellem
+**Installierter Stand 0.2.24, Stand 06.11.2026: Installation bestätigt,
+aktueller Vierquellen-/Exportnachlauf erfolgreich; keine vollständige Gesamtabnahme.** Nach manuellem
 Download und genau einem Core-Neustart durch den Nutzer sind Core 2026.11.0,
-die exakten Releasekomponenten und vier geladene Einträge bestätigt. Bestehende
-Messintervalle, Lernstände, Tagesstart-/Vergleichsoriginale, Identitäten, Optionen
-und Energy-Bezüge sind erhalten; die neue Fensterdiagnose ist vollständig und
-tabellenkonsistent. Im jüngsten vollständigen Abgleich fehlen jedoch bei zwei
-konfigurierten Leistungseingängen gültige frische Originalberichte zum
-Forecastzeitpunkt. Damit bleiben die abhängigen Export-/ML-Startnachweise offen;
-das belegt keinen fehlgeschlagenen ML-Bootstrap. Erforderlich ist ein neuer
-lesender Abgleich nach echten frischen Berichten bei einem normalen Forecast,
-nicht ein erzwungenes Quellenupdate, gelockertes Gate oder Historienreset.
+die exakten Releasekomponenten und vier geladene Einträge bestätigt. Im lesenden
+Nachlauf vom 6. November bestehen alle vier nativen Eingangsgates und die vier
+neuesten Originalexportprüfungen unter unveränderten Frische-/Qualitätsregeln.
+Die zwei Frischefehler vom 5. November bleiben historische negative Originale;
+spätere Zustände heilen sie nicht. Messintervalle und verbleibende historische
+Tageswerte/-kurven samt Provenienz sind exakt erhalten; reguläre Retention und
+Schattenfortschreibung sind getrennt geprüft. Der erneute Gesamtaudit mit der
+eingefrorenen Baseline vom 5. November ist negativ; eine neue fremde HA-Repair ist gesondert offen.
+Keine Gates, Quellenbindungen oder Lernstände wurden dafür verändert.
 Tests und Reviews belegen keinen Genauigkeitsvorsprung gegenüber anderen
 Integrationen; dafür bleibt ein [prospektiver Vergleich](docs/entwicklung/validierung.md) erforderlich.
 
@@ -41,8 +41,9 @@ macht ausschließlich aktuell gespeicherte Sonnenfenster je Stufe lesbar
 (höchstens 648), ohne Änderung der Modell-/Freigabe-/Fitregeln oder Speicher-/Archivformate.
 Der HA-native ML-Liefervertrag aus 0.2.23 einschließlich unveränderlicher
 Dependency-Release-URL bleibt erhalten; es gibt kein neues Dependency-Artefakt.
-Der AF-036-Consumer in HA-Config bleibt offen und unverändert; eine vollständige
-Kartenansicht und die separate Liste angenommener ML-Ziele sind nicht umgesetzt.
+Dashboardressourcen und Karten des getrennten HA-Config-Projekts gehören nicht
+zu diesem Integrationsauftrag; hier wurden sie nicht geändert. Die separate
+Liste angenommener ML-Ziele ist nicht Bestandteil dieses Releases.
 Vor einem produktiven Quellwechsel sind Quellenbindungen frisch zu prüfen:
 bei 0.2.23 geschlossene Perioden bleiben geschlossen; nur noch offene Perioden
 müssen vor Dateiwechsel/Neustart am exakten realen UTC-Schnitt geschlossen werden.

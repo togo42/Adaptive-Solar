@@ -2,10 +2,11 @@
 
 Die [Projektübersicht](../README.md) beschreibt Zweck und Einstieg. Die aktuellen
 Installationsanleitungen beschreiben den ab **0.2.23** gültigen HA-nativen
-ML-Lieferweg und Marketplace. **0.2.24 ist veröffentlicht und installiert;
-die strenge vollständige Produktabnahme ist noch nicht verifiziert.** Die
+ML-Lieferweg und Marketplace. **Stand 06.11.2026: 0.2.24 ist veröffentlicht und
+installiert; der aktuelle Vierquellen-/Exportnachlauf ist erfolgreich, eine
+vollständige Gesamtabnahme nicht belegt.** Die
 [Releasehinweise](releases/release-0.2.24.md) trennen Paket-/CI-Nachweise,
-bestätigte Installation und Erhaltung von den noch offenen Eingangsgates.
+bestätigte Installation und aktuelle Teilnachweise vom negativen Originalgesamtaudit.
 Die Fachverträge für Physik, Lernen und Speicherformate bleiben unverändert.
 Ältere Versionen und Prüfungen bleiben historisch unter
 [Releases](releases/README.md) und [Prüfnachweise](entwicklung/pruefnachweise.md).
@@ -14,17 +15,20 @@ Installiert ist **[0.2.24](releases/release-0.2.24.md)** mit ausschließlich der
 [Schattenfenster-Diagnose](technik/schattenfenster-diagnose.md).
 Der native Readback bestätigt Core 2026.11.0, exakte Releasebytes, geladene Einträge,
 erhaltene Bestandsdaten und vollständige tabellenkonsistente Fensterdiagnosen.
-Im jüngsten vollständigen Abgleich fehlen für zwei konfigurierte Leistungseingänge
-gültige frische Originalberichte zum Forecastzeitpunkt. Die davon abhängigen
-Export-/ML-Startnachweise bleiben offen, ohne damit einen Bootstrapfehler zu belegen.
-Der nächste Abgleich benötigt echte frische Berichte bei einem normalen Forecast;
-Quellenupdates, Label-/Gate-Lockerungen und Resets sind kein Ersatz.
+Am 6. November bestehen alle vier nativen Eingangsgates und Prüfungen der jeweils
+neuesten Originalexporte unter unveränderten Gates, einschließlich 900 Sekunden
+Leistungsfrische. Die zwei Frischefehler vom 5. November bleiben historisch negativ,
+nicht durch spätere HA-Zustände geheilt. Der erneute Gesamtaudit mit der eingefrorenen
+Vortagsbaseline ist negativ; normale Retention, Schattenfortschreibung und eine fremde
+Dashboardergänzung sind separat abgeglichen. Eine neue fremde HA-Repair bleibt offen.
+Das ist weder eine Quellen-/Lernfreigabe noch ein empirischer Prognosegütenachweis.
 Die vier öffentlichen Releaseassets sind heruntergeladen und bytegleich geprüft;
 Main-, Branch- und Tag-CI sind erfolgreich.
 Die markierten Ergänzungen in Bedienung, Datenschutz und Vertrag beschreiben den
 installierten Releasevertrag, keine vollständige Produktabnahme. Der historische
-Vorbereitungsnachweis für `9c9a709` ersetzt keine aktuelle Prüfung. Der AF-036-Consumer in HA-Config
-und die separate Liste angenommener ML-Ziele bleiben Folgearbeiten.
+Vorbereitungsnachweis für `9c9a709` ersetzt keine aktuelle Prüfung. Karten und
+Dashboardressourcen in HA-Config sind nicht Teil dieses Integrationsauftrags;
+die separate Liste angenommener ML-Ziele ist nicht im Release enthalten.
 
 ## Installation und Anwendung
 
@@ -47,7 +51,7 @@ und die separate Liste angenommener ML-Ziele bleiben Folgearbeiten.
 | [Messintervalle ab 0.2.13](technik/messintervalle-92-prozent.md) | Historischer Ausgangsvertrag; spätere Ergänzungen sind gekennzeichnet |
 | [Ablehnungsdiagnose](technik/ablehnungsdiagnose.md) | Ziel-/Zeilendetails und echter Fit-Cutoff |
 | [Direktstrahl-Verschattung](technik/adaptive-solar-verschattung.md) | Ursprüngliche Spezifikation mit späteren Vertragsverweisen |
-| [Schattenfenster-Diagnose](technik/schattenfenster-diagnose.md) | Installierter 0.2.24-Vertrag: lesender Snapshot aller gespeicherten Sonnenfenster, höchstens 648 je Stufe; vollständige Produktabnahme und AF-036-Consumer bleiben offen |
+| [Schattenfenster-Diagnose](technik/schattenfenster-diagnose.md) | Installierter 0.2.24-Vertrag: lesender Snapshot aller gespeicherten Sonnenfenster, höchstens 648 je Stufe; aktueller Quellen-/Exportnachlauf erfolgreich, Gesamtabnahme und getrennte Consumerprüfung nicht daraus ableitbar |
 | [Physik-/Schatten-/Nowcastoptionen](technik/physics-learning-options.md) | Aktuelle Kandidatenparameter und zeitliche Freigaben |
 | [Früher Bias im Shadow](technik/early-bias-shadow.md) | Beobachteter Kandidat mit eigenen Gates |
 | [Trainingsabdeckung offline prüfen](technik/learning-support-guard.md) | Separater Support-Guard-Kandidat im Entwicklungsstand; keine HA-Aktivierung |
